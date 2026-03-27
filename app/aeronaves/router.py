@@ -5,7 +5,7 @@ Endpoints de gestão de aeronaves.
 
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, HTTPException, status
 
 from app.aeronaves import schemas, service
 from app.dependencies import DBSession, CurrentUser
@@ -20,11 +20,11 @@ router = APIRouter()
     description="Retorna a lista de todas as aeronaves cadastradas. (RF-15)",
 )
 async def listar_aeronaves(
-    db: DBSession = Depends(),
-    _: CurrentUser = Depends(),
+    db: DBSession,
+    _: CurrentUser,
 ) -> list[schemas.AeronaveListItem]:
-    # TODO (Dia 4): return await service.listar_aeronaves(db)
-    raise NotImplementedError
+    aeronaves = await service.listar_aeronaves(db)
+    return [schemas.AeronaveListItem.model_validate(a) for a in aeronaves]
 
 
 @router.post(
@@ -35,11 +35,17 @@ async def listar_aeronaves(
 )
 async def criar_aeronave(
     dados: schemas.AeronaveCreate,
-    db: DBSession = Depends(),
-    _: CurrentUser = Depends(),
+    db: DBSession,
+    _: CurrentUser,
 ) -> schemas.AeronaveOut:
-    # TODO (Dia 4): return await service.criar_aeronave(db, dados)
-    raise NotImplementedError
+    try:
+        aeronave = await service.criar_aeronave(db, dados)
+        return schemas.AeronaveOut.model_validate(aeronave)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )
 
 
 @router.get(
@@ -49,11 +55,16 @@ async def criar_aeronave(
 )
 async def buscar_aeronave(
     aeronave_id: uuid.UUID,
-    db: DBSession = Depends(),
-    _: CurrentUser = Depends(),
+    db: DBSession,
+    _: CurrentUser,
 ) -> schemas.AeronaveOut:
-    # TODO (Dia 4): return await service.buscar_aeronave(db, aeronave_id) or 404
-    raise NotImplementedError
+    aeronave = await service.buscar_aeronave(db, aeronave_id)
+    if not aeronave:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Aeronave não encontrada.",
+        )
+    return schemas.AeronaveOut.model_validate(aeronave)
 
 
 @router.put(
@@ -64,11 +75,17 @@ async def buscar_aeronave(
 async def atualizar_aeronave(
     aeronave_id: uuid.UUID,
     dados: schemas.AeronaveUpdate,
-    db: DBSession = Depends(),
-    _: CurrentUser = Depends(),
+    db: DBSession,
+    _: CurrentUser,
 ) -> schemas.AeronaveOut:
-    # TODO (Dia 4): return await service.atualizar_aeronave(db, aeronave_id, dados)
-    raise NotImplementedError
+    try:
+        aeronave = await service.atualizar_aeronave(db, aeronave_id, dados)
+        return schemas.AeronaveOut.model_validate(aeronave)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
 
 
 @router.delete(
@@ -78,8 +95,13 @@ async def atualizar_aeronave(
 )
 async def remover_aeronave(
     aeronave_id: uuid.UUID,
-    db: DBSession = Depends(),
-    _: CurrentUser = Depends(),
+    db: DBSession,
+    _: CurrentUser,
 ) -> None:
-    # TODO (Dia 4): await service.remover_aeronave(db, aeronave_id)
-    raise NotImplementedError
+    try:
+        await service.remover_aeronave(db, aeronave_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )

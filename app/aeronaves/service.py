@@ -5,6 +5,7 @@ Camada de serviço para gestão de aeronaves.
 
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.aeronaves.models import Aeronave
@@ -18,10 +19,8 @@ async def listar_aeronaves(db: AsyncSession) -> list[Aeronave]:
     Returns:
         Lista de objetos Aeronave ordenada por matrícula.
     """
-    # TODO (Dia 4):
-    # result = await db.execute(select(Aeronave).order_by(Aeronave.matricula))
-    # return list(result.scalars().all())
-    raise NotImplementedError
+    result = await db.execute(select(Aeronave).order_by(Aeronave.matricula))
+    return list(result.scalars().all())
 
 
 async def criar_aeronave(
@@ -41,13 +40,24 @@ async def criar_aeronave(
     Raises:
         ValueError: se matrícula ou serial_number já existirem.
     """
-    # TODO (Dia 4):
-    # Verificar unicidade de matricula e serial_number
-    # aeronave = Aeronave(**dados.model_dump())
-    # db.add(aeronave)
-    # await db.flush()
-    # return aeronave
-    raise NotImplementedError
+    # Verificar unicidade de matricula
+    result = await db.execute(
+        select(Aeronave).where(Aeronave.matricula == dados.matricula)
+    )
+    if result.scalar_one_or_none():
+        raise ValueError(f"Matrícula '{dados.matricula}' já cadastrada.")
+
+    # Verificar unicidade de serial_number
+    result = await db.execute(
+        select(Aeronave).where(Aeronave.serial_number == dados.serial_number)
+    )
+    if result.scalar_one_or_none():
+        raise ValueError(f"Serial number '{dados.serial_number}' já cadastrado.")
+
+    aeronave = Aeronave(**dados.model_dump())
+    db.add(aeronave)
+    await db.flush()
+    return aeronave
 
 
 async def buscar_aeronave(
@@ -60,8 +70,10 @@ async def buscar_aeronave(
     Returns:
         Objeto Aeronave ou None se não encontrado.
     """
-    # TODO (Dia 4): return await db.get(Aeronave, aeronave_id)
-    raise NotImplementedError
+    result = await db.execute(
+        select(Aeronave).where(Aeronave.id == aeronave_id)
+    )
+    return result.scalar_one_or_none()
 
 
 async def atualizar_aeronave(
@@ -75,14 +87,13 @@ async def atualizar_aeronave(
     Raises:
         ValueError: se a aeronave não for encontrada.
     """
-    # TODO (Dia 4):
-    # aeronave = await buscar_aeronave(db, aeronave_id)
-    # if not aeronave: raise ValueError("Aeronave não encontrada.")
-    # for campo, valor in dados.model_dump(exclude_none=True).items():
-    #     setattr(aeronave, campo, valor)
-    # await db.flush()
-    # return aeronave
-    raise NotImplementedError
+    aeronave = await buscar_aeronave(db, aeronave_id)
+    if not aeronave:
+        raise ValueError("Aeronave não encontrada.")
+    for campo, valor in dados.model_dump(exclude_none=True).items():
+        setattr(aeronave, campo, valor)
+    await db.flush()
+    return aeronave
 
 
 async def remover_aeronave(
@@ -95,9 +106,7 @@ async def remover_aeronave(
     Raises:
         ValueError: se a aeronave não for encontrada ou possuir panes abertas.
     """
-    # TODO (Dia 4):
-    # aeronave = await buscar_aeronave(db, aeronave_id)
-    # if not aeronave: raise ValueError("Aeronave não encontrada.")
-    # Verificar panes abertas antes de remover
-    # await db.delete(aeronave)
-    raise NotImplementedError
+    aeronave = await buscar_aeronave(db, aeronave_id)
+    if not aeronave:
+        raise ValueError("Aeronave não encontrada.")
+    await db.delete(aeronave)

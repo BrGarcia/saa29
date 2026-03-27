@@ -3,14 +3,29 @@ app/panes/service.py
 Camada de serviço para gestão de panes aeronáuticas.
 """
 
+import os
 import uuid
 from datetime import datetime, timezone
 
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.panes.models import Pane, Anexo, PaneResponsavel
 from app.panes.schemas import PaneCreate, PaneUpdate, FiltroPane, AdicionarResponsavel
 from app.core.enums import StatusPane
+from app.config import get_settings
+
+
+# Transições de status permitidas (SPECS §8)
+_TRANSICOES_VALIDAS = {
+    StatusPane.ABERTA: {StatusPane.EM_PESQUISA, StatusPane.RESOLVIDA},
+    StatusPane.EM_PESQUISA: {StatusPane.RESOLVIDA},
+    StatusPane.RESOLVIDA: set(),  # Pane resolvida não pode transicionar
+}
+
+# Extensões permitidas para upload
+_EXTENSOES_PERMITIDAS = {".jpg", ".jpeg", ".png", ".pdf"}
 
 
 async def criar_pane(
@@ -37,8 +52,27 @@ async def criar_pane(
     Returns:
         Objeto Pane recém-criado.
     """
-    # TODO (Dia 4)
-    raise NotImplementedError
+    # Validar existência da aeronave
+    from app.aeronaves.service import buscar_aeronave
+    aeronave = await buscar_aeronave(db, dados.aeronave_id)
+    if not aeronave:
+        raise ValueError("Aeronave não encontrada.")
+
+    # RN-05: descrição padrão se vazia
+    descricao = dados.descricao.strip() if dados.descricao else ""
+    if not descricao:
+        descricao = "AGUARDANDO EDICAO"
+
+    pane = Pane(
+        aeronave_id=dados.aeronave_id,
+        status=StatusPane.ABERTA.value,
+        sistema_subsistema=dados.sistema_subsistema,
+        descricao=descricao,
+        criado_por_id=criado_por_id,
+    )
+    db.add(pane)
+    await db.flush()
+    return pane
 
 
 async def listar_panes(db: AsyncSession, filtros: FiltroPane | None = None) -> list[Pane]:
@@ -57,8 +91,32 @@ async def listar_panes(db: AsyncSession, filtros: FiltroPane | None = None) -> l
     Returns:
         Lista de Panes filtradas.
     """
-    # TODO (Dia 4)
-    raise NotImplementedError
+    query = select(Pane).order_by(Pane.data_abertura.desc())
+
+    if filtros:
+        if filtros.status:
+            query = query.where(Pane.status == filtros.status.value)
+
+        if filtros.aeronave_id:
+            query = query.where(Pane.aeronave_id == filtros.aeronave_id)
+
+        if filtros.texto:
+            texto_like = f"%{filtros.texto}%"
+            query = query.where(
+                or_(
+                    Pane.descricao.ilike(texto_like),
+                    Pane.sistema_subsistema.ilike(texto_like),
+                )
+            )
+
+        if filtros.data_inicio:
+            query = query.where(Pane.data_abertura >= filtros.data_inicio)
+
+        if filtros.data_fim:
+            query = query.where(Pane.data_abertura <= filtros.data_fim)
+
+    result = await db.execute(query)
+    return list(result.scalars().all())
 
 
 async def buscar_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane | None:
@@ -68,8 +126,15 @@ async def buscar_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane | None:
     Returns:
         Objeto Pane com relacionamentos ou None.
     """
-    # TODO (Dia 4)
-    raise NotImplementedError
+    result = await db.execute(
+        select(Pane)
+        .where(Pane.id == pane_id)
+        .options(
+            selectinload(Pane.anexos),
+            selectinload(Pane.responsaveis),
+        )
+    )
+    return result.scalar_one_or_none()
 
 
 async def editar_pane(
@@ -90,8 +155,40 @@ async def editar_pane(
     Raises:
         ValueError: se a pane já estiver resolvida ou transição inválida.
     """
-    # TODO (Dia 4)
-    raise NotImplementedError
+    pane = await buscar_pane(db, pane_id)
+    if not pane:
+        raise ValueError("Pane não encontrada.")
+
+    status_atual = StatusPane(pane.status)
+
+    # RN-03: Pane resolvida não pode ser editada
+    if status_atual == StatusPane.RESOLVIDA:
+        raise ValueError("Pane já resolvida. Não é possível editar.")
+
+    # Atualizar campos
+    if dados.descricao is not None:
+        pane.descricao = dados.descricao
+
+    if dados.sistema_subsistema is not None:
+        pane.sistema_subsistema = dados.sistema_subsistema
+
+    # Validar transição de status
+    if dados.status is not None:
+        novo_status = dados.status
+        transicoes_permitidas = _TRANSICOES_VALIDAS.get(status_atual, set())
+        if novo_status not in transicoes_permitidas:
+            raise ValueError(
+                f"Transição inválida: {status_atual.value} → {novo_status.value}. "
+                f"Transições permitidas: {[s.value for s in transicoes_permitidas]}"
+            )
+        pane.status = novo_status.value
+
+        # Se transicionou para RESOLVIDA, preencher data_conclusao
+        if novo_status == StatusPane.RESOLVIDA:
+            pane.data_conclusao = datetime.now(timezone.utc)
+
+    await db.flush()
+    return pane
 
 
 async def concluir_pane(
@@ -112,8 +209,19 @@ async def concluir_pane(
     Raises:
         ValueError: se a pane já estiver resolvida.
     """
-    # TODO (Dia 4)
-    raise NotImplementedError
+    pane = await buscar_pane(db, pane_id)
+    if not pane:
+        raise ValueError("Pane não encontrada.")
+
+    if StatusPane(pane.status) == StatusPane.RESOLVIDA:
+        raise ValueError("Pane já está resolvida.")
+
+    pane.status = StatusPane.RESOLVIDA.value
+    pane.data_conclusao = datetime.now(timezone.utc)
+    pane.concluido_por_id = concluido_por_id
+
+    await db.flush()
+    return pane
 
 
 async def upload_anexo(
@@ -136,8 +244,55 @@ async def upload_anexo(
     Raises:
         ValueError: se tipo ou tamanho inválidos.
     """
-    # TODO (Dia 4)
-    raise NotImplementedError
+    settings = get_settings()
+    pane = await buscar_pane(db, pane_id)
+    if not pane:
+        raise ValueError("Pane não encontrada.")
+
+    # Validar extensão
+    nome_original = nome_original or "arquivo"
+    extensao = os.path.splitext(nome_original)[1].lower()
+    if extensao not in _EXTENSOES_PERMITIDAS:
+        raise ValueError(
+            f"Tipo de arquivo não permitido: '{extensao}'. "
+            f"Permitidos: {_EXTENSOES_PERMITIDAS}"
+        )
+
+    # Validar tamanho
+    max_bytes = settings.max_upload_size_mb * 1024 * 1024
+    if len(arquivo_bytes) > max_bytes:
+        raise ValueError(
+            f"Arquivo excede o tamanho máximo de {settings.max_upload_size_mb} MB."
+        )
+
+    # Determinar tipo do anexo
+    from app.core.enums import TipoAnexo
+    tipo_anexo = TipoAnexo.IMAGEM if extensao in {".jpg", ".jpeg", ".png"} else TipoAnexo.DOCUMENTO
+
+    # Gerar nome único e salvar arquivo
+    nome_unico = f"{uuid.uuid4()}{extensao}"
+    caminho = os.path.join(settings.upload_dir, nome_unico)
+    os.makedirs(settings.upload_dir, exist_ok=True)
+    with open(caminho, "wb") as f:
+        f.write(arquivo_bytes)
+
+    # Criar registro no banco
+    anexo = Anexo(
+        pane_id=pane_id,
+        caminho_arquivo=nome_unico,
+        tipo=tipo_anexo.value,
+    )
+    db.add(anexo)
+    await db.flush()
+    return anexo
+
+
+async def listar_anexos(db: AsyncSession, pane_id: uuid.UUID) -> list[Anexo]:
+    """Lista todos os anexos de uma pane."""
+    result = await db.execute(
+        select(Anexo).where(Anexo.pane_id == pane_id).order_by(Anexo.created_at)
+    )
+    return list(result.scalars().all())
 
 
 async def adicionar_responsavel(
@@ -151,5 +306,25 @@ async def adicionar_responsavel(
     Raises:
         ValueError: se usuário já for responsável por esta pane.
     """
-    # TODO (Dia 4)
-    raise NotImplementedError
+    pane = await buscar_pane(db, pane_id)
+    if not pane:
+        raise ValueError("Pane não encontrada.")
+
+    # Verificar duplicidade
+    result = await db.execute(
+        select(PaneResponsavel).where(
+            PaneResponsavel.pane_id == pane_id,
+            PaneResponsavel.usuario_id == dados.usuario_id,
+        )
+    )
+    if result.scalar_one_or_none():
+        raise ValueError("Usuário já é responsável por esta pane.")
+
+    responsavel = PaneResponsavel(
+        pane_id=pane_id,
+        usuario_id=dados.usuario_id,
+        papel=dados.papel.value,
+    )
+    db.add(responsavel)
+    await db.flush()
+    return responsavel

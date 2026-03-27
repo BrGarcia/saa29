@@ -4,9 +4,8 @@ Endpoints de gestão de panes aeronáuticas.
 """
 
 import uuid
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, UploadFile, Query, status
+from fastapi import APIRouter, HTTPException, File, UploadFile, Query, status
 
 from app.panes import schemas, service
 from app.dependencies import DBSession, CurrentUser
@@ -22,12 +21,18 @@ router = APIRouter()
 )
 async def criar_pane(
     dados: schemas.PaneCreate,
-    db: DBSession = Depends(),
-    usuario_atual: CurrentUser = Depends(),
+    db: DBSession,
+    usuario_atual: CurrentUser,
 ) -> schemas.PaneOut:
     """Abre uma nova pane vinculada a uma aeronave. Status inicial = ABERTA."""
-    # TODO (Dia 4): return await service.criar_pane(db, dados, usuario_atual.id)
-    raise NotImplementedError
+    try:
+        pane = await service.criar_pane(db, dados, usuario_atual.id)
+        return schemas.PaneOut.model_validate(pane)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
 
 
 @router.get(
@@ -36,17 +41,20 @@ async def criar_pane(
     summary="Listar panes (RF-03, RF-06)",
 )
 async def listar_panes(
+    db: DBSession,
+    _: CurrentUser,
     texto: str | None = Query(default=None, description="Filtro por texto"),
     status_pane: schemas.StatusPane | None = Query(default=None, alias="status"),
     aeronave_id: uuid.UUID | None = Query(default=None),
-    db: DBSession = Depends(),
-    _: CurrentUser = Depends(),
 ) -> list[schemas.PaneListItem]:
     """Lista panes com filtros opcionais (texto, status, aeronave, data)."""
-    # TODO (Dia 4):
-    # filtros = FiltroPane(texto=texto, status=status_pane, aeronave_id=aeronave_id)
-    # return await service.listar_panes(db, filtros)
-    raise NotImplementedError
+    filtros = schemas.FiltroPane(
+        texto=texto,
+        status=status_pane,
+        aeronave_id=aeronave_id,
+    )
+    panes = await service.listar_panes(db, filtros)
+    return [schemas.PaneListItem.model_validate(p) for p in panes]
 
 
 @router.get(
@@ -56,12 +64,17 @@ async def listar_panes(
 )
 async def buscar_pane(
     pane_id: uuid.UUID,
-    db: DBSession = Depends(),
-    _: CurrentUser = Depends(),
+    db: DBSession,
+    _: CurrentUser,
 ) -> schemas.PaneOut:
     """Retorna dados completos da pane com anexos e responsáveis."""
-    # TODO (Dia 4): return await service.buscar_pane(db, pane_id) or 404
-    raise NotImplementedError
+    pane = await service.buscar_pane(db, pane_id)
+    if not pane:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pane não encontrada.",
+        )
+    return schemas.PaneOut.model_validate(pane)
 
 
 @router.put(
@@ -72,12 +85,22 @@ async def buscar_pane(
 async def editar_pane(
     pane_id: uuid.UUID,
     dados: schemas.PaneUpdate,
-    db: DBSession = Depends(),
-    _: CurrentUser = Depends(),
+    db: DBSession,
+    _: CurrentUser,
 ) -> schemas.PaneOut:
     """Edita descrição e/ou status. RN-03: apenas panes não resolvidas."""
-    # TODO (Dia 4): return await service.editar_pane(db, pane_id, dados)
-    raise NotImplementedError
+    try:
+        pane = await service.editar_pane(db, pane_id, dados)
+        return schemas.PaneOut.model_validate(pane)
+    except ValueError as e:
+        detail_str = str(e)
+        if "não encontrada" in detail_str:
+            status_code = status.HTTP_404_NOT_FOUND
+        elif "resolvida" in detail_str or "Transição" in detail_str:
+            status_code = status.HTTP_409_CONFLICT
+        else:
+            status_code = status.HTTP_400_BAD_REQUEST
+        raise HTTPException(status_code=status_code, detail=detail_str)
 
 
 @router.post(
@@ -88,12 +111,22 @@ async def editar_pane(
 async def concluir_pane(
     pane_id: uuid.UUID,
     dados: schemas.PaneConcluir,
-    db: DBSession = Depends(),
-    usuario_atual: CurrentUser = Depends(),
+    db: DBSession,
+    usuario_atual: CurrentUser,
 ) -> schemas.PaneOut:
     """Conclui a pane. Preenche data_conclusao automaticamente (RN-04)."""
-    # TODO (Dia 4): return await service.concluir_pane(db, pane_id, usuario_atual.id)
-    raise NotImplementedError
+    try:
+        pane = await service.concluir_pane(db, pane_id, usuario_atual.id)
+        return schemas.PaneOut.model_validate(pane)
+    except ValueError as e:
+        detail_str = str(e)
+        if "não encontrada" in detail_str:
+            status_code = status.HTTP_404_NOT_FOUND
+        elif "resolvida" in detail_str:
+            status_code = status.HTTP_409_CONFLICT
+        else:
+            status_code = status.HTTP_400_BAD_REQUEST
+        raise HTTPException(status_code=status_code, detail=detail_str)
 
 
 @router.post(
@@ -104,15 +137,22 @@ async def concluir_pane(
 )
 async def upload_anexo(
     pane_id: uuid.UUID,
-    arquivo: Annotated[UploadFile, File(description="Imagem (jpg/png) ou documento")],
-    db: DBSession = Depends(),
-    _: CurrentUser = Depends(),
+    arquivo: UploadFile = File(description="Imagem (jpg/png) ou documento"),
+    db: DBSession = ...,
+    _: CurrentUser = ...,
 ) -> schemas.AnexoOut:
     """Faz upload de imagem ou documento vinculado à pane."""
-    # TODO (Dia 4):
-    # conteudo = await arquivo.read()
-    # return await service.upload_anexo(db, pane_id, conteudo, arquivo.filename, arquivo.content_type)
-    raise NotImplementedError
+    conteudo = await arquivo.read()
+    try:
+        anexo = await service.upload_anexo(
+            db, pane_id, conteudo, arquivo.filename, arquivo.content_type
+        )
+        return schemas.AnexoOut.model_validate(anexo)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        )
 
 
 @router.get(
@@ -122,11 +162,11 @@ async def upload_anexo(
 )
 async def listar_anexos(
     pane_id: uuid.UUID,
-    db: DBSession = Depends(),
-    _: CurrentUser = Depends(),
+    db: DBSession,
+    _: CurrentUser,
 ) -> list[schemas.AnexoOut]:
-    # TODO (Dia 4)
-    raise NotImplementedError
+    anexos = await service.listar_anexos(db, pane_id)
+    return [schemas.AnexoOut.model_validate(a) for a in anexos]
 
 
 @router.post(
@@ -138,8 +178,14 @@ async def listar_anexos(
 async def adicionar_responsavel(
     pane_id: uuid.UUID,
     dados: schemas.AdicionarResponsavel,
-    db: DBSession = Depends(),
-    _: CurrentUser = Depends(),
+    db: DBSession,
+    _: CurrentUser,
 ) -> schemas.ResponsavelOut:
-    # TODO (Dia 4)
-    raise NotImplementedError
+    try:
+        resp = await service.adicionar_responsavel(db, pane_id, dados)
+        return schemas.ResponsavelOut.model_validate(resp)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )

@@ -3,6 +3,7 @@ app/main.py
 Factory da aplicação FastAPI para o SAA29.
 """
 
+import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -29,10 +30,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     - startup: inicializar conexões, criar diretório de uploads
     - shutdown: fechar conexões graciosamente
     """
-    # TODO (Dia 4): criar diretório de uploads se não existir
-    # TODO (Dia 4): verificar conectividade com o banco
+    # Startup: criar diretório de uploads se não existir
+    os.makedirs(settings.upload_dir, exist_ok=True)
+
     yield
-    # TODO (Dia 4): fechar engine de banco de dados
+
+    # Shutdown: fechar engine de banco de dados
+    from app.database import _engine
+    if _engine is not None:
+        await _engine.dispose()
 
 
 def create_app() -> FastAPI:
@@ -86,8 +92,9 @@ def _mount_static(app: FastAPI) -> None:
     Monta o diretório de uploads como arquivos estáticos.
     Acessível em /uploads/<nome_do_arquivo>.
     """
-    # TODO (Dia 4): garantir que o diretório exista antes de montar
-    pass
+    upload_dir = settings.upload_dir
+    if os.path.isdir(upload_dir):
+        app.mount("/uploads", StaticFiles(directory=upload_dir), name="uploads")
 
 
 # Instância da aplicação (usada pelo uvicorn: app.main:app)

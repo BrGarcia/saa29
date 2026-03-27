@@ -26,8 +26,7 @@ def hash_senha(senha_plana: str) -> str:
     Returns:
         Hash bcrypt da senha para armazenamento seguro no banco.
     """
-    # TODO (Dia 4): return _pwd_context.hash(senha_plana)
-    raise NotImplementedError
+    return _pwd_context.hash(senha_plana)
 
 
 def verificar_senha(senha_plana: str, senha_hash: str) -> bool:
@@ -41,8 +40,7 @@ def verificar_senha(senha_plana: str, senha_hash: str) -> bool:
     Returns:
         True se a senha for válida, False caso contrário.
     """
-    # TODO (Dia 4): return _pwd_context.verify(senha_plana, senha_hash)
-    raise NotImplementedError
+    return _pwd_context.verify(senha_plana, senha_hash)
 
 
 def criar_token(dados: dict) -> str:
@@ -58,12 +56,10 @@ def criar_token(dados: dict) -> str:
     Returns:
         Token JWT assinado como string.
     """
-    # TODO (Dia 4):
-    # payload = dados.copy()
-    # expira = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes)
-    # payload.update({"exp": expira, "iat": datetime.now(timezone.utc)})
-    # return jwt.encode(payload, settings.app_secret_key, algorithm=settings.jwt_algorithm)
-    raise NotImplementedError
+    payload = dados.copy()
+    expira = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes)
+    payload.update({"exp": expira, "iat": datetime.now(timezone.utc)})
+    return jwt.encode(payload, settings.app_secret_key, algorithm=settings.jwt_algorithm)
 
 
 def decodificar_token(token: str) -> dict:
@@ -79,6 +75,4 @@ def decodificar_token(token: str) -> dict:
     Raises:
         JWTError: se o token for inválido, expirado ou adulterado.
     """
-    # TODO (Dia 4):
-    # return jwt.decode(token, settings.app_secret_key, algorithms=[settings.jwt_algorithm])
-    raise NotImplementedError
+    return jwt.decode(token, settings.app_secret_key, algorithms=[settings.jwt_algorithm])

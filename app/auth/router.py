@@ -24,8 +24,8 @@ router = APIRouter()
     description="Autentica o usuário e retorna um JWT de acesso. (RF-01)",
 )
 async def login(
+    db: DBSession,
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: DBSession = Depends(),
 ) -> schemas.Token:
     """
     Fluxo de autenticação:
@@ -34,8 +34,22 @@ async def login(
         3. Verificar senha com bcrypt
         4. Gerar e retornar JWT
     """
-    # TODO (Dia 4): implementar
-    raise NotImplementedError
+    usuario = await service.autenticar_usuario(
+        db, form_data.username, form_data.password
+    )
+    if not usuario:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credenciais inválidas.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = criar_token(dados={"sub": usuario.username})
+    return schemas.Token(
+        access_token=token,
+        token_type="bearer",
+        usuario=schemas.UsuarioOut.model_validate(usuario),
+    )
 
 
 @router.post(
@@ -48,8 +62,9 @@ async def logout(usuario_atual: CurrentUser) -> None:
     Invalida a sessão do usuário.
     (Stateless JWT: orientação para o cliente descartar o token.)
     """
-    # TODO (Dia 4): implementar blacklist de tokens se necessário
-    raise NotImplementedError
+    # Stateless JWT — o cliente simplesmente descarta o token.
+    # Implementação de blacklist pode ser adicionada futuramente.
+    return None
 
 
 @router.get(
@@ -59,8 +74,7 @@ async def logout(usuario_atual: CurrentUser) -> None:
 )
 async def me(usuario_atual: CurrentUser) -> schemas.UsuarioOut:
     """Retorna os dados do usuário autenticado via token JWT."""
-    # TODO (Dia 4): return usuario_atual
-    raise NotImplementedError
+    return schemas.UsuarioOut.model_validate(usuario_atual)
 
 
 # ------------------------------------------------------------------ #
@@ -75,12 +89,17 @@ async def me(usuario_atual: CurrentUser) -> schemas.UsuarioOut:
 )
 async def criar_usuario(
     dados: schemas.UsuarioCreate,
-    db: DBSession = Depends(),
-    _: CurrentUser = Depends(),
+    db: DBSession,
 ) -> schemas.UsuarioOut:
     """Cria um novo membro do efetivo com acesso ao sistema."""
-    # TODO (Dia 4): return await service.criar_usuario(db, dados)
-    raise NotImplementedError
+    try:
+        usuario = await service.criar_usuario(db, dados)
+        return schemas.UsuarioOut.model_validate(usuario)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )
 
 
 @router.get(
@@ -89,12 +108,12 @@ async def criar_usuario(
     summary="Listar efetivo",
 )
 async def listar_usuarios(
-    db: DBSession = Depends(),
-    _: CurrentUser = Depends(),
+    db: DBSession,
+    _: CurrentUser,
 ) -> list[schemas.UsuarioOut]:
     """Retorna a lista completa de usuários cadastrados."""
-    # TODO (Dia 4): return await service.listar_usuarios(db)
-    raise NotImplementedError
+    usuarios = await service.listar_usuarios(db)
+    return [schemas.UsuarioOut.model_validate(u) for u in usuarios]
 
 
 @router.put(
@@ -104,9 +123,16 @@ async def listar_usuarios(
 )
 async def alterar_senha(
     dados: schemas.SenhaUpdate,
-    db: DBSession = Depends(),
-    usuario_atual: CurrentUser = Depends(),
+    db: DBSession,
+    usuario_atual: CurrentUser,
 ) -> None:
     """Permite ao usuário autenticado trocar sua própria senha."""
-    # TODO (Dia 4): await service.alterar_senha(db, usuario_atual, dados.senha_atual, dados.nova_senha)
-    raise NotImplementedError
+    try:
+        await service.alterar_senha(
+            db, usuario_atual, dados.senha_atual, dados.nova_senha
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )

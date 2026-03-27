@@ -1,11 +1,12 @@
 """
 tests/conftest.py
-Fixtures compartilhadas entre todos os testes do SAA29.
+Fixtures compartilhadas para toda a suite de testes do SAA29.
 
 Estratégia (Método Akita – Dia 3):
-    - Banco de dados em memória (SQLite) para isolamento
+    - Banco SQLite in-memory para isolamento
     - TestClient assíncrono via httpx
     - Rollback automático após cada teste
+    - Fixtures de dados e autenticação reutilizáveis
 """
 
 import pytest
@@ -15,7 +16,9 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 
 from app.main import app
 from app.database import Base
-from app.dependencies import get_db
+from app.dependencies import get_db, get_current_user
+from app.auth.models import Usuario
+from app.auth.security import hash_senha, criar_token
 
 # --- Engine de testes (SQLite in-memory) ---
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -37,10 +40,7 @@ TestSessionLocal = async_sessionmaker(
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def criar_tabelas():
-    """
-    Cria todas as tabelas no banco de testes antes da sessão de testes.
-    Remove após o fim da sessão.
-    """
+    """Cria todas as tabelas antes da sessão e derruba ao final."""
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
@@ -50,10 +50,7 @@ async def criar_tabelas():
 
 @pytest_asyncio.fixture
 async def db() -> AsyncSession:
-    """
-    Fornece uma sessão de banco isolada para cada teste.
-    Faz rollback automático após o teste para evitar contaminação de dados.
-    """
+    """Sessão de banco com rollback automático após cada teste."""
     async with TestSessionLocal() as session:
         yield session
         await session.rollback()
@@ -61,10 +58,7 @@ async def db() -> AsyncSession:
 
 @pytest_asyncio.fixture
 async def client(db: AsyncSession) -> AsyncClient:
-    """
-    TestClient assíncrono com a dependência get_db sobrescrita
-    para usar o banco de testes.
-    """
+    """AsyncClient com substituição de get_db pelo banco de testes."""
     async def override_get_db():
         yield db
 
@@ -79,11 +73,12 @@ async def client(db: AsyncSession) -> AsyncClient:
     app.dependency_overrides.clear()
 
 
-# --- Fixtures de dados mockados ---
+# ------------------------------------------------------------------ #
+#  Fixtures de dados mockados
+# ------------------------------------------------------------------ #
 
 @pytest.fixture
 def dados_usuario_valido() -> dict:
-    """Dados válidos para criação de um usuário de teste."""
     return {
         "nome": "Ten João Silva",
         "posto": "Ten",
@@ -96,8 +91,21 @@ def dados_usuario_valido() -> dict:
 
 
 @pytest.fixture
+def dados_usuario_secundario() -> dict:
+    """Segundo usuário para testes de duplicidade."""
+    return {
+        "nome": "Cap Maria Santos",
+        "posto": "Cap",
+        "especialidade": "ELT",
+        "funcao": "ENCARREGADO",
+        "ramal": "2502",
+        "username": "maria.santos",
+        "password": "outra_senha_456",
+    }
+
+
+@pytest.fixture
 def dados_aeronave_valida() -> dict:
-    """Dados válidos para criação de uma aeronave de teste."""
     return {
         "serial_number": "SN-0001",
         "matricula": "5900",
@@ -107,20 +115,123 @@ def dados_aeronave_valida() -> dict:
 
 
 @pytest.fixture
-def dados_pane_valida(dados_aeronave_valida: dict) -> dict:
-    """Dados válidos para criação de uma pane de teste."""
+def dados_aeronave_secundaria() -> dict:
     return {
-        "sistema_subsistema": "COMUNICAÇÃO / VUHF",
-        "descricao": "Rádio não transmite na frequência 120.500 MHz",
+        "serial_number": "SN-0002",
+        "matricula": "5901",
+        "modelo": "A-29",
+        "status": "OPERACIONAL",
     }
 
 
 @pytest.fixture
 def dados_equipamento_valido() -> dict:
-    """Dados válidos para criação de um equipamento de teste."""
     return {
         "part_number": "AN/ARC-182",
         "nome": "VUHF2",
         "sistema": "COM",
         "descricao": "Rádio VHF/UHF principal",
     }
+
+
+@pytest.fixture
+def dados_tipo_controle_valido() -> dict:
+    return {
+        "nome": "TBV",
+        "descricao": "Teste de Bancada de Verificação",
+        "periodicidade_meses": 12,
+    }
+
+
+# ------------------------------------------------------------------ #
+#  Fixture de usuário autenticado (helper reutilizável)
+# ------------------------------------------------------------------ #
+
+@pytest_asyncio.fixture
+async def usuario_no_banco(db: AsyncSession, dados_usuario_valido: dict) -> Usuario:
+    """
+    Cria um usuário diretamente no banco (bypass de API).
+    Retorna o objeto Usuario ORM.
+    """
+    usuario = Usuario(
+        nome=dados_usuario_valido["nome"],
+        posto=dados_usuario_valido["posto"],
+        especialidade=dados_usuario_valido["especialidade"],
+        funcao=dados_usuario_valido["funcao"],
+        ramal=dados_usuario_valido["ramal"],
+        username=dados_usuario_valido["username"],
+        senha_hash=hash_senha(dados_usuario_valido["password"]),
+    )
+    db.add(usuario)
+    await db.flush()
+    return usuario
+
+
+@pytest_asyncio.fixture
+async def usuario_e_token(
+    client: AsyncClient,
+    db: AsyncSession,
+    dados_usuario_valido: dict,
+) -> dict:
+    """
+    Cria um usuário no banco e gera um token JWT válido.
+    Retorna {usuario, token, headers} para uso nos testes.
+    """
+    # Criar usuário direto no banco
+    usuario = Usuario(
+        nome=dados_usuario_valido["nome"],
+        posto=dados_usuario_valido["posto"],
+        especialidade=dados_usuario_valido["especialidade"],
+        funcao=dados_usuario_valido["funcao"],
+        ramal=dados_usuario_valido["ramal"],
+        username=dados_usuario_valido["username"],
+        senha_hash=hash_senha(dados_usuario_valido["password"]),
+    )
+    db.add(usuario)
+    await db.flush()
+
+    # Gerar token JWT
+    token = criar_token(dados={"sub": usuario.username})
+
+    return {
+        "usuario": usuario,
+        "token": token,
+        "headers": {"Authorization": f"Bearer {token}"},
+    }
+
+
+@pytest_asyncio.fixture
+async def client_autenticado(
+    client: AsyncClient,
+    db: AsyncSession,
+    dados_usuario_valido: dict,
+) -> AsyncClient:
+    """
+    Retorna um AsyncClient com get_current_user sobrescrito
+    para retornar um usuário fixo sem precisar de token.
+    Útil para testes de módulos que não são de autenticação.
+    """
+    # Criar usuário direto no banco
+    usuario = Usuario(
+        nome=dados_usuario_valido["nome"],
+        posto=dados_usuario_valido["posto"],
+        especialidade=dados_usuario_valido["especialidade"],
+        funcao=dados_usuario_valido["funcao"],
+        ramal=dados_usuario_valido["ramal"],
+        username=dados_usuario_valido["username"],
+        senha_hash=hash_senha(dados_usuario_valido["password"]),
+    )
+    db.add(usuario)
+    await db.flush()
+
+    # Sobrescrever get_current_user para retornar este usuário direto
+    async def override_get_current_user():
+        return usuario
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
+    yield client
+
+    # Limpar apenas get_current_user, mantendo get_db
+    if get_current_user in app.dependency_overrides:
+        del app.dependency_overrides[get_current_user]

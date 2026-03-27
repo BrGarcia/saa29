@@ -5,10 +5,12 @@ Camada de serviço (regras de negócio) para autenticação e usuários.
 
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import Usuario
 from app.auth.schemas import UsuarioCreate, UsuarioUpdate
+from app.auth.security import hash_senha, verificar_senha
 
 
 async def autenticar_usuario(
@@ -27,14 +29,12 @@ async def autenticar_usuario(
     Returns:
         Objeto Usuario se as credenciais forem válidas, None caso contrário.
     """
-    # TODO (Dia 4):
-    # usuario = await buscar_por_username(db, username)
-    # if not usuario:
-    #     return None
-    # if not verificar_senha(senha, usuario.senha_hash):
-    #     return None
-    # return usuario
-    raise NotImplementedError
+    usuario = await buscar_por_username(db, username)
+    if not usuario:
+        return None
+    if not verificar_senha(senha, usuario.senha_hash):
+        return None
+    return usuario
 
 
 async def criar_usuario(
@@ -56,19 +56,21 @@ async def criar_usuario(
     Raises:
         ValueError: se o username já estiver em uso.
     """
-    # TODO (Dia 4):
-    # existente = await buscar_por_username(db, dados.username)
-    # if existente:
-    #     raise ValueError(f"Username '{dados.username}' já está em uso.")
-    # usuario = Usuario(
-    #     nome=dados.nome, posto=dados.posto, especialidade=dados.especialidade,
-    #     funcao=dados.funcao, ramal=dados.ramal, username=dados.username,
-    #     senha_hash=hash_senha(dados.password),
-    # )
-    # db.add(usuario)
-    # await db.flush()
-    # return usuario
-    raise NotImplementedError
+    existente = await buscar_por_username(db, dados.username)
+    if existente:
+        raise ValueError(f"Username '{dados.username}' já está em uso.")
+    usuario = Usuario(
+        nome=dados.nome,
+        posto=dados.posto,
+        especialidade=dados.especialidade,
+        funcao=dados.funcao,
+        ramal=dados.ramal,
+        username=dados.username,
+        senha_hash=hash_senha(dados.password),
+    )
+    db.add(usuario)
+    await db.flush()
+    return usuario
 
 
 async def buscar_por_username(
@@ -85,10 +87,8 @@ async def buscar_por_username(
     Returns:
         Objeto Usuario ou None se não encontrado.
     """
-    # TODO (Dia 4):
-    # result = await db.execute(select(Usuario).where(Usuario.username == username))
-    # return result.scalar_one_or_none()
-    raise NotImplementedError
+    result = await db.execute(select(Usuario).where(Usuario.username == username))
+    return result.scalar_one_or_none()
 
 
 async def buscar_por_id(
@@ -105,9 +105,8 @@ async def buscar_por_id(
     Returns:
         Objeto Usuario ou None se não encontrado.
     """
-    # TODO (Dia 4):
-    # return await db.get(Usuario, usuario_id)
-    raise NotImplementedError
+    result = await db.execute(select(Usuario).where(Usuario.id == usuario_id))
+    return result.scalar_one_or_none()
 
 
 async def listar_usuarios(db: AsyncSession) -> list[Usuario]:
@@ -120,10 +119,8 @@ async def listar_usuarios(db: AsyncSession) -> list[Usuario]:
     Returns:
         Lista de objetos Usuario.
     """
-    # TODO (Dia 4):
-    # result = await db.execute(select(Usuario).order_by(Usuario.nome))
-    # return list(result.scalars().all())
-    raise NotImplementedError
+    result = await db.execute(select(Usuario).order_by(Usuario.nome))
+    return list(result.scalars().all())
 
 
 async def atualizar_usuario(
@@ -145,15 +142,13 @@ async def atualizar_usuario(
     Raises:
         ValueError: se o usuário não for encontrado.
     """
-    # TODO (Dia 4):
-    # usuario = await buscar_por_id(db, usuario_id)
-    # if not usuario:
-    #     raise ValueError("Usuário não encontrado.")
-    # for campo, valor in dados.model_dump(exclude_none=True).items():
-    #     setattr(usuario, campo, valor)
-    # await db.flush()
-    # return usuario
-    raise NotImplementedError
+    usuario = await buscar_por_id(db, usuario_id)
+    if not usuario:
+        raise ValueError("Usuário não encontrado.")
+    for campo, valor in dados.model_dump(exclude_none=True).items():
+        setattr(usuario, campo, valor)
+    await db.flush()
+    return usuario
 
 
 async def alterar_senha(
@@ -174,9 +169,7 @@ async def alterar_senha(
     Raises:
         ValueError: se a senha atual for incorreta.
     """
-    # TODO (Dia 4):
-    # if not verificar_senha(senha_atual, usuario.senha_hash):
-    #     raise ValueError("Senha atual incorreta.")
-    # usuario.senha_hash = hash_senha(nova_senha)
-    # await db.flush()
-    raise NotImplementedError
+    if not verificar_senha(senha_atual, usuario.senha_hash):
+        raise ValueError("Senha atual incorreta.")
+    usuario.senha_hash = hash_senha(nova_senha)
+    await db.flush()
