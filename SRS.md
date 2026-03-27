@@ -26,15 +26,16 @@ O sistema será inicialmente um MVP leve, web-based e responsivo.
 O sistema será uma aplicação web acessível via navegador.
 
 ### 2.2 Usuários do Sistema
-- Administrador
-- Militar/Mantenedor
+- Inspetor
+- Encarregado
+- Mantenedor
 
 ---
 
 ## 3. Requisitos Funcionais
 
 ### 3.1 Autenticação
-- RF-01: Tela de login com usuário e senha
+- RF-01: Tela de login (gatekeeper) com usuário e senha
 - RF-02: Acesso somente após autenticação válida
 
 ### 3.2 Dashboard
@@ -66,7 +67,7 @@ O sistema será uma aplicação web acessível via navegador.
 ## 4. Requisitos Não Funcionais
 
 - Desempenho: resposta < 2s
-- Usabilidade: interface simples
+- Usabilidade: interface leve e simples
 - Segurança: autenticação e criptografia
 - Escalabilidade: banco relacional
 - Disponibilidade: acesso web
