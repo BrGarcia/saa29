@@ -1,108 +1,133 @@
 # SAA29 – Sistema de Gestão de Panes – Eletrônica A-29
 
-Sistema web para **registro e acompanhamento de panes** de manutenção aeronáutica, desenvolvido para o A-29 Super Tucano.
+[![Python](https://img.shields.io/badge/Python-3.12-blue)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green)](https://fastapi.tiangolo.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue)](https://postgresql.org)
+[![License](https://img.shields.io/badge/Uso-Interno%20FAB-yellow)]()
+
+Sistema web para **registro e acompanhamento de panes de manutenção aeronáutica** do A-29 Super Tucano. Desenvolvido seguindo o **Método Akita** e práticas de Clean Code e TDD.
+
+---
+
+## Início Rápido
+
+```bash
+git clone https://github.com/BrGarcia/saa29.git
+cd saa29
+python -m venv .venv && .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env          # Editar com suas credenciais
+docker-compose up -d db       # Sobe PostgreSQL
+alembic upgrade head          # Aplica migrações
+uvicorn app.main:app --reload # Inicia servidor
+```
+
+📖 **API Docs:** `http://localhost:8000/docs`
 
 ---
 
 ## Stack
 
-| Componente | Tecnologia |
-|-----------|-----------|
-| Backend | FastAPI 0.115 + Python 3.12 |
+| Camada | Tecnologia |
+|--------|-----------|
+| Framework Web | FastAPI 0.115 |
 | ORM | SQLAlchemy 2.x (async) |
-| Banco | PostgreSQL 16 |
+| Banco de Dados | PostgreSQL 16 |
 | Migrações | Alembic |
 | Validação | Pydantic v2 |
-| Auth | JWT (python-jose) + bcrypt |
+| Autenticação | JWT (python-jose) + bcrypt |
 | Testes | Pytest + httpx (async) |
 | Container | Docker + Docker Compose |
 
 ---
 
-## Estrutura de Pastas
+## Funcionalidades (MVP)
+
+| RF | Funcionalidade | Status |
+|----|---------------|--------|
+| RF-01/02 | Autenticação JWT | 🏗️ Estruturado |
+| RF-03/04/05 | Dashboard de panes com cards e cores | 🏗️ Estruturado |
+| RF-06 | Filtros (texto, status, aeronave, data) | 🏗️ Estruturado |
+| RF-07/08 | Registro de nova pane (fluxo guiado) | 🏗️ Estruturado |
+| RF-09 | Visualização detalhada da pane | 🏗️ Estruturado |
+| RF-10/11/12 | Editar, anexar imagem, concluir pane | 🏗️ Estruturado |
+| RF-14/15/16 | Cadastros: efetivo, aeronaves, equipamentos | 🏗️ Estruturado |
+
+---
+
+## Estrutura do Projeto
 
 ```
 SAA29/
 ├── app/
-│   ├── core/           # Enums e shared
-│   ├── auth/           # Autenticação e usuários
-│   ├── aeronaves/      # Gestão de aeronaves
-│   ├── equipamentos/   # Equipamentos, itens e vencimentos
-│   └── panes/          # Panes, anexos e responsáveis
-├── migrations/         # Alembic (env.py, versions/)
-├── tests/              # Pytest (conftest, test_*.py)
-├── .env.example        # Template de variáveis de ambiente
-├── docker-compose.yml  # PostgreSQL + API
-├── Dockerfile          # Imagem da API
-├── requirements.txt    # Dependências
-└── alembic.ini         # Configuração do Alembic
+│   ├── core/           → Enums compartilhados
+│   ├── auth/           → Autenticação e efetivo
+│   ├── aeronaves/      → Gestão de aeronaves
+│   ├── equipamentos/   → Equipamentos, itens e vencimentos
+│   └── panes/          → Panes, anexos e responsáveis
+├── docs/
+│   ├── architecture/   → Visão geral e ADRs
+│   ├── agile/          → Definition of Done e Ready
+│   ├── development/    → Guias técnicos
+│   └── api/            → Referência da API
+├── migrations/         → Alembic (env.py, versions/)
+└── tests/              → Pytest (conftest + test_*.py)
 ```
 
 ---
 
-## Pré-requisitos
+## Documentação
 
-- Python 3.12+
-- PostgreSQL 16 (ou Docker)
-- pip
+### 📐 Requisitos e Especificações
+| Documento | Descrição |
+|-----------|-----------|
+| [`00_SRS.md`](./00_SRS.md) | Software Requirements Specification |
+| [`01_SPECS.md`](./01_SPECS.md) | Especificação de Algoritmos e Fluxos |
+| [`03_MODEL_DB.md`](./03_MODEL_DB.md) | Modelo de Banco de Dados |
+| [`04_AKITA.MD`](./04_AKITA.MD) | Metodologia de Desenvolvimento |
 
----
+### 🏛️ Arquitetura
+| Documento | Descrição |
+|-----------|-----------|
+| [`docs/architecture/overview.md`](./docs/architecture/overview.md) | Visão geral da arquitetura |
+| [`docs/architecture/adr/001-stack-tecnologica.md`](./docs/architecture/adr/001-stack-tecnologica.md) | ADR-001: Stack tecnológica |
+| [`docs/architecture/adr/002-autenticacao-jwt.md`](./docs/architecture/adr/002-autenticacao-jwt.md) | ADR-002: Autenticação JWT |
+| [`docs/architecture/adr/003-heranca-controles-vencimento.md`](./docs/architecture/adr/003-heranca-controles-vencimento.md) | ADR-003: Herança de controles |
 
-## Como Executar
+### ⚙️ Desenvolvimento
+| Documento | Descrição |
+|-----------|-----------|
+| [`CONTRIBUTING.md`](./CONTRIBUTING.md) | Guia para contribuidores |
+| [`docs/development/guia-desenvolvimento.md`](./docs/development/guia-desenvolvimento.md) | Padrões de código e setup |
+| [`docs/development/guia-testes.md`](./docs/development/guia-testes.md) | TDD, fixtures e métricas |
+| [`docs/api/referencia-api.md`](./docs/api/referencia-api.md) | Referência dos endpoints |
 
-### 1. Clone e configure o ambiente
+### 🔄 Processo Ágil
+| Documento | Descrição |
+|-----------|-----------|
+| [`ROADMAP.md`](./ROADMAP.md) | Roteiro de entregas por fase |
+| [`docs/agile/definition-of-done.md`](./docs/agile/definition-of-done.md) | Critérios de conclusão |
+| [`docs/agile/definition-of-ready.md`](./docs/agile/definition-of-ready.md) | Critérios de início |
+| [`CHANGELOG.md`](./CHANGELOG.md) | Histórico de versões |
 
-```bash
-git clone <repo>
-cd SAA29
-
-# Copiar e preencher variáveis de ambiente
-cp .env.example .env
-
-# Criar ambiente virtual
-python -m venv .venv
-.venv\Scripts\activate      # Windows
-# ou: source .venv/bin/activate  # Linux/macOS
-
-pip install -r requirements.txt
-```
-
-### 2. Com Docker (recomendado)
-
-```bash
-# Sobe PostgreSQL + API
-docker-compose up -d
-
-# Acompanhar logs
-docker-compose logs -f api
-```
-
-### 3. Sem Docker (desenvolvimento local)
-
-```bash
-# PostgreSQL deve estar rodando localmente com os dados do .env
-
-# Executar migrações
-alembic upgrade head
-
-# Iniciar servidor de desenvolvimento
-uvicorn app.main:app --reload --port 8000
-```
+### 🔒 Segurança e Conduta
+| Documento | Descrição |
+|-----------|-----------|
+| [`SECURITY.md`](./SECURITY.md) | Política de segurança |
+| [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md) | Código de conduta |
 
 ---
 
-## Migrações
+## Fase Atual
 
-```bash
-# Gerar nova migração (após alterar models)
-alembic revision --autogenerate -m "descricao_da_mudanca"
+> **Método Akita – Dia 2 (Fundação) ✅ Concluído**
+>
+> Toda a estrutura está criada com stubs documentados. A equipe de implementação deve prosseguir para:
+>
+> **Dia 3:** Implementar os testes (`tests/test_*.py`)  
+> **Dia 4:** Implementar a lógica (substituir `raise NotImplementedError`)
 
-# Aplicar migrações
-alembic upgrade head
-
-# Reverter última migração
-alembic downgrade -1
-```
+Veja o [ROADMAP.md](./ROADMAP.md) para o roteiro completo de entregas.
 
 ---
 
@@ -110,57 +135,15 @@ alembic downgrade -1
 
 ```bash
 pytest tests/ -v
-pytest tests/ -v --cov=app --cov-report=html
+pytest tests/ --cov=app --cov-report=html
 ```
 
 ---
 
-## Endpoints Principais
+## Contribuindo
 
-| Módulo | Endpoint | Método | Descrição |
-|--------|---------|--------|-----------|
-| Auth | `/auth/login` | POST | Login (retorna JWT) |
-| Auth | `/auth/me` | GET | Dados do usuário logado |
-| Aeronaves | `/aeronaves/` | GET/POST | CRUD de aeronaves |
-| Equipamentos | `/equipamentos/` | GET/POST | CRUD de equipamentos |
-| Equipamentos | `/equipamentos/itens` | POST | Criar item (herança automática) |
-| Equipamentos | `/equipamentos/vencimentos/{id}/executar` | PATCH | Registrar execução |
-| Panes | `/panes/` | GET/POST | Listar/criar panes |
-| Panes | `/panes/{id}/concluir` | POST | Concluir pane |
-| Panes | `/panes/{id}/anexos` | POST | Upload de imagem |
-
-Documentação interativa disponível em: `http://localhost:8000/docs`
+Leia o [CONTRIBUTING.md](./CONTRIBUTING.md) antes de iniciar qualquer implementação.
 
 ---
 
-## Módulos
-
-### `app/auth` — Autenticação e Efetivo
-RF-01, RF-02, RF-14. Login via JWT, cadastro de usuários com funções (Inspetor, Encarregado, Mantenedor).
-
-### `app/aeronaves` — Gestão de Aeronaves
-RF-15. CRUD de aeronaves com controle de status operacional.
-
-### `app/equipamentos` — Controle de Equipamentos
-RF-16. Rastreabilidade por número de série, controle de vencimentos com herança automática por tipo.
-
-### `app/panes` — Gestão de Panes
-RF-03 a RF-13. Registro, acompanhamento e conclusão de panes com upload de imagens.
-
----
-
-## Regras de Negócio Principais
-
-| Código | Regra |
-|--------|-------|
-| RN-01 | Pane deve estar vinculada a uma aeronave |
-| RN-02 | Status inicial de pane = ABERTA |
-| RN-03 | Apenas panes ABERTA/EM_PESQUISA podem ser editadas |
-| RN-04 | `data_conclusao` gerada automaticamente ao concluir |
-| RN-05 | Descrição vazia → "AGUARDANDO EDICAO" |
-
----
-
-## Licença
-
-Uso interno – Força Aérea Brasileira.
+*Uso interno – Força Aérea Brasileira.*
