@@ -1,0 +1,3 @@
+# Pasta de versões de migração Alembic
+# Os scripts gerados por `alembic revision --autogenerate` serão criados aqui.
+# Não versione scripts temporários ou de desenvolvimento fora do fluxo de revisão.
