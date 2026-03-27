@@ -22,7 +22,7 @@ Dia 7: Deploy/CI     ░░ Pendente
 
 > **Método Akita – Dia 2**
 
-- [x] Documentação de requisitos (`00_SRS.md`, `01_SPECS.md`, `03_MODEL_DB.md`)
+- [x] Documentação de requisitos ([`00_SRS.md`](./docs/requirements/00_SRS.md), [`01_SPECS.md`](./docs/requirements/01_SPECS.md), [`03_MODEL_DB.md`](./docs/architecture/03_MODEL_DB.md))
 - [x] Definição de stack e arquitetura
 - [x] Estrutura completa de pastas e módulos
 - [x] Modelos ORM declarados (11 entidades)
@@ -62,15 +62,15 @@ Dia 7: Deploy/CI     ░░ Pendente
 - [ ] `test_filtrar_panes_por_texto` — filtro funcional (RF-06)
 - [ ] `test_concluir_pane_aberta` — status=RESOLVIDA, data_conclusao preenchida (RN-04)
 - [ ] `test_concluir_pane_ja_resolvida` — retorna 409
-- [ ] `test_transicao_aberta_para_em_pesquisa` — aceitar (SPECS §8)
+- [ ] `test_transicao_aberta_para_em_pesquisa` — aceitar ([SPECS §8](./docs/requirements/01_SPECS.md))
 - [ ] `test_transicao_invalida_resolvida_para_aberta` — rejeitar (RN-03)
 - [ ] `test_upload_imagem_valida` — status 201
 - [ ] `test_upload_tipo_invalido` — retorna 422
 
 ### 2.4 Módulo Equipamentos
 - [ ] `test_criar_equipamento` — status 201
-- [ ] `test_criar_item_herda_controles_do_equipamento` — 2 controles criados (MODEL_DB §5.1)
-- [ ] `test_propagar_controle_para_itens_existentes` — propagação automática (MODEL_DB §5.2)
+- [ ] `test_criar_item_herda_controles_do_equipamento` — 2 controles criados ([MODEL_DB §5.1](./docs/architecture/03_MODEL_DB.md))
+- [ ] `test_propagar_controle_para_itens_existentes` — propagação automática ([MODEL_DB §5.2](./docs/architecture/03_MODEL_DB.md))
 - [ ] `test_sem_duplicidade_controle_por_item` — UNIQUE constraint
 - [ ] `test_registrar_execucao_calcula_novo_vencimento` — cálculo correto de data
 - [ ] `test_instalar_item_em_aeronave` — status 201
@@ -126,7 +126,7 @@ Dia 7: Deploy/CI     ░░ Pendente
 > **Objetivo:** Performance e qualidade de código. Só iniciar após todos os testes passarem.
 
 - [ ] Revisar queries N+1 com `selectinload` / `joinedload` onde necessário
-- [ ] Adicionar índices no banco (já especificados em `03_MODEL_DB.md §6`)
+- [ ] Adicionar índices no banco (já especificados em [`03_MODEL_DB.md §6`](./docs/architecture/03_MODEL_DB.md))
 - [ ] Implementar paginação nas listagens (`limit` / `offset`)
 - [ ] Cache em memória para listagem de aeronaves (raramente muda)
 - [ ] Refatorar métodos de service acima de 50 linhas
@@ -167,7 +167,7 @@ Dia 7: Deploy/CI     ░░ Pendente
 
 ## Evoluções Futuras (Pós-MVP)
 
-> Itens do SRS §7 e MODEL_DB §8 — não fazem parte do MVP.
+> Itens do [SRS §7](./docs/requirements/00_SRS.md) e [MODEL_DB §8](./docs/architecture/03_MODEL_DB.md) — não fazem parte do MVP.
 
 | Feature | Descrição |
 |---------|-----------|

@@ -105,7 +105,7 @@ instalacoes ◄── itens_equipamento ◄── equipamentos
                tipos_controle
 ```
 
-Diagrama completo: [`03_MODEL_DB.md`](../../../03_MODEL_DB.md)
+Diagrama completo: [`03_MODEL_DB.md`](./03_MODEL_DB.md)
 
 ---
 

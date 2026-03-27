@@ -18,6 +18,15 @@ e aderente ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [0.3.0] – 2026-03-27
+
+### Modificado
+- Reorganização da documentação em subpastas em `docs/` (`architecture`, `agile`, `development`, `api`, `requirements`, `methodology`).
+- `README.md` atualizado para servir como hub central de documentação.
+- Links internos de documentação corrigidos em todos os arquivos Markdown.
+
+---
+
 ## [0.2.0] – 2026-03-27
 
 ### Adicionado
@@ -51,6 +60,7 @@ e aderente ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ---
 
-[Unreleased]: https://github.com/BrGarcia/saa29/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/BrGarcia/saa29/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/BrGarcia/saa29/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/BrGarcia/saa29/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/BrGarcia/saa29/releases/tag/v0.1.0

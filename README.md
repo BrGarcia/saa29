@@ -81,10 +81,10 @@ SAA29/
 ### 📐 Requisitos e Especificações
 | Documento | Descrição |
 |-----------|-----------|
-| [`00_SRS.md`](./00_SRS.md) | Software Requirements Specification |
-| [`01_SPECS.md`](./01_SPECS.md) | Especificação de Algoritmos e Fluxos |
-| [`03_MODEL_DB.md`](./03_MODEL_DB.md) | Modelo de Banco de Dados |
-| [`04_AKITA.MD`](./04_AKITA.MD) | Metodologia de Desenvolvimento |
+| [`00_SRS.md`](./docs/requirements/00_SRS.md) | Software Requirements Specification |
+| [`01_SPECS.md`](./docs/requirements/01_SPECS.md) | Especificação de Algoritmos e Fluxos |
+| [`03_MODEL_DB.md`](./docs/architecture/03_MODEL_DB.md) | Modelo de Banco de Dados |
+| [`04_AKITA.MD`](./docs/methodology/04_AKITA.MD) | Metodologia de Desenvolvimento |
 
 ### 🏛️ Arquitetura
 | Documento | Descrição |
