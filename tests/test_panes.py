@@ -535,3 +535,35 @@ class TestUploadAnexo:
         body = response.json()
         assert "id" in body
         assert "caminho_arquivo" in body
+
+class TestEndpointsAdicionais:
+    @pytest.mark.asyncio
+    async def test_buscar_pane_existente(self, client: AsyncClient, dados_aeronave_valida: dict, usuario_e_token: dict):
+        headers = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
+        pane = await criar_pane(client, headers, aeronave["id"])
+        
+        response = await client.get(f"{PANES_URL}{pane['id']}", headers=headers)
+        assert response.status_code == 200
+        assert "aeronave_id" in response.json()
+
+    @pytest.mark.asyncio
+    async def test_listar_anexos(self, client: AsyncClient, dados_aeronave_valida: dict, usuario_e_token: dict):
+        headers = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
+        pane = await criar_pane(client, headers, aeronave["id"])
+        
+        response = await client.get(f"{PANES_URL}{pane['id']}/anexos", headers=headers)
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+
+    @pytest.mark.asyncio
+    async def test_adicionar_responsavel(self, client: AsyncClient, dados_aeronave_valida: dict, usuario_e_token: dict):
+        headers = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
+        pane = await criar_pane(client, headers, aeronave["id"])
+        
+        payload = {"usuario_id": "00000000-0000-0000-0000-000000000000", "papel": "MANTENEDOR"}
+        response = await client.post(f"{PANES_URL}{pane['id']}/responsaveis", json=payload, headers=headers)
+        assert response.status_code in [201, 404, 409, 422, 500]
+

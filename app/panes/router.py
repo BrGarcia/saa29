@@ -46,12 +46,16 @@ async def listar_panes(
     texto: str | None = Query(default=None, description="Filtro por texto"),
     status_pane: schemas.StatusPane | None = Query(default=None, alias="status"),
     aeronave_id: uuid.UUID | None = Query(default=None),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=1000),
 ) -> list[schemas.PaneListItem]:
-    """Lista panes com filtros opcionais (texto, status, aeronave, data)."""
+    """Lista panes com filtros opcionais (texto, status, aeronave, data) e paginação."""
     filtros = schemas.FiltroPane(
         texto=texto,
         status=status_pane,
         aeronave_id=aeronave_id,
+        skip=skip,
+        limit=limit,
     )
     panes = await service.listar_panes(db, filtros)
     return [schemas.PaneListItem.model_validate(p) for p in panes]

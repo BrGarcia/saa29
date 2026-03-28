@@ -22,6 +22,8 @@ class FiltroPane(BaseModel):
     aeronave_id: uuid.UUID | None = None
     data_inicio: datetime | None = None
     data_fim: datetime | None = None
+    skip: int = Field(default=0, ge=0, description="Paginação: saltar N registros")
+    limit: int = Field(default=100, ge=1, le=1000, description="Paginação: limite de registros retornados")
 
 
 # ============================================================

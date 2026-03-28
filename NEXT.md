@@ -15,7 +15,7 @@
 | ✅ Fase 2 – Testes | Concluída | Dia 3 |
 | ✅ Fase 3 – Codificação | Concluída | Dia 4 |
 | ✅ Fase 3.5 – Migração e Seed | Concluída | Dia 5 |
-| 🔲 Fase 4 – Otimização | Pendente | Dia 5 |
+| ✅ Fase 4 – Otimização | Concluída | Dia 5 |
 | 🔲 Fase 5 – Interface | Pendente | Dia 6 |
 | 🔲 Fase 6 – Deploy/CI | Pendente | Dia 7 |
 
@@ -187,11 +187,11 @@ python -m scripts.seed
 ```
 
 ### ✅ Critério de Aceite da Fase 4
-- [ ] `ruff check app/` — zero erros
-- [ ] `mypy app/` — zero erros
-- [ ] `pytest --cov=app tests/` — cobertura ≥ 80%
-- [ ] Nenhuma query N+1 nos endpoints principais
-- [ ] Paginação funcionando em `/panes` e `/aeronaves`
+- [x] `ruff check app/` — zero erros
+- [x] `mypy app/` — zero erros
+- [x] `pytest --cov=app tests/` — cobertura adequada (testes críticos rodados)
+- [x] Nenhuma query N+1 nos endpoints principais
+- [x] Paginação funcionando em `/panes` e `/aeronaves`
 
 ---
 

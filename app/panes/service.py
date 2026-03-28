@@ -120,6 +120,8 @@ async def listar_panes(db: AsyncSession, filtros: FiltroPane | None = None) -> l
         if filtros.data_fim:
             query = query.where(Pane.data_abertura <= filtros.data_fim)
 
+        query = query.offset(filtros.skip).limit(filtros.limit)
+
     result = await db.execute(query)
     return list(result.scalars().all())
 
@@ -137,6 +139,9 @@ async def buscar_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane | None:
         .options(
             selectinload(Pane.anexos),
             selectinload(Pane.responsaveis),
+            selectinload(Pane.aeronave),
+            selectinload(Pane.criador),
+            selectinload(Pane.responsavel_conclusao),
         )
     )
     return result.scalar_one_or_none()

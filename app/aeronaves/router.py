@@ -5,7 +5,7 @@ Endpoints de gestão de aeronaves.
 
 import uuid
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Query
 
 from app.aeronaves import schemas, service
 from app.dependencies import DBSession, CurrentUser
@@ -22,8 +22,10 @@ router = APIRouter()
 async def listar_aeronaves(
     db: DBSession,
     _: CurrentUser,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=1000),
 ) -> list[schemas.AeronaveListItem]:
-    aeronaves = await service.listar_aeronaves(db)
+    aeronaves = await service.listar_aeronaves(db, skip=skip, limit=limit)
     return [schemas.AeronaveListItem.model_validate(a) for a in aeronaves]
 
 

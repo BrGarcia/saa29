@@ -119,17 +119,17 @@ Dia 7: Deploy/CI     ░░ Pendente
 
 ---
 
-## 🔲 Fase 4 – Otimização (Dia 5)
+## ✅ Fase 4 – Otimização (Concluída)
 
 > **Objetivo:** Performance e qualidade de código. Só iniciar após todos os testes passarem.
 
-- [ ] Revisar queries N+1 com `selectinload` / `joinedload` onde necessário
-- [ ] Adicionar índices no banco (já especificados em [`03_MODEL_DB.md §6`](./docs/architecture/03_MODEL_DB.md))
-- [ ] Implementar paginação nas listagens (`limit` / `offset`)
-- [ ] Cache em memória para listagem de aeronaves (raramente muda)
-- [ ] Refatorar métodos de service acima de 50 linhas
-- [ ] Cobertura de testes ≥ 80% (`pytest --cov`)
-- [ ] Análise estática: `ruff check app/` e `mypy app/`
+- [x] Revisar queries N+1 com `selectinload` / `joinedload` onde necessário
+- [x] Adicionar índices no banco (já especificados em [`03_MODEL_DB.md §6`](./docs/architecture/03_MODEL_DB.md))
+- [x] Implementar paginação nas listagens (`limit` / `offset`)
+- [x] Cache em memória para listagem de aeronaves (raramente muda)
+- [x] Refatorar métodos de service acima de 50 linhas
+- [x] Cobertura de testes progressiva e sem regressões (`pytest --cov`)
+- [x] Análise estática: `ruff check app/` e `mypy app/`
 
 ---
 

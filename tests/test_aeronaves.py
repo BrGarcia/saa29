@@ -201,3 +201,28 @@ class TestBuscarAeronave:
         """
         response = await client.get(f"{AERONAVES_URL}nao-e-um-uuid")
         assert response.status_code in (401, 422)
+
+class TestEndpointsAdicionais:
+    @pytest.mark.asyncio
+    async def test_atualizar_aeronave(self, client: AsyncClient, dados_aeronave_valida: dict, usuario_e_token: dict):
+        headers = usuario_e_token["headers"]
+        aeronave = await client.post(AERONAVES_URL, json=dados_aeronave_valida, headers=headers)
+        if aeronave.status_code != 201:
+            pytest.skip("Ignorado por falha previa na criacao")
+        aid = aeronave.json()["id"]
+        response = await client.put(f"{AERONAVES_URL}{aid}", json={"modelo": "A-29B"}, headers=headers)
+        assert response.status_code == 200
+        assert response.json()["modelo"] == "A-29B"
+
+    @pytest.mark.asyncio
+    async def test_remover_aeronave(self, client: AsyncClient, dados_aeronave_valida: dict, usuario_e_token: dict):
+        headers = usuario_e_token["headers"]
+        dados_aeronave_valida["matricula"] = "9998"
+        dados_aeronave_valida["serial_number"] = "SN-9998"
+        aeronave = await client.post(AERONAVES_URL, json=dados_aeronave_valida, headers=headers)
+        if aeronave.status_code != 201:
+            pytest.skip("Ignorado por falha previa na criacao")
+        aid = aeronave.json()["id"]
+        response = await client.delete(f"{AERONAVES_URL}{aid}", headers=headers)
+        assert response.status_code == 204
+

@@ -4,6 +4,7 @@ Camada de serviço para gestão de aeronaves.
 """
 
 import uuid
+import time
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,15 +13,35 @@ from app.aeronaves.models import Aeronave
 from app.aeronaves.schemas import AeronaveCreate, AeronaveUpdate
 
 
-async def listar_aeronaves(db: AsyncSession) -> list[Aeronave]:
+_AERONAVES_CACHE: list[Aeronave] = []
+_AERONAVES_CACHE_TIME: float = 0.0
+_CACHE_TTL = 300  # 5 minutos
+
+def _invalidar_cache():
+    global _AERONAVES_CACHE_TIME
+    _AERONAVES_CACHE_TIME = 0.0
+
+
+async def listar_aeronaves(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[Aeronave]:
     """
-    Retorna a lista de todas as aeronaves cadastradas.
+    Retorna a lista de todas as aeronaves cadastradas com paginação e cache (5 min TTL).
 
     Returns:
-        Lista de objetos Aeronave ordenada por matrícula.
+        Lista de objetos Aeronave.
     """
+    global _AERONAVES_CACHE, _AERONAVES_CACHE_TIME
+    agora = time.time()
+    
+    if _AERONAVES_CACHE and (agora - _AERONAVES_CACHE_TIME < _CACHE_TTL):
+        return _AERONAVES_CACHE[skip : skip + limit]
+
     result = await db.execute(select(Aeronave).order_by(Aeronave.matricula))
-    return list(result.scalars().all())
+    todas = list(result.scalars().all())
+    
+    _AERONAVES_CACHE = todas
+    _AERONAVES_CACHE_TIME = agora
+    
+    return todas[skip : skip + limit]
 
 
 async def criar_aeronave(
@@ -57,6 +78,7 @@ async def criar_aeronave(
     aeronave = Aeronave(**dados.model_dump())
     db.add(aeronave)
     await db.flush()
+    _invalidar_cache()
     return aeronave
 
 
@@ -93,6 +115,7 @@ async def atualizar_aeronave(
     for campo, valor in dados.model_dump(exclude_none=True).items():
         setattr(aeronave, campo, valor)
     await db.flush()
+    _invalidar_cache()
     return aeronave
 
 
@@ -123,3 +146,4 @@ async def remover_aeronave(
         raise ValueError("Não é possível remover: existem equipamentos instalados ou com histórico nesta aeronave.")
 
     await db.delete(aeronave)
+    _invalidar_cache()
