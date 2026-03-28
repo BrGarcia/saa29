@@ -8,9 +8,9 @@
 
 ```
 Dia 1: AI Jail       ██ Concluído
-Dia 2: Fundação      ██ Concluído  ← estamos aqui
-Dia 3: Testes        ░░ Pendente
-Dia 4: Codificação   ░░ Pendente
+Dia 2: Fundação      ██ Concluído
+Dia 3: Testes        ██ Concluído
+Dia 4: Codificação   ██ Concluído  ← estamos aqui
 Dia 5: Otimização    ░░ Pendente
 Dia 6: Interface     ░░ Pendente
 Dia 7: Deploy/CI     ░░ Pendente
@@ -33,86 +33,84 @@ Dia 7: Deploy/CI     ░░ Pendente
 
 ---
 
-## 🔲 Fase 2 – Testes (Dia 3)
+## ✅ Fase 2 – Testes (Concluída)
 
-> **Objetivo:** TDD — escrever todos os testes antes de implementar qualquer lógica.  
-> **Entregável:** Suite de testes completa, todos falhando (expected).
+> **Método Akita – Dia 3**
 
 ### 2.1 Módulo Auth
-- [ ] `test_login_sucesso` — credenciais válidas retornam JWT
-- [ ] `test_login_senha_errada` — retorna 401
-- [ ] `test_login_usuario_inexistente` — retorna 401
-- [ ] `test_acesso_sem_token` — retorna 401
-- [ ] `test_acesso_token_invalido` — retorna 401
-- [ ] `test_criar_usuario` — status 201 com dados corretos
-- [ ] `test_criar_usuario_username_duplicado` — retorna 409
+- [x] `test_login_sucesso` — credenciais válidas retornam JWT
+- [x] `test_login_senha_errada` — retorna 401
+- [x] `test_login_usuario_inexistente` — retorna 401
+- [x] `test_acesso_sem_token` — retorna 401
+- [x] `test_acesso_token_invalido` — retorna 401
+- [x] `test_criar_usuario` — status 201 com dados corretos
+- [x] `test_criar_usuario_username_duplicado` — retorna 409
 
 ### 2.2 Módulo Aeronaves
-- [ ] `test_listar_aeronaves_vazio` — lista vazia, status 200
-- [ ] `test_criar_aeronave_sucesso` — status 201
-- [ ] `test_criar_aeronave_matricula_duplicada` — retorna 409
-- [ ] `test_buscar_aeronave_existente` — status 200
-- [ ] `test_buscar_aeronave_inexistente` — status 404
+- [x] `test_listar_aeronaves_vazio` — lista vazia, status 200
+- [x] `test_criar_aeronave_sucesso` — status 201
+- [x] `test_criar_aeronave_matricula_duplicada` — retorna 409
+- [x] `test_buscar_aeronave_existente` — status 200
+- [x] `test_buscar_aeronave_inexistente` — status 404
 
 ### 2.3 Módulo Panes
-- [ ] `test_criar_pane_sucesso` — status=ABERTA, status HTTP 201 (RN-02)
-- [ ] `test_criar_pane_descricao_vazia_padrao` — descrição = "AGUARDANDO EDICAO" (RN-05)
-- [ ] `test_criar_pane_aeronave_inexistente` — retorna 404 (RN-01)
-- [ ] `test_filtrar_panes_por_status` — filtro funcional (RF-06)
-- [ ] `test_filtrar_panes_por_texto` — filtro funcional (RF-06)
-- [ ] `test_concluir_pane_aberta` — status=RESOLVIDA, data_conclusao preenchida (RN-04)
-- [ ] `test_concluir_pane_ja_resolvida` — retorna 409
-- [ ] `test_transicao_aberta_para_em_pesquisa` — aceitar ([SPECS §8](./docs/requirements/01_SPECS.md))
-- [ ] `test_transicao_invalida_resolvida_para_aberta` — rejeitar (RN-03)
-- [ ] `test_upload_imagem_valida` — status 201
-- [ ] `test_upload_tipo_invalido` — retorna 422
+- [x] `test_criar_pane_sucesso` — status=ABERTA, status HTTP 201 (RN-02)
+- [x] `test_criar_pane_descricao_vazia_padrao` — descrição = "AGUARDANDO EDICAO" (RN-05)
+- [x] `test_criar_pane_aeronave_inexistente` — retorna 404 (RN-01)
+- [x] `test_filtrar_panes_por_status` — filtro funcional (RF-06)
+- [x] `test_filtrar_panes_por_texto` — filtro funcional (RF-06)
+- [x] `test_concluir_pane_aberta` — status=RESOLVIDA, data_conclusao preenchida (RN-04)
+- [x] `test_concluir_pane_ja_resolvida` — retorna 409
+- [x] `test_transicao_aberta_para_em_pesquisa` — aceitar ([SPECS §8](./docs/requirements/01_SPECS.md))
+- [x] `test_transicao_invalida_resolvida_para_aberta` — rejeitar (RN-03)
+- [x] `test_upload_imagem_valida` — status 201
+- [x] `test_upload_tipo_invalido` — retorna 422
 
 ### 2.4 Módulo Equipamentos
-- [ ] `test_criar_equipamento` — status 201
-- [ ] `test_criar_item_herda_controles_do_equipamento` — 2 controles criados ([MODEL_DB §5.1](./docs/architecture/03_MODEL_DB.md))
-- [ ] `test_propagar_controle_para_itens_existentes` — propagação automática ([MODEL_DB §5.2](./docs/architecture/03_MODEL_DB.md))
-- [ ] `test_sem_duplicidade_controle_por_item` — UNIQUE constraint
-- [ ] `test_registrar_execucao_calcula_novo_vencimento` — cálculo correto de data
-- [ ] `test_instalar_item_em_aeronave` — status 201
-- [ ] `test_remover_item_de_aeronave` — data_remocao preenchida
+- [x] `test_criar_equipamento` — status 201
+- [x] `test_criar_item_herda_controles_do_equipamento` — 2 controles criados ([MODEL_DB §5.1](./docs/architecture/03_MODEL_DB.md))
+- [x] `test_propagar_controle_para_itens_existentes` — propagação automática ([MODEL_DB §5.2](./docs/architecture/03_MODEL_DB.md))
+- [x] `test_sem_duplicidade_controle_por_item` — UNIQUE constraint
+- [x] `test_registrar_execucao_calcula_novo_vencimento` — cálculo correto de data
+- [x] `test_instalar_item_em_aeronave` — status 201
+- [x] `test_remover_item_de_aeronave` — data_remocao preenchida
 
 ---
 
-## 🔲 Fase 3 – Codificação (Dia 4)
+## ✅ Fase 3 – Codificação (Concluída)
 
-> **Objetivo:** Fazer todos os testes da Fase 2 passarem.  
-> **Regra:** Implementar na ordem abaixo. Não avançar sem os testes passando.
+> **Método Akita – Dia 4**
 
 ### 3.1 Segurança e Auth (pré-requisito de tudo)
-- [ ] `app/auth/security.py` — `hash_senha`, `verificar_senha`, `criar_token`, `decodificar_token`
-- [ ] `app/dependencies.py` — `get_current_user` (JWT → Usuario)
-- [ ] `app/auth/service.py` — todos os métodos
-- [ ] `app/auth/router.py` — todos os endpoints
+- [x] `app/auth/security.py` — `hash_senha`, `verificar_senha`, `criar_token`, `decodificar_token`
+- [x] `app/dependencies.py` — `get_current_user` (JWT → Usuario)
+- [x] `app/auth/service.py` — todos os métodos
+- [x] `app/auth/router.py` — todos os endpoints
 
 ### 3.2 Aeronaves
-- [ ] `app/aeronaves/service.py` — CRUD completo
-- [ ] `app/aeronaves/router.py` — tratamento de erros
+- [x] `app/aeronaves/service.py` — CRUD completo
+- [x] `app/aeronaves/router.py` — tratamento de erros
 
 ### 3.3 Panes (núcleo do sistema)
-- [ ] `app/panes/service.py`:
-  - [ ] `criar_pane()` — com validação de descricao vazia
-  - [ ] `listar_panes()` — filtros dinâmicos por texto, status, aeronave, data
-  - [ ] `editar_pane()` — validação de transições de status
-  - [ ] `concluir_pane()` — data_conclusao automática
-  - [ ] `upload_anexo()` — validação de tipo/tamanho, nome UUID
-  - [ ] `adicionar_responsavel()`
-- [ ] `app/panes/router.py` — todos os endpoints com tratamento de erros
+- [x] `app/panes/service.py`:
+  - [x] `criar_pane()` — com validação de descricao vazia
+  - [x] `listar_panes()` — filtros dinâmicos por texto, status, aeronave, data
+  - [x] `editar_pane()` — validação de transições de status
+  - [x] `concluir_pane()` — data_conclusao automática
+  - [x] `upload_anexo()` — validação de tipo/tamanho, nome UUID
+  - [x] `adicionar_responsavel()`
+- [x] `app/panes/router.py` — todos os endpoints com tratamento de erros
 
 ### 3.4 Equipamentos (mais complexo)
-- [ ] `app/equipamentos/service.py`:
-  - [ ] `criar_tipo_controle()`
-  - [ ] `associar_controle_a_equipamento()` — com propagação para itens
-  - [ ] `criar_item_com_heranca()` — herança automática de controles
-  - [ ] `instalar_item()` / `remover_item()`
-  - [ ] `registrar_execucao()` — recalcular `data_vencimento`
-  - [ ] `calcular_vencimento()` — `data_exec + periodicidade_meses`
-  - [ ] `propagar_controle_para_itens()` — batch insert
-- [ ] `app/equipamentos/router.py` — todos os endpoints
+- [x] `app/equipamentos/service.py`:
+  - [x] `criar_tipo_controle()`
+  - [x] `associar_controle_a_equipamento()` — com propagação para itens
+  - [x] `criar_item_com_heranca()` — herança automática de controles
+  - [x] `instalar_item()` / `remover_item()`
+  - [x] `registrar_execucao()` — recalcular `data_vencimento`
+  - [x] `calcular_vencimento()` — `data_exec + periodicidade_meses`
+  - [x] `propagar_controle_para_itens()` — batch insert
+- [x] `app/equipamentos/router.py` — todos os endpoints
 
 ### 3.5 Primeira Migração
 - [ ] Gerar migração inicial: `alembic revision --autogenerate -m "initial_schema"`

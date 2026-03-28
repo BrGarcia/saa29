@@ -10,11 +10,27 @@ e aderente ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Planejado
-- Implementação da lógica de autenticação JWT + bcrypt
-- CRUD completo de aeronaves, panes e equipamentos
-- Suite de testes com cobertura ≥ 80%
-- Interface frontend (a definir)
-- Deploy com CI/CD
+- Interface frontend de alta fidelidade
+- Deploy automatizado com GitHub Actions
+- Otimização de queries N+1 e índices (Dia 5)
+
+---
+
+## [0.4.0] – 2026-03-27
+
+### Adicionado
+- Implementação completa da API autenticada (Dia 4 – Método Akita).
+- Módulo **Auth**: Login (JWT), Hashing (Bcrypt), Perfil do usuário.
+- Módulo **Aeronaves**: CRUD completo com validações de unicidade.
+- Módulo **Panes**: Lógica de abertura, edição e conclusão. Sistematização de transições de status.
+- Módulo **Equipamentos**: Sistema de herança de controles, propagação automática e cálculo de vencimentos.
+- Infraestrutura: Suporte a downloads de anexos e montagem de arquivos estáticos.
+- Dependência: `python-dateutil` para cálculos de datas complexos.
+
+### Corrigido
+- Compatibilidade de UUIDs em SQLite/aiosqlite nos testes (uso de `select()` ao invés de `db.get()`).
+- Fixtures de testes agora suportam autenticação JWT real.
+- Status do Roadmap e fix de stubs nos routers (via `fix_routers.py`).
 
 ---
 

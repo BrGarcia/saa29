@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     # --- Aplicação ---
     app_env: str = "development"
     app_debug: bool = True
-    app_secret_key: str = "TROQUE_POR_UMA_CHAVE_SECRETA"
+    app_secret_key: str = "INSECURE_DEFAULT_SECRET_KEY_CHANGE_ME_IN_PRODUCTION"
 
     # --- Banco de Dados ---
     database_url: str = "postgresql+asyncpg://saa29_user:senha@localhost:5432/saa29_db"

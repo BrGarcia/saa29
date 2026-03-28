@@ -62,8 +62,11 @@ async def criar_equipamento(
     db: DBSession,
     _: CurrentUser,
 ):
-    equipamento = await service.criar_equipamento(db, dados)
-    return schemas.EquipamentoOut.model_validate(equipamento)
+    try:
+        equipamento = await service.criar_equipamento(db, dados)
+        return schemas.EquipamentoOut.model_validate(equipamento)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @router.get("/{equipamento_id}", response_model=schemas.EquipamentoOut)

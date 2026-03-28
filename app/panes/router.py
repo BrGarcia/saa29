@@ -5,7 +5,7 @@ Endpoints de gestão de panes aeronáuticas.
 
 import uuid
 
-from fastapi import APIRouter, HTTPException, File, UploadFile, Query, status
+from fastapi import APIRouter, HTTPException, File, UploadFile, Query, status, Depends
 
 from app.panes import schemas, service
 from app.dependencies import DBSession, CurrentUser
@@ -137,9 +137,9 @@ async def concluir_pane(
 )
 async def upload_anexo(
     pane_id: uuid.UUID,
+    db: DBSession,
+    _: CurrentUser,
     arquivo: UploadFile = File(description="Imagem (jpg/png) ou documento"),
-    db: DBSession = ...,
-    _: CurrentUser = ...,
 ) -> schemas.AnexoOut:
     """Faz upload de imagem ou documento vinculado à pane."""
     conteudo = await arquivo.read()

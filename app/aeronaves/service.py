@@ -104,9 +104,22 @@ async def remover_aeronave(
     Remove uma aeronave do sistema.
 
     Raises:
-        ValueError: se a aeronave não for encontrada ou possuir panes abertas.
+        ValueError: se a aeronave não for encontrada ou possuir panes ou instalações vinculadas.
     """
     aeronave = await buscar_aeronave(db, aeronave_id)
     if not aeronave:
         raise ValueError("Aeronave não encontrada.")
+
+    # Verificar se existem panes vinculadas
+    from app.panes.models import Pane
+    res_panes = await db.execute(select(Pane).where(Pane.aeronave_id == aeronave_id).limit(1))
+    if res_panes.scalar_one_or_none():
+        raise ValueError("Não é possível remover: existem panes registradas para esta aeronave.")
+
+    # Verificar se existem instalações vinculadas
+    from app.equipamentos.models import Instalacao
+    res_inst = await db.execute(select(Instalacao).where(Instalacao.aeronave_id == aeronave_id).limit(1))
+    if res_inst.scalar_one_or_none():
+        raise ValueError("Não é possível remover: existem equipamentos instalados ou com histórico nesta aeronave.")
+
     await db.delete(aeronave)

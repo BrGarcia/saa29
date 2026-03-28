@@ -45,13 +45,13 @@ uvicorn app.main:app --reload # Inicia servidor
 
 | RF | Funcionalidade | Status |
 |----|---------------|--------|
-| RF-01/02 | Autenticação JWT | 🏗️ Estruturado |
-| RF-03/04/05 | Dashboard de panes com cards e cores | 🏗️ Estruturado |
-| RF-06 | Filtros (texto, status, aeronave, data) | 🏗️ Estruturado |
-| RF-07/08 | Registro de nova pane (fluxo guiado) | 🏗️ Estruturado |
-| RF-09 | Visualização detalhada da pane | 🏗️ Estruturado |
-| RF-10/11/12 | Editar, anexar imagem, concluir pane | 🏗️ Estruturado |
-| RF-14/15/16 | Cadastros: efetivo, aeronaves, equipamentos | 🏗️ Estruturado |
+| RF-01/02 | Autenticação JWT | ✅ Concluído |
+| RF-03/04/05 | Dashboard de panes com cards e cores | ✅ Concluído (API) |
+| RF-06 | Filtros (texto, status, aeronave, data) | ✅ Concluído |
+| RF-07/08 | Registro de nova pane (fluxo guiado) | ✅ Concluído |
+| RF-09 | Visualização detalhada da pane | ✅ Concluído |
+| RF-10/11/12 | Editar, anexar imagem, concluir pane | ✅ Concluído |
+| RF-14/15/16 | Cadastros: efetivo, aeronaves, equipamentos | ✅ Concluído |
 
 ---
 
@@ -61,10 +61,10 @@ uvicorn app.main:app --reload # Inicia servidor
 SAA29/
 ├── app/
 │   ├── core/           → Enums compartilhados
-│   ├── auth/           → Autenticação e efetivo
-│   ├── aeronaves/      → Gestão de aeronaves
-│   ├── equipamentos/   → Equipamentos, itens e vencimentos
-│   └── panes/          → Panes, anexos e responsáveis
+│   ├── auth/           → Autenticação e efetivo (JWT, bcrypt)
+│   ├── aeronaves/      → Gestão de aeronaves (CRUD)
+│   ├── equipamentos/   → Equipamentos, itens e vencimentos (Herança)
+│   └── panes/          → Panes, anexos e responsáveis (Lógica Central)
 ├── docs/
 │   ├── architecture/   → Visão geral e ADRs
 │   ├── agile/          → Definition of Done e Ready
@@ -120,12 +120,13 @@ SAA29/
 
 ## Fase Atual
 
-> **Método Akita – Dia 2 (Fundação) ✅ Concluído**
+> **Método Akita – Dia 4 (Codificação) ✅ Concluído**
 >
-> Toda a estrutura está criada com stubs documentados. A equipe de implementação deve prosseguir para:
+> Toda a lógica de negócio do backend foi implementada e validada pela suite de testes.
 >
-> **Dia 3:** Implementar os testes (`tests/test_*.py`)  
-> **Dia 4:** Implementar a lógica (substituir `raise NotImplementedError`)
+> **Próximos Passos:**
+> **Dia 5:** Otimização de queries, cache e análise estática.
+> **Dia 6:** Início da implementação da interface frontend.
 
 Veja o [ROADMAP.md](./ROADMAP.md) para o roteiro completo de entregas.
 

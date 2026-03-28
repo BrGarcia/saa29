@@ -275,7 +275,7 @@ class TestListarPanes:
         headers = usuario_e_token["headers"]
         aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
         await criar_pane(client, headers, aeronave["id"], descricao="Rádio VUHF não transmite")
-        await criar_pane(client, headers, aeronave["id"], descricao="IFF não responde")
+        await criar_pane(client, headers, aeronave["id"], descricao="IFF não responde", sistema_subsistema="NAV / IFF")
 
         response = await client.get(PANES_URL, params={"texto": "VUHF"}, headers=headers)
         if response.status_code == 200:

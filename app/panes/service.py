@@ -7,6 +7,7 @@ import os
 import uuid
 from datetime import datetime, timezone
 
+import anyio
 from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -72,6 +73,10 @@ async def criar_pane(
     )
     db.add(pane)
     await db.flush()
+    
+    # Garantir que as coleções estejam inicializadas para evitar erro de lazy-load no router
+    await db.refresh(pane, ["anexos", "responsaveis"])
+    
     return pane
 
 
@@ -269,12 +274,16 @@ async def upload_anexo(
     from app.core.enums import TipoAnexo
     tipo_anexo = TipoAnexo.IMAGEM if extensao in {".jpg", ".jpeg", ".png"} else TipoAnexo.DOCUMENTO
 
-    # Gerar nome único e salvar arquivo
+    # Gerar nome único e salvar arquivo de forma não bloqueante
     nome_unico = f"{uuid.uuid4()}{extensao}"
     caminho = os.path.join(settings.upload_dir, nome_unico)
-    os.makedirs(settings.upload_dir, exist_ok=True)
-    with open(caminho, "wb") as f:
-        f.write(arquivo_bytes)
+    
+    def _salvar_arquivo():
+        os.makedirs(settings.upload_dir, exist_ok=True)
+        with open(caminho, "wb") as f:
+            f.write(arquivo_bytes)
+            
+    await anyio.to_thread.run_sync(_salvar_arquivo)
 
     # Criar registro no banco
     anexo = Anexo(
