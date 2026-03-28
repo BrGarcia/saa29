@@ -1,4 +1,3 @@
-${message}
 """
 migrations/script.py.mako
 Template para geração de scripts de migração pelo Alembic.

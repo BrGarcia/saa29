@@ -10,9 +10,19 @@ e aderente ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Planejado
+- Fase 3.5: Migrações Alembic e Seed Inicial
 - Interface frontend de alta fidelidade
 - Deploy automatizado com GitHub Actions
 - Otimização de queries N+1 e índices (Dia 5)
+
+---
+
+## [0.4.1] – 2026-03-28
+
+### Corrigido
+- Resolução de travamento "silencioso" no fim da execução do `pytest` (fechamento forçado do `test_engine.dispose()`).
+- Ocultamento de avisos de depreciação de bibliotecas (`pytest-asyncio` e `jose`) via `pytest.ini` para logs limpos.
+- Validação final e declaração de estabilidade da Fase 3 (Codificação dos Módulos).
 
 ---
 

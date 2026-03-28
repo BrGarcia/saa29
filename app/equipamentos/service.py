@@ -186,12 +186,12 @@ async def criar_item_com_heranca(
     await db.flush()
 
     # 2. Buscar controles template do equipamento
-    result = await db.execute(
+    result_ctrls = await db.execute(
         select(EquipamentoControle).where(
             EquipamentoControle.equipamento_id == dados.equipamento_id
         )
     )
-    controles_template = list(result.scalars().all())
+    controles_template: list[EquipamentoControle] = list(result_ctrls.scalars().all())
 
     # 3. Criar ControleVencimento herdado para cada controle
     for ctrl in controles_template:
@@ -226,6 +226,19 @@ async def buscar_item(db: AsyncSession, item_id: uuid.UUID) -> ItemEquipamento |
         select(ItemEquipamento).where(ItemEquipamento.id == item_id)
     )
     return result.scalar_one_or_none()
+
+
+async def listar_vencimentos_por_item(
+    db: AsyncSession,
+    item_id: uuid.UUID,
+) -> list[ControleVencimento]:
+    """Lista todos os controles de vencimento de um item específico."""
+    result = await db.execute(
+        select(ControleVencimento)
+        .where(ControleVencimento.item_id == item_id)
+        .options(selectinload(ControleVencimento.tipo_controle))
+    )
+    return list(result.scalars().all())
 
 
 # ============================================================

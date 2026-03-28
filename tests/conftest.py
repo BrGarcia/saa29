@@ -46,6 +46,9 @@ async def criar_tabelas():
     yield
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+    
+    # Fundamental para evitar que o pytest "trave" após rodar todos os testes
+    await test_engine.dispose()
 
 
 @pytest_asyncio.fixture

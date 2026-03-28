@@ -100,7 +100,7 @@ async def associar_controle(
     automaticamente para todos os itens existentes.
     """
     try:
-        assoc = await service.associar_controle_a_equipamento(
+        await service.associar_controle_a_equipamento(
             db, equipamento_id, tipo_controle_id
         )
         return {"detail": "Controle associado com sucesso."}
@@ -136,6 +136,20 @@ async def criar_item(
         return schemas.ItemEquipamentoOut.model_validate(item)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+
+@router.get(
+    "/itens/{item_id}/controles",
+    response_model=list[schemas.ControleVencimentoOut],
+    summary="Listar controles de um item",
+)
+async def listar_controles_item(
+    item_id: uuid.UUID,
+    db: DBSession,
+    _: CurrentUser,
+):
+    vencimentos = await service.listar_vencimentos_por_item(db, item_id)
+    return [schemas.ControleVencimentoOut.model_validate(v) for v in vencimentos]
 
 
 # ---- Instalações ----

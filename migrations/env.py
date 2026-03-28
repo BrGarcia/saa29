@@ -17,6 +17,7 @@ from alembic import context
 # --- Importar todos os models para que o Alembic detecte as tabelas ---
 # IMPORTANTE: Esta seção deve ser mantida atualizada com todos os módulos.
 from app.database import Base  # noqa: F401 – Base com metadata
+from app.config import get_settings
 
 # Módulos de models (garante que as tabelas estejam no metadata)
 import app.auth.models         # noqa: F401
@@ -30,12 +31,12 @@ target_metadata = Base.metadata
 # Configuração do arquivo alembic.ini
 config = context.config
 
-# Sobrescrever DATABASE_URL a partir da variável de ambiente (segurança)
-database_url = os.environ.get("DATABASE_URL", "")
+# Sobrescrever DATABASE_URL a partir das configurações (que lêem do .env)
+settings = get_settings()
+database_url = settings.database_url
+
 if database_url:
-    # asyncpg não é suportado pelo Alembic síncrono; usar psycopg2
-    sync_url = database_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
-    config.set_main_option("sqlalchemy.url", sync_url)
+    config.set_main_option("sqlalchemy.url", database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -47,6 +48,10 @@ def run_migrations_offline() -> None:
     Gera scripts SQL para revisão manual antes de aplicar.
     """
     url = config.get_main_option("sqlalchemy.url")
+    # Para o modo offline (que é síncrono), precisamos garantir um driver síncrono
+    if url and "asyncpg" in url:
+        url = url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+
     context.configure(
         url=url,
         target_metadata=target_metadata,

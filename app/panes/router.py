@@ -5,7 +5,7 @@ Endpoints de gestão de panes aeronáuticas.
 
 import uuid
 
-from fastapi import APIRouter, HTTPException, File, UploadFile, Query, status, Depends
+from fastapi import APIRouter, HTTPException, File, UploadFile, Query, status
 
 from app.panes import schemas, service
 from app.dependencies import DBSession, CurrentUser
@@ -143,9 +143,11 @@ async def upload_anexo(
 ) -> schemas.AnexoOut:
     """Faz upload de imagem ou documento vinculado à pane."""
     conteudo = await arquivo.read()
+    filename = arquivo.filename or "unknown"
+    content_type = arquivo.content_type or "application/octet-stream"
     try:
         anexo = await service.upload_anexo(
-            db, pane_id, conteudo, arquivo.filename, arquivo.content_type
+            db, pane_id, conteudo, filename, content_type
         )
         return schemas.AnexoOut.model_validate(anexo)
     except ValueError as e:

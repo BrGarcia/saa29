@@ -88,7 +88,6 @@ class ItemEquipamentoOut(BaseModel):
 # ============================================================
 
 class InstalacaoCreate(BaseModel):
-    item_id: uuid.UUID
     aeronave_id: uuid.UUID
     data_instalacao: date
 

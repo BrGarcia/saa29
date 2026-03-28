@@ -21,8 +21,8 @@ from datetime import date, timedelta
 from httpx import AsyncClient
 
 
-EQUIP_URL = "/equipamentos/"
-ITENS_URL = "/equipamentos/itens"
+EQUIP_URL = "/equipamentos"
+ITENS_URL = "/equipamentos/itens/"
 TIPOS_URL = "/equipamentos/tipos-controle"
 AERONAVES_URL = "/aeronaves/"
 
@@ -32,7 +32,7 @@ AERONAVES_URL = "/aeronaves/"
 # ------------------------------------------------------------------ #
 
 async def criar_equipamento(client: AsyncClient, headers: dict, dados: dict) -> dict:
-    resp = await client.post(EQUIP_URL, json=dados, headers=headers)
+    resp = await client.post(f"{EQUIP_URL}/", json=dados, headers=headers)
     if resp.status_code != 201:
         pytest.skip(f"Endpoint de equipamentos não implementado (status {resp.status_code})")
     return resp.json()
@@ -49,6 +49,7 @@ async def criar_item(client: AsyncClient, headers: dict, equip_id: str, numero_s
     payload = {
         "equipamento_id": equip_id,
         "numero_serie": numero_serie or f"SN-{uuid.uuid4().hex[:8].upper()}",
+        "status": "ATIVO"
     }
     resp = await client.post(ITENS_URL, json=payload, headers=headers)
     if resp.status_code != 201:
@@ -74,7 +75,7 @@ class TestEquipamentos:
         self, client: AsyncClient, dados_equipamento_valido: dict
     ):
         """DADO sem token QUANDO criar equipamento ENTÃO 401."""
-        response = await client.post(EQUIP_URL, json=dados_equipamento_valido)
+        response = await client.post(f"{EQUIP_URL}/", json=dados_equipamento_valido)
         assert response.status_code == 401
 
     @pytest.mark.asyncio
@@ -93,7 +94,7 @@ class TestEquipamentos:
             pytest.skip("Auth ainda não implementada (Dia 4)")
 
         response = await client.post(
-            EQUIP_URL,
+            f"{EQUIP_URL}/",
             json=dados_equipamento_valido,
             headers=usuario_e_token["headers"],
         )
@@ -116,7 +117,7 @@ class TestEquipamentos:
             pytest.skip("Auth ainda não implementada (Dia 4)")
 
         response = await client.post(
-            EQUIP_URL,
+            f"{EQUIP_URL}/",
             json={"descricao": "Sem campos obrigatórios"},
             headers=usuario_e_token["headers"],
         )
@@ -140,7 +141,7 @@ class TestEquipamentos:
         headers = usuario_e_token["headers"]
         await criar_equipamento(client, headers, dados_equipamento_valido)
 
-        response = await client.get(EQUIP_URL, headers=headers)
+        response = await client.get(f"{EQUIP_URL}/", headers=headers)
         assert response.status_code == 200
         assert isinstance(response.json(), list)
         assert len(response.json()) >= 1
@@ -179,10 +180,10 @@ class TestHerancaControles:
 
         # Associar os 2 controles ao equipamento
         await client.post(
-            f"{EQUIP_URL}{equip['id']}/controles/{tc1['id']}", headers=headers
+            f"{EQUIP_URL}/{equip['id']}/controles/{tc1['id']}", headers=headers
         )
         await client.post(
-            f"{EQUIP_URL}{equip['id']}/controles/{tc2['id']}", headers=headers
+            f"{EQUIP_URL}/{equip['id']}/controles/{tc2['id']}", headers=headers
         )
 
         # Criar um item — deve herdar os 2 controles
@@ -190,7 +191,7 @@ class TestHerancaControles:
 
         # Verificar controles herdados
         resp = await client.get(
-            f"{EQUIP_URL}itens/{item['id']}/controles", headers=headers
+            f"{EQUIP_URL}/itens/{item['id']}/controles", headers=headers
         )
         if resp.status_code == 200:
             assert len(resp.json()) == 2, "Item deve herdar 2 controles do equipamento (MODEL_DB §5.1)"
@@ -215,7 +216,7 @@ class TestHerancaControles:
         item = await criar_item(client, headers, equip["id"])
 
         resp = await client.get(
-            f"{EQUIP_URL}itens/{item['id']}/controles", headers=headers
+            f"{EQUIP_URL}/itens/{item['id']}/controles", headers=headers
         )
         if resp.status_code == 200:
             assert len(resp.json()) == 0
@@ -253,14 +254,14 @@ class TestPropagacaoControle:
         # Criar e associar tipo de controle ao equipamento
         tc = await criar_tipo_controle(client, headers, dados_tipo_controle_valido)
         propagacao = await client.post(
-            f"{EQUIP_URL}{equip['id']}/controles/{tc['id']}", headers=headers
+            f"{EQUIP_URL}/{equip['id']}/controles/{tc['id']}", headers=headers
         )
 
         if propagacao.status_code == 200:
             # Verificar que ambos os itens receberam o controle propagado
             for item_id in [item1["id"], item2["id"]]:
                 resp = await client.get(
-                    f"{EQUIP_URL}itens/{item_id}/controles", headers=headers
+                    f"{EQUIP_URL}/itens/{item_id}/controles", headers=headers
                 )
                 if resp.status_code == 200:
                     assert len(resp.json()) >= 1, f"Item {item_id} deve ter recebido o controle propagado"
@@ -286,21 +287,21 @@ class TestPropagacaoControle:
         tc = await criar_tipo_controle(client, headers, dados_tipo_controle_valido)
 
         # Associar controle ao equipamento (cria template)
-        await client.post(f"{EQUIP_URL}{equip['id']}/controles/{tc['id']}", headers=headers)
+        await client.post(f"{EQUIP_URL}/{equip['id']}/controles/{tc['id']}", headers=headers)
 
         # Criar item (herda o controle)
         item = await criar_item(client, headers, equip["id"])
 
         # Tentar associar o mesmo controle novamente
         resp = await client.post(
-            f"{EQUIP_URL}{equip['id']}/controles/{tc['id']}", headers=headers
+            f"{EQUIP_URL}/{equip['id']}/controles/{tc['id']}", headers=headers
         )
         # Deve rejeitar com 409 (já existe) ou 200 (idempotente — sem duplicar no item)
         assert resp.status_code in (200, 409)
 
         # Independente do status, o item não deve ter duplicata
         controles_resp = await client.get(
-            f"{EQUIP_URL}itens/{item['id']}/controles", headers=headers
+            f"{EQUIP_URL}/itens/{item['id']}/controles", headers=headers
         )
         if controles_resp.status_code == 200:
             controle_ids = [c.get("tipo_controle_id") for c in controles_resp.json()]
@@ -334,12 +335,12 @@ class TestVencimentos:
         tc = await criar_tipo_controle(
             client, headers, {**dados_tipo_controle_valido, "periodicidade_meses": 12}
         )
-        await client.post(f"{EQUIP_URL}{equip['id']}/controles/{tc['id']}", headers=headers)
+        await client.post(f"{EQUIP_URL}/{equip['id']}/controles/{tc['id']}", headers=headers)
         item = await criar_item(client, headers, equip["id"])
 
         # Buscar o controle_vencimento criado
         controles_resp = await client.get(
-            f"{EQUIP_URL}itens/{item['id']}/controles", headers=headers
+            f"{EQUIP_URL}/itens/{item['id']}/controles", headers=headers
         )
         if controles_resp.status_code != 200 or not controles_resp.json():
             pytest.skip("Endpoint de controles de item não implementado")
@@ -348,7 +349,7 @@ class TestVencimentos:
         data_exec = "2026-01-01"
 
         response = await client.patch(
-            f"{EQUIP_URL}vencimentos/{controle_id}/executar",
+            f"{EQUIP_URL}/vencimentos/{controle_id}/executar",
             json={"data_ultima_exec": data_exec},
             headers=headers,
         )
@@ -376,11 +377,11 @@ class TestVencimentos:
         headers = usuario_e_token["headers"]
         equip = await criar_equipamento(client, headers, dados_equipamento_valido)
         tc = await criar_tipo_controle(client, headers, dados_tipo_controle_valido)
-        await client.post(f"{EQUIP_URL}{equip['id']}/controles/{tc['id']}", headers=headers)
+        await client.post(f"{EQUIP_URL}/{equip['id']}/controles/{tc['id']}", headers=headers)
         item = await criar_item(client, headers, equip["id"])
 
         controles_resp = await client.get(
-            f"{EQUIP_URL}itens/{item['id']}/controles", headers=headers
+            f"{EQUIP_URL}/itens/{item['id']}/controles", headers=headers
         )
         if controles_resp.status_code == 200 and controles_resp.json():
             controle = controles_resp.json()[0]
@@ -403,7 +404,7 @@ class TestInstalacoes:
     ):
         """
         DADO item com status ATIVO e aeronave existente
-        QUANDO instalar em aeronave POST /equipamentos/itens/{id}/instalacoes
+        QUANDO instalar em aeronave POST /equipamentos/itens/{id}/instalar
         ENTÃO criar registro de instalação com status 201.
         """
         if usuario_e_token["token"] == "TOKEN_NAO_IMPLEMENTADO":
@@ -416,7 +417,7 @@ class TestInstalacoes:
 
         hoje = date.today().isoformat()
         response = await client.post(
-            f"{EQUIP_URL}itens/{item['id']}/instalacoes",
+            f"{EQUIP_URL}/itens/{item['id']}/instalar",
             json={"aeronave_id": aeronave["id"], "data_instalacao": hoje},
             headers=headers,
         )
@@ -435,7 +436,7 @@ class TestInstalacoes:
     ):
         """
         DADO item instalado em aeronave
-        QUANDO registrar remoção PATCH /equipamentos/itens/{id}/instalacoes/{inst_id}/remover
+        QUANDO registrar remoção PATCH /equipamentos/instalacoes/{inst_id}/remover
         ENTÃO data_remocao preenchida na instalação.
         """
         if usuario_e_token["token"] == "TOKEN_NAO_IMPLEMENTADO":
@@ -447,19 +448,19 @@ class TestInstalacoes:
         aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
 
         hoje = date.today().isoformat()
-        instalacao = await client.post(
-            f"{EQUIP_URL}itens/{item['id']}/instalacoes",
+        instalacao_resp = await client.post(
+            f"{EQUIP_URL}/itens/{item['id']}/instalar",
             json={"aeronave_id": aeronave["id"], "data_instalacao": hoje},
             headers=headers,
         )
-        if instalacao.status_code != 201:
+        if instalacao_resp.status_code != 201:
             pytest.skip("Endpoint de instalações não implementado")
 
-        inst_id = instalacao.json()["id"]
+        inst_id = instalacao_resp.json()["id"]
         amanha = (date.today() + timedelta(days=1)).isoformat()
 
         response = await client.patch(
-            f"{EQUIP_URL}itens/{item['id']}/instalacoes/{inst_id}/remover",
+            f"{EQUIP_URL}/instalacoes/{inst_id}/remover",
             json={"data_remocao": amanha},
             headers=headers,
         )

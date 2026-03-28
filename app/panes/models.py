@@ -8,14 +8,20 @@ Entidades:
     - PaneResponsavel: relação N:N entre Pane e Usuário com papel definido
 """
 
+from __future__ import annotations
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import String, DateTime, Text, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.core.enums import StatusPane, TipoPapel, TipoAnexo
+from app.core.enums import StatusPane, TipoAnexo
+
+if TYPE_CHECKING:
+    from app.aeronaves.models import Aeronave
+    from app.auth.models import Usuario
 
 
 class Pane(Base):

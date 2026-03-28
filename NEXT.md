@@ -3,7 +3,7 @@
 **Projeto:** SAA29 – Sistema de Gestão de Panes – Eletrônica A-29  
 **Atualizado em:** 2026-03-28  
 **Branch atual:** `main`  
-**Versão atual:** `0.4.0`
+**Versão atual:** `0.4.1` (Estável)
 
 ---
 
