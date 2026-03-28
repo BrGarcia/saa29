@@ -113,9 +113,9 @@ Dia 7: Deploy/CI     ░░ Pendente
 - [x] `app/equipamentos/router.py` — todos os endpoints
 
 ### 3.5 Primeira Migração
-- [ ] Gerar migração inicial: `alembic revision --autogenerate -m "initial_schema"`
-- [ ] Revisar e aplicar: `alembic upgrade head`
-- [ ] Criar seed script (`scripts/seed.py`) com dados iniciais de aeronaves e usuários
+- [x] Gerar migração inicial: `alembic revision --autogenerate -m "initial_schema"`
+- [x] Revisar e aplicar: `alembic upgrade head`
+- [x] Criar seed script (`scripts/seed.py`) com dados iniciais de aeronaves e usuários
 
 ---
 

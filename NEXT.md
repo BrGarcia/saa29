@@ -14,7 +14,7 @@
 | ✅ Fase 1 – Fundação | Concluída | Dia 2 |
 | ✅ Fase 2 – Testes | Concluída | Dia 3 |
 | ✅ Fase 3 – Codificação | Concluída | Dia 4 |
-| ⚠️ Fase 3.5 – Migração e Seed | **PENDENTE** | — |
+| ✅ Fase 3.5 – Migração e Seed | Concluída | Dia 5 |
 | 🔲 Fase 4 – Otimização | Pendente | Dia 5 |
 | 🔲 Fase 5 – Interface | Pendente | Dia 6 |
 | 🔲 Fase 6 – Deploy/CI | Pendente | Dia 7 |
@@ -148,11 +148,11 @@ python -m scripts.seed
 ```
 
 ### ✅ Critério de Aceite da Fase 3.5
-- [ ] Migração gerada e revisada
-- [ ] `alembic upgrade head` sem erros
-- [ ] Tabelas visíveis no PostgreSQL
-- [ ] Script de seed funciona e popula dados iniciais
-- [ ] Testes continuam 100% PASSED
+- [x] Migração gerada e revisada
+- [x] `alembic upgrade head` sem erros
+- [x] Tabelas visíveis no PostgreSQL
+- [x] Script de seed funciona e popula dados iniciais
+- [x] Testes continuam 100% PASSED
 
 ---
 

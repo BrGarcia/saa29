@@ -1,62 +1,66 @@
 """
 scripts/seed.py
 Popula o banco de dados com dados iniciais para desenvolvimento.
-Executar: $env:PYTHONPATH="."; .venv\Scripts\python -m scripts.seed
+Executar: python -m scripts.seed
 """
 import asyncio
-import uuid
 from app.database import get_session_factory
 from app.auth.security import hash_senha
+from sqlalchemy import select
+
+# Importar TODOS os módulos para resolver os nomes das classes em referências de string cruzadas (avoid InvalidRequestError)
+import app.auth.models
+import app.aeronaves.models
+import app.equipamentos.models
+import app.panes.models
+
 from app.auth.models import Usuario
 from app.aeronaves.models import Aeronave
-from app.equipamentos.models import Equipamento, ItemEquipamento, TipoControle
-from app.panes.models import Pane
-from app.core.enums import StatusAeronave
 
 async def seed():
-    async_session = get_session_factory()
-    async with async_session() as session:
-        # 1. Limpar dados existentes (opcional, para garantir idempotência)
-        # Para um seed simples, vamos apenas adicionar se não existir.
-        
-        # 2. Usuário admin (INSPETOR)
-        admin_username = "admin"
-        # Verificar se já existe
-        from sqlalchemy import select
-        result = await session.execute(select(Usuario).where(Usuario.username == admin_username))
+    AsyncSessionLocal = get_session_factory()
+    async with AsyncSessionLocal() as session:
+        # Verificar se já existe o admin
+        result = await session.execute(select(Usuario).where(Usuario.username == "admin"))
         admin = result.scalar_one_or_none()
         
         if not admin:
             admin = Usuario(
                 nome="Administrador SAA29",
-                posto="Capitão",
-                funcao="INSPETOR",
-                username=admin_username,
+                posto="Cel",
+                especialidade="ELT",
+                funcao="ENCARREGADO",
+                ramal="1234",
+                username="admin",
                 senha_hash=hash_senha("admin123"),
             )
             session.add(admin)
-            print(f"✅ Usuário '{admin_username}' criado.")
+            print("✅ Usuário admin adicionado.")
         else:
-            print(f"ℹ️ Usuário '{admin_username}' já existe.")
+            print("ℹ️ Usuário admin já existe.")
 
-        # 3. Aeronaves A-29 (exemplos)
-        matriculas = ["5700", "5701", "5702", "5703", "5704"]
-        for mat in matriculas:
-            result = await session.execute(select(Aeronave).where(Aeronave.matricula == mat))
+        # Aeronaves A-29 (exemplos)
+        aeronaves_dados = [
+            {"matricula": "5700", "serial_number": "SN-001"},
+            {"matricula": "5701", "serial_number": "SN-002"},
+            {"matricula": "5702", "serial_number": "SN-003"},
+            {"matricula": "5703", "serial_number": "SN-004"},
+            {"matricula": "5704", "serial_number": "SN-005"},
+        ]
+        
+        for dados in aeronaves_dados:
+            result = await session.execute(select(Aeronave).where(Aeronave.matricula == dados["matricula"]))
             if not result.scalar_one_or_none():
                 aeronave = Aeronave(
-                    matricula=mat,
-                    serial_number=f"BR-{mat}",
-                    modelo="A-29",
-                    status=StatusAeronave.OPERACIONAL.value
+                    matricula=dados["matricula"],
+                    serial_number=dados["serial_number"],
+                    modelo="A-29"
                 )
                 session.add(aeronave)
-                print(f"✅ Aeronave '{mat}' criada.")
-            else:
-                print(f"ℹ️ Aeronave '{mat}' já existe.")
+                print(f"✅ Aeronave {dados['matricula']} adicionada.")
 
         await session.commit()
-        print("🚀 Seed concluído com sucesso!")
+        print(f"🎉 Seed completo!")
 
 if __name__ == "__main__":
     asyncio.run(seed())
