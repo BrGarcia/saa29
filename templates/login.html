@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block login_content %}
+<div class="auth-wrapper">
+    <!-- Componente Tema em modo standalone pro login -->
+    <button class="btn-icon" id="theme-toggle" aria-label="Trocar Tema" style="position: absolute; top: 2rem; right: 2rem; z-index: 20;">
+    </button>
+
+    <div class="auth-card glass-panel">
+        <div style="margin-bottom: 2rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 1rem;"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            <h1 style="margin: 0; font-size: 1.75rem;">Acesso Tático</h1>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">Sist. de Controle - Esquadrão SAA29</p>
+        </div>
+
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="form-group" style="text-align: left;">
+                <label for="username" class="form-label">Identificação (NIP)</label>
+                <input type="text" id="username" name="username" class="form-input" required autocomplete="username" placeholder="Digite seu usuário..." />
+            </div>
+
+            <div class="form-group" style="text-align: left;">
+                <label for="password" class="form-label">Senha de Defesa</label>
+                <input type="password" id="password" name="password" class="form-input" required autocomplete="current-password" placeholder="••••••••" />
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1.5rem;" id="loginBtn">
+                Autenticar
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Se o usuário já tiver token local, mande p/ dashboard.
+    document.addEventListener("DOMContentLoaded", () => {
+        if (localStorage.getItem("saa29_access_token")) {
+            window.location.href = "/";
+        }
+    });
+
+    async function handleLogin(e) {
+        e.preventDefault();
+        
+        const form = document.getElementById('loginForm');
+        const loginBtn = document.getElementById('loginBtn');
+        const formData = new FormData(form);
+
+        loginBtn.disabled = true;
+        loginBtn.innerHTML = 'Conectando... <svg class="spinner" width="16" height="16" ...></svg>';
+
+        try {
+            // O endpoint do FastAPI com OAuth2PasswordRequestForm aceita FormData urlencoded
+            const response = await fetch('/auth/login', {
+                method: 'POST',
+                body: new URLSearchParams(formData)
+            });
+
+            if (!response.ok) {
+                let msg = 'Credenciais inválidas ou erro no servidor.';
+                if(response.status === 401) msg = "Login ou senha incorretos.";
+                showToast(msg, "error");
+                throw new Error(msg);
+            }
+
+            const data = await response.json();
+            
+            // Sucesso! Grava o token
+            setToken(data.access_token);
+            showToast("Acesso autorizado. Carregando Painel...", "success");
+
+            // Redireciona
+            setTimeout(() => {
+                window.location.href = "/";
+            }, 800);
+
+        } catch (err) {
+            console.error(err);
+        } finally {
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = 'Autenticar';
+        }
+    }
+</script>
+{% endblock %}

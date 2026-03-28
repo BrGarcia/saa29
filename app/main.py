@@ -18,6 +18,7 @@ from app.auth.router import router as auth_router
 from app.aeronaves.router import router as aeronaves_router
 from app.equipamentos.router import router as equipamentos_router
 from app.panes.router import router as panes_router
+from app.pages.router import router as pages_router
 
 
 settings = get_settings()
@@ -83,18 +84,24 @@ def _register_routers(app: FastAPI) -> None:
     """Registra todos os routers de domínio na aplicação."""
     app.include_router(auth_router,         prefix="/auth",         tags=["Autenticação"])
     app.include_router(aeronaves_router,    prefix="/aeronaves",    tags=["Aeronaves"])
-    app.include_router(equipamentos_router, prefix="/equipamentos",  tags=["Equipamentos"])
-    app.include_router(panes_router,        prefix="/panes",         tags=["Panes"])
+    app.include_router(equipamentos_router, prefix="/equipamentos", tags=["Equipamentos"])
+    app.include_router(panes_router,        prefix="/panes",        tags=["Panes"])
+    
+    # Frontend Pages (sem prefixo de API explícito - Root)
+    app.include_router(pages_router)
 
 
 def _mount_static(app: FastAPI) -> None:
     """
-    Monta o diretório de uploads como arquivos estáticos.
-    Acessível em /uploads/<nome_do_arquivo>.
+    Monta os arquivos estáticos (/static) e de upload (/uploads).
     """
+    # Cria pasta static caso não exista (para os CSS/JS)
+    os.makedirs("static", exist_ok=True)
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+
     upload_dir = settings.upload_dir
-    if os.path.isdir(upload_dir):
-        app.mount("/uploads", StaticFiles(directory=upload_dir), name="uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=upload_dir), name="uploads")
 
 
 # Instância da aplicação (usada pelo uvicorn: app.main:app)

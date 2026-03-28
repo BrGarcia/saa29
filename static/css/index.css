@@ -1,0 +1,348 @@
+/* static/css/index.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Light Mode (Padrão) */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --border-color: #e2e8f0;
+  
+  --primary-color: #3b82f6;      /* Azul FAB Claro */
+  --primary-hover: #2563eb;
+  --accent-color: #0f172a;
+  
+  /* Cores de Status */
+  --status-ok: #10b981;
+  --status-ok-bg: #d1fae5;
+  --status-warning: #f59e0b;
+  --status-warning-bg: #fef3c7;
+  --status-danger: #ef4444;
+  --status-danger-bg: #fee2e2;
+
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  
+  --transition: all 0.3s ease;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+}
+
+[data-theme="dark"] {
+  /* Dark Mode (Tático) */
+  --bg-primary: #0f172a;         /* Ardósia Profundo */
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --border-color: #334155;
+
+  --primary-color: #60a5fa;      /* Azul Néon FAB */
+  --primary-hover: #3b82f6;
+  --accent-color: #e2e8f0;
+
+  --status-ok-bg: rgba(16, 185, 129, 0.15);
+  --status-warning-bg: rgba(245, 158, 11, 0.15);
+  --status-danger-bg: rgba(239, 68, 68, 0.15);
+
+  --glass-bg: rgba(30, 41, 59, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+/* Resets Globais */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s, color 0.3s;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tipografia */
+h1, h2, h3, h4, h5 {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+/* Efeito Glassmorphism Premium */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Layout Mestre */
+.app-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 260px;
+  background-color: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  transition: var(--transition);
+  z-index: 100;
+}
+
+.sidebar-header {
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sidebar-logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  letter-spacing: -0.5px;
+}
+
+.main-content {
+  flex: 1;
+  padding: 2.5rem;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Navegação */
+.nav-link {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  margin-bottom: 0.5rem;
+  transition: var(--transition);
+  font-weight: 500;
+  gap: 0.75rem;
+}
+
+.nav-link:hover, .nav-link.active {
+  background-color: var(--bg-tertiary);
+  color: var(--primary-color);
+}
+
+/* Botões */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  border: none;
+  gap: 0.5rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+.btn-icon {
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0.5rem;
+}
+.btn-icon:hover {
+  color: var(--primary-color);
+  background: var(--bg-tertiary);
+}
+
+/* Formulários */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: var(--transition);
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* Cards & Layout Dinâmico */
+.grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.card {
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.card-title {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+}
+.card-value {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Tela de Autenticação */
+.auth-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(circle at center, var(--bg-tertiary) 0%, var(--bg-primary) 100%);
+}
+
+/* Blur orbítico para dar efeito premium no fundo */
+.auth-wrapper::before {
+  content: "";
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: var(--primary-color);
+  border-radius: 50%;
+  filter: blur(150px);
+  opacity: 0.15;
+  top: -100px;
+  right: -100px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  position: relative;
+  z-index: 10;
+  padding: 2.5rem;
+  text-align: center;
+}
+
+/* Badges e Status */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.badge-aberta {
+  background-color: var(--status-danger-bg);
+  color: var(--status-danger);
+}
+.badge-pesquisa {
+  background-color: var(--status-warning-bg);
+  color: var(--status-warning);
+}
+.badge-resolvida {
+  background-color: var(--status-ok-bg);
+  color: var(--status-ok);
+}
+
+/* Header Top */
+.top-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+/* Toasts */
+#toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.toast {
+  padding: 1rem 1.5rem;
+  border-radius: var(--radius-md);
+  color: #fff;
+  font-weight: 500;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  max-width: 350px;
+}
+@keyframes slideIn {
+  from { transform: translateX(120%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.toast-success { background-color: var(--status-ok); }
+.toast-error { background-color: var(--status-danger); }
+.toast-warning { background-color: var(--status-warning); }

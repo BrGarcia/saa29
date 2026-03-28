@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block page_title %}Dashboard Tática{% endblock %}
+
+{% block content %}
+<div class="grid-cards">
+    <!-- Card Panes Abertas -->
+    <div class="card glass-panel" style="border-left: 4px solid var(--status-danger);">
+        <div class="card-title">Situação de Risco</div>
+        <div class="card-value" id="count-abertas" style="color: var(--status-danger);">--</div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">Panes Não Triadas (ABERTAS)</div>
+    </div>
+
+    <!-- Card Em Pesquisa -->
+    <div class="card glass-panel" style="border-left: 4px solid var(--status-warning);">
+        <div class="card-title">Em Análise / Pista</div>
+        <div class="card-value" id="count-pesquisa" style="color: var(--status-warning);">--</div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">Panes EM PESQUISA</div>
+    </div>
+
+    <!-- Card Resolvidas -->
+    <div class="card glass-panel" style="border-left: 4px solid var(--status-ok);">
+        <div class="card-title">Mitigadas (30 dias)</div>
+        <div class="card-value" id="count-resolvidas" style="color: var(--status-ok);">--</div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">Panes RESOLVIDAS</div>
+    </div>
+    
+    <!-- Aeronaves Frota -->
+    <div class="card glass-panel" style="border-left: 4px solid var(--primary-color);">
+        <div class="card-title">Cenário da Frota A-29</div>
+        <div class="card-value" id="count-aeronaves" style="color: var(--primary-color);">--</div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">Aeronaves Registradas</div>
+    </div>
+</div>
+
+<div class="card glass-panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h3 style="margin: 0; font-size: 1.1rem;">Visão Rápida: Últimas Panes (Criticidade Alta)</h3>
+        <a href="/panes" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">Ver Todas</a>
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+        <thead>
+            <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
+                <th style="padding: 0.75rem 0.5rem; font-weight: 500;">Aeronave</th>
+                <th style="padding: 0.75rem 0.5rem; font-weight: 500;">Sistema</th>
+                <th style="padding: 0.75rem 0.5rem; font-weight: 500;">Ocorrência</th>
+                <th style="padding: 0.75rem 0.5rem; font-weight: 500;">Status</th>
+            </tr>
+        </thead>
+        <tbody id="recent-panes-body">
+            <!-- Row Preloader -->
+            <tr>
+                <td colspan="4" style="padding: 1rem; text-align: center; color: var(--text-secondary);">
+                    Levantando dados de pista...
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        try {
+            // 1. Fetch Panes List
+            const panes = await apiFetch("/panes/?limit=50");
+            
+            // Metricas
+            let abertas = 0, pesquisa = 0, resolvidas = 0;
+            panes.forEach(p => {
+                if(p.status === 'ABERTA') abertas++;
+                else if(p.status === 'EM_PESQUISA') pesquisa++;
+                else if(p.status === 'RESOLVIDA') resolvidas++;
+            });
+
+            document.getElementById("count-abertas").innerText = abertas;
+            document.getElementById("count-pesquisa").innerText = pesquisa;
+            document.getElementById("count-resolvidas").innerText = resolvidas;
+
+            // Renderizar as mais recentes (mocking top 5 para dashboard)
+            const recentPanesBody = document.getElementById("recent-panes-body");
+            recentPanesBody.innerHTML = "";
+
+            if(panes.length === 0) {
+                recentPanesBody.innerHTML = `<tr><td colspan="4" style="padding: 1rem; text-align: center; color: var(--text-secondary);">Nenhuma pane resistrada no sistema.</td></tr>`;
+            } else {
+                panes.slice(0, 5).forEach(pane => {
+                    let badgeClass = "badge-aberta";
+                    if(pane.status === "EM_PESQUISA") badgeClass = "badge-pesquisa";
+                    else if(pane.status === "RESOLVIDA") badgeClass = "badge-resolvida";
+
+                    const tr = document.createElement("tr");
+                    tr.style.borderBottom = "1px solid var(--border-color)";
+                    
+                    tr.innerHTML = `
+                        <td style="padding: 1rem 0.5rem; font-weight: 500;">${pane.aeronave_id.substring(0,8)}...</td>
+                        <td style="padding: 1rem 0.5rem;">${pane.sistema_subsistema}</td>
+                        <td style="padding: 1rem 0.5rem; color: var(--text-secondary); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${pane.descricao}</td>
+                        <td style="padding: 1rem 0.5rem;"><span class="badge ${badgeClass}">${pane.status.replace("_", " ")}</span></td>
+                    `;
+                    recentPanesBody.appendChild(tr);
+                });
+            }
+
+            // 2. Fetch Aeronaves para metrica
+            try {
+                const aeronaves = await apiFetch("/aeronaves/?limit=100");
+                document.getElementById("count-aeronaves").innerText = aeronaves.length;
+            } catch(e) { /* ignora contagem se falhar isoladamente */ }
+
+        } catch (e) {
+            console.error("Falha ao montar dashboard:", e);
+        }
+    });
+</script>
+{% endblock %}

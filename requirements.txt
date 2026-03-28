@@ -24,6 +24,7 @@ python-multipart==0.0.20  # form data (login)
 
 # --- Upload de arquivos ---
 python-magic==0.4.27      # validação de MIME type
+jinja2==3.1.5             # templates frontend
 
 # --- Utilitários ---
 python-dotenv==1.0.1

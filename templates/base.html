@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAA29 - Painel Tático</title>
+    <link rel="stylesheet" href="/static/css/index.css">
+</head>
+<body>
+
+    {% if request.url.path != "/login" %}
+    <div class="app-container">
+        <!-- Sidebar Esquerda -->
+        <aside class="sidebar glass-panel" style="border-radius: 0; box-shadow: var(--shadow-md);">
+            <div class="sidebar-header">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                <div class="sidebar-logo">SAA29</div>
+            </div>
+
+            <nav>
+                <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    Dashboard
+                </a>
+                <a href="/panes" class="nav-link {% if request.url.path == '/panes' %}active{% endif %}">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    Panes (A-29)
+                </a>
+                <a href="#" class="nav-link">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    Aeronaves
+                </a>
+                <a href="#" class="nav-link">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    Efetivo
+                </a>
+            </nav>
+
+            <div style="margin-top: auto; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                <button onclick="clearAuth()" class="btn btn-outline" style="width: 100%;">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    Sair
+                </button>
+            </div>
+        </aside>
+
+        <!-- Conteúdo Principal -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="user-info">
+                    <h2 style="margin: 0; font-size: 1.5rem;" id="page-title">{% block page_title %}{% endblock %}</h2>
+                </div>
+                <div>
+                    <button class="btn-icon" id="theme-toggle" aria-label="Trocar Tema">
+                        <!-- Icon preenchido via JS -->
+                    </button>
+                </div>
+            </header>
+
+            <!-- BLOCK DE CONTEUDO ESPECÍFICO -->
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- Script de Inicialização da Autenticação para todas rotas (exceto /login) -->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const token = localStorage.getItem("saa29_access_token");
+            if(!token) {
+                window.location.href = "/login";
+            }
+        });
+    </script>
+    {% else %}
+        <!-- Caso seja rota /login, não renderiza sidebar -->
+        {% block login_content %}{% endblock %}
+    {% endif %}
+
+    <script src="/static/js/app.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
