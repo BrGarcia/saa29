@@ -74,7 +74,7 @@
             </div>
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
                 <button type="button" class="btn btn-outline" onclick="closeConcluirModal()">Cancelar</button>
-                <button type="submit" class="btn btn-primary" style="background-color: var(--status-ok);">Homologar Solução</button>
+                <button type="submit" class="btn btn-primary" style="background-color: var(--status-ok);">Concluir Intervenção</button>
             </div>
         </form>
     </div>
@@ -141,6 +141,18 @@
                 method: "PUT",
                 body: { status: novoStatus }
             });
+            
+            // Assumir automaticamente como responsavel da pane na mudanca de status de ABERTA -> EM PESQUISA
+            const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
+            if(user && user.id) {
+                try {
+                    await apiFetch(`/panes/${PANE_ID}/responsaveis`, {
+                        method: "POST",
+                        body: { usuario_id: user.id, papel: "SERVIÇO" }
+                    });
+                } catch(ignorar){} // IGNORAR ERROS SE JÁ FOR RESPONSÁVEL
+            }
+
             showToast(`Status atualizado para: ${novoStatus}`, "info");
             carregarDetalhe();
         } catch (e) {}
@@ -159,6 +171,18 @@
                 method: "POST",
                 body: { observacao_conclusao: obs }
             });
+
+            // Se for mantenedor, fica automaticamente listado como responsável pelo serviço finalizado
+            const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
+            if(user && user.id) {
+                try {
+                    await apiFetch(`/panes/${PANE_ID}/responsaveis`, {
+                        method: "POST",
+                        body: { usuario_id: user.id, papel: "MANTENEDOR" }
+                    });
+                } catch(ignorar){}
+            }
+
             showToast("Pane finalizada e assinada.", "success");
             closeConcluirModal();
             carregarDetalhe();

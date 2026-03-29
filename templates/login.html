@@ -67,8 +67,11 @@
 
             const data = await response.json();
             
-            // Sucesso! Grava o token
+            // Sucesso! Grava o token e dados do usuário
             setToken(data.access_token);
+            if(data.usuario) {
+                localStorage.setItem("saa29_user", JSON.stringify(data.usuario));
+            }
             showToast("Acesso autorizado. Carregando Painel...", "success");
 
             // Redireciona

@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block page_title %}Administração de Efetivo Militar{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <!-- Filtragem Básica Placeholder -->
+    <div style="display: flex; gap: 1rem; flex: 1; max-width: 600px;">
+        <input type="text" id="filter-user" class="form-input" placeholder="Buscar efetivo..." style="flex: 1;" onkeyup="loadEfetivo()">
+    </div>
+
+    <!-- Novo Membro -->
+    <button class="btn btn-primary" onclick="openModalMembro()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-8 0v2M12 11a4 4 0 100-8 4 4 0 000 8zM20 8v6M23 11h-6"/></svg>
+        Adicionar ao Sistema
+    </button>
+</div>
+
+<!-- Tabela -->
+<div class="card glass-panel" style="padding: 0;">
+    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+        <thead style="background-color: var(--bg-tertiary); border-bottom: 1px solid var(--border-color);">
+            <tr>
+                <th style="padding: 1rem; font-weight: 600;">Posto/Nome</th>
+                <th style="padding: 1rem; font-weight: 600;">Login NIP</th>
+                <th style="padding: 1rem; font-weight: 600;">Função (Perfil)</th>
+                <th style="padding: 1rem; font-weight: 600;">Ramal</th>
+            </tr>
+        </thead>
+        <tbody id="efetivo-table-body">
+            <!-- Renderizado via JS -->
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal -->
+<div id="modal-membro" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card glass-panel" style="width: 100%; max-width: 450px; margin: 1rem;">
+        <h3 style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">Cadastrar Militar</h3>
+        
+        <form id="formMembro" onsubmit="criarMembro(event)">
+            
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; margin-bottom: 1.25rem;">
+                <div>
+                    <label class="form-label">Posto *</label>
+                    <input type="text" id="postoInput" class="form-input" placeholder="Sgt" required>
+                </div>
+                <div>
+                    <label class="form-label">Nome Completo *</label>
+                    <input type="text" id="nomeInput" class="form-input" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Login NIP (Usuário) *</label>
+                <input type="text" id="nipInput" class="form-input" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Senha de Entrada *</label>
+                <input type="password" id="passInput" class="form-input" required minlength="4">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Função (Nível de Acesso) *</label>
+                <select id="funcaoInput" class="form-input" required>
+                    <option value="ADMINISTRADOR">ADMINISTRADOR</option>
+                    <option value="ENCARREGADO">ENCARREGADO</option>
+                    <option value="MANTENEDOR">MANTENEDOR</option>
+                </select>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-bottom: 1.25rem;">
+                <div style="flex:1;">
+                    <label class="form-label">Especialidade</label>
+                    <input type="text" id="espInput" class="form-input">
+                </div>
+                <div style="flex:1;">
+                    <label class="form-label">Ramal</label>
+                    <input type="text" id="ramalInput" class="form-input">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+                <button type="button" class="btn btn-outline" onclick="closeModalMembro()">Cancelar</button>
+                <button type="submit" class="btn btn-primary" id="btnSalvarMembro">Confirmar Inclusão</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let usuariosCache = [];
+
+    async function loadEfetivo() {
+        if(usuariosCache.length === 0) {
+            try {
+                usuariosCache = await apiFetch(`/auth/usuarios`);
+            } catch(e) {
+                console.error(e);
+            }
+        }
+        
+        const body = document.getElementById('efetivo-table-body');
+        const str = document.getElementById('filter-user').value.toLowerCase();
+        
+        const filtered = usuariosCache.filter(u => 
+            u.nome.toLowerCase().includes(str) || 
+            u.username.toLowerCase().includes(str)
+        );
+
+        body.innerHTML = '';
+        if(filtered.length === 0) {
+            body.innerHTML = `<tr><td colspan="4" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Sem registros encontrados.</td></tr>`;
+            return;
+        }
+
+        filtered.forEach(u => {
+            let roleColor = "--text-secondary";
+            if(u.funcao === "ADMINISTRADOR") roleColor = "--status-danger";
+            else if(u.funcao === "ENCARREGADO") roleColor = "--status-warning";
+            else if(u.funcao === "MANTENEDOR") roleColor = "--primary-color";
+
+            const tr = document.createElement("tr");
+            tr.style.borderBottom = "1px solid var(--border-color)";
+            tr.innerHTML = `
+                <td style="padding: 1rem; font-weight: 500;">${u.posto} ${u.nome}</td>
+                <td style="padding: 1rem; font-family: monospace;">${u.username}</td>
+                <td style="padding: 1rem;"><span style="color: var(${roleColor}); font-weight: 600; font-size: 0.85rem;">${u.funcao}</span></td>
+                <td style="padding: 1rem; color: var(--text-secondary);">${u.ramal || '-'}</td>
+            `;
+            body.appendChild(tr);
+        });
+    }
+
+    const modal = document.getElementById("modal-membro");
+    function openModalMembro() { modal.style.display = "flex"; }
+    function closeModalMembro() { modal.style.display = "none"; document.getElementById("formMembro").reset(); }
+
+    async function criarMembro(e) {
+        e.preventDefault();
+        const btn = document.getElementById("btnSalvarMembro");
+        btn.disabled = true;
+
+        const payload = {
+            nome: document.getElementById("nomeInput").value,
+            posto: document.getElementById("postoInput").value,
+            especialidade: document.getElementById("espInput").value || null,
+            funcao: document.getElementById("funcaoInput").value,
+            ramal: document.getElementById("ramalInput").value || null,
+            username: document.getElementById("nipInput").value,
+            senha_bruta: document.getElementById("passInput").value
+        };
+
+        try {
+            await apiFetch("/auth/usuarios", {
+                method: "POST",
+                body: payload
+            });
+            showToast("Militar registrado com sucesso!", "success");
+            usuariosCache = []; // clear cache
+            closeModalMembro();
+            loadEfetivo();
+        } catch(e) {} finally {
+            btn.disabled = false;
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        loadEfetivo();
+    });
+</script>
+{% endblock %}

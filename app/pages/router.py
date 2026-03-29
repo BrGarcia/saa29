@@ -35,3 +35,15 @@ async def list_panes_page(request: Request):
 async def detail_pane_page(request: Request, pane_id: str):
     """Renderiza a visualização detalhada de uma pane."""
     return templates.TemplateResponse("panes/detalhe.html", {"request": request, "pane_id": pane_id})
+
+
+@router.get("/frota", response_class=HTMLResponse, include_in_schema=False)
+async def frota_page(request: Request):
+    """Visualização da Gestão de Frota Aeronaves"""
+    return templates.TemplateResponse("aeronaves.html", {"request": request})
+
+
+@router.get("/efetivo", response_class=HTMLResponse, include_in_schema=False)
+async def efetivo_page(request: Request):
+    """Visualização da Gestão de Usuários e Efetivo (Militares)"""
+    return templates.TemplateResponse("efetivo.html", {"request": request})

@@ -160,6 +160,7 @@ h1, h2, h3, h4, h5 {
   gap: 0.5rem;
   font-family: inherit;
   font-size: 0.9rem;
+  text-decoration: none; /* Remover sublinhado padrao */
 }
 
 .btn-primary {
