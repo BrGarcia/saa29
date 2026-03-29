@@ -33,6 +33,7 @@ Tabela: usuarios
 - especialidade
 - funcao
 - ramal
+- trigrama (3 LETRAS)
 - username (UNIQUE)
 - senha_hash
 - created_at

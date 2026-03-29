@@ -26,7 +26,7 @@ O sistema será inicialmente um MVP leve, web-based e responsivo.
 O sistema será uma aplicação web acessível via navegador.
 
 ### 2.2 Usuários do Sistema
-- Inspetor
+- Administrador
 - Encarregado
 - Mantenedor
 

@@ -7,11 +7,18 @@ e aderente ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ---
 
-## [Unreleased]
+## [0.6.0] – 2026-03-29
 
-### Planejado
-- Fase 6: Deploy automatizado com GitHub Actions
-- Pipeline de CI/CD para qualidade de código
+### Adicionado
+- **Reestruturação RBAC (3 Papéis)**: Migração para o sistema oficial `ADMINISTRADOR`, `ENCARREGADO` e `MANTENEDOR`.
+- **Gestão de Efetivo (CRUD)**: Endpoints `PUT` e `DELETE` para usuários, com interface administrativa completa em modal.
+- **Campo Trigrama**: Implementação de código de 3 letras para militares em todo o sistema (DB, API e Frontend).
+- **Delegar Pane**: Funcionalidade para Encarregados e Administradores atribuírem responsáveis às panes.
+
+### Corrigido
+- Falha Crítica: Resolvido `ImportError` em `dependencies.py` que causava downtime do servidor.
+- Fix: Botão "Ver" em anexos agora abre corretamente os arquivos em nova aba.
+- Fix: Login e registro de usuários alinhados com o novo schema Pydantic (`password` vs `senha_bruta`).
 
 ---
 

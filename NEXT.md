@@ -1,9 +1,9 @@
 # NEXT.md – Guia do Desenvolvedor: Próximos Passos
 
 **Projeto:** SAA29 – Sistema de Gestão de Panes – Eletrônica A-29  
-**Atualizado em:** 2026-03-28  
+**Atualizado em:** 2026-03-29  
 **Branch atual:** `main`  
-**Versão atual:** `0.4.1` (Estável)
+**Versão atual:** `0.6.0` (Estável)
 
 ---
 
