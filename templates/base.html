@@ -75,14 +75,11 @@
                     const funcao = user.funcao ? user.funcao.toUpperCase() : '';
                     // ADMINISTRADOR: acesso total (não oculta nada)
                     if(funcao === 'MANTENEDOR' || funcao === 'ENCARREGADO') {
-                        // Ambos só veem Dashboard e Histórico
+                        // Ambos veem Dashboard e Histórico
                         document.getElementById('nav-aeronaves').style.display = 'none';
                         document.getElementById('nav-efetivo').style.display = 'none';
                     }
-                    // MANTENEDOR também não vê o Dashboard (acesso restrito)
-                    if(funcao === 'MANTENEDOR') {
-                        document.getElementById('nav-dashboard').style.display = 'none';
-                    }
+                    // MANTENEDOR e ENCARREGADO veem Dashboard e Histórico por padrão no bloco acima
                 } catch(e) {}
             }
         });

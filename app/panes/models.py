@@ -223,5 +223,10 @@ class PaneResponsavel(Base):
     pane: Mapped["Pane"] = relationship(back_populates="responsaveis")
     usuario: Mapped["Usuario"] = relationship(back_populates="responsabilidades")  # type: ignore[name-defined]
 
+    @property
+    def trigrama(self) -> str | None:
+        """Atalho para obter o trigrama do usuário vinculado."""
+        return self.usuario.trigrama if self.usuario else None
+
     def __repr__(self) -> str:
         return f"<PaneResponsavel pane={self.pane_id} usuario={self.usuario_id} papel={self.papel!r}>"

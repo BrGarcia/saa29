@@ -153,9 +153,10 @@
             const pane = await apiFetch(`/panes/${PANE_ID}`);
 
             // Textos base
+            document.getElementById("det-id").innerText = pane.id;
             document.getElementById("det-sistema").innerText = pane.sistema_subsistema;
             document.getElementById("det-descricao").innerText = pane.descricao;
-            document.getElementById("det-data").innerText = pane.data_bertura ? pane.data_bertura.split("T")[0] : "--";
+            document.getElementById("det-data").innerText = pane.data_abertura ? pane.data_abertura.split("T")[0] : "--";
 
             // Botões de fluxo e Status badge
             const btnPesq = document.getElementById("btn-pesquisa");
@@ -213,11 +214,11 @@
 
             // Assumir automaticamente como responsavel da pane na mudanca de status de ABERTA -> EM PESQUISA
             const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
-            if (user && user.id) {
+            if (user && user.id && user.funcao) {
                 try {
                     await apiFetch(`/panes/${PANE_ID}/responsaveis`, {
                         method: "POST",
-                        body: { usuario_id: user.id, papel: "SERVIÇO" }
+                        body: { usuario_id: user.id, papel: user.funcao }
                     });
                 } catch (ignorar) { } // IGNORAR ERROS SE JÁ FOR RESPONSÁVEL
             }
@@ -243,11 +244,11 @@
 
             // Se não for delegado e bater conclusão, assume ser de quem concluiu
             const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
-            if (user && user.id) {
+            if (user && user.id && user.funcao) {
                 try {
                     await apiFetch(`/panes/${PANE_ID}/responsaveis`, {
                         method: "POST",
-                        body: { usuario_id: user.id, papel: "MANTENEDOR" }
+                        body: { usuario_id: user.id, papel: user.funcao }
                     });
                 } catch (ignorar) { }
             }

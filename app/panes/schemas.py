@@ -75,6 +75,7 @@ class ResponsavelOut(BaseModel):
 
     id: uuid.UUID
     usuario_id: uuid.UUID
+    trigrama: str | None = None
     papel: TipoPapel
     created_at: datetime
 
@@ -113,6 +114,7 @@ class PaneListItem(BaseModel):
     data_conclusao: datetime | None
     observacao_conclusao: str | None
     ativo: bool
+    responsaveis: list[ResponsavelOut] = []
 
 
 # ============================================================

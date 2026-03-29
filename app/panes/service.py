@@ -145,8 +145,11 @@ async def listar_panes(db: AsyncSession, filtros: FiltroPane | None = None) -> l
 
         query = query.offset(filtros.skip).limit(filtros.limit)
 
-    # Eager-load aeronave para exibir matricula no frontend
-    query = query.options(selectinload(Pane.aeronave))
+    # Eager-load aeronave para exibir matricula no frontend e responsaveis para o dashboard
+    query = query.options(
+        selectinload(Pane.aeronave),
+        selectinload(Pane.responsaveis).selectinload(PaneResponsavel.usuario)
+    )
 
     result = await db.execute(query)
     return list(result.scalars().all())
@@ -175,7 +178,7 @@ async def buscar_pane(
         .where(Pane.id == pane_id)
         .options(
             selectinload(Pane.anexos),
-            selectinload(Pane.responsaveis),
+            selectinload(Pane.responsaveis).selectinload(PaneResponsavel.usuario),
             selectinload(Pane.aeronave),
             selectinload(Pane.criador),
             selectinload(Pane.responsavel_conclusao),
@@ -413,4 +416,8 @@ async def adicionar_responsavel(
     )
     db.add(responsavel)
     await db.flush()
+    
+    # Refresh 'usuario' para garantir que o trigrama esteja carregado para o schema Pydantic
+    await db.refresh(responsavel, ["usuario"])
+    
     return responsavel
