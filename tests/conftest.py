@@ -108,6 +108,19 @@ def dados_usuario_secundario() -> dict:
 
 
 @pytest.fixture
+def dados_usuario_mantenedor() -> dict:
+    return {
+        "nome": "Sgt Carlos Lima",
+        "posto": "Sgt",
+        "especialidade": "ELT",
+        "funcao": "MANTENEDOR",
+        "ramal": "2503",
+        "username": "carlos.lima",
+        "password": "senha_mantenedor_789",
+    }
+
+
+@pytest.fixture
 def dados_aeronave_valida() -> dict:
     return {
         "serial_number": "SN-0001",
@@ -238,3 +251,29 @@ async def client_autenticado(
     # Limpar apenas get_current_user, mantendo get_db
     if get_current_user in app.dependency_overrides:
         del app.dependency_overrides[get_current_user]
+
+
+@pytest_asyncio.fixture
+async def usuario_mantenedor_e_token(
+    db: AsyncSession,
+    dados_usuario_mantenedor: dict,
+) -> dict:
+    """Cria um mantenedor autenticado para testes de autorização."""
+    usuario = Usuario(
+        nome=dados_usuario_mantenedor["nome"],
+        posto=dados_usuario_mantenedor["posto"],
+        especialidade=dados_usuario_mantenedor["especialidade"],
+        funcao=dados_usuario_mantenedor["funcao"],
+        ramal=dados_usuario_mantenedor["ramal"],
+        username=dados_usuario_mantenedor["username"],
+        senha_hash=hash_senha(dados_usuario_mantenedor["password"]),
+    )
+    db.add(usuario)
+    await db.flush()
+
+    token = criar_token(dados={"sub": usuario.username})
+    return {
+        "usuario": usuario,
+        "token": token,
+        "headers": {"Authorization": f"Bearer {token}"},
+    }

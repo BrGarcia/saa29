@@ -465,6 +465,36 @@ class TestTransicoesStatus:
         )
         assert response.status_code == 409
 
+    @pytest.mark.asyncio
+    async def test_edicao_pane_em_pesquisa_rejeitada(
+        self,
+        client: AsyncClient,
+        dados_aeronave_valida: dict,
+        usuario_e_token: dict,
+    ):
+        """
+        DADO pane em EM_PESQUISA
+        QUANDO tentar editar descrição
+        ENTÃO rejeitar com 409 Conflict, conforme RN-03.
+        """
+        headers = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
+        pane = await criar_pane(client, headers, aeronave["id"])
+
+        resposta_status = await client.put(
+            f"{PANES_URL}{pane['id']}",
+            json={"status": "EM_PESQUISA"},
+            headers=headers,
+        )
+        assert resposta_status.status_code == 200
+
+        response = await client.put(
+            f"{PANES_URL}{pane['id']}",
+            json={"descricao": "Tentativa de editar em pesquisa"},
+            headers=headers,
+        )
+        assert response.status_code == 409
+
 
 # ================================================================== #
 #  Upload de Anexos (RF-11)
@@ -536,6 +566,126 @@ class TestUploadAnexo:
         assert "id" in body
         assert "caminho_arquivo" in body
 
+    @pytest.mark.asyncio
+    async def test_baixar_anexo_requer_autenticacao(
+        self,
+        client: AsyncClient,
+        dados_aeronave_valida: dict,
+        usuario_e_token: dict,
+    ):
+        headers = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
+        pane = await criar_pane(client, headers, aeronave["id"])
+
+        jpeg_minimal = (
+            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
+            b"\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t"
+            b"\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a"
+            b"\x1f\x1e\x1d\x1a\x1c\x1c $.' \",#\x1c\x1c(7),01444\x1f'9=82<.342\x1e"
+            b"\xff\xd9"
+        )
+        upload = await client.post(
+            f"{PANES_URL}{pane['id']}/anexos",
+            headers=headers,
+            files={"arquivo": ("foto.jpg", jpeg_minimal, "image/jpeg")},
+        )
+        assert upload.status_code == 201
+        anexo_id = upload.json()["id"]
+
+        response = await client.get(f"{PANES_URL}{pane['id']}/anexos/{anexo_id}/download")
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_baixar_anexo_autenticado(
+        self,
+        client: AsyncClient,
+        dados_aeronave_valida: dict,
+        usuario_e_token: dict,
+    ):
+        headers = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
+        pane = await criar_pane(client, headers, aeronave["id"])
+
+        jpeg_minimal = (
+            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
+            b"\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t"
+            b"\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a"
+            b"\x1f\x1e\x1d\x1a\x1c\x1c $.' \",#\x1c\x1c(7),01444\x1f'9=82<.342\x1e"
+            b"\xff\xd9"
+        )
+        upload = await client.post(
+            f"{PANES_URL}{pane['id']}/anexos",
+            headers=headers,
+            files={"arquivo": ("foto.jpg", jpeg_minimal, "image/jpeg")},
+        )
+        assert upload.status_code == 201
+        anexo_id = upload.json()["id"]
+
+        response = await client.get(
+            f"{PANES_URL}{pane['id']}/anexos/{anexo_id}/download",
+            headers=headers,
+        )
+        assert response.status_code == 200
+        assert response.content
+
+
+class TestAutorizacaoPanes:
+    @pytest.mark.asyncio
+    async def test_editar_descricao_requer_gestor(
+        self,
+        client: AsyncClient,
+        dados_aeronave_valida: dict,
+        usuario_e_token: dict,
+        usuario_mantenedor_e_token: dict,
+    ):
+        headers_admin = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers_admin, dados_aeronave_valida)
+        pane = await criar_pane(client, headers_admin, aeronave["id"])
+
+        response = await client.put(
+            f"{PANES_URL}{pane['id']}",
+            json={"descricao": "Alteracao indevida"},
+            headers=usuario_mantenedor_e_token["headers"],
+        )
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_adicionar_responsavel_requer_gestor(
+        self,
+        client: AsyncClient,
+        dados_aeronave_valida: dict,
+        usuario_e_token: dict,
+        usuario_mantenedor_e_token: dict,
+    ):
+        headers_admin = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers_admin, dados_aeronave_valida)
+        pane = await criar_pane(client, headers_admin, aeronave["id"])
+
+        response = await client.post(
+            f"{PANES_URL}{pane['id']}/responsaveis",
+            json={"usuario_id": str(usuario_e_token["usuario"].id), "papel": "MANTENEDOR"},
+            headers=usuario_mantenedor_e_token["headers"],
+        )
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_deletar_pane_requer_gestor(
+        self,
+        client: AsyncClient,
+        dados_aeronave_valida: dict,
+        usuario_e_token: dict,
+        usuario_mantenedor_e_token: dict,
+    ):
+        headers_admin = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers_admin, dados_aeronave_valida)
+        pane = await criar_pane(client, headers_admin, aeronave["id"])
+
+        response = await client.delete(
+            f"{PANES_URL}{pane['id']}",
+            headers=usuario_mantenedor_e_token["headers"],
+        )
+        assert response.status_code == 403
+
 class TestEndpointsAdicionais:
     @pytest.mark.asyncio
     async def test_buscar_pane_existente(self, client: AsyncClient, dados_aeronave_valida: dict, usuario_e_token: dict):
@@ -566,4 +716,3 @@ class TestEndpointsAdicionais:
         payload = {"usuario_id": "00000000-0000-0000-0000-000000000000", "papel": "MANTENEDOR"}
         response = await client.post(f"{PANES_URL}{pane['id']}/responsaveis", json=payload, headers=headers)
         assert response.status_code in [201, 404, 409, 422, 500]
-

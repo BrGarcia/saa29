@@ -37,8 +37,8 @@
                 <th style="padding: 1rem; font-weight: 600;">Pane</th>
                 <th style="padding: 1rem; font-weight: 600;">Ação Corretiva</th>
                 <th style="padding: 1rem; font-weight: 600;">Status</th>
-                <th style="padding: 1rem; font-weight: 600;">Referência (Resp.)</th>
-                <th style="padding: 1rem; font-weight: 600; text-align: center;">Actions</th>
+                <th style="padding: 1rem; font-weight: 600;">Responsavel</th>
+                <th style="padding: 1rem; font-weight: 600; text-align: center;">Ação</th>
             </tr>
         </thead>
         <tbody id="panes-table-body">
@@ -137,6 +137,13 @@
                 
                 const obsConclusao = pane.observacao_conclusao || '--';
                 const statusName = pane.ativo ? pane.status.replace("_", " ") : "EXCLUIDA";
+                const matriculaAeronave = pane.aeronave?.matricula || "59XX";
+                const responsavelMantenedor = (pane.responsaveis || []).find(r => r.papel === "MANTENEDOR");
+                const responsavelFallback = (pane.responsaveis || []).find(r => r.trigrama);
+                const responsavelTrigrama = responsavelMantenedor?.trigrama || responsavelFallback?.trigrama || "--";
+                const responsavelBadge = responsavelTrigrama === "--"
+                    ? "--"
+                    : `<span class="badge" style="background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); font-family: monospace; font-size: 0.75rem;">${responsavelTrigrama}</span>`;
                 
                 // Apenas Encarregado e Administrador podem Editar e Apagar
                 const showAdminActions = (funcao === 'ENCARREGADO' || funcao === 'ADMINISTRADOR');
@@ -146,14 +153,16 @@
                 tr.innerHTML = `
                     <td style="padding: 1rem; font-family: monospace; font-size: 0.85rem;">${paneCode}</td>
                     <td style="padding: 1rem; font-size: 0.85rem; color: var(--text-secondary);">${shortDate}</td>
-                    <td style="padding: 1rem; font-weight: 500;">${pane.aeronave_id.substring(0,6)}..</td>
+                    <td style="padding: 1rem; font-weight: 500;">${matriculaAeronave}</td>
                     <td style="padding: 1rem; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${pane.descricao}</td>
                     <td style="padding: 1rem; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-secondary);">${obsConclusao}</td>
                     <td style="padding: 1rem;"><span class="badge ${badgeClass}">${statusName}</span></td>
-                    <td style="padding: 1rem; color: var(--text-secondary); font-size: 0.85rem;">${pane.criado_por_id.substring(0,4)}...</td>
+                    <td style="padding: 1rem; color: var(--text-secondary); font-size: 0.85rem;">${responsavelBadge}</td>
                     <td style="padding: 1rem; text-align: center; display: flex; gap: 0.5rem; justify-content: center;">
-                        <a href="/panes/${pane.id}/detalhes" class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background-color: var(--bg-secondary); color: var(--text-primary);" title="VIEW">VIEW</a>
-                        ${showAdminActions && pane.ativo ? `<button class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" title="EDIT" onclick="editPane('${pane.id}')">EDIT</button><button class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; color: var(--status-danger); border-color: var(--status-danger);" title="DELETE" onclick="softDeletePane('${pane.id}')">DELETE</button>` : ''}
+                        <a href="/panes/${pane.id}/detalhes" class="btn-icon" style="color: var(--primary-color); display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; border: none; padding: 0.25rem;" title="Visualizar">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                        </a>
+                        ${showAdminActions && pane.ativo ? `<a href="/panes/${pane.id}/detalhes?edit=true" class="btn-icon" style="color: var(--status-warning); display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; border: none; padding: 0.25rem;" title="Editar"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></a><button class="btn-icon" style="color: var(--status-danger); display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; border: none; padding: 0.25rem;" title="Excluir" onclick="softDeletePane('${pane.id}')"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>` : ''}
                     </td>
                 `;
                 body.appendChild(tr);

@@ -340,10 +340,6 @@
             }
 
             anexos.forEach(ax => {
-                // Extraindo o nome do arquivo que foi armazenado na API
-                const filename = ax.caminho_arquivo ? ax.caminho_arquivo.split(/[\/\\]/).pop() : '';
-                const url = filename ? `/uploads/${filename}` : '#';
-
                 const div = document.createElement("div");
                 div.style = "display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; background: var(--bg-primary); border-radius: var(--radius-md); font-size: 0.85rem;";
 
@@ -351,11 +347,32 @@
                    <span style="font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px;">
                        📎 Anexo_${ax.id.substring(0, 4)}
                    </span>
-                   <a href="${url}" target="_blank" rel="noopener noreferrer" class="badge" style="background: var(--bg-tertiary); color: var(--text-primary); cursor: pointer; text-decoration: none;">Ver</a>
+                   <button type="button" class="badge" style="background: var(--bg-tertiary); color: var(--text-primary); cursor: pointer; text-decoration: none; border: none;" onclick="abrirAnexo('${ax.id}')">Ver</button>
                `;
                 lista.appendChild(div);
             });
         } catch (e) { }
+    }
+
+    async function abrirAnexo(anexoId) {
+        const token = getToken();
+        const res = await fetch(`/panes/${PANE_ID}/anexos/${anexoId}/download`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (!res.ok) {
+            let err = "Falha ao carregar anexo.";
+            try {
+                const data = await res.json();
+                err = data?.detail || err;
+            } catch (e) { }
+            showToast(err, "error");
+            return;
+        }
+
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, "_blank", "noopener,noreferrer");
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
     }
 
     async function handleUpload(e) {

@@ -113,6 +113,7 @@ class PaneListItem(BaseModel):
     data_abertura: datetime
     data_conclusao: datetime | None
     observacao_conclusao: str | None
+    criado_por_id: uuid.UUID
     ativo: bool
     responsaveis: list[ResponsavelOut] = []
 

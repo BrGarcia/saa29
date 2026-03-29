@@ -93,15 +93,11 @@ def _register_routers(app: FastAPI) -> None:
 
 def _mount_static(app: FastAPI) -> None:
     """
-    Monta os arquivos estáticos (/static) e de upload (/uploads).
+    Monta os arquivos estáticos públicos da aplicação.
     """
     # Cria pasta static caso não exista (para os CSS/JS)
     os.makedirs("static", exist_ok=True)
     app.mount("/static", StaticFiles(directory="static"), name="static")
-
-    upload_dir = settings.upload_dir
-    os.makedirs(upload_dir, exist_ok=True)
-    app.mount("/uploads", StaticFiles(directory=upload_dir), name="uploads")
 
 
 # Instância da aplicação (usada pelo uvicorn: app.main:app)

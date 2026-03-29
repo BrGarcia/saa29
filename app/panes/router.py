@@ -4,11 +4,13 @@ Endpoints de gestão de panes aeronáuticas.
 """
 
 import uuid
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, File, UploadFile, Query, status
+from fastapi.responses import FileResponse
 
 from app.panes import schemas, service
-from app.dependencies import DBSession, CurrentUser
+from app.dependencies import DBSession, CurrentUser, ensure_role
 
 router = APIRouter()
 
@@ -93,6 +95,8 @@ async def editar_pane(
     usuario_atual: CurrentUser,
 ) -> schemas.PaneOut:
     """Edita descrição e/ou status. RN-03: apenas panes não resolvidas."""
+    if dados.descricao is not None or dados.sistema_subsistema is not None:
+        ensure_role(usuario_atual, "ENCARREGADO", "ADMINISTRADOR")
     try:
         pane = await service.editar_pane(db, pane_id, dados, usuario_atual.id)
         return schemas.PaneOut.model_validate(pane)
@@ -100,7 +104,7 @@ async def editar_pane(
         detail_str = str(e)
         if "não encontrada" in detail_str:
             status_code = status.HTTP_404_NOT_FOUND
-        elif "resolvida" in detail_str or "Transição" in detail_str:
+        elif "abertas" in detail_str or "resolvida" in detail_str or "Transição" in detail_str:
             status_code = status.HTTP_409_CONFLICT
         else:
             status_code = status.HTTP_400_BAD_REQUEST
@@ -171,10 +175,47 @@ async def upload_anexo(
 async def listar_anexos(
     pane_id: uuid.UUID,
     db: DBSession,
-    _: CurrentUser,
+    usuario_atual: CurrentUser,
 ) -> list[schemas.AnexoOut]:
     anexos = await service.listar_anexos(db, pane_id)
     return [schemas.AnexoOut.model_validate(a) for a in anexos]
+
+
+@router.get(
+    "/{pane_id}/anexos/{anexo_id}/download",
+    summary="Baixar anexo autenticado",
+)
+async def baixar_anexo(
+    pane_id: uuid.UUID,
+    anexo_id: uuid.UUID,
+    db: DBSession,
+    usuario_atual: CurrentUser,
+) -> FileResponse:
+    """Entrega o anexo apenas dentro do fluxo autenticado do sistema."""
+    anexo = await service.buscar_anexo(db, pane_id, anexo_id)
+    if not anexo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Anexo não encontrado.",
+        )
+    try:
+        caminho = service.resolver_caminho_anexo(anexo.caminho_arquivo)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    if not caminho.exists() or not caminho.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Arquivo físico do anexo não encontrado.",
+        )
+    media_type = "application/pdf" if caminho.suffix.lower() == ".pdf" else None
+    return FileResponse(
+        path=Path(caminho),
+        filename=caminho.name,
+        media_type=media_type,
+    )
 
 
 @router.post(
@@ -187,8 +228,9 @@ async def adicionar_responsavel(
     pane_id: uuid.UUID,
     dados: schemas.AdicionarResponsavel,
     db: DBSession,
-    _: CurrentUser,
+    usuario_atual: CurrentUser,
 ) -> schemas.ResponsavelOut:
+    ensure_role(usuario_atual, "ENCARREGADO", "ADMINISTRADOR")
     try:
         resp = await service.adicionar_responsavel(db, pane_id, dados)
         return schemas.ResponsavelOut.model_validate(resp)
@@ -210,6 +252,7 @@ async def deletar_pane(
     db: DBSession,
     usuario_atual: CurrentUser,
 ) -> None:
+    ensure_role(usuario_atual, "ENCARREGADO", "ADMINISTRADOR")
     try:
         await service.excluir_pane(db, pane_id)
     except ValueError as e:

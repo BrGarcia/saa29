@@ -80,6 +80,18 @@ DBSession = Annotated[AsyncSession, Depends(get_db)]
 CurrentUser = Annotated[Usuario, Depends(get_current_user)]
 
 
+def ensure_role(usuario: Usuario, *roles: str) -> Usuario:
+    """
+    Valida, em código de aplicação, se o usuário possui um dos papéis exigidos.
+    """
+    if usuario.funcao not in roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Acesso restrito a: {', '.join(roles)}.",
+        )
+    return usuario
+
+
 def require_role(*roles: str):
     """
     Factory de dependency para RBAC.
@@ -95,12 +107,7 @@ def require_role(*roles: str):
     async def _check_role(
         usuario: CurrentUser,
     ) -> Usuario:
-        if usuario.funcao not in roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Acesso restrito a: {', '.join(roles)}.",
-            )
-        return usuario
+        return ensure_role(usuario, *roles)
     return _check_role
 
 

@@ -148,6 +148,19 @@ Dia 7: Deploy/CI     ░░ Pendente   ← próxima fase
 
 ---
 
+## ✅ Fase 5.1 – Correções Críticas Pós-Review (Concluída)
+
+> **Objetivo:** eliminar falhas de alta severidade identificadas na revisão técnica.
+
+- [x] Remover exposição pública de anexos via `/uploads`
+- [x] Servir anexos apenas por endpoint autenticado
+- [x] Aplicar autorização no backend para delegação e exclusão de panes
+- [x] Restringir edição de conteúdo de panes conforme RN-03
+- [x] Alinhar contrato da listagem de panes com o frontend
+- [ ] Completar filtros pendentes de excluídas/data no endpoint de listagem
+
+---
+
 ## 🔲 Fase 6 – Deploy e CI/CD (Dia 7)
 
 - [ ] Configurar pipeline CI (GitHub Actions):

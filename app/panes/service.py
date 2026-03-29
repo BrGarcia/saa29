@@ -6,6 +6,7 @@ Camada de serviço para gestão de panes aeronáuticas.
 import os
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 import anyio
 try:
@@ -199,7 +200,7 @@ async def editar_pane(
     """
     Edita descrição e/ou status de uma pane.
 
-    RN-03: Apenas panes com status ABERTA ou EM_PESQUISA podem ser editadas.
+    RN-03: Apenas panes com status ABERTA podem ser editadas.
     Validar transições de status permitidas (SPECS §8):
         ABERTA → EM_PESQUISA ✓
         ABERTA → RESOLVIDA ✓
@@ -210,7 +211,7 @@ async def editar_pane(
     concluido_por_id com o usuário que fez a edição.
 
     Raises:
-        ValueError: se a pane já estiver resolvida ou transição inválida.
+        ValueError: se a pane não estiver aberta ou houver transição inválida.
     """
     pane = await buscar_pane(db, pane_id)
     if not pane:
@@ -218,9 +219,9 @@ async def editar_pane(
 
     status_atual = StatusPane(pane.status)
 
-    # RN-03: Pane resolvida não pode ser editada
-    if status_atual == StatusPane.RESOLVIDA:
-        raise ValueError("Pane já resolvida. Não é possível editar.")
+    # RN-03: apenas panes abertas podem ser editadas por este fluxo
+    if status_atual != StatusPane.ABERTA:
+        raise ValueError("Apenas panes abertas podem ser editadas.")
 
     # Atualizar campos
     if dados.descricao is not None:
@@ -382,6 +383,37 @@ async def listar_anexos(db: AsyncSession, pane_id: uuid.UUID) -> list[Anexo]:
         select(Anexo).where(Anexo.pane_id == pane_id).order_by(Anexo.created_at)
     )
     return list(result.scalars().all())
+
+
+async def buscar_anexo(
+    db: AsyncSession,
+    pane_id: uuid.UUID,
+    anexo_id: uuid.UUID,
+) -> Anexo | None:
+    """Busca um anexo de uma pane ativa."""
+    result = await db.execute(
+        select(Anexo)
+        .join(Pane, Pane.id == Anexo.pane_id)
+        .where(
+            Anexo.id == anexo_id,
+            Anexo.pane_id == pane_id,
+            Pane.ativo == True,  # noqa: E712
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+def resolver_caminho_anexo(caminho_relativo: str) -> Path:
+    """
+    Resolve o caminho físico do anexo garantindo permanência dentro de upload_dir.
+    """
+    settings = get_settings()
+    base_dir = Path(settings.upload_dir).resolve()
+    arquivo = base_dir / Path(caminho_relativo).name
+    arquivo = arquivo.resolve()
+    if arquivo.parent != base_dir:
+        raise ValueError("Caminho de anexo inválido.")
+    return arquivo
 
 
 async def adicionar_responsavel(
