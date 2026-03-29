@@ -45,13 +45,13 @@ uvicorn app.main:app --reload # Inicia servidor
 
 | RF | Funcionalidade | Status |
 |----|---------------|--------|
-| RF-01/02 | Autenticação JWT | ✅ Concluído |
-| RF-03/04/05 | Dashboard de panes com cards e cores | ✅ Concluído (API) |
-| RF-06 | Filtros (texto, status, aeronave, data) | ✅ Concluído |
-| RF-07/08 | Registro de nova pane (fluxo guiado) | ✅ Concluído |
+| RF-01/02 | Autenticação JWT e RBAC Nativo | ✅ Concluído |
+| RF-03/04/05 | Dashboard de panes com cards e cores | ✅ Concluído |
+| RF-06 | Filtros Históricos (DDD/YY) e Lixeira | ✅ Concluído |
+| RF-07/08 | Registro de nova pane (Upload silencioso) | ✅ Concluído |
 | RF-09 | Visualização detalhada da pane | ✅ Concluído |
-| RF-10/11/12 | Editar, anexar imagem, concluir pane | ✅ Concluído |
-| RF-14/15/16 | Cadastros: efetivo, aeronaves, equipamentos | ✅ Concluído |
+| RF-10/11/12 | Editar, Assumir, Concluir (Ação Corretiva) e Excluir pane | ✅ Concluído |
+| RF-14/15/16 | Cadastros: efetivo, aeronaves, equipamentos | ✅ Concluído (Frota/Efetivo) |
 
 ---
 
@@ -120,13 +120,13 @@ SAA29/
 
 ## Fase Atual
 
-> **Método Akita – Dia 4 (Codificação) ✅ Concluído**
+> **Método Akita – Dia 6 (Interface UI/UX) ✅ Concluído**
 >
-> Toda a lógica de negócio do backend foi implementada e validada pela suite de testes.
+> Todo o backend foi unificado a um Frontend responsivo "Glassmorphism" construído sobre requisições Assíncronas Nativas e injecoes pelo Jinja2 FastAPI.
 >
 > **Próximos Passos:**
-> **Dia 5:** Otimização de queries, cache e análise estática.
-> **Dia 6:** Início da implementação da interface frontend.
+> Opcionalmente cobrir componentes de Equipamentos na Interface.
+> **Dia 7:** Deploy / CI nas nuvens e esteira de Testes GitHub Actions.
 
 Veja o [ROADMAP.md](./ROADMAP.md) para o roteiro completo de entregas.
 
