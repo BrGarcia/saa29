@@ -11,9 +11,9 @@ Dia 1: AI Jail       ██ Concluído
 Dia 2: Fundação      ██ Concluído
 Dia 3: Testes        ██ Concluído
 Dia 4: Codificação   ██ Concluído (Estável)
-Dia 5: Otimização    ░░ Pendente   ← próxima fase (após Migrações e Seed)
-Dia 6: Interface     ░░ Pendente
-Dia 7: Deploy/CI     ░░ Pendente
+Dia 5: Otimização    ██ Concluído
+Dia 6: Interface     ██ Concluído
+Dia 7: Deploy/CI     ░░ Pendente   ← próxima fase
 ```
 
 ---
@@ -133,19 +133,18 @@ Dia 7: Deploy/CI     ░░ Pendente
 
 ---
 
-## 🔲 Fase 5 – Interface (Dia 6)
+## ✅ Fase 5 – Interface (Concluída)
 
-> **Objetivo:** Frontend web para os usuários finais.
+> **Objetivo:** Frontend web para os usuários finais. Entregue no padrão Fab com Glassmorphism.
 
-- [ ] Definir stack de frontend (sugestão: Next.js ou HTML puro com HTMX — discutir com equipe)
-- [ ] Tela de login (RF-01)
-- [ ] Dashboard com cards de panes por status com cores (RF-03, RF-04, RF-05)
-- [ ] Filtros: texto, aeronave, status, data (RF-06)
-- [ ] Fluxo de nova pane: seleção de aeronave → upload → descrição (RF-07)
-- [ ] Tela detalhada de pane com anexos (RF-09)
-- [ ] Botões: editar, anexar imagem, concluir (RF-10, RF-11, RF-12)
-- [ ] Telas de cadastro: efetivo, aeronaves, equipamentos (RF-14, RF-15, RF-16)
-- [ ] Design responsivo para uso em dispositivos móveis
+- [x] Definir stack de frontend (HTML/CSS Vanilla + JS + Jinja2)
+- [x] Tela de login (RF-01) com armazenamento JWT em LocalStorage
+- [x] Dashboard com cards e tabela simplificada apenas Ocorrências Abertas (RF-03, RF-04, RF-05)
+- [x] Filtros em Histórico e visualização DDD/YY (RF-06)
+- [x] Fluxo de nova pane: form + upload invisivel em background (RF-07)
+- [x] Tela detalhada de pane com anexos (RF-09)
+- [x] Botões e transições: concluir (grava ação corretiva), assumir, deletar logs (Soft Delete) (RF-10, RF-11, RF-12)
+- [x] Telas de cadastro de Efetivo e Frota (Aeronaves) em modal (RF-14, RF-15)
 
 ---
 

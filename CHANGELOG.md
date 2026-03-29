@@ -10,10 +10,21 @@ e aderente ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Planejado
-- Fase 3.5: Migrações Alembic e Seed Inicial
-- Interface frontend de alta fidelidade
-- Deploy automatizado com GitHub Actions
-- Otimização de queries N+1 e índices (Dia 5)
+- Fase 6: Deploy automatizado com GitHub Actions
+- Pipeline de CI/CD para qualidade de código
+
+---
+
+## [0.5.0] – 2026-03-28
+
+### Adicionado
+- Implementação completa da **Interface MVP (Fase 5)** utilizando Jinja2, Vanilla JS e CSS Glassmorphism.
+- Funcionalidade de **RBAC no Frontend**: controle dinâmico de visibilidade das views Dashboard, Frota e Efetivo para `ADMINISTRADOR`, `ENCARREGADO` e `MANTENEDOR`.
+- Tela **Dashboard**: visão operacional priorizando panes `ABERTA` e `EM_PESQUISA`.
+- Tela **Histórico** (Panes): com cálculo automático de código (ddd/yy), filtros funcionais, e exibição condicional de Ação Corretiva.
+- Telas administrativas: **Frota (Aeronaves)** e **Efetivo (Usuários)** totalmente funcionais.
+- Ações na interface: registrar pane com envio em background de imagens, e concluir/assumir alterando status e responsáveis atrelados silenciosamente ao JWT em cache.
+- Lixeira inteligente: Implementação de Soft Delete (coluna `ativo=False`) na estrutura de Panes consumível via botão "DELETE" na interface.
 
 ---
 
