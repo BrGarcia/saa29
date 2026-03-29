@@ -96,6 +96,54 @@ class TestCriarPane:
         assert response.status_code == 404
 
     @pytest.mark.asyncio
+    async def test_criar_pane_aeronave_inativa_rejeitada(
+        self,
+        client: AsyncClient,
+        dados_aeronave_valida: dict,
+        usuario_e_token: dict,
+    ):
+        headers = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
+        toggle = await client.post(f"/aeronaves/{aeronave['id']}/toggle-status", headers=headers)
+        assert toggle.status_code == 200
+
+        response = await client.post(
+            PANES_URL,
+            json={
+                "aeronave_id": aeronave["id"],
+                "descricao": "Pane em aeronave inativa",
+            },
+            headers=headers,
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_criar_pane_aeronave_indisponivel_permitida(
+        self,
+        client: AsyncClient,
+        dados_aeronave_valida: dict,
+        usuario_e_token: dict,
+    ):
+        headers = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
+        update = await client.put(
+            f"/aeronaves/{aeronave['id']}",
+            json={"status": "INDISPONIVEL"},
+            headers=headers,
+        )
+        assert update.status_code == 200
+
+        response = await client.post(
+            PANES_URL,
+            json={
+                "aeronave_id": aeronave["id"],
+                "descricao": "Pane em aeronave indisponivel",
+            },
+            headers=headers,
+        )
+        assert response.status_code == 201
+
+    @pytest.mark.asyncio
     async def test_criar_pane_sucesso(
         self,
         client: AsyncClient,
@@ -156,6 +204,36 @@ class TestCriarPane:
             assert response.json()["descricao"] == "AGUARDANDO EDICAO"
         else:
             pytest.skip("Endpoint de criação ainda não implementado")
+
+    @pytest.mark.asyncio
+    async def test_criar_pane_com_responsavel_encarregado(
+        self,
+        client: AsyncClient,
+        dados_aeronave_valida: dict,
+        usuario_e_token: dict,
+        usuario_encarregado_e_token: dict,
+    ):
+        """
+        DADO aeronave existente e um usuário ENCARREGADO
+        QUANDO criar pane passando este ENCARREGADO como responsável
+        ENTÃO retornar 201 e a pane deve ter o encarregado vinculado com papel "ENCARREGADO".
+        """
+        headers = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
+        encarregado = usuario_encarregado_e_token["usuario"]
+
+        payload = {
+            "aeronave_id": aeronave["id"],
+            "descricao": "Pane com encarregado responsavel",
+            "mantenedor_responsavel_id": str(encarregado.id),
+        }
+        response = await client.post(PANES_URL, json=payload, headers=headers)
+
+        assert response.status_code == 201
+        body = response.json()
+        assert len(body["responsaveis"]) == 1
+        assert body["responsaveis"][0]["usuario_id"] == str(encarregado.id)
+        assert body["responsaveis"][0]["papel"] == "ENCARREGADO"
 
     @pytest.mark.asyncio
     async def test_criar_pane_sem_aeronave_id(self, client: AsyncClient, usuario_e_token: dict):
@@ -281,6 +359,38 @@ class TestListarPanes:
         if response.status_code == 200:
             body = response.json()
             assert all("VUHF" in p["descricao"] for p in body)
+
+    @pytest.mark.asyncio
+    async def test_filtrar_panes_excluidas(
+        self,
+        client: AsyncClient,
+        dados_aeronave_valida: dict,
+        usuario_e_token: dict,
+    ):
+        """
+        DADO uma pane ativa e outra soft-deletada
+        QUANDO listar com excluidas=true
+        ENTÃO retornar apenas panes inativas.
+        """
+        headers = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
+        pane_ativa = await criar_pane(client, headers, aeronave["id"], descricao="Pane ativa")
+        pane_excluida = await criar_pane(client, headers, aeronave["id"], descricao="Pane excluida")
+
+        resposta_delete = await client.delete(f"{PANES_URL}{pane_excluida['id']}", headers=headers)
+        assert resposta_delete.status_code == 204
+
+        response = await client.get(
+            PANES_URL,
+            params={"excluidas": "true"},
+            headers=headers,
+        )
+        assert response.status_code == 200
+        body = response.json()
+        ids = {p["id"] for p in body}
+        assert pane_excluida["id"] in ids
+        assert pane_ativa["id"] not in ids
+        assert all(p["ativo"] is False for p in body)
 
 
 # ================================================================== #
@@ -650,23 +760,45 @@ class TestAutorizacaoPanes:
         assert response.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_adicionar_responsavel_requer_gestor(
+    async def test_adicionar_outro_responsavel_rejeitado_para_mantenedor(
         self,
         client: AsyncClient,
         dados_aeronave_valida: dict,
         usuario_e_token: dict,
         usuario_mantenedor_e_token: dict,
     ):
+        """MANTENEDOR tenta atribuir o ADMIN à pane -> Rejeitado."""
         headers_admin = usuario_e_token["headers"]
         aeronave = await criar_aeronave(client, headers_admin, dados_aeronave_valida)
         pane = await criar_pane(client, headers_admin, aeronave["id"])
 
         response = await client.post(
             f"{PANES_URL}{pane['id']}/responsaveis",
-            json={"usuario_id": str(usuario_e_token["usuario"].id), "papel": "MANTENEDOR"},
+            json={"usuario_id": str(usuario_e_token["usuario"].id), "papel": "ADMINISTRADOR"},
             headers=usuario_mantenedor_e_token["headers"],
         )
         assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_adicionar_si_mesmo_permitido_para_mantenedor(
+        self,
+        client: AsyncClient,
+        dados_aeronave_valida: dict,
+        usuario_e_token: dict,
+        usuario_mantenedor_e_token: dict,
+    ):
+        """MANTENEDOR tenta se atribuir à pane -> Permitido."""
+        headers_admin = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers_admin, dados_aeronave_valida)
+        pane = await criar_pane(client, headers_admin, aeronave["id"])
+
+        mantenedor = usuario_mantenedor_e_token["usuario"]
+        response = await client.post(
+            f"{PANES_URL}{pane['id']}/responsaveis",
+            json={"usuario_id": str(mantenedor.id), "papel": "MANTENEDOR"},
+            headers=usuario_mantenedor_e_token["headers"],
+        )
+        assert response.status_code == 201
 
     @pytest.mark.asyncio
     async def test_deletar_pane_requer_gestor(

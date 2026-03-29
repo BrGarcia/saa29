@@ -161,6 +161,18 @@ Dia 7: Deploy/CI     ░░ Pendente   ← próxima fase
 
 ---
 
+## ✅ Fase 5.2 – Ajustes de Navegação e Operação (Concluída)
+
+> **Objetivo:** consolidar `PANES` como fluxo principal e retirar a dashboard da navegação ativa sem perder a implementação.
+
+- [x] Tornar `/panes` a página principal pós-login
+- [x] Redirecionar a raiz `/` para `/panes`
+- [x] Preservar a dashboard em rota secundária sem link no menu
+- [x] Remover o atalho visível da dashboard da navegação lateral
+- [x] Atualizar documentação funcional e de requisitos para refletir a nova navegação
+
+---
+
 ## 🔲 Fase 6 – Deploy e CI/CD (Dia 7)
 
 - [ ] Configurar pipeline CI (GitHub Actions):

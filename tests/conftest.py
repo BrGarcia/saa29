@@ -277,3 +277,29 @@ async def usuario_mantenedor_e_token(
         "token": token,
         "headers": {"Authorization": f"Bearer {token}"},
     }
+
+
+@pytest_asyncio.fixture
+async def usuario_encarregado_e_token(
+    db: AsyncSession,
+    dados_usuario_secundario: dict,
+) -> dict:
+    """Cria um encarregado autenticado para testes de autorização."""
+    usuario = Usuario(
+        nome=dados_usuario_secundario["nome"],
+        posto=dados_usuario_secundario["posto"],
+        especialidade=dados_usuario_secundario["especialidade"],
+        funcao=dados_usuario_secundario["funcao"],
+        ramal=dados_usuario_secundario["ramal"],
+        username=dados_usuario_secundario["username"],
+        senha_hash=hash_senha(dados_usuario_secundario["password"]),
+    )
+    db.add(usuario)
+    await db.flush()
+
+    token = criar_token(dados={"sub": usuario.username})
+    return {
+        "usuario": usuario,
+        "token": token,
+        "headers": {"Authorization": f"Bearer {token}"},
+    }

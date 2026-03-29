@@ -17,6 +17,12 @@ import app.panes.models
 from app.auth.models import Usuario
 from app.aeronaves.models import Aeronave
 
+FROTA_PADRAO = [
+    "5902", "5905", "5906", "5912", "5914", "5915", "5919", "5937", "5941", "5945",
+    "5946", "5947", "5949", "5952", "5954", "5955", "5956", "5957", "5958", "5962",
+]
+
+
 async def seed():
     AsyncSessionLocal = get_session_factory()
     async with AsyncSessionLocal() as session:
@@ -39,13 +45,9 @@ async def seed():
         else:
             print("ℹ️ Usuário admin já existe.")
 
-        # Aeronaves A-29 (exemplos)
         aeronaves_dados = [
-            {"matricula": "5700", "serial_number": "SN-001"},
-            {"matricula": "5701", "serial_number": "SN-002"},
-            {"matricula": "5702", "serial_number": "SN-003"},
-            {"matricula": "5703", "serial_number": "SN-004"},
-            {"matricula": "5704", "serial_number": "SN-005"},
+            {"matricula": matricula, "serial_number": f"SN-{matricula}"}
+            for matricula in FROTA_PADRAO
         ]
         
         for dados in aeronaves_dados:

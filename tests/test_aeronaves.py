@@ -50,6 +50,31 @@ class TestListarAeronaves:
         assert response.status_code == 200
         assert isinstance(response.json(), list)
 
+    @pytest.mark.asyncio
+    async def test_listar_aeronaves_oculta_inativas_por_padrao(
+        self, client: AsyncClient, dados_aeronave_valida: dict, usuario_e_token: dict
+    ):
+        headers = usuario_e_token["headers"]
+        criar = await client.post(AERONAVES_URL, json=dados_aeronave_valida, headers=headers)
+        assert criar.status_code == 201
+        aeronave_id = criar.json()["id"]
+
+        toggle = await client.post(f"{AERONAVES_URL}{aeronave_id}/toggle-status", headers=headers)
+        assert toggle.status_code == 200
+        assert toggle.json()["status"] == "INATIVA"
+
+        response = await client.get(AERONAVES_URL, headers=headers)
+        assert response.status_code == 200
+        assert all(item["id"] != aeronave_id for item in response.json())
+
+        response_incluindo = await client.get(
+            AERONAVES_URL,
+            params={"incluir_inativas": "true"},
+            headers=headers,
+        )
+        assert response_incluindo.status_code == 200
+        assert any(item["id"] == aeronave_id for item in response_incluindo.json())
+
 
 class TestCriarAeronave:
 
@@ -210,9 +235,9 @@ class TestEndpointsAdicionais:
         if aeronave.status_code != 201:
             pytest.skip("Ignorado por falha previa na criacao")
         aid = aeronave.json()["id"]
-        response = await client.put(f"{AERONAVES_URL}{aid}", json={"modelo": "A-29B"}, headers=headers)
+        response = await client.put(f"{AERONAVES_URL}{aid}", json={"status": "INDISPONIVEL"}, headers=headers)
         assert response.status_code == 200
-        assert response.json()["modelo"] == "A-29B"
+        assert response.json()["status"] == "INDISPONIVEL"
 
     @pytest.mark.asyncio
     async def test_remover_aeronave(self, client: AsyncClient, dados_aeronave_valida: dict, usuario_e_token: dict):
@@ -223,6 +248,42 @@ class TestEndpointsAdicionais:
         if aeronave.status_code != 201:
             pytest.skip("Ignorado por falha previa na criacao")
         aid = aeronave.json()["id"]
-        response = await client.delete(f"{AERONAVES_URL}{aid}", headers=headers)
-        assert response.status_code == 204
+        response = await client.post(f"{AERONAVES_URL}{aid}/toggle-status", headers=headers)
+        assert response.status_code == 200
+        assert response.json()["status"] == "INATIVA"
 
+    @pytest.mark.asyncio
+    async def test_reativar_aeronave(self, client: AsyncClient, dados_aeronave_valida: dict, usuario_e_token: dict):
+        headers = usuario_e_token["headers"]
+        dados_aeronave_valida["matricula"] = "9997"
+        dados_aeronave_valida["serial_number"] = "SN-9997"
+        aeronave = await client.post(AERONAVES_URL, json=dados_aeronave_valida, headers=headers)
+        assert aeronave.status_code == 201
+        aid = aeronave.json()["id"]
+
+        await client.post(f"{AERONAVES_URL}{aid}/toggle-status", headers=headers)
+        response = await client.post(f"{AERONAVES_URL}{aid}/toggle-status", headers=headers)
+        assert response.status_code == 200
+        assert response.json()["status"] == "OPERACIONAL"
+
+    @pytest.mark.asyncio
+    async def test_aeronave_indisponivel_permanece_na_listagem(
+        self, client: AsyncClient, dados_aeronave_valida: dict, usuario_e_token: dict
+    ):
+        headers = usuario_e_token["headers"]
+        dados_aeronave_valida["matricula"] = "9996"
+        dados_aeronave_valida["serial_number"] = "SN-9996"
+        aeronave = await client.post(AERONAVES_URL, json=dados_aeronave_valida, headers=headers)
+        assert aeronave.status_code == 201
+        aid = aeronave.json()["id"]
+
+        update = await client.put(
+            f"{AERONAVES_URL}{aid}",
+            json={"status": "INDISPONIVEL"},
+            headers=headers,
+        )
+        assert update.status_code == 200
+
+        response = await client.get(AERONAVES_URL, headers=headers)
+        assert response.status_code == 200
+        assert any(item["id"] == aid for item in response.json())

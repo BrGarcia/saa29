@@ -37,7 +37,7 @@
     // Se o usuário já tiver token local, mande p/ dashboard.
     document.addEventListener("DOMContentLoaded", () => {
         if (localStorage.getItem("saa29_access_token")) {
-            window.location.href = "/";
+            window.location.href = "/panes";
         }
     });
 
@@ -76,7 +76,7 @@
 
             // Redireciona
             setTimeout(() => {
-                window.location.href = "/";
+                window.location.href = "/panes";
             }, 800);
 
         } catch (err) {

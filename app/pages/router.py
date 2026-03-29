@@ -4,7 +4,7 @@ Rotas do Frontend (Jinja2 Templates). Servindo o MVP de Interface.
 """
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 router = APIRouter(tags=["Frontend"])
@@ -13,9 +13,15 @@ router = APIRouter(tags=["Frontend"])
 templates = Jinja2Templates(directory="templates")
 
 
-@router.get("/", response_class=HTMLResponse, include_in_schema=False)
+@router.get("/", include_in_schema=False)
+async def root_page():
+    """Mantém a raiz apontando para a página principal de panes."""
+    return RedirectResponse(url="/panes", status_code=307)
+
+
+@router.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
 async def dashboard_page(request: Request):
-    """Renderiza a Dashboard Principal."""
+    """Mantém a dashboard disponível, porém sem navegação ativa."""
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
 

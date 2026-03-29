@@ -7,6 +7,8 @@
 
 Sistema web para **registro e acompanhamento de panes de manutenção aeronáutica** do A-29 Super Tucano. Desenvolvido seguindo o **Método Akita** e práticas de Clean Code e TDD.
 
+Atualmente, a página principal da interface é `PANES` (`/panes`). A antiga dashboard operacional foi preservada em `/dashboard`, porém está sem link de navegação e inativa para os usuários finais.
+
 ---
 
 ## Início Rápido
@@ -46,8 +48,8 @@ uvicorn app.main:app --reload # Inicia servidor
 | RF | Funcionalidade | Status |
 |----|---------------|--------|
 | RF-01/02 | Autenticação JWT e RBAC Nativo | ✅ Concluído |
-| RF-03/04/05 | Dashboard de panes com cards e cores | ✅ Concluído |
-| RF-06 | Filtros Históricos (DDD/YY) e Lixeira | ✅ Concluído |
+| RF-03/04/05 | Dashboard operacional preservada, fora da navegação principal | ✅ Concluído |
+| RF-06 | Página Panes como entrada principal com filtros operacionais | ✅ Concluído |
 | RF-07/08 | Registro de nova pane (Upload silencioso) | ✅ Concluído |
 | RF-09 | Visualização detalhada da pane | ✅ Concluído |
 | RF-10/11/12 | Editar, Assumir, Concluir (Ação Corretiva) e Excluir pane | ✅ Concluído |
@@ -123,6 +125,7 @@ SAA29/
 > **Método Akita – Dia 6 (Interface UI/UX) ✅ Concluído**
 >
 > Todo o backend foi unificado a um Frontend responsivo "Glassmorphism" construído sobre requisições Assíncronas Nativas e injecoes pelo Jinja2 FastAPI.
+> A navegação atual prioriza `PANES` como página inicial e mantém a dashboard desacoplada do menu, preservada para eventual reativação futura.
 >
 > **Próximos Passos:**
 > Opcionalmente cobrir componentes de Equipamentos na Interface.

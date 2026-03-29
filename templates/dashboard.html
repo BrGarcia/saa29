@@ -136,7 +136,7 @@
 
             // 2. Fetch Aeronaves para metrica
             try {
-                const aeronaves = await apiFetch("/aeronaves/?limit=100");
+                const aeronaves = await apiFetch("/aeronaves/?limit=100&incluir_inativas=true");
                 document.getElementById("count-aeronaves").innerText = aeronaves.length;
             } catch(e) { /* ignora contagem se falhar isoladamente */ }
 

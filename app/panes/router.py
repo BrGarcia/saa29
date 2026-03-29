@@ -48,6 +48,7 @@ async def listar_panes(
     texto: str | None = Query(default=None, description="Filtro por texto"),
     status_pane: schemas.StatusPane | None = Query(default=None, alias="status"),
     aeronave_id: uuid.UUID | None = Query(default=None),
+    excluidas: bool = Query(default=False),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=1000),
 ) -> list[schemas.PaneListItem]:
@@ -56,11 +57,17 @@ async def listar_panes(
         texto=texto,
         status=status_pane,
         aeronave_id=aeronave_id,
+        excluidas=excluidas,
         skip=skip,
         limit=limit,
     )
     panes = await service.listar_panes(db, filtros)
-    return [schemas.PaneListItem.model_validate(p) for p in panes]
+    resposta: list[schemas.PaneListItem] = []
+    for pane, sequencia, ano in panes:
+        item = schemas.PaneListItem.model_validate(pane).model_dump()
+        item["codigo"] = f"{sequencia:03d}/{str(ano)[-2:]}"
+        resposta.append(schemas.PaneListItem(**item))
+    return resposta
 
 
 @router.get(
@@ -230,7 +237,14 @@ async def adicionar_responsavel(
     db: DBSession,
     usuario_atual: CurrentUser,
 ) -> schemas.ResponsavelOut:
-    ensure_role(usuario_atual, "ENCARREGADO", "ADMINISTRADOR")
+    # GESTORES podem atribuir qualquer um. MANTENEDORES podem atribuir apenas a si mesmos.
+    if usuario_atual.funcao not in ["ENCARREGADO", "ADMINISTRADOR"]:
+        if usuario_atual.id != dados.usuario_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Acesso restrito: você só pode assumir responsabilidades para si mesmo.",
+            )
+    
     try:
         resp = await service.adicionar_responsavel(db, pane_id, dados)
         return schemas.ResponsavelOut.model_validate(resp)

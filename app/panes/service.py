@@ -14,7 +14,7 @@ try:
     _MAGIC_AVAILABLE = True
 except ImportError:
     _MAGIC_AVAILABLE = False
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -72,6 +72,8 @@ async def criar_pane(
     aeronave = await buscar_aeronave(db, dados.aeronave_id)
     if not aeronave:
         raise ValueError("Aeronave não encontrada.")
+    if aeronave.status == "INATIVA":
+        raise ValueError("Aeronave inativa. Reative a aeronave antes de registrar uma pane.")
 
     # RN-05: descrição padrão se vazia
     descricao = dados.descricao.strip() if dados.descricao else ""
@@ -87,6 +89,23 @@ async def criar_pane(
     )
     db.add(pane)
     await db.flush()
+
+    if dados.mantenedor_responsavel_id:
+        from app.auth.service import buscar_por_id
+        usuario_responsavel = await buscar_por_id(db, dados.mantenedor_responsavel_id)
+        if not usuario_responsavel:
+            raise ValueError("Mantenedor responsável não encontrado.")
+        if usuario_responsavel.funcao not in ["MANTENEDOR", "ENCARREGADO"]:
+            raise ValueError("O responsável selecionado deve ser um mantenedor ou encarregado.")
+
+        db.add(
+            PaneResponsavel(
+                pane_id=pane.id,
+                usuario_id=usuario_responsavel.id,
+                papel=usuario_responsavel.funcao,
+            )
+        )
+        await db.flush()
     
     # Garantir que as coleções estejam inicializadas para evitar erro de lazy-load no router
     # Incluindo 'aeronave' que é necessária para o schema PaneOut
@@ -95,7 +114,10 @@ async def criar_pane(
     return pane
 
 
-async def listar_panes(db: AsyncSession, filtros: FiltroPane | None = None) -> list[Pane]:
+async def listar_panes(
+    db: AsyncSession,
+    filtros: FiltroPane | None = None,
+) -> list[tuple[Pane, int, int]]:
     """
     Lista panes com filtros opcionais (RF-06).
 
@@ -113,7 +135,20 @@ async def listar_panes(db: AsyncSession, filtros: FiltroPane | None = None) -> l
     Returns:
         Lista de Panes filtradas.
     """
-    query = select(Pane).order_by(Pane.data_abertura.desc())
+    ranking_subquery = select(
+        Pane.id.label("pane_id"),
+        func.row_number().over(
+            partition_by=func.extract("year", Pane.data_abertura),
+            order_by=(Pane.data_abertura.asc(), Pane.id.asc()),
+        ).label("sequencia"),
+        func.extract("year", Pane.data_abertura).label("ano"),
+    ).subquery()
+
+    query = (
+        select(Pane, ranking_subquery.c.sequencia, ranking_subquery.c.ano)
+        .join(ranking_subquery, ranking_subquery.c.pane_id == Pane.id)
+        .order_by(Pane.data_abertura.desc())
+    )
 
     # COR-01: sempre filtrar por ativo, exceto se explicitamente pedido
     mostrar_excluidas = filtros.excluidas if filtros else False
@@ -153,7 +188,10 @@ async def listar_panes(db: AsyncSession, filtros: FiltroPane | None = None) -> l
     )
 
     result = await db.execute(query)
-    return list(result.scalars().all())
+    return [
+        (row[0], int(row[1]), int(row[2]))
+        for row in result.all()
+    ]
 
 
 async def buscar_pane(
@@ -281,7 +319,25 @@ async def concluir_pane(
     pane.concluido_por_id = concluido_por_id
     pane.observacao_conclusao = observacao_conclusao
 
+    # RN: Se o usuário que concluiu não é um dos responsáveis, adicioná-lo.
+    # Isso garante que ele apareça na listagem de panes como responsável.
+    await db.refresh(pane, ["responsaveis"])
+    ja_responsavel = any(r.usuario_id == concluido_por_id for r in pane.responsaveis)
+    
+    if not ja_responsavel:
+        from app.auth.service import buscar_por_id
+        usuario = await buscar_por_id(db, concluido_por_id)
+        if usuario:
+            db.add(
+                PaneResponsavel(
+                    pane_id=pane_id,
+                    usuario_id=concluido_por_id,
+                    papel=usuario.funcao,
+                )
+            )
+
     await db.flush()
+    await db.refresh(pane, ["aeronave", "anexos", "responsaveis", "responsavel_conclusao"])
     return pane
 
 

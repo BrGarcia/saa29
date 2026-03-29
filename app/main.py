@@ -22,6 +22,44 @@ from app.pages.router import router as pages_router
 
 
 settings = get_settings()
+FROTA_PADRAO = (
+    "5902", "5905", "5906", "5912", "5914", "5915", "5919", "5937", "5941", "5945",
+    "5946", "5947", "5949", "5952", "5954", "5955", "5956", "5957", "5958", "5962",
+)
+
+
+async def _ensure_default_aeronaves() -> None:
+    """
+    Garante a frota padrão em ambientes reais, sem interferir nos testes em SQLite.
+    """
+    if "sqlite" in settings.database_url:
+        return
+
+    from sqlalchemy import select
+
+    import app.aeronaves.models  # garante mapeamentos
+    from app.aeronaves.models import Aeronave
+    from app.database import get_session_factory
+
+    async with get_session_factory()() as session:
+        try:
+            for matricula in FROTA_PADRAO:
+                existente = await session.execute(
+                    select(Aeronave).where(Aeronave.matricula == matricula)
+                )
+                if existente.scalar_one_or_none():
+                    continue
+                session.add(
+                    Aeronave(
+                        matricula=matricula,
+                        serial_number=f"SN-{matricula}",
+                        modelo="A-29",
+                    )
+                )
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
 
 
 @asynccontextmanager
@@ -33,6 +71,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     # Startup: criar diretório de uploads se não existir
     os.makedirs(settings.upload_dir, exist_ok=True)
+    await _ensure_default_aeronaves()
 
     yield
 

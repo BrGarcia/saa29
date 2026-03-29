@@ -16,7 +16,7 @@ Este documento descreve os fluxos lógicos e algoritmos principais do sistema, i
 3. Comparar senha com hash armazenado
 4. Se válido:
    - Criar sessão autenticada
-   - Redirecionar para dashboard
+   - Redirecionar para a página principal de panes
 5. Se inválido:
    - Retornar erro
 
@@ -43,7 +43,7 @@ Este documento descreve os fluxos lógicos e algoritmos principais do sistema, i
    - data_abertura = NOW()
    - criado_por = usuário logado
 8. Salvar no banco
-9. Redirecionar para dashboard
+9. Redirecionar para a página de panes
 
 ---
 
@@ -93,7 +93,7 @@ Este documento descreve os fluxos lógicos e algoritmos principais do sistema, i
    - data_conclusao = NOW()
    - concluido_por = usuário logado
 4. Salvar alterações
-5. Atualizar dashboard
+5. Atualizar a listagem operacional de panes
 
 ---
 

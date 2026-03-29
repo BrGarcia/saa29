@@ -38,11 +38,11 @@ O sistema será uma aplicação web acessível via navegador.
 - RF-01: Tela de login (gatekeeper) com usuário e senha
 - RF-02: Acesso somente após autenticação válida
 
-### 3.2 Dashboard
-- RF-03: Lista de panes após login
-- RF-04: Exibição em formato de cards
-- RF-05: Cores por status
-- RF-06: Filtros por texto, aeronave, status e data
+### 3.2 Panes e Dashboard Operacional
+- RF-03: Após login, o sistema deve direcionar o usuário para a página principal de panes
+- RF-04: A página principal deve exibir a listagem operacional de panes com filtros
+- RF-05: A dashboard com cards e cores pode permanecer disponível como tela secundária, sem navegação ativa
+- RF-06: A página de panes deve oferecer filtros por texto, aeronave, status e data
 
 ### 3.3 Nova Pane
 - RF-07: Fluxo guiado (aeronave → imagem → descrição)
@@ -87,8 +87,8 @@ O sistema será uma aplicação web acessível via navegador.
 ## 6. Módulos
 
 - Autenticação
-- Dashboard
 - Gestão de Panes
+- Dashboard operacional secundária
 - Cadastros
 - Upload
 

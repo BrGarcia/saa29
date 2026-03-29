@@ -40,6 +40,10 @@ class PaneCreate(BaseModel):
         default="AGUARDANDO EDICAO",
         description="Descrição da pane. Se vazio, definir como 'AGUARDANDO EDICAO' (RN-05)",
     )
+    mantenedor_responsavel_id: uuid.UUID | None = Field(
+        default=None,
+        description="Responsável inicial opcional pela pane.",
+    )
     # status inicial = ABERTA (definido no service, não pelo cliente)
 
 
@@ -106,6 +110,7 @@ class PaneListItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    codigo: str | None = None
     aeronave_id: uuid.UUID
     aeronave: AeronaveListItem | None = None
     status: StatusPane

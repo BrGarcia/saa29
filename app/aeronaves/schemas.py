@@ -23,6 +23,8 @@ class AeronaveCreate(BaseModel):
 class AeronaveUpdate(BaseModel):
     """Payload para atualização parcial de aeronave."""
     part_number: str | None = Field(default=None, max_length=50)
+    serial_number: str | None = Field(default=None, max_length=50)
+    matricula: str | None = Field(default=None, max_length=20, examples=["5900"])
     modelo: str | None = Field(default=None, max_length=50)
     status: StatusAeronave | None = None
 
@@ -45,6 +47,7 @@ class AeronaveListItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    serial_number: str
     matricula: str
     modelo: str
     status: StatusAeronave

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block page_title %}HISTÓRICO{% endblock %}
+{% block page_title %}PANES{% endblock %}
 
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
@@ -14,9 +14,6 @@
             <option value="RESOLVIDA">RESOLVIDA</option>
             <option value="EXCLUIDAS">EXCLUIDAS (Lixeira)</option>
         </select>
-        <button class="btn btn-outline" onclick="loadPanes()">
-            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-        </button>
     </div>
 
     <!-- Nova Pane -->
@@ -35,14 +32,13 @@
                 <th style="padding: 1rem; font-weight: 600;">Data/Hora</th>
                 <th style="padding: 1rem; font-weight: 600;">Aeronave</th>
                 <th style="padding: 1rem; font-weight: 600;">Pane</th>
-                <th style="padding: 1rem; font-weight: 600;">Ação Corretiva</th>
                 <th style="padding: 1rem; font-weight: 600;">Status</th>
                 <th style="padding: 1rem; font-weight: 600;">Responsavel</th>
                 <th style="padding: 1rem; font-weight: 600; text-align: center;">Ação</th>
             </tr>
         </thead>
         <tbody id="panes-table-body">
-            <tr><td colspan="8" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Recuperando telemetria...</td></tr>
+            <tr><td colspan="7" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Recuperando telemetria...</td></tr>
         </tbody>
     </table>
 </div>
@@ -74,6 +70,13 @@
             </div>
 
             <div class="form-group">
+                <label class="form-label">Responsável (Opcional)</label>
+                <select id="mantenedorResponsavelSelect" name="mantenedor_responsavel_id" class="form-input">
+                    <option value="">-- Não atribuir responsável --</option>
+                </select>
+            </div>
+
+            <div class="form-group">
                 <label class="form-label">Evidência / Fotografia Inicial (Opcional)</label>
                 <input type="file" id="fotoInput" name="arquivo" class="form-input" accept="image/*">
             </div>
@@ -94,9 +97,11 @@
         const body = document.getElementById('panes-table-body');
         const txt = document.getElementById('filter-text').value;
         const sts = document.getElementById('filter-status').value;
+        const aeronaveId = new URLSearchParams(window.location.search).get('aeronave_id');
 
         let query = `/panes/?limit=50`;
         if (txt) query += `&texto=${encodeURIComponent(txt)}`;
+        if (aeronaveId) query += `&aeronave_id=${encodeURIComponent(aeronaveId)}`;
         
         if (sts === 'EXCLUIDAS') {
             query += `&excluidas=true`;
@@ -112,7 +117,7 @@
             const funcao = user.funcao || '';
 
             if (panes.length === 0) {
-                body.innerHTML = `<tr><td colspan="8" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Nenhum registro encontrado.</td></tr>`;
+                body.innerHTML = `<tr><td colspan="7" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Nenhum registro encontrado.</td></tr>`;
                 return;
             }
 
@@ -127,15 +132,8 @@
                 const dObj = new Date(rawDate);
                 const shortDate = dObj.toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
                 
-                // Calculo de DDD (Dia do Ano)
-                const start = new Date(dObj.getFullYear(), 0, 0);
-                const diff = (dObj - start) + ((start.getTimezoneOffset() - dObj.getTimezoneOffset()) * 60 * 1000);
-                const oneDay = 1000 * 60 * 60 * 24;
-                const dayOfYear = Math.floor(diff / oneDay).toString().padStart(3, '0');
-                const yy = dObj.getFullYear().toString().substring(2);
-                const paneCode = `${dayOfYear}/${yy}`;
-                
-                const obsConclusao = pane.observacao_conclusao || '--';
+                const paneCode = pane.codigo || "---/--";
+                const obsConclusao = pane.observacao_conclusao || "Sem ação corretiva registrada.";
                 const statusName = pane.ativo ? pane.status.replace("_", " ") : "EXCLUIDA";
                 const matriculaAeronave = pane.aeronave?.matricula || "59XX";
                 const responsavelMantenedor = (pane.responsaveis || []).find(r => r.papel === "MANTENEDOR");
@@ -155,8 +153,7 @@
                     <td style="padding: 1rem; font-size: 0.85rem; color: var(--text-secondary);">${shortDate}</td>
                     <td style="padding: 1rem; font-weight: 500;">${matriculaAeronave}</td>
                     <td style="padding: 1rem; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${pane.descricao}</td>
-                    <td style="padding: 1rem; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-secondary);">${obsConclusao}</td>
-                    <td style="padding: 1rem;"><span class="badge ${badgeClass}">${statusName}</span></td>
+                    <td style="padding: 1rem;"><span class="badge ${badgeClass}" title="${obsConclusao.replace(/"/g, '&quot;')}">${statusName}</span></td>
                     <td style="padding: 1rem; color: var(--text-secondary); font-size: 0.85rem;">${responsavelBadge}</td>
                     <td style="padding: 1rem; text-align: center; display: flex; gap: 0.5rem; justify-content: center;">
                         <a href="/panes/${pane.id}/detalhes" class="btn-icon" style="color: var(--primary-color); display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; border: none; padding: 0.25rem;" title="Visualizar">
@@ -169,13 +166,14 @@
             });
         } catch (e) {
             console.error(e);
-            body.innerHTML = `<tr><td colspan="8" style="padding: 2rem; text-align: center; color: var(--status-danger);">Falha de Comunicação ao extrair telemetria!</td></tr>`;
+            body.innerHTML = `<tr><td colspan="7" style="padding: 2rem; text-align: center; color: var(--status-danger);">Falha de Comunicação ao extrair telemetria!</td></tr>`;
         }
     }
 
     // Modal Nova Pane
     const modal = document.getElementById('modal-nova-pane');
     const aeronaveSelect = document.getElementById('aeronaveSelect');
+    const mantenedorResponsavelSelect = document.getElementById('mantenedorResponsavelSelect');
     
     async function openNuevaPaneModal() {
         modal.style.display = 'flex';
@@ -188,6 +186,20 @@
                 opt.value = f.id;
                 opt.innerText = `${f.matricula} (S/N: ${f.serial_number})`;
                 aeronaveSelect.appendChild(opt);
+            });
+        } catch(e) { console.error(e) }
+
+        try {
+            const usuarios = await apiFetch("/auth/usuarios");
+            const responsaveisPermitidos = usuarios.filter(u => ["MANTENEDOR", "ENCARREGADO"].includes(u.funcao));
+            mantenedorResponsavelSelect.innerHTML = `<option value="">-- Não atribuir responsável --</option>`;
+            responsaveisPermitidos.forEach(u => {
+                const opt = document.createElement("option");
+                opt.value = u.id;
+                const designacao = [u.posto, u.nome].filter(Boolean).join(" ");
+                const detalhe = u.trigrama ? ` - ${u.trigrama}` : "";
+                opt.innerText = `${designacao}${detalhe}`;
+                mantenedorResponsavelSelect.appendChild(opt);
             });
         } catch(e) { console.error(e) }
     }
@@ -213,6 +225,9 @@
             sistema_subsistema: sistema,
             descricao: descricao
         };
+        if (mantenedorResponsavelSelect.value) {
+            payload.mantenedor_responsavel_id = mantenedorResponsavelSelect.value;
+        }
 
         try {
             const pane = await apiFetch("/panes/", {
@@ -261,6 +276,16 @@
 
     // Init
     document.addEventListener("DOMContentLoaded", () => {
+        const filterText = document.getElementById('filter-text');
+        const filterStatus = document.getElementById('filter-status');
+        let filtroTimeout;
+
+        filterText.addEventListener("input", () => {
+            clearTimeout(filtroTimeout);
+            filtroTimeout = setTimeout(loadPanes, 250);
+        });
+        filterStatus.addEventListener("change", loadPanes);
+
         loadPanes();
     });
 </script>
