@@ -70,95 +70,13 @@ docker compose ps
 pytest tests/ -v
 ```
 
-> ✅ **Todos os 26 testes devem passar.** Se algo falhar, resolva antes de prosseguir.
+> ✅ **Todos os 57 testes estão passando.** O sistema está estável na versão 0.6.0.
 
 ---
 
-## ⚠️ PRÓXIMO PASSO IMEDIATO: Fase 3.5 – Migração e Seed
+## 🔲 Fase 6 – Deploy e CI/CD (Dia 7)
 
-> Estes 3 itens ficaram pendentes da Fase 3. **São pré-requisito para tudo o que vem depois.**
-
-### Passo 1 – Gerar a Migração Inicial
-
-```bash
-alembic revision --autogenerate -m "initial_schema"
-```
-
-Revise o arquivo gerado em `migrations/versions/` — verifique se todas as 11 tabelas estão presentes:
-- `usuarios`, `aeronaves`
-- `equipamentos`, `tipos_controle`, `equipamento_controles`
-- `itens_equipamento`, `instalacoes`, `controles_vencimento`
-- `panes`, `anexos`, `pane_responsaveis`
-
-### Passo 2 – Aplicar a Migração
-
-```bash
-alembic upgrade head
-```
-
-Conecte no PostgreSQL e confirme que as tabelas foram criadas:
-```bash
-docker exec -it saa29_db psql -U saa29_user -d saa29_db -c "\dt"
-```
-
-### Passo 3 – Criar o Script de Seed
-
-Crie o arquivo `scripts/seed.py` com dados iniciais:
-
-```python
-"""
-scripts/seed.py
-Popula o banco de dados com dados iniciais para desenvolvimento.
-Executar: python -m scripts.seed
-"""
-import asyncio
-from app.database import async_session
-from app.auth.security import hash_senha
-from app.auth.models import Usuario
-from app.aeronaves.models import Aeronave
-
-async def seed():
-    async with async_session() as session:
-        # Usuário admin
-        admin = Usuario(
-            username="admin",
-            nome_completo="Administrador SAA29",
-            senha_hash=hash_senha("admin123"),
-            is_admin=True,
-        )
-        session.add(admin)
-
-        # Aeronaves A-29 (exemplos)
-        matriculas = ["FAB 5700", "FAB 5701", "FAB 5702", "FAB 5703", "FAB 5704"]
-        for mat in matriculas:
-            session.add(Aeronave(matricula=mat))
-
-        await session.commit()
-        print(f"✅ Seed concluído: 1 admin + {len(matriculas)} aeronaves")
-
-if __name__ == "__main__":
-    asyncio.run(seed())
-```
-
-> ⚠️ **Adapte os models e imports** conforme a implementação real. O exemplo acima é um template.
-
-Execute:
-```bash
-python -m scripts.seed
-```
-
-### ✅ Critério de Aceite da Fase 3.5
-- [x] Migração gerada e revisada
-- [x] `alembic upgrade head` sem erros
-- [x] Tabelas visíveis no PostgreSQL
-- [x] Script de seed funciona e popula dados iniciais
-- [x] Testes continuam 100% PASSED
-
----
-
-## 🔲 Fase 4 – Otimização (Dia 5)
-
-> **Pré-requisito:** Fase 3.5 concluída + todos os testes passando.
+> **Pré-requisito:** Interface funcional (Fase 5) e Testes 100% PASS (OK).
 
 ### Checklist de Tarefas
 

@@ -10,7 +10,7 @@
 Dia 1: AI Jail       ██ Concluído
 Dia 2: Fundação      ██ Concluído
 Dia 3: Testes        ██ Concluído
-Dia 4: Codificação   ██ Concluído (Estável)
+Dia 4: Codificação   ██ Concluído (Estável 0.6.0)
 Dia 5: Otimização    ██ Concluído
 Dia 6: Interface     ██ Concluído
 Dia 7: Deploy/CI     ░░ Pendente   ← próxima fase

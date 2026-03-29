@@ -34,8 +34,8 @@ uploads/
 *.png
 *.jpeg
 
-# === Alembic (não versionar scripts gerados automaticamente fora do template) ===
-migrations/versions/*.py
+# === Alembic (versionar scripts gerados) ===
+# migrations/versions/*.py
 
 # === Outros ===
 *.log

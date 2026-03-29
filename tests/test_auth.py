@@ -18,6 +18,7 @@ Padrão: Given / When / Then
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 # ================================================================== #
@@ -63,18 +64,25 @@ class TestLogin:
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_login_sucesso(self, client: AsyncClient, dados_usuario_valido: dict):
+    async def test_login_sucesso(self, client: AsyncClient, db: AsyncSession, dados_usuario_valido: dict):
         """
-        DADO um usuário válido já cadastrado
+        DADO um usuário válido já cadastrado no banco
         QUANDO enviar username e senha corretos via form-data
         ENTÃO retornar token JWT e status 200.
-
-        NOTA: Este teste depende que criar_usuario (Dia 4) esteja implementado.
-        Executa apenas se a API já retornar 201 ao criar o usuário.
         """
-        criar = await client.post(USUARIOS_URL, json=dados_usuario_valido)
-        if criar.status_code != 201:
-            pytest.skip("API de criação de usuário ainda não implementada (Dia 4)")
+        from app.auth.models import Usuario
+        from app.auth.security import hash_senha
+        
+        # Criar usuário direto no banco para testar o login
+        usuario = Usuario(
+            nome=dados_usuario_valido["nome"],
+            posto=dados_usuario_valido["posto"],
+            funcao=dados_usuario_valido["funcao"],
+            username=dados_usuario_valido["username"],
+            senha_hash=hash_senha(dados_usuario_valido["password"]),
+        )
+        db.add(usuario)
+        await db.flush()
 
         response = await client.post(
             LOGIN_URL,
@@ -90,15 +98,25 @@ class TestLogin:
         assert body["usuario"]["username"] == dados_usuario_valido["username"]
 
     @pytest.mark.asyncio
-    async def test_login_senha_errada(self, client: AsyncClient, dados_usuario_valido: dict):
+    async def test_login_senha_errada(self, client: AsyncClient, db: AsyncSession, dados_usuario_valido: dict):
         """
         DADO um usuário existente
         QUANDO enviar senha incorreta
         ENTÃO retornar 401 Unauthorized.
         """
-        criar = await client.post(USUARIOS_URL, json=dados_usuario_valido)
-        if criar.status_code != 201:
-            pytest.skip("API de criação de usuário ainda não implementada (Dia 4)")
+        from app.auth.models import Usuario
+        from app.auth.security import hash_senha
+        
+        # Criar usuário direto no banco
+        usuario = Usuario(
+            nome=dados_usuario_valido["nome"],
+            posto=dados_usuario_valido["posto"],
+            funcao=dados_usuario_valido["funcao"],
+            username=dados_usuario_valido["username"],
+            senha_hash=hash_senha(dados_usuario_valido["password"]),
+        )
+        db.add(usuario)
+        await db.flush()
 
         response = await client.post(
             LOGIN_URL,

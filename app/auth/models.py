@@ -17,9 +17,9 @@ class Usuario(Base):
     Representa um membro do efetivo com acesso ao sistema.
 
     Perfis disponíveis (campo funcao):
-        - Inspetor: supervisão técnica
-        - Encarregado: gestão operacional
-        - Mantenedor: execução de manutenção
+        - Administrador: supervisão técnica e gestão total
+        - Encarregado: gestão operacional e delegação
+        - Mantenedor: execução de manutenção e reporte
     """
 
     __tablename__ = "usuarios"
@@ -50,7 +50,7 @@ class Usuario(Base):
     funcao: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        comment="Função no sistema: INSPETOR | ENCARREGADO | MANTENEDOR",
+        comment="Função no sistema: ADMINISTRADOR | ENCARREGADO | MANTENEDOR",
     )
     ramal: Mapped[str | None] = mapped_column(
         String(20),

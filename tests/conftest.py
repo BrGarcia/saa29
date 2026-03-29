@@ -86,7 +86,7 @@ def dados_usuario_valido() -> dict:
         "nome": "Ten João Silva",
         "posto": "Ten",
         "especialidade": "ELT",
-        "funcao": "INSPETOR",
+        "funcao": "ADMINISTRADOR",
         "ramal": "2501",
         "username": "joao.silva",
         "password": "senha_segura_123",

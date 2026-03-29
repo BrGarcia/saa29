@@ -88,7 +88,8 @@ async def criar_pane(
     await db.flush()
     
     # Garantir que as coleções estejam inicializadas para evitar erro de lazy-load no router
-    await db.refresh(pane, ["anexos", "responsaveis"])
+    # Incluindo 'aeronave' que é necessária para o schema PaneOut
+    await db.refresh(pane, ["aeronave", "anexos", "responsaveis"])
     
     return pane
 
