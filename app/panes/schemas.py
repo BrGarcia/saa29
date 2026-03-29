@@ -22,6 +22,7 @@ class FiltroPane(BaseModel):
     aeronave_id: uuid.UUID | None = None
     data_inicio: datetime | None = None
     data_fim: datetime | None = None
+    excluidas: bool | None = Field(default=False, description="Exibir apenas panes excluídas")
     skip: int = Field(default=0, ge=0, description="Paginação: saltar N registros")
     limit: int = Field(default=100, ge=1, le=1000, description="Paginação: limite de registros retornados")
 
@@ -88,8 +89,10 @@ class PaneOut(BaseModel):
     descricao: str
     data_abertura: datetime
     data_conclusao: datetime | None
+    observacao_conclusao: str | None
     criado_por_id: uuid.UUID
     concluido_por_id: uuid.UUID | None
+    ativo: bool
     created_at: datetime
     anexos: list[AnexoOut] = []
     responsaveis: list[ResponsavelOut] = []
@@ -105,6 +108,8 @@ class PaneListItem(BaseModel):
     descricao: str
     data_abertura: datetime
     data_conclusao: datetime | None
+    observacao_conclusao: str | None
+    ativo: bool
 
 
 # ============================================================

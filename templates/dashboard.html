@@ -43,9 +43,11 @@
         <thead>
             <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
                 <th style="padding: 0.75rem 0.5rem; font-weight: 500;">Aeronave</th>
-                <th style="padding: 0.75rem 0.5rem; font-weight: 500;">Sistema</th>
-                <th style="padding: 0.75rem 0.5rem; font-weight: 500;">Ocorrência</th>
+                <th style="padding: 0.75rem 0.5rem; font-weight: 500;">Data/Hora</th>
+                <th style="padding: 0.75rem 0.5rem; font-weight: 500;">Pane</th>
+                <th style="padding: 0.75rem 0.5rem; font-weight: 500;">Responsável</th>
                 <th style="padding: 0.75rem 0.5rem; font-weight: 500;">Status</th>
+                <th style="padding: 0.75rem 0.5rem; font-weight: 500;">Ação</th>
             </tr>
         </thead>
         <tbody id="recent-panes-body">
@@ -79,26 +81,38 @@
             document.getElementById("count-pesquisa").innerText = pesquisa;
             document.getElementById("count-resolvidas").innerText = resolvidas;
 
-            // Renderizar as mais recentes (mocking top 5 para dashboard)
+            // Renderizar na Dashboard APENAS panes ABERTAS e EM_PESQUISA
             const recentPanesBody = document.getElementById("recent-panes-body");
             recentPanesBody.innerHTML = "";
 
-            if(panes.length === 0) {
-                recentPanesBody.innerHTML = `<tr><td colspan="4" style="padding: 1rem; text-align: center; color: var(--text-secondary);">Nenhuma pane resistrada no sistema.</td></tr>`;
+            const activePanes = panes.filter(p => p.status === 'ABERTA' || p.status === 'EM_PESQUISA');
+
+            if(activePanes.length === 0) {
+                recentPanesBody.innerHTML = `<tr><td colspan="6" style="padding: 1rem; text-align: center; color: var(--text-secondary);">Nenhuma pane pendente de resolução.</td></tr>`;
             } else {
-                panes.slice(0, 5).forEach(pane => {
+                activePanes.forEach(pane => {
                     let badgeClass = "badge-aberta";
                     if(pane.status === "EM_PESQUISA") badgeClass = "badge-pesquisa";
-                    else if(pane.status === "RESOLVIDA") badgeClass = "badge-resolvida";
+                    
+                    const dObj = new Date(pane.data_abertura);
+                    const shortDate = dObj.toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
+
+                    let responsavel = "--"; // Em um cenario real, populariamos com o join dos responsaveis da API
+                    // Se o schema trouxer responsaveis, podemos extrair
+                    if(pane.responsaveis && pane.responsaveis.length > 0) responsavel = "Militar Atribuído";
 
                     const tr = document.createElement("tr");
                     tr.style.borderBottom = "1px solid var(--border-color)";
                     
                     tr.innerHTML = `
                         <td style="padding: 1rem 0.5rem; font-weight: 500;">${pane.aeronave_id.substring(0,8)}...</td>
-                        <td style="padding: 1rem 0.5rem;">${pane.sistema_subsistema}</td>
-                        <td style="padding: 1rem 0.5rem; color: var(--text-secondary); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${pane.descricao}</td>
+                        <td style="padding: 1rem 0.5rem; color: var(--text-secondary);">${shortDate}</td>
+                        <td style="padding: 1rem 0.5rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${pane.descricao}</td>
+                        <td style="padding: 1rem 0.5rem; color: var(--text-secondary);">${responsavel}</td>
                         <td style="padding: 1rem 0.5rem;"><span class="badge ${badgeClass}">${pane.status.replace("_", " ")}</span></td>
+                        <td style="padding: 1rem 0.5rem;">
+                            <a href="/panes/${pane.id}/detalhes" class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background-color: var(--bg-secondary); color: var(--text-primary);">Ver</a>
+                        </td>
                     `;
                     recentPanesBody.appendChild(tr);
                 });

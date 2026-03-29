@@ -85,6 +85,17 @@ class Pane(Base):
         comment="Preenchido automaticamente ao concluir (RN-04)",
     )
 
+    observacao_conclusao: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Ação corretiva ou observações de conclusão",
+    )
+    ativo: Mapped[bool] = mapped_column(
+        default=True,
+        index=True,
+        comment="Controle de exclusão lógica (soft delete)",
+    )
+
     # --- Rastreabilidade ---
     criado_por_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("usuarios.id", ondelete="RESTRICT"),

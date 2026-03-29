@@ -120,7 +120,9 @@ async def concluir_pane(
 ) -> schemas.PaneOut:
     """Conclui a pane. Preenche data_conclusao automaticamente (RN-04)."""
     try:
-        pane = await service.concluir_pane(db, pane_id, usuario_atual.id)
+        pane = await service.concluir_pane(
+            db, pane_id, usuario_atual.id, dados.observacao_conclusao
+        )
         return schemas.PaneOut.model_validate(pane)
     except ValueError as e:
         detail_str = str(e)
@@ -193,5 +195,25 @@ async def adicionar_responsavel(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )
+
+
+@router.delete(
+    "/{pane_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Soft delete de pane",
+    description="Marca a pane como inativa na base.",
+)
+async def deletar_pane(
+    pane_id: uuid.UUID,
+    db: DBSession,
+    usuario_atual: CurrentUser,
+) -> None:
+    try:
+        await service.excluir_pane(db, pane_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         )

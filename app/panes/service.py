@@ -119,6 +119,11 @@ async def listar_panes(db: AsyncSession, filtros: FiltroPane | None = None) -> l
 
         if filtros.data_fim:
             query = query.where(Pane.data_abertura <= filtros.data_fim)
+            
+        if filtros.excluidas:
+            query = query.where(Pane.ativo == False)
+        else:
+            query = query.where(Pane.ativo == True)
 
         query = query.offset(filtros.skip).limit(filtros.limit)
 
@@ -205,9 +210,10 @@ async def concluir_pane(
     db: AsyncSession,
     pane_id: uuid.UUID,
     concluido_por_id: uuid.UUID,
+    observacao_conclusao: str | None = None
 ) -> Pane:
     """
-    Conclui uma pane.
+    Conclui uma pane e armazena a acao corretiva.
 
     Algoritmo (SPECS §7 – Concluir Pane):
         1. Verificar se já está RESOLVIDA
@@ -229,7 +235,18 @@ async def concluir_pane(
     pane.status = StatusPane.RESOLVIDA.value
     pane.data_conclusao = datetime.now(timezone.utc)
     pane.concluido_por_id = concluido_por_id
+    pane.observacao_conclusao = observacao_conclusao
 
+    await db.flush()
+    return pane
+
+
+async def excluir_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane:
+    """Realiza Soft Delete inativando a pane."""
+    pane = await buscar_pane(db, pane_id)
+    if not pane:
+        raise ValueError("Pane não encontrada.")
+    pane.ativo = False
     await db.flush()
     return pane
 

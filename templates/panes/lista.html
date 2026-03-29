@@ -1,17 +1,18 @@
 {% extends "base.html" %}
 
-{% block page_title %}Livro de Ocorrências (Panes){% endblock %}
+{% block page_title %}HISTÓRICO{% endblock %}
 
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
     <!-- Barra de Filtros Rápida -->
-    <div style="display: flex; gap: 1rem; flex: 1; max-width: 600px;">
+    <div style="display: flex; gap: 1rem; flex: 1; max-width: 700px;">
         <input type="text" id="filter-text" class="form-input" placeholder="Buscar por texto na descrição..." style="flex: 1;">
         <select id="filter-status" class="form-input" style="width: auto;">
             <option value="">Status (Todos)</option>
             <option value="ABERTA">ABERTA</option>
             <option value="EM_PESQUISA">EM PESQUISA</option>
             <option value="RESOLVIDA">RESOLVIDA</option>
+            <option value="EXCLUIDAS">EXCLUIDAS (Lixeira)</option>
         </select>
         <button class="btn btn-outline" onclick="loadPanes()">
             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
@@ -30,15 +31,18 @@
     <table style="width: 100%; border-collapse: collapse; text-align: left;">
         <thead style="background-color: var(--bg-tertiary); border-bottom: 1px solid var(--border-color);">
             <tr>
-                <th style="padding: 1rem; font-weight: 600;">DT/HR</th>
+                <th style="padding: 1rem; font-weight: 600;">Code</th>
+                <th style="padding: 1rem; font-weight: 600;">Data/Hora</th>
+                <th style="padding: 1rem; font-weight: 600;">Aeronave</th>
+                <th style="padding: 1rem; font-weight: 600;">Pane</th>
+                <th style="padding: 1rem; font-weight: 600;">Ação Corretiva</th>
                 <th style="padding: 1rem; font-weight: 600;">Status</th>
-                <th style="padding: 1rem; font-weight: 600;">Sistema (ATA)</th>
-                <th style="padding: 1rem; font-weight: 600;">Sintoma / Relato</th>
-                <th style="padding: 1rem; font-weight: 600; text-align: center;">Ações</th>
+                <th style="padding: 1rem; font-weight: 600;">Referência (Resp.)</th>
+                <th style="padding: 1rem; font-weight: 600; text-align: center;">Actions</th>
             </tr>
         </thead>
         <tbody id="panes-table-body">
-            <tr><td colspan="5" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Recuperando telemetria...</td></tr>
+            <tr><td colspan="8" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Recuperando telemetria...</td></tr>
         </tbody>
     </table>
 </div>
@@ -93,14 +97,22 @@
 
         let query = `/panes/?limit=50`;
         if (txt) query += `&texto=${encodeURIComponent(txt)}`;
-        if (sts) query += `&status=${sts}`;
+        
+        if (sts === 'EXCLUIDAS') {
+            query += `&excluidas=true`;
+        } else if (sts) {
+            query += `&status=${sts}`;
+        }
 
         try {
             const panes = await apiFetch(query);
             body.innerHTML = '';
+            
+            const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
+            const funcao = user.funcao || '';
 
             if (panes.length === 0) {
-                body.innerHTML = `<tr><td colspan="5" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Sessão livre. Sem registros para este filtro.</td></tr>`;
+                body.innerHTML = `<tr><td colspan="8" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Nenhum registro encontrado.</td></tr>`;
                 return;
             }
 
@@ -108,28 +120,47 @@
                 let badgeClass = "badge-aberta";
                 if(pane.status === "EM_PESQUISA") badgeClass = "badge-pesquisa";
                 else if(pane.status === "RESOLVIDA") badgeClass = "badge-resolvida";
+                if(!pane.ativo) badgeClass = "badge-resolvida"; // Fallback color for deleted (gray/black maybe, depending on CSS)
                 
-                // Tratar data e hora
+                // Tratar data e hora e formato ddd/yy
                 const rawDate = pane.data_abertura ? pane.data_abertura : new Date().toISOString();
                 const dObj = new Date(rawDate);
                 const shortDate = dObj.toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
+                
+                // Calculo de DDD (Dia do Ano)
+                const start = new Date(dObj.getFullYear(), 0, 0);
+                const diff = (dObj - start) + ((start.getTimezoneOffset() - dObj.getTimezoneOffset()) * 60 * 1000);
+                const oneDay = 1000 * 60 * 60 * 24;
+                const dayOfYear = Math.floor(diff / oneDay).toString().padStart(3, '0');
+                const yy = dObj.getFullYear().toString().substring(2);
+                const paneCode = `${dayOfYear}/${yy}`;
+                
+                const obsConclusao = pane.observacao_conclusao || '--';
+                const statusName = pane.ativo ? pane.status.replace("_", " ") : "EXCLUIDA";
+                
+                // Apenas Encarregado e Administrador podem Editar e Apagar
+                const showAdminActions = (funcao === 'ENCARREGADO' || funcao === 'ADMINISTRADOR');
 
                 const tr = document.createElement("tr");
                 tr.style.borderBottom = "1px solid var(--border-color)";
                 tr.innerHTML = `
-                    <td style="padding: 1rem; font-size: 0.9rem; color: var(--text-secondary);">${shortDate}</td>
-                    <td style="padding: 1rem;"><span class="badge ${badgeClass}">${pane.status.replace("_", " ")}</span></td>
-                    <td style="padding: 1rem; font-weight: 500;">${pane.sistema_subsistema}</td>
-                    <td style="padding: 1rem; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${pane.descricao}</td>
-                    <td style="padding: 1rem; text-align: center;">
-                        <a href="/panes/${pane.id}/detalhes" class="btn btn-outline" style="padding: 0.25rem 0.75rem; font-size: 0.75rem; background-color: var(--bg-secondary); color: var(--text-primary);">Analisar</a>
+                    <td style="padding: 1rem; font-family: monospace; font-size: 0.85rem;">${paneCode}</td>
+                    <td style="padding: 1rem; font-size: 0.85rem; color: var(--text-secondary);">${shortDate}</td>
+                    <td style="padding: 1rem; font-weight: 500;">${pane.aeronave_id.substring(0,6)}..</td>
+                    <td style="padding: 1rem; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${pane.descricao}</td>
+                    <td style="padding: 1rem; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-secondary);">${obsConclusao}</td>
+                    <td style="padding: 1rem;"><span class="badge ${badgeClass}">${statusName}</span></td>
+                    <td style="padding: 1rem; color: var(--text-secondary); font-size: 0.85rem;">${pane.criado_por_id.substring(0,4)}...</td>
+                    <td style="padding: 1rem; text-align: center; display: flex; gap: 0.5rem; justify-content: center;">
+                        <a href="/panes/${pane.id}/detalhes" class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background-color: var(--bg-secondary); color: var(--text-primary);" title="VIEW">VIEW</a>
+                        ${showAdminActions && pane.ativo ? `<button class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" title="EDIT" onclick="editPane('${pane.id}')">EDIT</button><button class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; color: var(--status-danger); border-color: var(--status-danger);" title="DELETE" onclick="softDeletePane('${pane.id}')">DELETE</button>` : ''}
                     </td>
                 `;
                 body.appendChild(tr);
             });
         } catch (e) {
             console.error(e);
-            body.innerHTML = `<tr><td colspan="5" style="padding: 2rem; text-align: center; color: var(--status-danger);">Falha de Comunicação ao extrair telemetria!</td></tr>`;
+            body.innerHTML = `<tr><td colspan="8" style="padding: 2rem; text-align: center; color: var(--status-danger);">Falha de Comunicação ao extrair telemetria!</td></tr>`;
         }
     }
 
@@ -202,6 +233,21 @@
             btn.disabled = false;
             btn.innerText = "Cadastrar Pane";
         }
+    }
+
+    async function softDeletePane(id) {
+        if(!confirm("Atenção: A pane será inativada e constará na lixeira de Excluídas. Deseja prosseguir?")) return;
+        try {
+            await apiFetch(`/panes/${id}`, { method: 'DELETE' });
+            showToast("Pane removida com sucesso.", "success");
+            loadPanes();
+        } catch(e) {}
+    }
+
+    async function editPane(id) {
+        // Redireciona para o detalhe para edicao. Caso a UI de editar seja um modal em Lista, seria customizado aqui.
+        // A pagina View (Analisar/Detail) ja prove edicoes e mudancas de status.
+        window.location.href = `/panes/${id}/detalhes`;
     }
 
     // Init
