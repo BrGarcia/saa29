@@ -144,6 +144,9 @@ async def listar_panes(db: AsyncSession, filtros: FiltroPane | None = None) -> l
 
         query = query.offset(filtros.skip).limit(filtros.limit)
 
+    # Eager-load aeronave para exibir matricula no frontend
+    query = query.options(selectinload(Pane.aeronave))
+
     result = await db.execute(query)
     return list(result.scalars().all())
 

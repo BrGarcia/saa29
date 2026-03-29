@@ -73,13 +73,15 @@
                     const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
                     // Esconder links baseados na ROLE
                     const funcao = user.funcao ? user.funcao.toUpperCase() : '';
+                    // ADMINISTRADOR: acesso total (não oculta nada)
+                    if(funcao === 'MANTENEDOR' || funcao === 'ENCARREGADO') {
+                        // Ambos só veem Dashboard e Histórico
+                        document.getElementById('nav-aeronaves').style.display = 'none';
+                        document.getElementById('nav-efetivo').style.display = 'none';
+                    }
+                    // MANTENEDOR também não vê o Dashboard (acesso restrito)
                     if(funcao === 'MANTENEDOR') {
                         document.getElementById('nav-dashboard').style.display = 'none';
-                        document.getElementById('nav-aeronaves').style.display = 'none';
-                        document.getElementById('nav-efetivo').style.display = 'none';
-                    } else if(funcao === 'ENCARREGADO') {
-                        document.getElementById('nav-aeronaves').style.display = 'none';
-                        document.getElementById('nav-efetivo').style.display = 'none';
                     }
                 } catch(e) {}
             }

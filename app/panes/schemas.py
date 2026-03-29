@@ -9,6 +9,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.enums import StatusPane, TipoPapel, TipoAnexo
+from app.aeronaves.schemas import AeronaveListItem
 
 
 # ============================================================
@@ -84,6 +85,7 @@ class PaneOut(BaseModel):
 
     id: uuid.UUID
     aeronave_id: uuid.UUID
+    aeronave: AeronaveListItem | None = None
     status: StatusPane
     sistema_subsistema: str | None
     descricao: str
@@ -104,6 +106,7 @@ class PaneListItem(BaseModel):
 
     id: uuid.UUID
     aeronave_id: uuid.UUID
+    aeronave: AeronaveListItem | None = None
     status: StatusPane
     descricao: str
     data_abertura: datetime

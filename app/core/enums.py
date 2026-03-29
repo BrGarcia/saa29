@@ -45,11 +45,14 @@ class OrigemControle(str, enum.Enum):
 class TipoPapel(str, enum.Enum):
     """
     Papel/função de um usuário responsável por uma pane.
-    Alinhado com os perfis do sistema (RF SRS §2.2).
+    Perfis do sistema (v1.0):
+        - MANTENEDOR: execução de manutenção
+        - ENCARREGADO: gestão operacional (+ permissões do mantenedor)
+        - ADMINISTRADOR: gestão total do sistema (+ cadastro de aeronaves e efetivo)
     """
-    INSPETOR = "INSPETOR"
-    ENCARREGADO = "ENCARREGADO"
     MANTENEDOR = "MANTENEDOR"
+    ENCARREGADO = "ENCARREGADO"
+    ADMINISTRADOR = "ADMINISTRADOR"
 
 
 class StatusAeronave(str, enum.Enum):

@@ -8,7 +8,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, status, Query
 
 from app.aeronaves import schemas, service
-from app.dependencies import DBSession, CurrentUser
+from app.dependencies import DBSession, CurrentUser, AdminRequired
 
 router = APIRouter()
 
@@ -38,7 +38,7 @@ async def listar_aeronaves(
 async def criar_aeronave(
     dados: schemas.AeronaveCreate,
     db: DBSession,
-    _: CurrentUser,
+    _: AdminRequired,
 ) -> schemas.AeronaveOut:
     try:
         aeronave = await service.criar_aeronave(db, dados)

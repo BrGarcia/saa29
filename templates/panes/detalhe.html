@@ -6,15 +6,17 @@
 <div style="display: flex; gap: 2rem;">
     <!-- Coluna Esquerda: Meta e Ações -->
     <div style="flex: 1; max-width: 400px; display: flex; flex-direction: column; gap: 1.5rem;">
-        
+
         <div class="card glass-panel" style="position: relative;">
             <div style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase;">ID Relatório</div>
-            <div style="font-family: monospace; color: var(--text-primary); margin-bottom: 1.5rem;" id="det-id">{{ pane_id }}</div>
+            <div style="font-family: monospace; color: var(--text-primary); margin-bottom: 1.5rem;" id="det-id">{{
+                pane_id }}</div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
                 <div>
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Status</div>
-                    <div id="det-status" style="margin-top: 0.2rem;"><span class="badge badge-aberta">Carregando...</span></div>
+                    <div id="det-status" style="margin-top: 0.2rem;"><span
+                            class="badge badge-aberta">Carregando...</span></div>
                 </div>
                 <div>
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Abertura</div>
@@ -23,16 +25,23 @@
             </div>
 
             <!-- Botões de Ação Dinâmicos (Surgem dependendo do Status) -->
-            <div id="acoes-pane" style="display: flex; flex-direction: column; gap: 0.5rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
-                <button class="btn btn-outline" onclick="mudarStatus('EM_PESQUISA')" id="btn-pesquisa" style="display:none;">Assumir (Em Pesquisa)</button>
-                <button class="btn btn-primary" onclick="openConcluirModal()" id="btn-concluir" style="display:none;">Bater Conclusão (Resolver)</button>
+            <div id="acoes-pane"
+                style="display: flex; flex-direction: column; gap: 0.5rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                <button class="btn btn-outline" onclick="mudarStatus('EM_PESQUISA')" id="btn-pesquisa"
+                    style="display:none;">Assumir</button>
+                <button class="btn btn-outline" onclick="openDelegarModal()" id="btn-delegar"
+                    style="display:none; color: var(--primary-color); border-color: var(--primary-color);">Delegar</button>
+                <button class="btn btn-primary" onclick="openConcluirModal()" id="btn-concluir"
+                    style="display:none;">Concluir</button>
             </div>
         </div>
 
         <!-- Anexos -->
         <div class="card glass-panel">
-            <h3 style="font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">Anexos / Evidências</h3>
-            
+            <h3
+                style="font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                Anexos / Evidências</h3>
+
             <div id="lista-anexos" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem;">
                 <!-- Preenchido via JS -->
             </div>
@@ -40,7 +49,9 @@
             <form id="formUpload" onsubmit="handleUpload(event)" style="display: flex; gap: 0.5rem;">
                 <input type="file" id="arquivoInput" class="form-input" style="padding: 0.3rem;" required>
                 <button type="submit" class="btn btn-outline" id="btnUpload" aria-label="Anexar">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
                 </button>
             </form>
         </div>
@@ -50,13 +61,16 @@
     <div style="flex: 2; display: flex; flex-direction: column; gap: 1.5rem;">
         <div class="card glass-panel">
             <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;" id="det-sistema">Sistema / ATA</h3>
-            <p id="det-descricao" style="color: var(--text-secondary); line-height: 1.6; white-space: pre-wrap; font-size: 0.95rem; margin-bottom: 1rem;">
+            <p id="det-descricao"
+                style="color: var(--text-secondary); line-height: 1.6; white-space: pre-wrap; font-size: 0.95rem; margin-bottom: 1rem;">
                 Carregando sumário...
             </p>
         </div>
 
-        <div class="card glass-panel" id="card-conclusao" style="display: none; border-left: 4px solid var(--status-ok);">
-            <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;" style="color: var(--status-ok);">Resolução da Ocorrência</h3>
+        <div class="card glass-panel" id="card-conclusao"
+            style="display: none; border-left: 4px solid var(--status-ok);">
+            <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;" style="color: var(--status-ok);">Resolução da
+                Ocorrência</h3>
             <p id="det-obs-conclusao" style="color: var(--text-secondary); white-space: pre-wrap; font-size: 0.95rem;">
             </p>
         </div>
@@ -64,17 +78,65 @@
 </div>
 
 <!-- Modal para Conclusão -->
-<div id="modal-concluir" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+<div id="modal-concluir"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
     <div class="card glass-panel" style="width: 100%; max-width: 500px; margin: 1rem;">
-        <h3 style="margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Finalizar Intervenção</h3>
+        <h3 style="margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Finalizar
+            Intervenção</h3>
         <form id="formConcluir" onsubmit="enviarConclusao(event)">
             <div class="form-group">
                 <label class="form-label">Causa e Ação Adotada</label>
-                <textarea id="obsConclusao" class="form-input" rows="4" placeholder="Ex: Substituído o módulo de intercoligador..." required></textarea>
+                <textarea id="obsConclusao" class="form-input" rows="4"
+                    placeholder="Ex: Substituído o módulo de intercoligador..." required></textarea>
             </div>
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
                 <button type="button" class="btn btn-outline" onclick="closeConcluirModal()">Cancelar</button>
-                <button type="submit" class="btn btn-primary" style="background-color: var(--status-ok);">Concluir Intervenção</button>
+                <button type="submit" class="btn btn-primary" style="background-color: var(--status-ok);">Concluir
+                    Intervenção</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal para Edição -->
+<div id="modal-editar"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card glass-panel" style="width: 100%; max-width: 500px; margin: 1rem;">
+        <h3 style="margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Editar
+            Pane</h3>
+        <form id="formEditar" onsubmit="salvarEdicao(event)">
+            <div class="form-group">
+                <label class="form-label">Sistema / ATA</label>
+                <input type="text" id="editSistema" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Descrição / Sintoma</label>
+                <textarea id="editDescricao" class="form-input" rows="4" required></textarea>
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-outline" onclick="closeEditarModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="background-color: var(--status-warning);">Salvar
+                    Alterações</button>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- Modal para Delegação -->
+<div id="modal-delegar"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card glass-panel" style="width: 100%; max-width: 400px; margin: 1rem;">
+        <h3 style="margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Delegar
+            Pane</h3>
+        <form id="formDelegar" onsubmit="enviarDelegacao(event)">
+            <div class="form-group">
+                <label class="form-label">Selecionar Mantenedor</label>
+                <select id="mantenedorSelect" class="form-input" required>
+                    <option value="">Carregando efetivo...</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-outline" onclick="closeDelegarModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Atribuir Serviço</button>
             </div>
         </form>
     </div>
@@ -84,12 +146,12 @@
 {% block scripts %}
 <script>
     const PANE_ID = "{{ pane_id }}";
-    
+
     // Load Pane Details
     async function carregarDetalhe() {
         try {
             const pane = await apiFetch(`/panes/${PANE_ID}`);
-            
+
             // Textos base
             document.getElementById("det-sistema").innerText = pane.sistema_subsistema;
             document.getElementById("det-descricao").innerText = pane.descricao;
@@ -98,30 +160,37 @@
             // Botões de fluxo e Status badge
             const btnPesq = document.getElementById("btn-pesquisa");
             const btnConc = document.getElementById("btn-concluir");
+            const btnDelegar = document.getElementById("btn-delegar");
             const spanSts = document.getElementById("det-status");
-            const formUp  = document.getElementById("formUpload");
+            const formUp = document.getElementById("formUpload");
 
             btnPesq.style.display = "none";
             btnConc.style.display = "none";
-            formUp.style.display  = "flex";
+            btnDelegar.style.display = "none";
+            formUp.style.display = "flex";
+
+            const localUser = JSON.parse(localStorage.getItem("saa29_user") || '{}');
+            const ehGestor = (localUser.funcao === 'ENCARREGADO' || localUser.funcao === 'ADMINISTRADOR');
 
             let bClass = "badge-aberta";
-            if(pane.status === "EM_PESQUISA") {
+            if (pane.status === "EM_PESQUISA") {
                 bClass = "badge-pesquisa";
                 btnConc.style.display = "block";
-            } else if(pane.status === "RESOLVIDA") {
+                if (ehGestor) btnDelegar.style.display = "block";
+            } else if (pane.status === "RESOLVIDA") {
                 bClass = "badge-resolvida";
                 formUp.style.display = "none"; // Fechar uploads
-                
+
                 // Mostrar Box de conclusão
                 const cardCx = document.getElementById("card-conclusao");
-                if(pane.observacao_conclusao) {
+                if (pane.observacao_conclusao) {
                     cardCx.style.display = "block";
                     document.getElementById("det-obs-conclusao").innerText = pane.observacao_conclusao;
                 }
-            } else if(pane.status === "ABERTA") {
+            } else if (pane.status === "ABERTA") {
                 btnPesq.style.display = "block";
                 btnConc.style.display = "block";
+                if (ehGestor) btnDelegar.style.display = "block";
             }
 
             spanSts.innerHTML = `<span class="badge ${bClass}">${pane.status.replace("_", " ")}</span>`;
@@ -141,21 +210,21 @@
                 method: "PUT",
                 body: { status: novoStatus }
             });
-            
+
             // Assumir automaticamente como responsavel da pane na mudanca de status de ABERTA -> EM PESQUISA
             const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
-            if(user && user.id) {
+            if (user && user.id) {
                 try {
                     await apiFetch(`/panes/${PANE_ID}/responsaveis`, {
                         method: "POST",
                         body: { usuario_id: user.id, papel: "SERVIÇO" }
                     });
-                } catch(ignorar){} // IGNORAR ERROS SE JÁ FOR RESPONSÁVEL
+                } catch (ignorar) { } // IGNORAR ERROS SE JÁ FOR RESPONSÁVEL
             }
 
             showToast(`Status atualizado para: ${novoStatus}`, "info");
             carregarDetalhe();
-        } catch (e) {}
+        } catch (e) { }
     }
 
     // Modal Conclusão
@@ -172,56 +241,126 @@
                 body: { observacao_conclusao: obs }
             });
 
-            // Se for mantenedor, fica automaticamente listado como responsável pelo serviço finalizado
+            // Se não for delegado e bater conclusão, assume ser de quem concluiu
             const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
-            if(user && user.id) {
+            if (user && user.id) {
                 try {
                     await apiFetch(`/panes/${PANE_ID}/responsaveis`, {
                         method: "POST",
                         body: { usuario_id: user.id, papel: "MANTENEDOR" }
                     });
-                } catch(ignorar){}
+                } catch (ignorar) { }
             }
 
             showToast("Pane finalizada e assinada.", "success");
             closeConcluirModal();
             carregarDetalhe();
-        } catch (e) {}
+        } catch (e) { }
+    }
+
+    // Modal Delegação
+    const modalD = document.getElementById("modal-delegar");
+    async function openDelegarModal() {
+        modalD.style.display = "flex";
+        const select = document.getElementById("mantenedorSelect");
+        select.innerHTML = '<option value="">Carregando...</option>';
+        try {
+            const usuarios = await apiFetch("/auth/usuarios");
+            // Filtra o efetivo que vai pro pátio (MANTENEDOR, etc)
+            const possiveis = usuarios.filter(u => u.funcao === "MANTENEDOR" || u.funcao === "ENCARREGADO");
+            select.innerHTML = '<option value="">-- Selecione o Servidor --</option>';
+            possiveis.forEach(u => {
+                const opt = document.createElement("option");
+                opt.value = u.id;
+                opt.innerText = `${u.posto} ${u.nome} (${u.especialidade})`;
+                select.appendChild(opt);
+            });
+        } catch (e) {
+            select.innerHTML = '<option value="">Falha ao carregar servidores.</option>';
+        }
+    }
+    function closeDelegarModal() { modalD.style.display = "none"; }
+
+    async function enviarDelegacao(e) {
+        e.preventDefault();
+        const mantId = document.getElementById("mantenedorSelect").value;
+        if (!mantId) return;
+
+        try {
+            await apiFetch(`/panes/${PANE_ID}/responsaveis`, {
+                method: "POST",
+                body: { usuario_id: mantId, papel: "MANTENEDOR" }
+            });
+            showToast("Pane delegada com sucesso.", "success");
+            closeDelegarModal();
+        } catch (e) { }
+    }
+
+    // Modal Editar
+    const modalEdit = document.getElementById("modal-editar");
+    function openEditarModal() {
+        document.getElementById("editSistema").value = document.getElementById("det-sistema").innerText;
+        document.getElementById("editDescricao").value = document.getElementById("det-descricao").innerText;
+        modalEdit.style.display = "flex";
+    }
+    function closeEditarModal() { modalEdit.style.display = "none"; }
+
+    async function salvarEdicao(e) {
+        e.preventDefault();
+        const sistema = document.getElementById("editSistema").value;
+        const descricao = document.getElementById("editDescricao").value;
+
+        try {
+            await apiFetch(`/panes/${PANE_ID}`, {
+                method: "PUT",
+                body: { sistema_subsistema: sistema, descricao: descricao }
+            });
+            showToast("Dados atualizados com sucesso.", "success");
+            closeEditarModal();
+
+            // Remover query param se existir, para nao ficar reiniciando o auto-open edit
+            if (window.location.search.includes("edit=true")) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+            carregarDetalhe();
+        } catch (e) { }
     }
 
     // Subsistema de Anexos
     async function carregarAnexos() {
-       try {
-           const anexos = await apiFetch(`/panes/${PANE_ID}/anexos`);
-           const lista = document.getElementById("lista-anexos");
-           lista.innerHTML = "";
-           
-           if(anexos.length === 0) {
-               lista.innerHTML = `<p style="font-size: 0.85rem; color: var(--text-secondary);">Sem arquivos vinculados.</p>`;
-               return;
-           }
+        try {
+            const anexos = await apiFetch(`/panes/${PANE_ID}/anexos`);
+            const lista = document.getElementById("lista-anexos");
+            lista.innerHTML = "";
 
-           anexos.forEach(ax => {
-               // ax tem tipo_conteudo, id e caminho_arquivo no banco real (mas a API talvez nao retorne o raw file).
-               // Se o caminho não está no schema de resposta, pelo menos mockamos visualmente o click.
-               const div = document.createElement("div");
-               div.style = "display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; background: var(--bg-primary); border-radius: var(--radius-md); font-size: 0.85rem;";
-               
-               div.innerHTML = `
+            if (anexos.length === 0) {
+                lista.innerHTML = `<p style="font-size: 0.85rem; color: var(--text-secondary);">Sem arquivos vinculados.</p>`;
+                return;
+            }
+
+            anexos.forEach(ax => {
+                // Extraindo o nome do arquivo que foi armazenado na API
+                const filename = ax.caminho_arquivo ? ax.caminho_arquivo.split(/[\/\\]/).pop() : '';
+                const url = filename ? `/uploads/${filename}` : '#';
+
+                const div = document.createElement("div");
+                div.style = "display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; background: var(--bg-primary); border-radius: var(--radius-md); font-size: 0.85rem;";
+
+                div.innerHTML = `
                    <span style="font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px;">
-                       📎 Anexo_${ax.id.substring(0,4)}
+                       📎 Anexo_${ax.id.substring(0, 4)}
                    </span>
-                   <span class="badge" style="background: var(--bg-tertiary); color: var(--text-primary);">Ver</span>
+                   <a href="${url}" target="_blank" rel="noopener noreferrer" class="badge" style="background: var(--bg-tertiary); color: var(--text-primary); cursor: pointer; text-decoration: none;">Ver</a>
                `;
-               lista.appendChild(div);
-           });
-       } catch (e) {}
+                lista.appendChild(div);
+            });
+        } catch (e) { }
     }
 
     async function handleUpload(e) {
         e.preventDefault();
         const input = document.getElementById("arquivoInput");
-        if(input.files.length === 0) return;
+        if (input.files.length === 0) return;
 
         const file = input.files[0];
         const formData = new FormData();
@@ -233,23 +372,23 @@
         try {
             const token = getToken();
             const headers = { "Authorization": `Bearer ${token}` };
-            
+
             const res = await fetch(`/panes/${PANE_ID}/anexos`, {
                 method: "POST",
                 body: formData,
                 headers: headers // sem Content-Type para o browser setar multipart/form-data + boundary auto
             });
 
-            if(!res.ok) {
+            if (!res.ok) {
                 let errData;
-                try { errData = await res.json(); } catch(Ex) {}
+                try { errData = await res.json(); } catch (Ex) { }
                 let errMsg = errData?.detail || "Extensão/Tamanho não aceito.";
                 throw new Error(typeof errMsg === 'string' ? errMsg : "Falha na conversão via API de Upload.");
             }
             showToast("Evidência anexada ao relatório.", "success");
             input.value = "";
             carregarAnexos();
-        } catch(err) {
+        } catch (err) {
             showToast(err.message, "error");
         } finally {
             btn.disabled = false;
@@ -257,8 +396,19 @@
     }
 
     // Auto-carregar na abertura default
-    document.addEventListener("DOMContentLoaded", () => {
-        carregarDetalhe();
+    document.addEventListener("DOMContentLoaded", async () => {
+        await carregarDetalhe();
+
+        // Auto-open edit modal se solicitado via query string
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('edit') === 'true') {
+            const status = document.getElementById("det-status").innerText;
+            if (!status.includes("RESOLVIDA")) {
+                openEditarModal();
+            } else {
+                showToast("Panes resolvidas não podem mais ser editadas.", "warning");
+            }
+        }
     });
 </script>
 {% endblock %}

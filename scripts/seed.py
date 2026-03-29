@@ -29,7 +29,7 @@ async def seed():
                 nome="Administrador SAA29",
                 posto="Cel",
                 especialidade="ELT",
-                funcao="ENCARREGADO",
+                funcao="ADMINISTRADOR",
                 ramal="1234",
                 username="admin",
                 senha_hash=hash_senha("admin123"),

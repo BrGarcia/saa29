@@ -65,6 +65,7 @@ async def criar_usuario(
         especialidade=dados.especialidade,
         funcao=dados.funcao,
         ramal=dados.ramal,
+        trigrama=dados.trigrama.upper() if dados.trigrama else None,
         username=dados.username,
         senha_hash=hash_senha(dados.password),
     )
@@ -172,4 +173,25 @@ async def alterar_senha(
     if not verificar_senha(senha_atual, usuario.senha_hash):
         raise ValueError("Senha atual incorreta.")
     usuario.senha_hash = hash_senha(nova_senha)
+    await db.flush()
+
+
+async def excluir_usuario(
+    db: AsyncSession,
+    usuario_id: uuid.UUID,
+) -> None:
+    """
+    Remove permanentemente um usuário do efetivo.
+
+    Args:
+        db: sessão de banco de dados.
+        usuario_id: UUID do usuário a excluir.
+
+    Raises:
+        ValueError: se o usuário não for encontrado.
+    """
+    usuario = await buscar_por_id(db, usuario_id)
+    if not usuario:
+        raise ValueError("Usuário não encontrado.")
+    await db.delete(usuario)
     await db.flush()

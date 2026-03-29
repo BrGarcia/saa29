@@ -4,6 +4,12 @@ from app.auth.models import Usuario
 from app.auth.security import hash_senha
 from sqlalchemy import select
 
+# Importar TODOS os módulos para resolver os nomes das classes em referências de string cruzadas (avoid InvalidRequestError)
+import app.auth.models
+import app.aeronaves.models
+import app.equipamentos.models
+import app.panes.models
+
 async def main():
     AsyncSessionLocal = get_session_factory()
     async with AsyncSessionLocal() as session:

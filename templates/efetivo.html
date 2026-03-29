@@ -9,8 +9,8 @@
         <input type="text" id="filter-user" class="form-input" placeholder="Buscar efetivo..." style="flex: 1;" onkeyup="loadEfetivo()">
     </div>
 
-    <!-- Novo Membro -->
-    <button class="btn btn-primary" onclick="openModalMembro()">
+        <!-- Novo Membro (apenas ADMINISTRADOR) -->
+    <button class="btn btn-primary" id="btn-add-membro" onclick="openModalMembro()" style="display:none;">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-8 0v2M12 11a4 4 0 100-8 4 4 0 000 8zM20 8v6M23 11h-6"/></svg>
         Adicionar ao Sistema
     </button>
@@ -25,6 +25,7 @@
                 <th style="padding: 1rem; font-weight: 600;">Login NIP</th>
                 <th style="padding: 1rem; font-weight: 600;">Função (Perfil)</th>
                 <th style="padding: 1rem; font-weight: 600;">Ramal</th>
+                <th id="th-acoes" style="padding: 1rem; font-weight: 600; display:none;">Ações</th>
             </tr>
         </thead>
         <tbody id="efetivo-table-body">
@@ -51,20 +52,26 @@
                 </div>
             </div>
 
-            <div class="form-group">
-                <label class="form-label">Login NIP (Usuário) *</label>
-                <input type="text" id="nipInput" class="form-input" required>
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; margin-bottom: 1.25rem;">
+                <div>
+                    <label class="form-label">Trigrama *</label>
+                    <input type="text" id="trigramaInput" class="form-input" placeholder="EX: JFS" required maxlength="3" style="text-transform: uppercase; letter-spacing: 0.1rem; font-weight: 600;">
+                </div>
+                <div>
+                    <label class="form-label">Login NIP (Usuário) *</label>
+                    <input type="text" id="nipInput" class="form-input" required>
+                </div>
             </div>
             
             <div class="form-group">
                 <label class="form-label">Senha de Entrada *</label>
-                <input type="password" id="passInput" class="form-input" required minlength="4">
+                <input type="password" id="passInput" class="form-input" required minlength="6">
             </div>
 
             <div class="form-group">
                 <label class="form-label">Função (Nível de Acesso) *</label>
                 <select id="funcaoInput" class="form-input" required>
-                    <option value="ADMINISTRADOR">ADMINISTRADOR</option>
+                    <option value="INSPETOR">INSPETOR</option>
                     <option value="ENCARREGADO">ENCARREGADO</option>
                     <option value="MANTENEDOR">MANTENEDOR</option>
                 </select>
@@ -88,11 +95,60 @@
         </form>
     </div>
 </div>
+
+<!-- Modal Editar Membro (apenas ADMINISTRADOR) -->
+<div id="modal-editar-membro" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card glass-panel" style="width: 100%; max-width: 450px; margin: 1rem;">
+        <h3 style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">Editar Militar</h3>
+        <form id="formEditarMembro" onsubmit="salvarEdicaoMembro(event)">
+            <input type="hidden" id="editMembroId">
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; margin-bottom: 1.25rem;">
+                <div>
+                    <label class="form-label">Posto</label>
+                    <input type="text" id="editPostoInput" class="form-input">
+                </div>
+                <div>
+                    <label class="form-label">Nome Completo</label>
+                    <input type="text" id="editNomeInput" class="form-input">
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; margin-bottom: 1.25rem;">
+                <div>
+                    <label class="form-label">Trigrama</label>
+                    <input type="text" id="editTrigramaInput" class="form-input" maxlength="3" style="text-transform: uppercase; letter-spacing: 0.1rem; font-weight: 600;">
+                </div>
+                <div>
+                    <label class="form-label">Especialidade</label>
+                    <input type="text" id="editEspInput" class="form-input">
+                </div>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-bottom: 1.25rem;">
+                <div style="flex:1;">
+                    <label class="form-label">Função</label>
+                    <select id="editFuncaoInput" class="form-input">
+                        <option value="ADMINISTRADOR">ADMINISTRADOR</option>
+                        <option value="ENCARREGADO">ENCARREGADO</option>
+                        <option value="MANTENEDOR">MANTENEDOR</option>
+                    </select>
+                </div>
+                <div style="flex:1;">
+                    <label class="form-label">Ramal</label>
+                    <input type="text" id="editRamalInput" class="form-input">
+                </div>
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+                <button type="button" class="btn btn-outline" onclick="closeEditarMembro()">Cancelar</button>
+                <button type="submit" class="btn btn-primary" id="btnSalvarEdicao">Salvar Alterações</button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
     let usuariosCache = [];
+    let isAdmin = false;
 
     async function loadEfetivo() {
         if(usuariosCache.length === 0) {
@@ -123,13 +179,24 @@
             else if(u.funcao === "ENCARREGADO") roleColor = "--status-warning";
             else if(u.funcao === "MANTENEDOR") roleColor = "--primary-color";
 
+            const acoesHtml = isAdmin ? `
+                <td style="padding: 0.75rem; white-space: nowrap;">
+                    <button onclick='openEditarMembro(${JSON.stringify(u)})' class="btn-icon" title="Editar" style="color: var(--status-warning);">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </button>
+                    <button onclick="excluirMembro('${u.id}', '${u.nome}')" class="btn-icon" title="Excluir" style="color: var(--status-danger);">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                </td>` : '';
+
             const tr = document.createElement("tr");
             tr.style.borderBottom = "1px solid var(--border-color)";
             tr.innerHTML = `
-                <td style="padding: 1rem; font-weight: 500;">${u.posto} ${u.nome}</td>
+                <td style="padding: 1rem; font-weight: 500;">${u.posto} ${u.nome} ${u.trigrama ? `<span style="font-size:0.75rem; font-family:monospace; background:var(--bg-tertiary); padding:0.1rem 0.4rem; border-radius:4px; margin-left:0.25rem;">${u.trigrama}</span>` : ''}</td>
                 <td style="padding: 1rem; font-family: monospace;">${u.username}</td>
                 <td style="padding: 1rem;"><span style="color: var(${roleColor}); font-weight: 600; font-size: 0.85rem;">${u.funcao}</span></td>
                 <td style="padding: 1rem; color: var(--text-secondary);">${u.ramal || '-'}</td>
+                ${acoesHtml}
             `;
             body.appendChild(tr);
         });
@@ -150,8 +217,9 @@
             especialidade: document.getElementById("espInput").value || null,
             funcao: document.getElementById("funcaoInput").value,
             ramal: document.getElementById("ramalInput").value || null,
+            trigrama: document.getElementById("trigramaInput").value.toUpperCase() || null,
             username: document.getElementById("nipInput").value,
-            senha_bruta: document.getElementById("passInput").value
+            password: document.getElementById("passInput").value
         };
 
         try {
@@ -169,7 +237,65 @@
     }
 
     document.addEventListener("DOMContentLoaded", () => {
+        const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
+        isAdmin = (user.funcao || '').toUpperCase() === 'ADMINISTRADOR';
+        if(isAdmin) {
+            document.getElementById('btn-add-membro').style.display = 'inline-flex';
+            document.getElementById('th-acoes').style.display = 'table-cell';
+        }
         loadEfetivo();
     });
+
+    // ---- Modal Editar Membro ----
+    const modalEditar = document.getElementById("modal-editar-membro");
+
+    function openEditarMembro(u) {
+        document.getElementById('editMembroId').value = u.id;
+        document.getElementById('editPostoInput').value = u.posto || '';
+        document.getElementById('editNomeInput').value = u.nome || '';
+        document.getElementById('editTrigramaInput').value = u.trigrama || '';
+        document.getElementById('editEspInput').value = u.especialidade || '';
+        document.getElementById('editFuncaoInput').value = u.funcao || 'MANTENEDOR';
+        document.getElementById('editRamalInput').value = u.ramal || '';
+        modalEditar.style.display = 'flex';
+    }
+
+    function closeEditarMembro() {
+        modalEditar.style.display = 'none';
+    }
+
+    async function salvarEdicaoMembro(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnSalvarEdicao');
+        btn.disabled = true;
+        const id = document.getElementById('editMembroId').value;
+        const payload = {
+            nome:         document.getElementById('editNomeInput').value || undefined,
+            posto:        document.getElementById('editPostoInput').value || undefined,
+            especialidade:document.getElementById('editEspInput').value || null,
+            funcao:       document.getElementById('editFuncaoInput').value || undefined,
+            ramal:        document.getElementById('editRamalInput').value || null,
+            trigrama:     document.getElementById('editTrigramaInput').value.toUpperCase() || null,
+        };
+        try {
+            await apiFetch(`/auth/usuarios/${id}`, { method: 'PUT', body: payload });
+            showToast('Dados do militar atualizados!', 'success');
+            usuariosCache = [];
+            closeEditarMembro();
+            loadEfetivo();
+        } catch(e) {} finally {
+            btn.disabled = false;
+        }
+    }
+
+    async function excluirMembro(id, nome) {
+        if(!confirm(`Confirmar exclusão de "${nome}" do efetivo?`)) return;
+        try {
+            await apiFetch(`/auth/usuarios/${id}`, { method: 'DELETE' });
+            showToast(`${nome} removido do efetivo.`, 'info');
+            usuariosCache = [];
+            loadEfetivo();
+        } catch(e) {}
+    }
 </script>
 {% endblock %}

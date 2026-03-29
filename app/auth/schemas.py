@@ -28,6 +28,7 @@ class UsuarioCreate(BaseModel):
     especialidade: str | None = Field(default=None, max_length=50)
     funcao: TipoPapel = Field(..., description="INSPETOR | ENCARREGADO | MANTENEDOR")
     ramal: str | None = Field(default=None, max_length=20)
+    trigrama: str | None = Field(default=None, max_length=3)
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=6)
 
@@ -39,6 +40,7 @@ class UsuarioUpdate(BaseModel):
     especialidade: str | None = Field(default=None, max_length=50)
     funcao: TipoPapel | None = None
     ramal: str | None = Field(default=None, max_length=20)
+    trigrama: str | None = Field(default=None, max_length=3)
 
 
 class SenhaUpdate(BaseModel):
@@ -61,6 +63,7 @@ class UsuarioOut(BaseModel):
     especialidade: str | None
     funcao: str
     ramal: str | None
+    trigrama: str | None
     username: str
     created_at: datetime
 

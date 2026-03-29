@@ -3,12 +3,14 @@ app/auth/router.py
 Endpoints de autenticação e gestão de usuários.
 """
 
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.auth import schemas, service
 from app.auth.security import criar_token
-from app.dependencies import DBSession, CurrentUser, InspetorRequired
+from app.dependencies import DBSession, CurrentUser, AdminRequired, EncarregadoRequired
 
 router = APIRouter()
 
@@ -90,9 +92,9 @@ async def me(usuario_atual: CurrentUser) -> schemas.UsuarioOut:
 async def criar_usuario(
     dados: schemas.UsuarioCreate,
     db: DBSession,
-    _: InspetorRequired,
+    _: AdminRequired,
 ) -> schemas.UsuarioOut:
-    """Cria um novo membro do efetivo. Restrito a Inspetores."""
+    """Cria um novo membro do efetivo. Restrito a Administradores."""
     try:
         usuario = await service.criar_usuario(db, dados)
         return schemas.UsuarioOut.model_validate(usuario)
@@ -135,5 +137,47 @@ async def alterar_senha(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+
+@router.put(
+    "/usuarios/{usuario_id}",
+    response_model=schemas.UsuarioOut,
+    summary="Atualizar dados de um usuário (Admin)",
+)
+async def atualizar_usuario(
+    usuario_id: uuid.UUID,
+    dados: schemas.UsuarioUpdate,
+    db: DBSession,
+    _: AdminRequired,
+) -> schemas.UsuarioOut:
+    """Atualiza os dados de um membro do efetivo. Restrito a Administradores."""
+    try:
+        usuario = await service.atualizar_usuario(db, usuario_id, dados)
+        return schemas.UsuarioOut.model_validate(usuario)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
+@router.delete(
+    "/usuarios/{usuario_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remover usuário do efetivo (Admin)",
+)
+async def excluir_usuario(
+    usuario_id: uuid.UUID,
+    db: DBSession,
+    _: AdminRequired,
+) -> None:
+    """Remove um membro do efetivo. Restrito a Administradores."""
+    try:
+        await service.excluir_usuario(db, usuario_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         )

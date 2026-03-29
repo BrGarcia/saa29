@@ -57,6 +57,11 @@ class Usuario(Base):
         nullable=True,
         comment="Ramal telefônico para contato",
     )
+    trigrama: Mapped[str | None] = mapped_column(
+        String(3),
+        nullable=True,
+        comment="Código de 3 letras que identifica o militar",
+    )
 
     # --- Autenticação ---
     username: Mapped[str] = mapped_column(
