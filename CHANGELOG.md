@@ -7,6 +7,23 @@ e aderente ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [1.0.0] – 2026-03-29
+
+### Adicionado
+- **Filtros Avançados de Panes**: Busca por intervalo de datas e por aeronave específica no backend e frontend.
+- **Gestão de Lixeira (Restore)**: Funcionalidade para restaurar panes excluídas via Soft Delete (acessível por Encarregados e Administradores).
+- **Infraestrutura de Produção**: Configuração de servidor Gunicorn com workers Uvicorn, Dockerfile otimizado e docker-compose persistente.
+- **CI/CD Automatizado**: Workflow do GitHub Actions para validação de Lint, Type Check e Testes em todo push.
+- **Segurança de Rede**: Middlewares `TrustedHost` e `CORSMiddleware` configurados para ambiente real.
+
+### Modificado
+- **Fluxo de Status Simplificado**: Remoção do status intermediário `EM_PESQUISA`. O ciclo de vida da pane agora é direto: `ABERTA` → `RESOLVIDA`.
+- **Layout de Intervenção**: Redesign da tela de detalhes da pane com cabeçalho dinâmico (matrícula), descrição em largura total e blocos de ações/anexos lado a lado.
+- **Autoatribuição de Mantenedor**: Mantenedores agora podem assumir panes para si mesmos sem restrição de gestor.
+- **Conclusão Automática**: O usuário que finaliza uma pane é automaticamente registrado como responsável técnico.
+
+---
+
 ## [0.6.0] – 2026-03-29
 
 ### Adicionado

@@ -10,10 +10,10 @@
 Dia 1: AI Jail       ██ Concluído
 Dia 2: Fundação      ██ Concluído
 Dia 3: Testes        ██ Concluído
-Dia 4: Codificação   ██ Concluído (Estável 0.6.0)
+Dia 4: Codificação   ██ Concluído
 Dia 5: Otimização    ██ Concluído
 Dia 6: Interface     ██ Concluído
-Dia 7: Deploy/CI     ░░ Pendente   ← próxima fase
+Dia 7: Deploy/CI     ██ Concluído (Estável 1.0.0)
 ```
 
 ---
@@ -61,7 +61,6 @@ Dia 7: Deploy/CI     ░░ Pendente   ← próxima fase
 - [x] `test_filtrar_panes_por_texto` — filtro funcional (RF-06)
 - [x] `test_concluir_pane_aberta` — status=RESOLVIDA, data_conclusao preenchida (RN-04)
 - [x] `test_concluir_pane_ja_resolvida` — retorna 409
-- [x] `test_transicao_aberta_para_em_pesquisa` — aceitar ([SPECS §8](./docs/requirements/01_SPECS.md))
 - [x] `test_transicao_invalida_resolvida_para_aberta` — rejeitar (RN-03)
 - [x] `test_upload_imagem_valida` — status 201
 - [x] `test_upload_tipo_invalido` — retorna 422
@@ -173,17 +172,17 @@ Dia 7: Deploy/CI     ░░ Pendente   ← próxima fase
 
 ---
 
-## 🔲 Fase 6 – Deploy e CI/CD (Dia 7)
+## ✅ Fase 6 – Deploy e CI/CD (Dia 7) (Concluída)
 
-- [ ] Configurar pipeline CI (GitHub Actions):
-  - [ ] `pytest tests/ -v` a cada push
-  - [ ] `ruff check app/` (linter)
-  - [ ] `mypy app/` (type check)
-- [ ] Configurar ambiente de produção (VPS / Coolify)
-- [ ] Variáveis de ambiente seguras no servidor
-- [ ] HTTPS com certificado SSL
-- [ ] Backup automático do PostgreSQL
-- [ ] Monitoramento de uptime
+- [x] Configurar pipeline CI (GitHub Actions):
+  - [x] `pytest tests/ -v` a cada push
+  - [x] `ruff check app/` (linter)
+  - [x] `mypy app/` (type check)
+- [x] Configurar ambiente de produção (Gunicorn + Uvicorn)
+- [x] Variáveis de ambiente seguras no servidor
+- [x] Middlewares de Segurança (CORS, TrustedHosts)
+- [x] Persistência de volumes Docker para PostgreSQL e Uploads
+- [x] Script de migração de dados v1.0 (Status Cleanup)
 
 ---
 

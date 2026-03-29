@@ -48,12 +48,13 @@ uvicorn app.main:app --reload # Inicia servidor
 | RF | Funcionalidade | Status |
 |----|---------------|--------|
 | RF-01/02 | Autenticação JWT e RBAC Nativo | ✅ Concluído |
-| RF-03/04/05 | Dashboard operacional preservada, fora da navegação principal | ✅ Concluído |
-| RF-06 | Página Panes como entrada principal com filtros operacionais | ✅ Concluído |
+| RF-03/04/05 | Dashboard operacional e Página Panes como fluxo principal | ✅ Concluído |
+| RF-06 | Filtros Avançados (Data, Aeronave, Texto) e Lixeira | ✅ Concluído |
 | RF-07/08 | Registro de nova pane (Upload silencioso) | ✅ Concluído |
-| RF-09 | Visualização detalhada da pane | ✅ Concluído |
-| RF-10/11/12 | Editar, Assumir, Concluir (Ação Corretiva) e Excluir pane | ✅ Concluído |
+| RF-09 | Visualização detalhada com layout otimizado | ✅ Concluído |
+| RF-10/11/12 | Editar, Assumir, Concluir (Ação Corretiva) e Restaurar pane | ✅ Concluído |
 | RF-14/15/16 | Cadastros: efetivo, aeronaves, equipamentos | ✅ Concluído (Frota/Efetivo) |
+| CI/CD | Pipeline automatizado (Actions) + Gunicorn Prod | ✅ Concluído |
 
 ---
 
