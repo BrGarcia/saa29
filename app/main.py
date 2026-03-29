@@ -9,6 +9,7 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
@@ -110,6 +111,12 @@ def create_app() -> FastAPI:
 
 def _register_middlewares(app: FastAPI) -> None:
     """Registra os middlewares globais da aplicação."""
+    # Trusted Hosts (Ajuste para seu domínio real em produção)
+    app.add_middleware(
+        TrustedHostMiddleware, 
+        allowed_hosts=["localhost", "127.0.0.1"] + (settings.allowed_hosts or [])
+    )
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,

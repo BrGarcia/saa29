@@ -21,4 +21,5 @@ RUN mkdir -p uploads
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Usar Gunicorn por padrão (recomendado para produção com Uvicorn workers)
+CMD ["gunicorn", "-c", "gunicorn_conf.py", "app.main:app"]

@@ -32,7 +32,7 @@ services:
       - "8000:8000"
     volumes:
       - ./uploads:/app/uploads
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # Removido command para usar o default do Dockerfile (Gunicorn)
 
 volumes:
   pg_data:

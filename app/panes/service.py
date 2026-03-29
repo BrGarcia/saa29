@@ -357,6 +357,20 @@ async def excluir_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane:
     return pane
 
 
+async def restaurar_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane:
+    """
+    Restaura uma pane que foi inativada via Soft Delete.
+    """
+    pane = await buscar_pane(db, pane_id, incluir_inativos=True)
+    if not pane:
+        raise ValueError("Pane não encontrada.")
+    if pane.ativo:
+        raise ValueError("Pane já está ativa.")
+    pane.ativo = True
+    await db.flush()
+    return pane
+
+
 async def upload_anexo(
     db: AsyncSession,
     pane_id: uuid.UUID,

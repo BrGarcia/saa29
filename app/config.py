@@ -30,8 +30,9 @@ class Settings(BaseSettings):
     upload_dir: str = "uploads"
     max_upload_size_mb: int = 10
 
-    # --- CORS ---
+    # --- CORS / SEGURANÇA ---
     allowed_origins: list[str] = ["http://localhost:8000"]
+    allowed_hosts: list[str] = ["*"]  # Em produção, especifique os hosts permitidos (ex: saa29.brgarcia.com)
 
     model_config = SettingsConfigDict(
         env_file=".env",

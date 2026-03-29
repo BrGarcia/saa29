@@ -4,6 +4,7 @@ Endpoints de gestão de panes aeronáuticas.
 """
 
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, File, UploadFile, Query, status
@@ -45,9 +46,11 @@ async def criar_pane(
 async def listar_panes(
     db: DBSession,
     _: CurrentUser,
-    texto: str | None = Query(default=None, description="Filtro por texto"),
-    status_pane: schemas.StatusPane | None = Query(default=None, alias="status"),
+    texto: str | None = Query(default=None),
+    status: schemas.StatusPane | None = Query(default=None),
     aeronave_id: uuid.UUID | None = Query(default=None),
+    data_inicio: datetime | None = Query(default=None),
+    data_fim: datetime | None = Query(default=None),
     excluidas: bool = Query(default=False),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=1000),
@@ -55,8 +58,10 @@ async def listar_panes(
     """Lista panes com filtros opcionais (texto, status, aeronave, data) e paginação."""
     filtros = schemas.FiltroPane(
         texto=texto,
-        status=status_pane,
+        status=status,
         aeronave_id=aeronave_id,
+        data_inicio=data_inicio,
+        data_fim=data_fim,
         excluidas=excluidas,
         skip=skip,
         limit=limit,
@@ -272,5 +277,27 @@ async def deletar_pane(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
+@router.post(
+    "/{pane_id}/restaurar",
+    response_model=schemas.PaneOut,
+    summary="Restaurar pane excluída",
+)
+async def restaurar_pane(
+    pane_id: uuid.UUID,
+    db: DBSession,
+    usuario_atual: CurrentUser,
+) -> schemas.PaneOut:
+    """Reativa uma pane que foi removida logicamente."""
+    ensure_role(usuario_atual, "ENCARREGADO", "ADMINISTRADOR")
+    try:
+        pane = await service.restaurar_pane(db, pane_id)
+        return schemas.PaneOut.model_validate(pane)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
