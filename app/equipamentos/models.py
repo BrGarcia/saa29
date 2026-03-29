@@ -46,6 +46,10 @@ class Equipamento(Base):
     )
     descricao: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(), nullable=True,
+        comment="Atualizado automaticamente em cada modificação",
+    )
 
     # --- Relacionamentos ---
     controles: Mapped[list["EquipamentoControle"]] = relationship(
@@ -135,6 +139,10 @@ class ItemEquipamento(Base):
         comment="Status: ATIVO | ESTOQUE | REMOVIDO",
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(), nullable=True,
+        comment="Atualizado automaticamente em cada modificação",
+    )
 
     # --- Relacionamentos ---
     equipamento: Mapped["Equipamento"] = relationship(back_populates="itens")

@@ -8,6 +8,11 @@ import uuid
 from datetime import datetime, timezone
 
 import anyio
+try:
+    import magic
+    _MAGIC_AVAILABLE = True
+except ImportError:
+    _MAGIC_AVAILABLE = False
 from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -27,6 +32,14 @@ _TRANSICOES_VALIDAS = {
 
 # Extensões permitidas para upload
 _EXTENSOES_PERMITIDAS = {".jpg", ".jpeg", ".png", ".pdf"}
+
+# MIME types reais permitidos (SEC-05: validação por conteúdo, não só extensão)
+_MIMES_PERMITIDOS = {"image/jpeg", "image/png", "application/pdf"}
+
+
+def _escape_like(text: str) -> str:
+    """Escapa caracteres especiais de LIKE para evitar pattern matching indesejado (SEC-07)."""
+    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 async def criar_pane(
@@ -89,6 +102,8 @@ async def listar_panes(db: AsyncSession, filtros: FiltroPane | None = None) -> l
         2. Construir query dinâmica com AND condicional
         3. Executar busca ordenada por data_abertura DESC
 
+    COR-01: filtro ativo/inativo é SEMPRE aplicado, mesmo sem filtros.
+
     Args:
         db: sessão de banco de dados.
         filtros: schema com os filtros a aplicar.
@@ -98,6 +113,13 @@ async def listar_panes(db: AsyncSession, filtros: FiltroPane | None = None) -> l
     """
     query = select(Pane).order_by(Pane.data_abertura.desc())
 
+    # COR-01: sempre filtrar por ativo, exceto se explicitamente pedido
+    mostrar_excluidas = filtros.excluidas if filtros else False
+    if mostrar_excluidas:
+        query = query.where(Pane.ativo == False)  # noqa: E712
+    else:
+        query = query.where(Pane.ativo == True)  # noqa: E712
+
     if filtros:
         if filtros.status:
             query = query.where(Pane.status == filtros.status.value)
@@ -106,7 +128,7 @@ async def listar_panes(db: AsyncSession, filtros: FiltroPane | None = None) -> l
             query = query.where(Pane.aeronave_id == filtros.aeronave_id)
 
         if filtros.texto:
-            texto_like = f"%{filtros.texto}%"
+            texto_like = f"%{_escape_like(filtros.texto)}%"
             query = query.where(
                 or_(
                     Pane.descricao.ilike(texto_like),
@@ -119,11 +141,6 @@ async def listar_panes(db: AsyncSession, filtros: FiltroPane | None = None) -> l
 
         if filtros.data_fim:
             query = query.where(Pane.data_abertura <= filtros.data_fim)
-            
-        if filtros.excluidas:
-            query = query.where(Pane.ativo == False)
-        else:
-            query = query.where(Pane.ativo == True)
 
         query = query.offset(filtros.skip).limit(filtros.limit)
 
@@ -131,14 +148,25 @@ async def listar_panes(db: AsyncSession, filtros: FiltroPane | None = None) -> l
     return list(result.scalars().all())
 
 
-async def buscar_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane | None:
+async def buscar_pane(
+    db: AsyncSession,
+    pane_id: uuid.UUID,
+    incluir_inativos: bool = False,
+) -> Pane | None:
     """
     Busca uma pane pelo ID com seus anexos e responsáveis carregados.
+
+    COR-04: por padrão, panes soft-deleted são excluídas.
+
+    Args:
+        db: sessão de banco de dados.
+        pane_id: UUID da pane.
+        incluir_inativos: se True, inclui panes soft-deleted.
 
     Returns:
         Objeto Pane com relacionamentos ou None.
     """
-    result = await db.execute(
+    query = (
         select(Pane)
         .where(Pane.id == pane_id)
         .options(
@@ -149,6 +177,9 @@ async def buscar_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane | None:
             selectinload(Pane.responsavel_conclusao),
         )
     )
+    if not incluir_inativos:
+        query = query.where(Pane.ativo == True)  # noqa: E712
+    result = await db.execute(query)
     return result.scalar_one_or_none()
 
 
@@ -156,6 +187,7 @@ async def editar_pane(
     db: AsyncSession,
     pane_id: uuid.UUID,
     dados: PaneUpdate,
+    usuario_id: uuid.UUID | None = None,
 ) -> Pane:
     """
     Edita descrição e/ou status de uma pane.
@@ -166,6 +198,9 @@ async def editar_pane(
         ABERTA → RESOLVIDA ✓
         EM_PESQUISA → RESOLVIDA ✓
         RESOLVIDA → qualquer ✗
+
+    COR-03: Ao transicionar para RESOLVIDA via edição, preenche
+    concluido_por_id com o usuário que fez a edição.
 
     Raises:
         ValueError: se a pane já estiver resolvida ou transição inválida.
@@ -198,9 +233,10 @@ async def editar_pane(
             )
         pane.status = novo_status.value
 
-        # Se transicionou para RESOLVIDA, preencher data_conclusao
+        # COR-03: Se transicionou para RESOLVIDA, preencher rastreabilidade
         if novo_status == StatusPane.RESOLVIDA:
             pane.data_conclusao = datetime.now(timezone.utc)
+            pane.concluido_por_id = usuario_id
 
     await db.flush()
     return pane
@@ -242,10 +278,16 @@ async def concluir_pane(
 
 
 async def excluir_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane:
-    """Realiza Soft Delete inativando a pane."""
-    pane = await buscar_pane(db, pane_id)
+    """
+    Realiza Soft Delete inativando a pane.
+
+    COR-02: Verifica idempotência (pane já inativa).
+    """
+    pane = await buscar_pane(db, pane_id, incluir_inativos=True)
     if not pane:
         raise ValueError("Pane não encontrada.")
+    if not pane.ativo:
+        raise ValueError("Pane já está inativa.")
     pane.ativo = False
     await db.flush()
     return pane
@@ -285,6 +327,15 @@ async def upload_anexo(
             f"Permitidos: {_EXTENSOES_PERMITIDAS}"
         )
 
+    # SEC-05: Validar MIME type real do conteúdo (não confiar na extensão)
+    if _MAGIC_AVAILABLE:
+        mime_real = magic.from_buffer(arquivo_bytes[:2048], mime=True)
+        if mime_real not in _MIMES_PERMITIDOS:
+            raise ValueError(
+                f"Conteúdo real do arquivo ({mime_real}) não é um tipo permitido. "
+                f"Permitidos: {_MIMES_PERMITIDOS}"
+            )
+
     # Validar tamanho
     max_bytes = settings.max_upload_size_mb * 1024 * 1024
     if len(arquivo_bytes) > max_bytes:
@@ -299,12 +350,12 @@ async def upload_anexo(
     # Gerar nome único e salvar arquivo de forma não bloqueante
     nome_unico = f"{uuid.uuid4()}{extensao}"
     caminho = os.path.join(settings.upload_dir, nome_unico)
-    
+
     def _salvar_arquivo():
         os.makedirs(settings.upload_dir, exist_ok=True)
         with open(caminho, "wb") as f:
             f.write(arquivo_bytes)
-            
+
     await anyio.to_thread.run_sync(_salvar_arquivo)
 
     # Criar registro no banco

@@ -8,7 +8,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app.auth import schemas, service
 from app.auth.security import criar_token
-from app.dependencies import DBSession, CurrentUser
+from app.dependencies import DBSession, CurrentUser, InspetorRequired
 
 router = APIRouter()
 
@@ -90,8 +90,9 @@ async def me(usuario_atual: CurrentUser) -> schemas.UsuarioOut:
 async def criar_usuario(
     dados: schemas.UsuarioCreate,
     db: DBSession,
+    _: InspetorRequired,
 ) -> schemas.UsuarioOut:
-    """Cria um novo membro do efetivo com acesso ao sistema."""
+    """Cria um novo membro do efetivo. Restrito a Inspetores."""
     try:
         usuario = await service.criar_usuario(db, dados)
         return schemas.UsuarioOut.model_validate(usuario)

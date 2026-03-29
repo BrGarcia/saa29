@@ -114,6 +114,12 @@ class Pane(Base):
         server_default=func.now(),
         nullable=False,
     )
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        onupdate=func.now(),
+        nullable=True,
+        comment="Atualizado automaticamente em cada modificação",
+    )
 
     # --- Relacionamentos ---
     aeronave: Mapped["Aeronave"] = relationship(  # type: ignore[name-defined]

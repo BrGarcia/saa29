@@ -145,7 +145,7 @@ async def atualizar_usuario(
     usuario = await buscar_por_id(db, usuario_id)
     if not usuario:
         raise ValueError("Usuário não encontrado.")
-    for campo, valor in dados.model_dump(exclude_none=True).items():
+    for campo, valor in dados.model_dump(exclude_unset=True).items():
         setattr(usuario, campo, valor)
     await db.flush()
     return usuario

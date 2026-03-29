@@ -8,6 +8,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.enums import TipoPapel
+
 
 # ============================================================
 # Schemas de Entrada (Requests)
@@ -24,7 +26,7 @@ class UsuarioCreate(BaseModel):
     nome: str = Field(..., min_length=3, max_length=150)
     posto: str = Field(..., max_length=30)
     especialidade: str | None = Field(default=None, max_length=50)
-    funcao: str = Field(..., description="INSPETOR | ENCARREGADO | MANTENEDOR")
+    funcao: TipoPapel = Field(..., description="INSPETOR | ENCARREGADO | MANTENEDOR")
     ramal: str | None = Field(default=None, max_length=20)
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=6)
@@ -35,7 +37,7 @@ class UsuarioUpdate(BaseModel):
     nome: str | None = Field(default=None, max_length=150)
     posto: str | None = Field(default=None, max_length=30)
     especialidade: str | None = Field(default=None, max_length=50)
-    funcao: str | None = None
+    funcao: TipoPapel | None = None
     ramal: str | None = Field(default=None, max_length=20)
 
 

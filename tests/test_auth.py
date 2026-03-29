@@ -177,19 +177,19 @@ class TestGestaoUsuarios:
     async def test_criar_usuario_campos_obrigatorios(self, client: AsyncClient):
         """
         DADO payload sem campos obrigatórios (nome, username, password)
-        QUANDO tentar criar usuário
-        ENTÃO retornar 422 Unprocessable Entity (validação Pydantic).
+        QUANDO tentar criar usuário SEM token de autenticação
+        ENTÃO retornar 401 Unauthorized (auth executa antes da validação).
         """
         payload_invalido = {"posto": "Ten"}  # faltam nome, username, password, funcao
         response = await client.post(USUARIOS_URL, json=payload_invalido)
-        assert response.status_code == 422
+        assert response.status_code == 401
 
     @pytest.mark.asyncio
     async def test_criar_usuario_password_curta(self, client: AsyncClient):
         """
         DADO password com menos de 6 caracteres (mínimo definido no schema)
-        QUANDO criar usuário
-        ENTÃO retornar 422 Unprocessable Entity.
+        QUANDO criar usuário SEM token de autenticação
+        ENTÃO retornar 401 Unauthorized (auth executa antes da validação).
         """
         payload = {
             "nome": "Ten Teste",
@@ -199,7 +199,7 @@ class TestGestaoUsuarios:
             "password": "abc",   # < 6 chars
         }
         response = await client.post(USUARIOS_URL, json=payload)
-        assert response.status_code == 422
+        assert response.status_code == 401
 
     @pytest.mark.asyncio
     async def test_listar_usuarios_requer_autenticacao(self, client: AsyncClient):

@@ -78,3 +78,34 @@ async def get_current_user(
 # Anotações de tipo para uso nos endpoints (DX ergonômica)
 DBSession = Annotated[AsyncSession, Depends(get_db)]
 CurrentUser = Annotated[Usuario, Depends(get_current_user)]
+
+
+def require_role(*roles: str):
+    """
+    Factory de dependency para RBAC.
+    Verifica se o usuário autenticado possui uma das funções permitidas.
+
+    Uso:
+        @router.post("/admin", dependencies=[Depends(require_role("INSPETOR"))])
+        async def admin_endpoint(...): ...
+
+    Ou via Annotated:
+        InspetorRequired = Annotated[Usuario, Depends(require_role("INSPETOR"))]
+    """
+    async def _check_role(
+        usuario: CurrentUser,
+    ) -> Usuario:
+        if usuario.funcao not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Acesso restrito a: {', '.join(roles)}.",
+            )
+        return usuario
+    return _check_role
+
+
+# Atalhos de RBAC para uso direto nos routers
+InspetorRequired = Annotated[Usuario, Depends(require_role("INSPETOR"))]
+InspetorOuEncarregado = Annotated[
+    Usuario, Depends(require_role("INSPETOR", "ENCARREGADO"))
+]

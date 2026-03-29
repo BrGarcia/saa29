@@ -90,11 +90,11 @@ async def editar_pane(
     pane_id: uuid.UUID,
     dados: schemas.PaneUpdate,
     db: DBSession,
-    _: CurrentUser,
+    usuario_atual: CurrentUser,
 ) -> schemas.PaneOut:
     """Edita descrição e/ou status. RN-03: apenas panes não resolvidas."""
     try:
-        pane = await service.editar_pane(db, pane_id, dados)
+        pane = await service.editar_pane(db, pane_id, dados, usuario_atual.id)
         return schemas.PaneOut.model_validate(pane)
     except ValueError as e:
         detail_str = str(e)

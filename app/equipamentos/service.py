@@ -337,7 +337,7 @@ async def registrar_execucao(
 
     # Atualizar datas
     vencimento.data_ultima_exec = data_exec
-    vencimento.data_vencimento = await calcular_vencimento(data_exec, periodicidade)
+    vencimento.data_vencimento = calcular_vencimento(data_exec, periodicidade)
 
     # Recalcular status baseado na data_vencimento
     hoje = date.today()
@@ -352,7 +352,7 @@ async def registrar_execucao(
     return vencimento
 
 
-async def calcular_vencimento(
+def calcular_vencimento(
     data_exec: date,
     periodicidade_meses: int,
 ) -> date:
