@@ -56,7 +56,7 @@ async def seed_panes():
             dias_atras = random.randint(0, 15)
             data_abertura = datetime.now() - timedelta(days=dias_atras, hours=random.randint(1, 23))
             
-            status = random.choice([StatusPane.ABERTA, StatusPane.EM_PESQUISA, StatusPane.RESOLVIDA])
+            status = random.choice([StatusPane.ABERTA, StatusPane.RESOLVIDA])
             
             pane = Pane(
                 aeronave_id=aeronave.id,
@@ -76,8 +76,8 @@ async def seed_panes():
             session.add(pane)
             await session.flush() # Gerar ID da pane
 
-            # Adicionar responsável se não estiver ABERTA
-            if status != StatusPane.ABERTA and mantenedores:
+            # Adicionar responsável se for RESOLVIDA (pelo menos um deve estar lá)
+            if status == StatusPane.RESOLVIDA and mantenedores:
                 resp = random.choice(mantenedores)
                 session.add(PaneResponsavel(
                     pane_id=pane.id,

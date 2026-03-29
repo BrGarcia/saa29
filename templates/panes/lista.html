@@ -8,9 +8,8 @@
     <div style="display: flex; gap: 1rem; flex: 1; max-width: 700px;">
         <input type="text" id="filter-text" class="form-input" placeholder="Buscar por texto na descrição..." style="flex: 1;">
         <select id="filter-status" class="form-input" style="width: auto;">
-            <option value="">Status (Todos)</option>
+            <option value="">TODOS STATUS</option>
             <option value="ABERTA">ABERTA</option>
-            <option value="EM_PESQUISA">EM PESQUISA</option>
             <option value="RESOLVIDA">RESOLVIDA</option>
             <option value="EXCLUIDAS">EXCLUIDAS (Lixeira)</option>
         </select>
@@ -123,8 +122,7 @@
 
             panes.forEach(pane => {
                 let badgeClass = "badge-aberta";
-                if(pane.status === "EM_PESQUISA") badgeClass = "badge-pesquisa";
-                else if(pane.status === "RESOLVIDA") badgeClass = "badge-resolvida";
+                if(pane.status === "RESOLVIDA") badgeClass = "badge-resolvida";
                 if(!pane.ativo) badgeClass = "badge-resolvida"; // Fallback color for deleted (gray/black maybe, depending on CSS)
                 
                 // Tratar data e hora e formato ddd/yy

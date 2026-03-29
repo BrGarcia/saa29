@@ -491,33 +491,6 @@ class TestConcluirPane:
 class TestTransicoesStatus:
 
     @pytest.mark.asyncio
-    async def test_transicao_aberta_para_em_pesquisa(
-        self,
-        client: AsyncClient,
-        dados_aeronave_valida: dict,
-        usuario_e_token: dict,
-    ):
-        """
-        DADO pane ABERTA
-        QUANDO atualizar status para EM_PESQUISA via PUT /panes/{id}
-        ENTÃO aceitar com status 200 (SPECS §8 – transição válida).
-        """
-        if usuario_e_token["token"] == "TOKEN_NAO_IMPLEMENTADO":
-            pytest.skip("Auth ainda não implementada (Dia 4)")
-
-        headers = usuario_e_token["headers"]
-        aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
-        pane = await criar_pane(client, headers, aeronave["id"])
-
-        response = await client.put(
-            f"{PANES_URL}{pane['id']}",
-            json={"status": "EM_PESQUISA"},
-            headers=headers,
-        )
-        assert response.status_code == 200
-        assert response.json()["status"] == "EM_PESQUISA"
-
-    @pytest.mark.asyncio
     async def test_transicao_invalida_resolvida_para_aberta(
         self,
         client: AsyncClient,
@@ -571,36 +544,6 @@ class TestTransicoesStatus:
         response = await client.put(
             f"{PANES_URL}{pane['id']}",
             json={"descricao": "Tentativa de edição após conclusão"},
-            headers=headers,
-        )
-        assert response.status_code == 409
-
-    @pytest.mark.asyncio
-    async def test_edicao_pane_em_pesquisa_rejeitada(
-        self,
-        client: AsyncClient,
-        dados_aeronave_valida: dict,
-        usuario_e_token: dict,
-    ):
-        """
-        DADO pane em EM_PESQUISA
-        QUANDO tentar editar descrição
-        ENTÃO rejeitar com 409 Conflict, conforme RN-03.
-        """
-        headers = usuario_e_token["headers"]
-        aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
-        pane = await criar_pane(client, headers, aeronave["id"])
-
-        resposta_status = await client.put(
-            f"{PANES_URL}{pane['id']}",
-            json={"status": "EM_PESQUISA"},
-            headers=headers,
-        )
-        assert resposta_status.status_code == 200
-
-        response = await client.put(
-            f"{PANES_URL}{pane['id']}",
-            json={"descricao": "Tentativa de editar em pesquisa"},
             headers=headers,
         )
         assert response.status_code == 409

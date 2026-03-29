@@ -110,7 +110,7 @@ Lista panes com filtros opcionais (RF-06).
 | Param | Tipo | Descrição |
 |-------|------|-----------|
 | `texto` | string | Filtro por texto na descrição |
-| `status` | `ABERTA\|EM_PESQUISA\|RESOLVIDA` | Filtro por status |
+| `status` | `ABERTA\|RESOLVIDA` | Filtro por status |
 | `aeronave_id` | UUID | Filtro por aeronave |
 
 **Response 200** → `list[PaneListItem]`
@@ -125,17 +125,17 @@ Detalha pane com anexos e responsáveis.
 ---
 
 ### `PUT /panes/{pane_id}`
-Edita pane. Somente panes `ABERTA` ou `EM_PESQUISA` (RN-03).
+Edita pane. Somente panes `ABERTA` (RN-03).
 
 **Request Body** (campos opcionais)
 ```json
 {
   "descricao": "Nova descrição",
-  "status": "EM_PESQUISA"
+  "status": "RESOLVIDA"
 }
 ```
 
-**Transições válidas:** `ABERTA→EM_PESQUISA`, `ABERTA→RESOLVIDA`, `EM_PESQUISA→RESOLVIDA`  
+**Transições válidas:** `ABERTA→RESOLVIDA`  
 **Erros:** `409` – pane já resolvida ou transição inválida
 
 ---
@@ -214,8 +214,6 @@ Registra execução de controle. Recalcula `data_vencimento`.
 
 ```
 ABERTA ──────────────────► RESOLVIDA
-  │                            ▲
-  └──► EM_PESQUISA ────────────┘
 ```
 
 Tentativas de transição inválida retornam `409 Conflict`.

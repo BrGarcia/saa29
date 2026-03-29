@@ -26,8 +26,7 @@ from app.config import get_settings
 
 # Transições de status permitidas (SPECS §8)
 _TRANSICOES_VALIDAS = {
-    StatusPane.ABERTA: {StatusPane.EM_PESQUISA, StatusPane.RESOLVIDA},
-    StatusPane.EM_PESQUISA: {StatusPane.RESOLVIDA},
+    StatusPane.ABERTA: {StatusPane.RESOLVIDA},
     StatusPane.RESOLVIDA: set(),  # Pane resolvida não pode transicionar
 }
 
@@ -240,9 +239,7 @@ async def editar_pane(
 
     RN-03: Apenas panes com status ABERTA podem ser editadas.
     Validar transições de status permitidas (SPECS §8):
-        ABERTA → EM_PESQUISA ✓
         ABERTA → RESOLVIDA ✓
-        EM_PESQUISA → RESOLVIDA ✓
         RESOLVIDA → qualquer ✗
 
     COR-03: Ao transicionar para RESOLVIDA via edição, preenche

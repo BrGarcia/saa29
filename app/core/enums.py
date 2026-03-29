@@ -10,12 +10,9 @@ class StatusPane(str, enum.Enum):
     """
     Status possíveis de uma pane aeronáutica.
     Transições permitidas:
-        ABERTA → EM_PESQUISA
         ABERTA → RESOLVIDA
-        EM_PESQUISA → RESOLVIDA
     """
     ABERTA = "ABERTA"
-    EM_PESQUISA = "EM_PESQUISA"
     RESOLVIDA = "RESOLVIDA"
 
 

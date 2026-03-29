@@ -101,13 +101,10 @@ Este documento descreve os fluxos lógicos e algoritmos principais do sistema, i
 
 Estados possíveis:
 - ABERTA
-- EM_PESQUISA
 - RESOLVIDA
 
 ### Transições permitidas:
-- ABERTA → EM_PESQUISA
 - ABERTA → RESOLVIDA
-- EM_PESQUISA → RESOLVIDA
 
 ---
 
@@ -115,9 +112,6 @@ Estados possíveis:
 
 if status == "ABERTA":
     cor = vermelho
-
-if status == "EM_PESQUISA":
-    cor = azul
 
 if status == "RESOLVIDA":
     cor = verde

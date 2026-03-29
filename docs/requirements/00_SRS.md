@@ -13,7 +13,7 @@ O sistema permitirá:
 - Cadastro de aeronaves
 - Registro e gerenciamento de panes
 - Upload de imagens associadas às panes
-- Controle de status (Aberta, Em Pesquisa, Resolvida)
+- Controle de status (Aberta, Resolvida)
 - Rastreabilidade de ações e responsáveis
 
 O sistema será inicialmente um MVP leve, web-based e responsivo.

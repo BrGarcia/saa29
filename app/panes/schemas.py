@@ -53,7 +53,7 @@ class PaneUpdate(BaseModel):
     descricao: str | None = None
     status: StatusPane | None = Field(
         default=None,
-        description="Transições: ABERTA→EM_PESQUISA, ABERTA→RESOLVIDA, EM_PESQUISA→RESOLVIDA",
+        description="Transições: ABERTA→RESOLVIDA",
     )
 
 

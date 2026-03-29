@@ -29,10 +29,9 @@ class Pane(Base):
     Representa uma pane (ocorrência de falha) em uma aeronave.
 
     Fluxo de status (SPECS §8):
-        ABERTA → EM_PESQUISA → RESOLVIDA
-        ABERTA → RESOLVIDA (conclusão direta)
+        ABERTA → RESOLVIDA
 
-    RN-03: Apenas panes com status ABERTA ou EM_PESQUISA podem ser editadas.
+    RN-03: Apenas panes com status ABERTA podem ser editadas.
     RN-04: data_conclusao é preenchida automaticamente ao concluir.
     RN-05: Descrição padrão = "AGUARDANDO EDICAO" se campos vazios.
     """
@@ -56,7 +55,7 @@ class Pane(Base):
         nullable=False,
         default=StatusPane.ABERTA.value,
         index=True,
-        comment="Status da pane: ABERTA | EM_PESQUISA | RESOLVIDA",
+        comment="Status da pane: ABERTA | RESOLVIDA",
     )
 
     # --- Conteúdo ---

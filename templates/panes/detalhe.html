@@ -48,10 +48,6 @@
         </h3>
         
         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-            <button class="btn btn-primary" onclick="mudarStatus('EM_PESQUISA')" id="btn-pesquisa" style="display:none; width: 100%;">
-                Assumir Pane
-            </button>
-            
             <button class="btn btn-success" onclick="openConcluirModal()" id="btn-concluir" style="display:none; width: 100%;">
                 Concluir e Assinar
             </button>
@@ -171,13 +167,11 @@
             document.getElementById("det-matricula").innerText = `Aeronave ${matricula}`;
 
             // Botões de fluxo e Status badge
-            const btnPesq = document.getElementById("btn-pesquisa");
             const btnConc = document.getElementById("btn-concluir");
             const btnDelegar = document.getElementById("btn-delegar");
             const spanSts = document.getElementById("det-status");
             const formUp = document.getElementById("formUpload");
 
-            btnPesq.style.display = "none";
             btnConc.style.display = "none";
             btnDelegar.style.display = "none";
             formUp.style.display = "flex";
@@ -186,11 +180,7 @@
             const ehGestor = (localUser.funcao === 'ENCARREGADO' || localUser.funcao === 'ADMINISTRADOR');
 
             let bClass = "badge-aberta";
-            if (pane.status === "EM_PESQUISA") {
-                bClass = "badge-pesquisa";
-                btnConc.style.display = "block";
-                if (ehGestor) btnDelegar.style.display = "block";
-            } else if (pane.status === "RESOLVIDA") {
+            if (pane.status === "RESOLVIDA") {
                 bClass = "badge-resolvida";
                 formUp.style.display = "none"; 
 
@@ -200,7 +190,6 @@
                     document.getElementById("det-obs-conclusao").innerText = pane.observacao_conclusao;
                 }
             } else if (pane.status === "ABERTA") {
-                btnPesq.style.display = "block";
                 btnConc.style.display = "block";
                 if (ehGestor) btnDelegar.style.display = "block";
             }
