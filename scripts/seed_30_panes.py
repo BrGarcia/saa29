@@ -47,7 +47,7 @@ async def seed_panes():
 
         print(f"🚀 Gerando 30 panes aleatórias...")
 
-        for i in range(30):
+        for i in range(100):
             aeronave = random.choice(aeronaves)
             sistema, descricoes = random.choice(SISTEMAS)
             descricao = random.choice(descricoes)
@@ -71,7 +71,7 @@ async def seed_panes():
             if status == StatusPane.RESOLVIDA:
                 pane.data_conclusao = data_abertura + timedelta(hours=random.randint(2, 48))
                 pane.observacao_conclusao = "Manutenção realizada conforme manual técnico. Teste funcional OK."
-                pane.concluido_por_id = random.choice(mantenedores).id
+                pane.concluido_por_id = random.choice(mantenedores).id if mantenedores else admin.id
 
             session.add(pane)
             await session.flush() # Gerar ID da pane
