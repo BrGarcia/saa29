@@ -42,7 +42,6 @@
     <table style="width: 100%; border-collapse: collapse; text-align: left;">
         <thead style="background-color: var(--bg-tertiary); border-bottom: 1px solid var(--border-color);">
             <tr>
-                <th style="padding: 1rem; font-weight: 600;">Data/Hora</th>
                 <th style="padding: 1rem; font-weight: 600;">Aeronave</th>
                 <th style="padding: 1rem; font-weight: 600;">Pane</th>
                 <th style="padding: 1rem; font-weight: 600;">Status</th>
@@ -51,7 +50,7 @@
             </tr>
         </thead>
         <tbody id="panes-table-body">
-            <tr><td colspan="6" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Recuperando telemetria...</td></tr>
+            <tr><td colspan="5" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Recuperando telemetria...</td></tr>
         </tbody>
     </table>
 </div>
@@ -130,7 +129,7 @@
             const funcao = user.funcao || '';
 
             if (panes.length === 0) {
-                body.innerHTML = `<tr><td colspan="6" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Nenhum registro encontrado.</td></tr>`;
+                body.innerHTML = `<tr><td colspan="5" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Nenhum registro encontrado.</td></tr>`;
                 return;
             }
 
@@ -160,7 +159,6 @@
                 const tr = document.createElement("tr");
                 tr.style.borderBottom = "1px solid var(--border-color)";
                 tr.innerHTML = `
-                    <td style="padding: 1rem; font-size: 0.85rem; color: var(--text-secondary);">${shortDate}</td>
                     <td style="padding: 1rem; font-weight: 500;">${matriculaAeronave}</td>
                     <td style="padding: 1rem; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${pane.descricao}</td>
                     <td style="padding: 1rem;"><span class="badge ${badgeClass}" title="${obsConclusao.replace(/"/g, '&quot;')}">${statusName}</span></td>
@@ -177,7 +175,7 @@
             });
         } catch (e) {
             console.error(e);
-            body.innerHTML = `<tr><td colspan="7" style="padding: 2rem; text-align: center; color: var(--status-danger);">Falha de Comunicação ao extrair telemetria!</td></tr>`;
+            body.innerHTML = `<tr><td colspan="5" style="padding: 2rem; text-align: center; color: var(--status-danger);">Falha de Comunicação ao extrair telemetria!</td></tr>`;
         }
     }
 

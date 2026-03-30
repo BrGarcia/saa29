@@ -164,7 +164,7 @@
             document.getElementById("det-descricao").innerText = pane.descricao;
             
             // Relator
-            const relator = pane.criado_por;
+            const relator = pane.criador;
             if (relator) {
                 const postoNome = [relator.posto, relator.nome].filter(Boolean).join(" ");
                 document.getElementById("det-relator").innerText = postoNome;

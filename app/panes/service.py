@@ -198,6 +198,7 @@ async def listar_panes(
     # Eager-load aeronave para exibir matricula no frontend e responsaveis para o dashboard
     query = query.options(
         selectinload(Pane.aeronave),
+        selectinload(Pane.criador),
         selectinload(Pane.responsaveis).selectinload(PaneResponsavel.usuario)
     )
 
