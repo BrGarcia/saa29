@@ -86,13 +86,17 @@ async def buscar_pane(
     _: CurrentUser,
 ) -> schemas.PaneOut:
     """Retorna dados completos da pane com anexos e responsáveis."""
-    pane = await service.buscar_pane(db, pane_id)
-    if not pane:
+    resultado = await service.buscar_pane(db, pane_id)
+    if not resultado:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Pane não encontrada.",
         )
-    return schemas.PaneOut.model_validate(pane)
+    
+    pane, sequencia, ano = resultado
+    item = schemas.PaneOut.model_validate(pane).model_dump()
+    item["codigo"] = f"{sequencia:03d}/{str(ano)[-2:]}"
+    return schemas.PaneOut(**item)
 
 
 @router.put(
@@ -110,8 +114,16 @@ async def editar_pane(
     if dados.descricao is not None or dados.sistema_subsistema is not None:
         ensure_role(usuario_atual, "ENCARREGADO", "ADMINISTRADOR")
     try:
-        pane = await service.editar_pane(db, pane_id, dados, usuario_atual.id)
-        return schemas.PaneOut.model_validate(pane)
+        await service.editar_pane(db, pane_id, dados, usuario_atual.id)
+        # Recarregar com ranking para devolver o código correto
+        resultado = await service.buscar_pane(db, pane_id)
+        if not resultado:
+             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pane não encontrada.")
+        
+        pane, sequencia, ano = resultado
+        item = schemas.PaneOut.model_validate(pane).model_dump()
+        item["codigo"] = f"{sequencia:03d}/{str(ano)[-2:]}"
+        return schemas.PaneOut(**item)
     except ValueError as e:
         detail_str = str(e)
         if "não encontrada" in detail_str:
@@ -136,10 +148,18 @@ async def concluir_pane(
 ) -> schemas.PaneOut:
     """Conclui a pane. Preenche data_conclusao automaticamente (RN-04)."""
     try:
-        pane = await service.concluir_pane(
+        await service.concluir_pane(
             db, pane_id, usuario_atual.id, dados.observacao_conclusao
         )
-        return schemas.PaneOut.model_validate(pane)
+        # Recarregar para pegar o ranking/código
+        resultado = await service.buscar_pane(db, pane_id)
+        if not resultado:
+             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pane não encontrada.")
+        
+        pane, sequencia, ano = resultado
+        item = schemas.PaneOut.model_validate(pane).model_dump()
+        item["codigo"] = f"{sequencia:03d}/{str(ano)[-2:]}"
+        return schemas.PaneOut(**item)
     except ValueError as e:
         detail_str = str(e)
         if "não encontrada" in detail_str:
@@ -294,8 +314,16 @@ async def restaurar_pane(
     """Reativa uma pane que foi removida logicamente."""
     ensure_role(usuario_atual, "ENCARREGADO", "ADMINISTRADOR")
     try:
-        pane = await service.restaurar_pane(db, pane_id)
-        return schemas.PaneOut.model_validate(pane)
+        await service.restaurar_pane(db, pane_id)
+        # Recarregar para ranking
+        resultado = await service.buscar_pane(db, pane_id)
+        if not resultado:
+             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pane não encontrada.")
+        
+        pane, sequencia, ano = resultado
+        item = schemas.PaneOut.model_validate(pane).model_dump()
+        item["codigo"] = f"{sequencia:03d}/{str(ano)[-2:]}"
+        return schemas.PaneOut(**item)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

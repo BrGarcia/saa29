@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.enums import StatusPane, TipoPapel, TipoAnexo
 from app.aeronaves.schemas import AeronaveListItem
+from app.auth.schemas import UsuarioOut
 
 
 # ============================================================
@@ -89,6 +90,7 @@ class PaneOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    codigo: str | None = None
     aeronave_id: uuid.UUID
     aeronave: AeronaveListItem | None = None
     status: StatusPane
@@ -98,6 +100,7 @@ class PaneOut(BaseModel):
     data_conclusao: datetime | None
     observacao_conclusao: str | None
     criado_por_id: uuid.UUID
+    criador: UsuarioOut | None = None
     concluido_por_id: uuid.UUID | None
     ativo: bool
     created_at: datetime
@@ -119,6 +122,7 @@ class PaneListItem(BaseModel):
     data_conclusao: datetime | None
     observacao_conclusao: str | None
     criado_por_id: uuid.UUID
+    criador: UsuarioOut | None = None
     ativo: bool
     responsaveis: list[ResponsavelOut] = []
 

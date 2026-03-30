@@ -42,6 +42,18 @@ def _escape_like(text: str) -> str:
     return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+async def _get_ranking_subquery():
+    """Retorna a subquery de ranking para cálculo do código ddd/yy."""
+    return select(
+        Pane.id.label("pane_id"),
+        func.row_number().over(
+            partition_by=func.extract("year", Pane.data_abertura),
+            order_by=(Pane.data_abertura.asc(), Pane.id.asc()),
+        ).label("sequencia"),
+        func.extract("year", Pane.data_abertura).label("ano"),
+    ).subquery()
+
+
 async def criar_pane(
     db: AsyncSession,
     dados: PaneCreate,
@@ -200,11 +212,10 @@ async def buscar_pane(
     db: AsyncSession,
     pane_id: uuid.UUID,
     incluir_inativos: bool = False,
-) -> Pane | None:
+) -> tuple[Pane, int, int] | None:
     """
     Busca uma pane pelo ID com seus anexos e responsáveis carregados.
-
-    COR-04: por padrão, panes soft-deleted são excluídas.
+    Também calcula sequencia e ano para o código ddd/yy.
 
     Args:
         db: sessão de banco de dados.
@@ -212,10 +223,13 @@ async def buscar_pane(
         incluir_inativos: se True, inclui panes soft-deleted.
 
     Returns:
-        Objeto Pane com relacionamentos ou None.
+        Tupla (Pane, sequencia, ano) ou None.
     """
+    ranking_sub = await _get_ranking_subquery()
+
     query = (
-        select(Pane)
+        select(Pane, ranking_sub.c.sequencia, ranking_sub.c.ano)
+        .join(ranking_sub, ranking_sub.c.pane_id == Pane.id)
         .where(Pane.id == pane_id)
         .options(
             selectinload(Pane.anexos),
@@ -227,8 +241,13 @@ async def buscar_pane(
     )
     if not incluir_inativos:
         query = query.where(Pane.ativo == True)  # noqa: E712
+    
     result = await db.execute(query)
-    return result.scalar_one_or_none()
+    row = result.first()
+    if not row:
+        return None
+    
+    return (row[0], int(row[1]), int(row[2]))
 
 
 async def editar_pane(
