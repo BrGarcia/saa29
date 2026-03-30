@@ -97,17 +97,18 @@ async def criar_pane(
         if usuario_responsavel.funcao not in ["MANTENEDOR", "ENCARREGADO"]:
             raise ValueError("O responsável selecionado deve ser um mantenedor ou encarregado.")
 
-        db.add(
-            PaneResponsavel(
-                pane_id=pane.id,
-                usuario_id=usuario_responsavel.id,
-                papel=usuario_responsavel.funcao,
-            )
+        resp = PaneResponsavel(
+            pane_id=pane.id,
+            usuario_id=usuario_responsavel.id,
+            papel=usuario_responsavel.funcao,
         )
+        db.add(resp)
         await db.flush()
+        # Importante: Carregar o usuário para que o trigrama esteja disponível na serialização
+        await db.refresh(resp, ["usuario"])
     
     # Garantir que as coleções estejam inicializadas para evitar erro de lazy-load no router
-    # Incluindo 'aeronave' que é necessária para o schema PaneOut
+    # Note: refresh(pane, ["responsaveis"]) carregará a lista, e o refresh(resp, ["usuario"]) acima garante o objeto interno
     await db.refresh(pane, ["aeronave", "anexos", "responsaveis"])
     
     return pane
@@ -327,13 +328,14 @@ async def concluir_pane(
         from app.auth.service import buscar_por_id
         usuario = await buscar_por_id(db, concluido_por_id)
         if usuario:
-            db.add(
-                PaneResponsavel(
-                    pane_id=pane_id,
-                    usuario_id=concluido_por_id,
-                    papel=usuario.funcao,
-                )
+            resp = PaneResponsavel(
+                pane_id=pane_id,
+                usuario_id=concluido_por_id,
+                papel=usuario.funcao,
             )
+            db.add(resp)
+            await db.flush()
+            await db.refresh(resp, ["usuario"])
 
     await db.flush()
     await db.refresh(pane, ["aeronave", "anexos", "responsaveis", "responsavel_conclusao"])

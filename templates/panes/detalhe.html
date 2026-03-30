@@ -34,7 +34,11 @@
             </button>
         </div>
     </h3>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 1rem;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1.5rem; margin-bottom: 1rem;">
+        <div>
+            <p style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Relator</p>
+            <p id="det-relator" style="font-weight: 600; color: var(--text-primary);">---</p>
+        </div>
         <div>
             <p style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Sistema / Subsistema</p>
             <p id="det-sistema" style="font-weight: 600; color: var(--text-primary);">---</p>
@@ -44,7 +48,7 @@
             <p id="det-data" style="font-weight: 600; color: var(--text-primary);">---</p>
         </div>
         <div>
-            <p style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">ID Interno</p>
+            <p style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Código da Pane</p>
             <p id="det-id" style="font-family: monospace; font-size: 0.85rem; color: var(--text-secondary);">---</p>
         </div>
     </div>
@@ -155,10 +159,30 @@
             const pane = await apiFetch(`/panes/${PANE_ID}`);
 
             // Textos base e Cabeçalho (Matrícula)
-            document.getElementById("det-id").innerText = pane.id;
+            document.getElementById("det-id").innerText = pane.codigo || "---/--";
             document.getElementById("det-sistema").innerText = pane.sistema_subsistema;
             document.getElementById("det-descricao").innerText = pane.descricao;
-            document.getElementById("det-data").innerText = pane.data_abertura ? pane.data_abertura.split("T")[0] : "--";
+            
+            // Relator
+            const relator = pane.criado_por;
+            if (relator) {
+                const postoNome = [relator.posto, relator.nome].filter(Boolean).join(" ");
+                document.getElementById("det-relator").innerText = postoNome;
+            } else {
+                document.getElementById("det-relator").innerText = "Não registrado";
+            }
+            
+            // Formatar Data e Hora
+            if (pane.data_abertura) {
+                const dObj = new Date(pane.data_abertura);
+                const fullDate = dObj.toLocaleString('pt-BR', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+                document.getElementById("det-data").innerText = fullDate;
+            } else {
+                document.getElementById("det-data").innerText = "--";
+            }
             
             // Popula a matrícula da aeronave no cabeçalho
             const matricula = pane.aeronave?.matricula || "59XX";
