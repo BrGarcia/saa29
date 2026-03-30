@@ -32,9 +32,9 @@ async def seed():
         
         if not admin:
             admin = Usuario(
-                nome="Administrador SAA29",
-                posto="Cel",
-                especialidade="ELT",
+                nome="Administrador",
+                posto="-",
+                especialidade="-",
                 funcao="ADMINISTRADOR",
                 ramal="1234",
                 username="admin",

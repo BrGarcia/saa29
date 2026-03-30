@@ -3,13 +3,22 @@
 {% block page_title %}PANES{% endblock %}
 
 {% block content %}
+<style>
+    #panes-table-body tr {
+        transition: background-color 0.2s ease;
+    }
+    #panes-table-body tr:hover {
+        background-color: var(--bg-tertiary) !important;
+        cursor: pointer;
+    }
+</style>
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
     <!-- Barra de Filtros Rápida -->
     <div style="display: flex; gap: 1rem; flex: 1; max-width: 700px;">
         <input type="text" id="filter-text" class="form-input" placeholder="Buscar por texto na descrição..." style="flex: 1;">
         <select id="filter-status" class="form-input" style="width: auto;">
             <option value="">TODOS STATUS</option>
-            <option value="ABERTA">ABERTA</option>
+            <option value="ABERTA" selected>ABERTA</option>
             <option value="RESOLVIDA">RESOLVIDA</option>
             <option value="EXCLUIDAS">EXCLUIDAS (Lixeira)</option>
         </select>
