@@ -8,6 +8,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy.exc import IntegrityError
 from app.auth.models import Usuario
 from app.auth.schemas import UsuarioCreate, UsuarioUpdate
 from app.auth.security import hash_senha, verificar_senha
@@ -27,10 +28,12 @@ async def autenticar_usuario(
         senha: senha em texto plano fornecida.
 
     Returns:
-        Objeto Usuario se as credenciais forem válidas, None caso contrário.
+        Objeto Usuario se as credenciais forem válidas e o usuário estiver ativo, None caso contrário.
     """
     usuario = await buscar_por_username(db, username)
     if not usuario:
+        return None
+    if not usuario.ativo:
         return None
     if not verificar_senha(senha, usuario.senha_hash):
         return None
@@ -110,17 +113,23 @@ async def buscar_por_id(
     return result.scalar_one_or_none()
 
 
-async def listar_usuarios(db: AsyncSession) -> list[Usuario]:
+async def listar_usuarios(
+    db: AsyncSession, incluir_inativos: bool = False
+) -> list[Usuario]:
     """
     Retorna a lista completa de usuários do sistema (efetivo).
 
     Args:
         db: sessão de banco de dados.
+        incluir_inativos: se True, traz também usuários desativados.
 
     Returns:
         Lista de objetos Usuario.
     """
-    result = await db.execute(select(Usuario).order_by(Usuario.nome))
+    query = select(Usuario)
+    if not incluir_inativos:
+        query = query.where(Usuario.ativo == True)
+    result = await db.execute(query.order_by(Usuario.nome))
     return list(result.scalars().all())
 
 
@@ -181,11 +190,11 @@ async def excluir_usuario(
     usuario_id: uuid.UUID,
 ) -> None:
     """
-    Remove permanentemente um usuário do efetivo.
+    Desativa (exclusão lógica) um usuário do efetivo.
 
     Args:
         db: sessão de banco de dados.
-        usuario_id: UUID do usuário a excluir.
+        usuario_id: UUID do usuário a desativar.
 
     Raises:
         ValueError: se o usuário não for encontrado.
@@ -193,5 +202,32 @@ async def excluir_usuario(
     usuario = await buscar_por_id(db, usuario_id)
     if not usuario:
         raise ValueError("Usuário não encontrado.")
-    await db.delete(usuario)
+
+    usuario.ativo = False
     await db.flush()
+
+
+async def restaurar_usuario(
+    db: AsyncSession,
+    usuario_id: uuid.UUID,
+) -> Usuario:
+    """
+    Reativa um usuário desativado.
+
+    Args:
+        db: sessão de banco de dados.
+        usuario_id: UUID do usuário a restaurar.
+
+    Returns:
+        Objeto Usuario reativado.
+
+    Raises:
+        ValueError: se o usuário não for encontrado.
+    """
+    usuario = await buscar_por_id(db, usuario_id)
+    if not usuario:
+        raise ValueError("Usuário não encontrado.")
+
+    usuario.ativo = True
+    await db.flush()
+    return usuario

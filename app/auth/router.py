@@ -113,9 +113,10 @@ async def criar_usuario(
 async def listar_usuarios(
     db: DBSession,
     _: CurrentUser,
+    inativos: bool = False,
 ) -> list[schemas.UsuarioOut]:
-    """Retorna a lista completa de usuários cadastrados."""
-    usuarios = await service.listar_usuarios(db)
+    """Retorna a lista de usuários cadastrados."""
+    usuarios = await service.listar_usuarios(db, incluir_inativos=inativos)
     return [schemas.UsuarioOut.model_validate(u) for u in usuarios]
 
 
@@ -166,16 +167,37 @@ async def atualizar_usuario(
 @router.delete(
     "/usuarios/{usuario_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Remover usuário do efetivo (Admin)",
+    summary="Desativar usuário do efetivo (Admin)",
 )
 async def excluir_usuario(
     usuario_id: uuid.UUID,
     db: DBSession,
     _: AdminRequired,
 ) -> None:
-    """Remove um membro do efetivo. Restrito a Administradores."""
+    """Desativa um membro do efetivo. Restrito a Administradores."""
     try:
         await service.excluir_usuario(db, usuario_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
+@router.post(
+    "/usuarios/{usuario_id}/restaurar",
+    response_model=schemas.UsuarioOut,
+    summary="Reativar usuário do efetivo (Admin)",
+)
+async def restaurar_usuario(
+    usuario_id: uuid.UUID,
+    db: DBSession,
+    _: AdminRequired,
+) -> schemas.UsuarioOut:
+    """Reativa um membro do efetivo que foi desativado. Restrito a Administradores."""
+    try:
+        usuario = await service.restaurar_usuario(db, usuario_id)
+        return schemas.UsuarioOut.model_validate(usuario)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -65,6 +65,7 @@ class UsuarioOut(BaseModel):
     ramal: str | None
     trigrama: str | None
     username: str
+    ativo: bool
     created_at: datetime
 
 

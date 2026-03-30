@@ -5,18 +5,34 @@
 {% block content %}
 <!-- Cabeçalho Dinâmico -->
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-    <div>
-        <h1 id="det-matricula" style="font-size: 1.85rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem;">---</h1>
-        <p style="color: var(--text-secondary); font-size: 0.9rem;">Intervenção Técnica em Ocorrência</p>
+    <div style="display: flex; align-items: center; gap: 1rem;">
+        <a href="/panes" class="btn-icon" title="Voltar para Lista" style="background: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-secondary); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-md);">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+        </a>
+        <div>
+            <h1 id="det-matricula" style="font-size: 1.85rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem;">---</h1>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">Intervenção Técnica em Ocorrência</p>
+        </div>
     </div>
     <div id="det-status"></div>
 </div>
 
 <!-- Bloco da Descrição (Largura Total) -->
 <div class="card glass-panel" style="margin-bottom: 1.5rem;">
-    <h3 style="margin-bottom: 1rem; font-size: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-        Descrição da Ocorrência
+    <h3 style="margin-bottom: 1rem; font-size: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            Descrição da Ocorrência
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-outline" onclick="openDelegarModal()" id="btn-delegar"
+                style="display:none; color: var(--primary-color); border-color: var(--primary-color); padding: 0.25rem 0.75rem; font-size: 0.8rem;">
+                Delegar
+            </button>
+            <button id="btn-edit-ocorrencia" class="btn btn-outline" style="display: none; padding: 0.25rem 0.75rem; font-size: 0.8rem; border-color: var(--status-warning); color: var(--status-warning);" onclick="openEditarModal()">
+                Editar Ocorrência
+            </button>
+        </div>
     </h3>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 1rem;">
         <div>
@@ -37,59 +53,41 @@
     </div>
 </div>
 
-<!-- Grid de Ações e Anexos (Lado a Lado) -->
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start;">
-    
-    <!-- Coluna de Ações -->
-    <div class="card glass-panel" style="height: 100%;">
-        <h3 style="margin-bottom: 1.5rem; font-size: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-            Ações de Manutenção
-        </h3>
-        
-        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-            <button class="btn btn-success" onclick="openConcluirModal()" id="btn-concluir" style="display:none; width: 100%;">
+<!-- NOVO: Bloco de Resolução da Pane (Teste de Fluxo Direto) -->
+<div class="card glass-panel" style="margin-bottom: 1.5rem;" id="card-resolucao-input">
+    <h3 style="margin-bottom: 1rem; font-size: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+            Descrição da Resolução / Ação Corretiva
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-success" onclick="handleConcluirDireto()" id="btn-concluir" style="display:none; padding: 0.25rem 0.75rem; font-size: 0.8rem; background-color: var(--status-ok);">
                 Concluir e Assinar
             </button>
-
-            <button class="btn btn-outline" onclick="openDelegarModal()" id="btn-delegar"
-                style="display:none; color: var(--primary-color); border-color: var(--primary-color); width: 100%;">
-                Delegar para Outro
-            </button>
-
-            <button class="btn btn-outline" onclick="openEditarModal()" id="btn-editar"
-                style="color: var(--text-secondary); border-color: var(--border-color); width: 100%;">
-                Editar Informações
-            </button>
         </div>
+    </h3>
+    <textarea id="resolucao-texto" class="form-input" rows="4" placeholder="Descreva aqui o que foi feito para sanar a pane..." style="width: 100%; resize: vertical; margin-bottom: 0.5rem;"></textarea>
+    <div id="status-resolucao-salva" style="display:none; font-size: 0.85rem; font-style: italic; color: var(--status-ok); border-left: 3px solid var(--status-ok); padding-left: 0.75rem; background: var(--bg-primary); padding: 0.5rem; border-radius: var(--radius-sm);"></div>
+</div>
 
-        <!-- Box de Resolução -->
-        <div id="card-conclusao" style="display:none; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px dashed var(--border-color);">
-            <p style="font-size: 0.75rem; color: var(--status-ok); text-transform: uppercase; font-weight: 600; margin-bottom: 0.5rem;">Ação Corretiva Efetuada</p>
-            <p id="det-obs-conclusao" style="font-size: 0.95rem; font-style: italic; color: var(--text-primary); background: var(--bg-primary); padding: 0.75rem; border-radius: var(--radius-sm); border-left: 3px solid var(--status-ok);"></p>
-        </div>
+<!-- Coluna de Anexos (Agora em Largura Total ou Grid Único) -->
+<div class="card glass-panel">
+    <h3 style="margin-bottom: 1.5rem; font-size: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+        Anexos e Evidências
+    </h3>
+
+    <div id="lista-anexos" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem;">
+        <!-- Populado via JS -->
+        <p style="color: var(--text-secondary); font-size: 0.85rem; text-align: center;">Buscando arquivos...</p>
     </div>
 
-    <!-- Coluna de Anexos -->
-    <div class="card glass-panel" style="height: 100%;">
-        <h3 style="margin-bottom: 1.5rem; font-size: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-            Anexos e Evidências
-        </h3>
-
-        <div id="lista-anexos" style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem;">
-            <!-- Populado via JS -->
-            <p style="color: var(--text-secondary); font-size: 0.85rem; text-align: center;">Buscando arquivos...</p>
-        </div>
-
-        <form id="formUpload" onsubmit="handleUpload(event)" style="display: flex; gap: 0.5rem;">
-            <input type="file" id="arquivoInput" class="form-input" style="padding: 0.3rem; flex: 1; font-size: 0.8rem;" required>
-            <button type="submit" class="btn btn-outline" id="btnUpload" title="Anexar">
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-            </button>
-        </form>
-    </div>
-
+    <form id="formUpload" onsubmit="handleUpload(event)" style="display: flex; gap: 0.5rem; max-width: 600px;">
+        <input type="file" id="arquivoInput" class="form-input" style="padding: 0.3rem; flex: 1; font-size: 0.8rem;" required>
+        <button type="submit" class="btn btn-outline" id="btnUpload" title="Anexar">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        </button>
+    </form>
 </div>
 
 <!-- Modais (Mantidos do original) -->
@@ -169,12 +167,19 @@
             // Botões de fluxo e Status badge
             const btnConc = document.getElementById("btn-concluir");
             const btnDelegar = document.getElementById("btn-delegar");
+            const btnEditOcorrencia = document.getElementById("btn-edit-ocorrencia");
             const spanSts = document.getElementById("det-status");
             const formUp = document.getElementById("formUpload");
+            
+            const resInput = document.getElementById("resolucao-texto");
+            const resStatus = document.getElementById("status-resolucao-salva");
 
             btnConc.style.display = "none";
             btnDelegar.style.display = "none";
+            btnEditOcorrencia.style.display = "none";
             formUp.style.display = "flex";
+            resInput.disabled = false;
+            resStatus.style.display = "none";
 
             const localUser = JSON.parse(localStorage.getItem("saa29_user") || '{}');
             const ehGestor = (localUser.funcao === 'ENCARREGADO' || localUser.funcao === 'ADMINISTRADOR');
@@ -183,15 +188,20 @@
             if (pane.status === "RESOLVIDA") {
                 bClass = "badge-resolvida";
                 formUp.style.display = "none"; 
-
-                const cardCx = document.getElementById("card-conclusao");
+                resInput.disabled = true;
+                
                 if (pane.observacao_conclusao) {
-                    cardCx.style.display = "block";
-                    document.getElementById("det-obs-conclusao").innerText = pane.observacao_conclusao;
+                    resInput.value = pane.observacao_conclusao;
+                    resStatus.style.display = "block";
+                    resStatus.innerText = "Ação Corretiva Finalizada e Assinada.";
                 }
             } else if (pane.status === "ABERTA") {
                 btnConc.style.display = "block";
-                if (ehGestor) btnDelegar.style.display = "block";
+                if (ehGestor) {
+                    btnDelegar.style.display = "block";
+                    btnEditOcorrencia.style.display = "block";
+                }
+                resInput.value = pane.observacao_conclusao || "";
             }
 
             spanSts.innerHTML = `<span class="badge ${bClass}">${pane.status.replace("_", " ")}</span>`;
@@ -201,6 +211,45 @@
         } catch (e) {
             console.error(e);
             showToast("Falha ao recuperar informações da Pane.", "error");
+        }
+    }
+
+    // NOVA FUNCAO: Conclusão Direta sem Modal
+    async function handleConcluirDireto() {
+        const obs = document.getElementById("resolucao-texto").value.trim();
+        if (!obs) {
+            showToast("Por favor, descreva a ação corretiva antes de concluir.", "error");
+            document.getElementById("resolucao-texto").focus();
+            return;
+        }
+
+        const btn = document.getElementById("btn-concluir");
+        btn.disabled = true;
+        btn.innerText = "Processando...";
+
+        try {
+            // 1. Salvar a conclusão
+            await apiFetch(`/panes/${PANE_ID}/concluir`, {
+                method: "POST",
+                body: { observacao_conclusao: obs }
+            });
+
+            // 2. Registrar o responsável atual
+            const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
+            if (user && user.id && user.funcao) {
+                try {
+                    await apiFetch(`/panes/${PANE_ID}/responsaveis`, {
+                        method: "POST",
+                        body: { usuario_id: user.id, papel: user.funcao }
+                    });
+                } catch (ignorar) { }
+            }
+
+            showToast("Pane finalizada com sucesso!", "success");
+            carregarDetalhe();
+        } catch (e) {
+            btn.disabled = false;
+            btn.innerText = "Concluir e Assinar";
         }
     }
 

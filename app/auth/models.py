@@ -76,6 +76,11 @@ class Usuario(Base):
         nullable=False,
         comment="Hash bcrypt da senha do usuário",
     )
+    ativo: Mapped[bool] = mapped_column(
+        default=True,
+        index=True,
+        comment="Controle de exclusão lógica (soft delete)",
+    )
 
     # --- Auditoria ---
     created_at: Mapped[datetime] = mapped_column(
