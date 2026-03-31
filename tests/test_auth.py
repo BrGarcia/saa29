@@ -98,6 +98,49 @@ class TestLogin:
         assert body["usuario"]["username"] == dados_usuario_valido["username"]
 
     @pytest.mark.asyncio
+    async def test_login_case_insensitive(self, client: AsyncClient, db: AsyncSession, dados_usuario_valido: dict):
+        """
+        DADO um usuário cadastrado com username 'joao.silva'
+        QUANDO enviar username 'JOAO.SILVA' ou 'Joao.Silva'
+        ENTÃO retornar token JWT e status 200.
+        """
+        from app.auth.models import Usuario
+        from app.auth.security import hash_senha
+        
+        username_cadastrado = "joao.silva"
+        usuario = Usuario(
+            nome=dados_usuario_valido["nome"],
+            posto=dados_usuario_valido["posto"],
+            funcao=dados_usuario_valido["funcao"],
+            username=username_cadastrado,
+            senha_hash=hash_senha(dados_usuario_valido["password"]),
+        )
+        db.add(usuario)
+        await db.flush()
+
+        # Tentar com maiúsculas
+        response = await client.post(
+            LOGIN_URL,
+            data={
+                "username": "JOAO.SILVA",
+                "password": dados_usuario_valido["password"],
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["usuario"]["username"] == username_cadastrado
+
+        # Tentar com CamelCase
+        response = await client.post(
+            LOGIN_URL,
+            data={
+                "username": "Joao.Silva",
+                "password": dados_usuario_valido["password"],
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["usuario"]["username"] == username_cadastrado
+
+    @pytest.mark.asyncio
     async def test_login_senha_errada(self, client: AsyncClient, db: AsyncSession, dados_usuario_valido: dict):
         """
         DADO um usuário existente

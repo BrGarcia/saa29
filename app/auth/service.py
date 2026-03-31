@@ -59,7 +59,8 @@ async def criar_usuario(
     Raises:
         ValueError: se o username já estiver em uso.
     """
-    existente = await buscar_por_username(db, dados.username)
+    username_lower = dados.username.lower()
+    existente = await buscar_por_username(db, username_lower)
     if existente:
         raise ValueError(f"Username '{dados.username}' já está em uso.")
     usuario = Usuario(
@@ -69,7 +70,7 @@ async def criar_usuario(
         funcao=dados.funcao,
         ramal=dados.ramal,
         trigrama=dados.trigrama.upper() if dados.trigrama else None,
-        username=dados.username,
+        username=username_lower,
         senha_hash=hash_senha(dados.password),
     )
     db.add(usuario)
@@ -82,7 +83,7 @@ async def buscar_por_username(
     username: str,
 ) -> Usuario | None:
     """
-    Busca um usuário pelo username.
+    Busca um usuário pelo username de forma case-insensitive.
 
     Args:
         db: sessão de banco de dados.
@@ -91,7 +92,10 @@ async def buscar_por_username(
     Returns:
         Objeto Usuario ou None se não encontrado.
     """
-    result = await db.execute(select(Usuario).where(Usuario.username == username))
+    from sqlalchemy import func
+    result = await db.execute(
+        select(Usuario).where(func.lower(Usuario.username) == username.lower())
+    )
     return result.scalar_one_or_none()
 
 
@@ -155,7 +159,14 @@ async def atualizar_usuario(
     usuario = await buscar_por_id(db, usuario_id)
     if not usuario:
         raise ValueError("Usuário não encontrado.")
+    
     for campo, valor in dados.model_dump(exclude_unset=True).items():
+        if campo == "username":
+            valor = valor.lower()
+            if valor != usuario.username:
+                existente = await buscar_por_username(db, valor)
+                if existente:
+                    raise ValueError(f"Username '{valor}' já está em uso.")
         setattr(usuario, campo, valor)
     await db.flush()
     return usuario
