@@ -102,6 +102,7 @@ class PaneOut(BaseModel):
     criado_por_id: uuid.UUID
     criador: UsuarioOut | None = None
     concluido_por_id: uuid.UUID | None
+    concluido_por: UsuarioOut | None = Field(default=None, validation_alias="responsavel_conclusao")
     ativo: bool
     created_at: datetime
     anexos: list[AnexoOut] = []

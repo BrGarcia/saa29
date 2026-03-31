@@ -25,11 +25,11 @@
             Descrição da Ocorrência
         </div>
         <div style="display: flex; gap: 0.5rem;">
-            <button class="btn btn-outline" onclick="openDelegarModal()" id="btn-delegar"
-                style="display:none; color: var(--primary-color); border-color: var(--primary-color); padding: 0.25rem 0.75rem; font-size: 0.8rem;">
+            <button class="btn btn-outline-primary" onclick="openDelegarModal()" id="btn-delegar"
+                style="display:none; padding: 0.25rem 0.75rem; font-size: 0.8rem;">
                 Delegar
             </button>
-            <button id="btn-edit-ocorrencia" class="btn btn-outline" style="display: none; padding: 0.25rem 0.75rem; font-size: 0.8rem; border-color: var(--status-warning); color: var(--status-warning);" onclick="openEditarModal()">
+            <button id="btn-edit-ocorrencia" class="btn btn-outline-warning" style="display: none; padding: 0.25rem 0.75rem; font-size: 0.8rem;" onclick="openEditarModal()">
                 Editar Ocorrência
             </button>
         </div>
@@ -65,13 +65,14 @@
             Descrição da Resolução / Ação Corretiva
         </div>
         <div style="display: flex; gap: 0.5rem;">
-            <button class="btn btn-success" onclick="handleConcluirDireto()" id="btn-concluir" style="display:none; padding: 0.25rem 0.75rem; font-size: 0.8rem; background-color: var(--status-ok);">
+            <button class="btn btn-success" onclick="handleConcluirDireto()" id="btn-concluir" style="display:none; padding: 0.25rem 0.75rem; font-size: 0.8rem;">
                 Concluir e Assinar
             </button>
         </div>
     </h3>
     <textarea id="resolucao-texto" class="form-input" rows="4" placeholder="Descreva aqui o que foi feito para sanar a pane..." style="width: 100%; resize: vertical; margin-bottom: 0.5rem;"></textarea>
-    <div id="status-resolucao-salva" style="display:none; font-size: 0.85rem; font-style: italic; color: var(--status-ok); border-left: 3px solid var(--status-ok); padding-left: 0.75rem; background: var(--bg-primary); padding: 0.5rem; border-radius: var(--radius-sm);"></div>
+    <div id="status-resolucao-salva" style="display:none; font-size: 0.85rem; font-style: italic; color: var(--status-ok); border-left: 3px solid var(--status-ok); padding-left: 0.75rem; background: var(--bg-primary); padding: 0.5rem; border-radius: var(--radius-sm); margin-bottom: 0.5rem;"></div>
+    <div id="det-assinatura" style="display:none; font-size: 0.8rem; color: var(--text-secondary); text-align: right; border-top: 1px dashed var(--border-color); padding-top: 0.5rem;"></div>
 </div>
 
 <!-- Coluna de Anexos (Agora em Largura Total ou Grid Único) -->
@@ -105,7 +106,7 @@
             </div>
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
                 <button type="button" class="btn btn-outline" onclick="closeConcluirModal()">Cancelar</button>
-                <button type="submit" class="btn btn-primary" style="background-color: var(--status-ok);">Concluir Intervenção</button>
+                <button type="submit" class="btn btn-success">Concluir Intervenção</button>
             </div>
         </form>
     </div>
@@ -125,7 +126,7 @@
             </div>
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
                 <button type="button" class="btn btn-outline" onclick="closeEditarModal()">Cancelar</button>
-                <button type="submit" class="btn btn-primary" style="background-color: var(--status-warning);">Salvar Alterações</button>
+                <button type="submit" class="btn btn-warning">Salvar Alterações</button>
             </div>
         </form>
     </div>
@@ -197,6 +198,7 @@
             
             const resInput = document.getElementById("resolucao-texto");
             const resStatus = document.getElementById("status-resolucao-salva");
+            const divAssinatura = document.getElementById("det-assinatura");
 
             btnConc.style.display = "none";
             btnDelegar.style.display = "none";
@@ -204,6 +206,7 @@
             formUp.style.display = "flex";
             resInput.disabled = false;
             resStatus.style.display = "none";
+            divAssinatura.style.display = "none";
 
             const localUser = JSON.parse(localStorage.getItem("saa29_user") || '{}');
             const ehGestor = (localUser.funcao === 'ENCARREGADO' || localUser.funcao === 'ADMINISTRADOR');
@@ -218,6 +221,13 @@
                     resInput.value = pane.observacao_conclusao;
                     resStatus.style.display = "block";
                     resStatus.innerText = "Ação Corretiva Finalizada e Assinada.";
+                }
+
+                if (pane.concluido_por) {
+                    divAssinatura.style.display = "block";
+                    const u = pane.concluido_por;
+                    const postoNome = [u.posto, u.nome].filter(Boolean).join(" ");
+                    divAssinatura.innerHTML = `<strong>Finalizado por:</strong> ${postoNome} (${u.trigrama || u.username})`;
                 }
             } else if (pane.status === "ABERTA") {
                 btnConc.style.display = "block";
@@ -257,17 +267,6 @@
                 method: "POST",
                 body: { observacao_conclusao: obs }
             });
-
-            // 2. Registrar o responsável atual
-            const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
-            if (user && user.id && user.funcao) {
-                try {
-                    await apiFetch(`/panes/${PANE_ID}/responsaveis`, {
-                        method: "POST",
-                        body: { usuario_id: user.id, papel: user.funcao }
-                    });
-                } catch (ignorar) { }
-            }
 
             showToast("Pane finalizada com sucesso!", "success");
             carregarDetalhe();
@@ -311,16 +310,6 @@
                 method: "POST",
                 body: { observacao_conclusao: obs }
             });
-
-            const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
-            if (user && user.id && user.funcao) {
-                try {
-                    await apiFetch(`/panes/${PANE_ID}/responsaveis`, {
-                        method: "POST",
-                        body: { usuario_id: user.id, papel: user.funcao }
-                    });
-                } catch (ignorar) { }
-            }
 
             showToast("Pane finalizada e assinada.", "success");
             closeConcluirModal();

@@ -271,10 +271,11 @@ async def editar_pane(
     Raises:
         ValueError: se a pane não estiver aberta ou houver transição inválida.
     """
-    pane = await buscar_pane(db, pane_id)
-    if not pane:
+    resultado = await buscar_pane(db, pane_id)
+    if not resultado:
         raise ValueError("Pane não encontrada.")
 
+    pane, _, _ = resultado
     status_atual = StatusPane(pane.status)
 
     # RN-03: apenas panes abertas podem ser editadas por este fluxo
@@ -327,10 +328,11 @@ async def concluir_pane(
     Raises:
         ValueError: se a pane já estiver resolvida.
     """
-    pane = await buscar_pane(db, pane_id)
-    if not pane:
+    resultado = await buscar_pane(db, pane_id)
+    if not resultado:
         raise ValueError("Pane não encontrada.")
 
+    pane, _, _ = resultado
     if StatusPane(pane.status) == StatusPane.RESOLVIDA:
         raise ValueError("Pane já está resolvida.")
 
@@ -368,9 +370,11 @@ async def excluir_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane:
 
     COR-02: Verifica idempotência (pane já inativa).
     """
-    pane = await buscar_pane(db, pane_id, incluir_inativos=True)
-    if not pane:
+    resultado = await buscar_pane(db, pane_id, incluir_inativos=True)
+    if not resultado:
         raise ValueError("Pane não encontrada.")
+    
+    pane, _, _ = resultado
     if not pane.ativo:
         raise ValueError("Pane já está inativa.")
     pane.ativo = False
@@ -382,9 +386,11 @@ async def restaurar_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane:
     """
     Restaura uma pane que foi inativada via Soft Delete.
     """
-    pane = await buscar_pane(db, pane_id, incluir_inativos=True)
-    if not pane:
+    resultado = await buscar_pane(db, pane_id, incluir_inativos=True)
+    if not resultado:
         raise ValueError("Pane não encontrada.")
+    
+    pane, _, _ = resultado
     if pane.ativo:
         raise ValueError("Pane já está ativa.")
     pane.ativo = True
@@ -413,10 +419,11 @@ async def upload_anexo(
         ValueError: se tipo ou tamanho inválidos.
     """
     settings = get_settings()
-    pane = await buscar_pane(db, pane_id)
-    if not pane:
+    resultado = await buscar_pane(db, pane_id)
+    if not resultado:
         raise ValueError("Pane não encontrada.")
 
+    pane, _, _ = resultado
     # Validar extensão
     nome_original = nome_original or "arquivo"
     extensao = os.path.splitext(nome_original)[1].lower()
@@ -518,9 +525,11 @@ async def adicionar_responsavel(
     Raises:
         ValueError: se usuário já for responsável por esta pane.
     """
-    pane = await buscar_pane(db, pane_id)
-    if not pane:
+    resultado = await buscar_pane(db, pane_id)
+    if not resultado:
         raise ValueError("Pane não encontrada.")
+
+    pane, _, _ = resultado
 
     # Verificar duplicidade
     result = await db.execute(
