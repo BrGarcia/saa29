@@ -251,10 +251,18 @@ h1, h2, h3, h4, h5 {
   background: transparent;
   color: var(--text-secondary);
   padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  cursor: pointer;
 }
 .btn-icon:hover {
   color: var(--primary-color);
   background: var(--bg-tertiary);
+  border-color: var(--primary-color);
 }
 
 /* Formulários */
