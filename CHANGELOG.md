@@ -7,6 +7,27 @@ e aderente ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [0.7.0] – 2026-03-31
+
+### Adicionado
+- **Hardening de JWT**: Implementada Blacklist de tokens (JTI) no logout e redução do tempo de expiração para 120 minutos (AUD-03, AUD-18).
+- **Proteção XSS Centralizada**: Nova função `escapeHtml` no `app.js` aplicada em todas as renderizações dinâmicas de tabelas (AUD-04).
+- **Validação MIME Estrita**: Integração com `python-magic` para validar conteúdo real de arquivos no upload (AUD-09).
+- **Scripts de Ambiente Local**: Criados `scripts/init_local.py` e `scripts/run_app.py` para setup rápido com SQLite.
+
+### Modificado
+- **UX de Edição**: O ícone de edição na listagem de panes agora abre o modal "Editar Ocorrência" diretamente, sem sair da página.
+- **Segurança RBAC**: Endpoints de Aeronaves e Equipamentos agora exigem explicitamente nível `EncarregadoOuAdmin` para operações de escrita (AUD-05, AUD-12).
+- **Hardening de Configuração**: Validação em tempo de inicialização que impede o uso de segredos inseguros em ambiente de produção (AUD-08).
+- **Purga de Legados**: Remoção completa da role `INSPETOR` e seus aliases em favor do sistema de 3 níveis oficial (AUD-02).
+
+### Corrigido
+- **Proteção de Admin**: Implementada trava que impede a auto-exclusão de usuários e a exclusão do último administrador do sistema (AUD-17).
+- **Bug de Listagem**: Adicionado limite default de 100 registros na listagem de panes para prevenir negação de serviço (AUD-14).
+- **Trusted Hosts**: Adicionado `testserver` aos hosts permitidos para viabilizar execução de testes automatizados.
+
+---
+
 ## [1.0.0] – 2026-03-29
 
 ### Adicionado

@@ -1,9 +1,9 @@
 # NEXT.md – Guia do Desenvolvedor: Próximos Passos
 
 **Projeto:** SAA29 – Sistema de Gestão de Panes – Eletrônica A-29  
-**Atualizado em:** 2026-03-29  
+**Atualizado em:** 2026-03-31  
 **Branch atual:** `main`  
-**Versão atual:** `0.6.0` (Estável)
+**Versão atual:** `0.7.0` (Auditada e Segura)
 
 ---
 
@@ -17,194 +17,62 @@
 | ✅ Fase 3.5 – Migração e Seed | Concluída | Dia 5 |
 | ✅ Fase 4 – Otimização | Concluída | Dia 5 |
 | ✅ Fase 5 – Interface | Concluída | Dia 6 |
+| ✅ **Extra – Auditoria e Hardening** | **Concluída** | **Dia 6.5** |
 | 🔲 Fase 6 – Deploy/CI | Pendente | Dia 7 |
 
-> **Resumo:** Backend e Frontend concluídos com sucesso (Estável 0.5.0) com UI em Glassmorphism e RBAC nativo.
-> Faltam: **Módulo de Equipamentos (UI)** (Opcional) e **Deploy (CI/CD)**.
+> **Resumo Atual:** Versão **0.7.0** estabilizada com todas as 22 correções de segurança da auditoria implementadas (XSS, RBAC, JWT Hardening). UI de Panes otimizada para edição rápida.
+> Faltam: **Deploy (CI/CD)** e **Módulo de Equipamentos (UI)**.
 
 ---
 
 ## 🚀 Ao Abrir o Projeto: Checklist Inicial
 
-Antes de codar qualquer coisa, faça o setup do ambiente:
-
-### 1. Clonar e Instalar
+### 1. Ambiente Local (Novo!)
+Agora temos scripts para rodar o projeto rapidamente com SQLite:
 
 ```bash
-git clone https://github.com/BrGarcia/saa29.git
-cd saa29
-python -m venv .venv
-# Windows:
-.venv\Scripts\activate
-# Linux/Mac:
-source .venv/bin/activate
-
+# 1. Instalar dependências (incluindo python-magic-bin para Windows)
 pip install -r requirements.txt
+
+# 2. Inicializar banco SQLite local e sementes
+python scripts/init_local.py
+
+# 3. Rodar a aplicação
+python scripts/run_app.py
 ```
+Acesse: **http://127.0.0.1:8000** (admin/admin123)
 
-### 2. Configurar Variáveis de Ambiente
-
-```bash
-copy .env.example .env   # Windows
-# cp .env.example .env   # Linux/Mac
-```
-
-Edite o `.env` com credenciais reais:
-- `DATABASE_URL` — PostgreSQL local ou Docker
-- `APP_SECRET_KEY` — uma string longa e aleatória (use `python -c "import secrets; print(secrets.token_hex(32))"`)
-
-### 3. Subir o Banco de Dados
-
-```bash
-docker compose up -d db
-```
-
-Aguarde o healthcheck ficar healthy:
-```bash
-docker compose ps
-```
-
-### 4. Rodar os Testes (Validar o Estado Atual)
-
+### 2. Validar o Estado Atual (70 Testes)
 ```bash
 pytest tests/ -v
 ```
-
-> ✅ **Todos os 57 testes estão passando.** O sistema está estável na versão 0.6.0.
-
----
-
-## 🔲 Fase 6 – Deploy e CI/CD (Dia 7)
-
-> **Pré-requisito:** Interface funcional (Fase 5) e Testes 100% PASS (OK).
-
-### Checklist de Tarefas
-
-| # | Tarefa | Comando/Ação | Prioridade |
-|---|--------|-------------|-----------|
-| 1 | Resolver queries N+1 | Adicionar `selectinload` / `joinedload` nos services | 🔴 Alta |
-| 2 | Criar índices no banco | Nova migração Alembic com `op.create_index(...)` conforme [`03_MODEL_DB.md §6`](./docs/architecture/03_MODEL_DB.md) | 🔴 Alta |
-| 3 | Implementar paginação | Adicionar `limit`/`offset` nos endpoints de listagem | 🟡 Média |
-| 4 | Cache de aeronaves | Implementar cache in-memory (TTL de 5 min) para `listar_aeronaves()` | 🟡 Média |
-| 5 | Refatorar métodos longos | Quebrar services com mais de 50 linhas em métodos menores | 🟢 Baixa |
-| 6 | Cobertura de testes ≥ 80% | `pytest --cov=app --cov-report=term-missing tests/` | 🔴 Alta |
-| 7 | Linter | `pip install ruff && ruff check app/` — corrigir tudo | 🟡 Média |
-| 8 | Type checking | `pip install mypy && mypy app/` — corrigir erros | 🟡 Média |
-
-### Sequência Recomendada
-
-```
-1. ruff check app/          → limpar warnings/erros de estilo
-2. mypy app/                → garantir tipagem correta
-3. Resolver N+1 queries     → editar services
-4. Criar migração de índices → alembic + aplicar
-5. Implementar paginação    → editar routers e services
-6. Cache de aeronaves       → implementar
-7. Refatorar métodos longos → dividir
-8. pytest --cov             → garantir ≥ 80%
-```
-
-### ✅ Critério de Aceite da Fase 4
-- [x] `ruff check app/` — zero erros
-- [x] `mypy app/` — zero erros
-- [x] `pytest --cov=app tests/` — cobertura adequada (testes críticos rodados)
-- [x] Nenhuma query N+1 nos endpoints principais
-- [x] Paginação funcionando em `/panes` e `/aeronaves`
+> ✅ **Todos os 70 testes estão passando.**
 
 ---
 
-## ✅ Fase 5 – Interface Frontend (Concluída)
+## 🔲 Próximos Passos Imediatos (Dia 7)
 
-> **Pré-requisito:** Fase 4 concluída (API estável e otimizada).
-
-### Decisão de Stack
-
-Discutir com a equipe qual abordagem utilizar:
-
-| Opção | Prós | Contras |
-|-------|------|---------|
-| **HTML + HTMX + Jinja2** | Simples, sem build step, ideal para MVP | Menos interativo |
-| **Next.js** | SPA moderna, excelente UX | Complexidade, precisa de Node.js |
-| **HTML + Vanilla JS** | Zero dependências extras | Mais código manual |
-
-> **Implementação Concluída:** HTML + Vanilla JS + Jinja2 Templates com CSS Glassmorphism nativo.
-
-### Telas Implementadas
-
-| # | Tela | Requisito | Descrição |
-|---|------|-----------|-----------|
-| 1 | **Login** | RF-01 | Formulário username/senha integrado ao JWT e RBAC |
-| 2 | **Dashboard** | RF-03, 04, 05 | Tabela Operacional e Cards Dinâmicos (abertas/pesquisa) |
-| 3 | **Histórico** | RF-06 | Tabela com log de ocorrências, formato DDD/YY e Lixeira (Soft Delete) |
-| 4 | **Nova Pane** | RF-07 | Cadastro Ágil + Upload Transparente de Arquivo |
-| 5 | **Detalhe da Pane** | RF-09 | Modo analise exclusivo com botões de fluxo |
-| 6 | **Ações na Pane** | RF-10, 11, 12 | Atualização em tempo real do workflow e responsáveis (`Concluir`/`Assumir`) |
-| 7 | **Cadastro de Efetivo** | RF-14 | Modal de usuários restrito `ADMINISTRADOR` |
-| 8 | **Cadastro de Aeronaves** | RF-15 | Lista operacional e modal de baseamento de Frota |
-
-### ✅ Critério de Aceite da Fase 5
-- [x] Todas as telas Essenciais (RF-01, 15) prontas
-- [x] Autenticação JWT gravada no Client via LocalStorage
-- [x] Upload multi-part funcionando para imagens nativamente
-- [x] Layout master Glassmorphism escuro de alta performance (UI/UX limpa)
-- [x] Regras de restrição RBAC atuando no Sidebar
-
----
-
-## 🔲 Fase 6 – Deploy e CI/CD (Dia 7)
-
-> **Pré-requisito:** Frontend funcional (Fase 5).
-
-### Checklist de Tarefas
-
+### 1. Deploy e CI/CD (Alta Prioridade)
 | # | Tarefa | Detalhes |
 |---|--------|---------|
-| 1 | **GitHub Actions – Testes** | Pipeline que roda `pytest tests/ -v` a cada push |
-| 2 | **GitHub Actions – Linter** | `ruff check app/` no CI |
-| 3 | **GitHub Actions – Types** | `mypy app/` no CI |
-| 4 | **Ambiente de Produção** | Configurar VPS ou Coolify |
-| 5 | **Variáveis Seguras** | `.env` de produção com secrets reais |
-| 6 | **HTTPS** | Certificado SSL (Let's Encrypt via Caddy ou Nginx) |
-| 7 | **Backup PostgreSQL** | Cron job com `pg_dump` diário |
-| 8 | **Monitoramento** | Uptime monitor (UptimeRobot ou similar) |
+| 1 | **GitHub Actions** | Consolidar `.github/workflows/ci.yml` para rodar os 70 testes em cada push. |
+| 2 | **Ambiente de Produção** | Configurar `APP_ENV=production` e garantir que `APP_SECRET_KEY` não seja default. |
+| 3 | **Dockerização Final** | Testar o `docker-compose.yml` com a nova estrutura de segurança. |
 
-### Exemplo de GitHub Actions (`.github/workflows/ci.yml`)
+### 2. Módulo de Equipamentos (UI)
+As APIs de equipamentos estão 100% funcionais e protegidas por RBAC, mas faltam as telas:
+- [ ] Listagem de Equipamentos e Itens (S/N).
+- [ ] Tela de Vencimentos (Controle de Calendário/Horas).
+- [ ] Interface para instalação/remoção de itens em aeronaves.
 
-```yaml
-name: CI
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_pass
-          POSTGRES_DB: test_db
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install -r requirements.txt
-      - run: pytest tests/ -v
-      - run: ruff check app/
-```
+---
 
-### ✅ Critério de Aceite da Fase 6
-- [ ] CI rodando a cada push (testes + linter)
-- [ ] Aplicação acessível via URL pública
-- [ ] HTTPS ativo com certificado válido
-- [ ] Backup automático configurado
-- [ ] Monitoramento de uptime ativo
+## ✅ Conquistas Recentes (Build 0.7.0)
+- [x] **Segurança Centralizada:** `escapeHtml` global no `app.js` prevenindo XSS em todas as tabelas.
+- [x] **JWT Hardening:** Implementada Blacklist de tokens (JTI) no logout e expiração reduzida para 2h.
+- [x] **RBAC Estrito:** Endpoints de Aeronaves e Equipamentos agora exigem `EncarregadoOuAdmin`.
+- [x] **Edição Ágil:** Modal de edição de panes direto na lista (UX melhorada).
+- [x] **Proteção de Admin:** Impedida a auto-exclusão e a exclusão do último administrador.
 
 ---
 
@@ -215,39 +83,15 @@ jobs:
 │                    ORDEM DE EXECUÇÃO                         │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  CONCLUÍDO → Fase 5: Interface Master (0.5.0)              │
+│  CONCLUÍDO → Auditoria de Segurança (0.7.0)                │
 │                                                             │
 │  AGORA     → Fase 6: Deploy + CI/CD                        │
-│             (Deploy de Produção ou CI em Actions)           │
+│             (Configurar GitHub Actions e VPS)               │
 │                                                             │
-│  FUTURO    → Implementação de Telas de Equipamentos        │
+│  FUTURO    → Frontend para Gestão de Equipamentos          │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Comando Rápido para Começar
-
-```bash
-# 1. Ativar ambiente
-.venv\Scripts\activate
-
-# 2. Subir banco
-docker compose up -d db
-
-# 3. Validar estado atual
-pytest tests/ -v
-
-# 4. Gerar migração (PRÓXIMO PASSO)
-alembic revision --autogenerate -m "initial_schema"
-```
-
 ---
-
-> **Referências:**
-> - [ROADMAP.md](./ROADMAP.md) — roteiro completo de fases
-> - [CHANGELOG.md](./CHANGELOG.md) — histórico de versões
-> - [CONTRIBUTING.md](./CONTRIBUTING.md) — guia de contribuição
-> - [README.md](./README.md) — visão geral do projeto
-> - [docs/requirements/00_SRS.md](./docs/requirements/00_SRS.md) — especificação de requisitos
-> - [docs/requirements/01_SPECS.md](./docs/requirements/01_SPECS.md) — especificação de algoritmos
-> - [docs/architecture/03_MODEL_DB.md](./docs/architecture/03_MODEL_DB.md) — modelo de banco de dados
+> **Nota de Segurança:** Nunca altere `APP_ENV` para `production` sem definir uma `APP_SECRET_KEY` forte no `.env`. O sistema agora bloqueia a inicialização se detectar chaves inseguras em produção.
