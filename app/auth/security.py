@@ -3,9 +3,10 @@ app/auth/security.py
 Funções de segurança: hashing de senha e operações JWT.
 """
 
+import uuid
 from datetime import datetime, timedelta, timezone
 
-from jose import jwt
+from jose import jwt, JWTError
 from passlib.context import CryptContext
 
 from app.config import get_settings
@@ -14,6 +15,10 @@ settings = get_settings()
 
 # Contexto bcrypt para hashing de senhas
 _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Blacklist em memória para tokens invalidados (logout).
+# Em produção com múltiplas instâncias, usar Redis.
+_token_blacklist: set[str] = set()
 
 
 def hash_senha(senha_plana: str) -> str:
@@ -49,6 +54,7 @@ def criar_token(dados: dict) -> str:
 
     O campo 'exp' (expiração) é adicionado automaticamente com base
     em settings.jwt_expire_minutes.
+    O campo 'jti' (JWT ID) é adicionado para controle de blacklist.
 
     Args:
         dados: dicionário com o payload do token (deve incluir 'sub').
@@ -58,13 +64,19 @@ def criar_token(dados: dict) -> str:
     """
     payload = dados.copy()
     expira = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes)
-    payload.update({"exp": expira, "iat": datetime.now(timezone.utc)})
+    payload.update({
+        "exp": expira,
+        "iat": datetime.now(timezone.utc),
+        "jti": str(uuid.uuid4())
+    })
     return jwt.encode(payload, settings.app_secret_key, algorithm=settings.jwt_algorithm)
 
 
 def decodificar_token(token: str) -> dict:
     """
     Decodifica e valida um token JWT.
+
+    Verifica se o JTI está na blacklist (SEC-03).
 
     Args:
         token: string JWT recebida na requisição.
@@ -73,6 +85,19 @@ def decodificar_token(token: str) -> dict:
         Dicionário com o payload decodificado.
 
     Raises:
-        JWTError: se o token for inválido, expirado ou adulterado.
+        JWTError: se o token for inválido, expirado, adulterado ou estiver na blacklist.
     """
-    return jwt.decode(token, settings.app_secret_key, algorithms=[settings.jwt_algorithm])
+    payload = jwt.decode(token, settings.app_secret_key, algorithms=[settings.jwt_algorithm])
+    
+    # Validar blacklist
+    jti = payload.get("jti")
+    if jti in _token_blacklist:
+        raise JWTError("Token invalidado (blacklist).")
+    
+    return payload
+
+
+def invalidar_token(jti: str) -> None:
+    """Adiciona um JTI à blacklist de tokens."""
+    if jti:
+        _token_blacklist.add(jti)

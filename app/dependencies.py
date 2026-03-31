@@ -117,6 +117,3 @@ EncarregadoRequired = Annotated[Usuario, Depends(require_role("ENCARREGADO"))]
 EncarregadoOuAdmin = Annotated[
     Usuario, Depends(require_role("ENCARREGADO", "ADMINISTRADOR"))
 ]
-# Mantido por compatibilidade com testes existentes
-InspetorRequired = AdminRequired
-InspetorOuEncarregado = EncarregadoOuAdmin

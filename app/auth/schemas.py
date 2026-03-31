@@ -26,7 +26,7 @@ class UsuarioCreate(BaseModel):
     nome: str = Field(..., min_length=3, max_length=150)
     posto: str = Field(..., max_length=30)
     especialidade: str | None = Field(default=None, max_length=50)
-    funcao: TipoPapel = Field(..., description="INSPETOR | ENCARREGADO | MANTENEDOR")
+    funcao: TipoPapel = Field(..., description="ADMINISTRADOR | ENCARREGADO | MANTENEDOR")
     ramal: str | None = Field(default=None, max_length=20)
     trigrama: str | None = Field(default=None, max_length=3)
     username: str = Field(..., min_length=3, max_length=50)

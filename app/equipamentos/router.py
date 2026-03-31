@@ -8,7 +8,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, status
 
 from app.equipamentos import schemas, service
-from app.dependencies import DBSession, CurrentUser
+from app.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin
 
 router = APIRouter()
 
@@ -34,7 +34,7 @@ async def listar_tipos_controle(db: DBSession, _: CurrentUser):
 async def criar_tipo_controle(
     dados: schemas.TipoControleCreate,
     db: DBSession,
-    _: CurrentUser,
+    _: EncarregadoOuAdmin,
 ):
     try:
         tipo = await service.criar_tipo_controle(db, dados)
@@ -60,7 +60,7 @@ async def listar_equipamentos(db: DBSession, _: CurrentUser):
 async def criar_equipamento(
     dados: schemas.EquipamentoCreate,
     db: DBSession,
-    _: CurrentUser,
+    _: EncarregadoOuAdmin,
 ):
     try:
         equipamento = await service.criar_equipamento(db, dados)
@@ -93,7 +93,7 @@ async def associar_controle(
     equipamento_id: uuid.UUID,
     tipo_controle_id: uuid.UUID,
     db: DBSession,
-    _: CurrentUser,
+    _: EncarregadoOuAdmin,
 ):
     """
     Associa um TipoControle ao Equipamento e propaga
@@ -129,7 +129,7 @@ async def listar_itens(
 async def criar_item(
     dados: schemas.ItemEquipamentoCreate,
     db: DBSession,
-    _: CurrentUser,
+    _: EncarregadoOuAdmin,
 ):
     try:
         item = await service.criar_item_com_heranca(db, dados)
@@ -164,7 +164,7 @@ async def instalar_item(
     item_id: uuid.UUID,
     dados: schemas.InstalacaoCreate,
     db: DBSession,
-    _: CurrentUser,
+    _: EncarregadoOuAdmin,
 ):
     try:
         instalacao = await service.instalar_item(
@@ -184,7 +184,7 @@ async def remover_item(
     instalacao_id: uuid.UUID,
     dados: schemas.InstalacaoRemocao,
     db: DBSession,
-    _: CurrentUser,
+    _: EncarregadoOuAdmin,
 ):
     try:
         instalacao = await service.remover_item(db, instalacao_id, dados.data_remocao)
@@ -204,7 +204,7 @@ async def registrar_execucao(
     vencimento_id: uuid.UUID,
     dados: schemas.ControleVencimentoUpdate,
     db: DBSession,
-    _: CurrentUser,
+    _: EncarregadoOuAdmin,
 ):
     try:
         vencimento = await service.registrar_execucao(

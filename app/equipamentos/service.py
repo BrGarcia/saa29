@@ -63,7 +63,7 @@ async def atualizar_equipamento(
     equipamento = await buscar_equipamento(db, equipamento_id)
     if not equipamento:
         raise ValueError("Equipamento não encontrado.")
-    for campo, valor in dados.model_dump(exclude_none=True).items():
+    for campo, valor in dados.model_dump(exclude_unset=True).items():
         setattr(equipamento, campo, valor)
     await db.flush()
     return equipamento

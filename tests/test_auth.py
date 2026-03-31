@@ -255,7 +255,7 @@ class TestGestaoUsuarios:
         payload = {
             "nome": "Ten Teste",
             "posto": "Ten",
-            "funcao": "INSPETOR",
+            "funcao": "ADMINISTRADOR",
             "username": "teste.usuario",
             "password": "abc",   # < 6 chars
         }

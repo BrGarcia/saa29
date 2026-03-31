@@ -40,5 +40,7 @@ uploads/
 # === Outros ===
 *.log
 *.sqlite3
+*.db
+*.xlsx
 .DS_Store
 Thumbs.db

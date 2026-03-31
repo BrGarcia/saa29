@@ -210,7 +210,7 @@ class PaneResponsavel(Base):
     papel: Mapped[str] = mapped_column(
         String(30),
         nullable=False,
-        comment="Papel do responsável: INSPETOR | ENCARREGADO | MANTENEDOR",
+        comment="Papel do responsável: ADMINISTRADOR | ENCARREGADO | MANTENEDOR",
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

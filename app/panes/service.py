@@ -194,6 +194,9 @@ async def listar_panes(
             query = query.where(Pane.data_abertura <= filtros.data_fim)
 
         query = query.offset(filtros.skip).limit(filtros.limit)
+    else:
+        # AUD-14: Garante que nunca retorne todos os registros sem limite
+        query = query.limit(100)
 
     # Eager-load aeronave para exibir matricula no frontend e responsaveis para o dashboard
     query = query.options(
@@ -251,6 +254,32 @@ async def buscar_pane(
     return (row[0], int(row[1]), int(row[2]))
 
 
+async def _buscar_pane_por_id(
+    db: AsyncSession,
+    pane_id: uuid.UUID,
+    incluir_inativos: bool = False,
+) -> Pane | None:
+    """
+    Busca apenas o objeto Pane pelo ID sem ranking (usado em operações de escrita).
+    """
+    query = (
+        select(Pane)
+        .where(Pane.id == pane_id)
+        .options(
+            selectinload(Pane.anexos),
+            selectinload(Pane.responsaveis).selectinload(PaneResponsavel.usuario),
+            selectinload(Pane.aeronave),
+            selectinload(Pane.criador),
+            selectinload(Pane.responsavel_conclusao),
+        )
+    )
+    if not incluir_inativos:
+        query = query.where(Pane.ativo == True)  # noqa: E712
+    
+    result = await db.execute(query)
+    return result.scalar_one_or_none()
+
+
 async def editar_pane(
     db: AsyncSession,
     pane_id: uuid.UUID,
@@ -271,11 +300,10 @@ async def editar_pane(
     Raises:
         ValueError: se a pane não estiver aberta ou houver transição inválida.
     """
-    resultado = await buscar_pane(db, pane_id)
-    if not resultado:
+    pane = await _buscar_pane_por_id(db, pane_id)
+    if not pane:
         raise ValueError("Pane não encontrada.")
 
-    pane, _, _ = resultado
     status_atual = StatusPane(pane.status)
 
     # RN-03: apenas panes abertas podem ser editadas por este fluxo
@@ -328,11 +356,11 @@ async def concluir_pane(
     Raises:
         ValueError: se a pane já estiver resolvida.
     """
-    resultado = await buscar_pane(db, pane_id)
+    resultado = await _buscar_pane_por_id(db, pane_id)
     if not resultado:
         raise ValueError("Pane não encontrada.")
 
-    pane, _, _ = resultado
+    pane = resultado
     if StatusPane(pane.status) == StatusPane.RESOLVIDA:
         raise ValueError("Pane já está resolvida.")
 
@@ -370,11 +398,11 @@ async def excluir_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane:
 
     COR-02: Verifica idempotência (pane já inativa).
     """
-    resultado = await buscar_pane(db, pane_id, incluir_inativos=True)
+    resultado = await _buscar_pane_por_id(db, pane_id, incluir_inativos=True)
     if not resultado:
         raise ValueError("Pane não encontrada.")
     
-    pane, _, _ = resultado
+    pane = resultado
     if not pane.ativo:
         raise ValueError("Pane já está inativa.")
     pane.ativo = False
@@ -386,11 +414,11 @@ async def restaurar_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane:
     """
     Restaura uma pane que foi inativada via Soft Delete.
     """
-    resultado = await buscar_pane(db, pane_id, incluir_inativos=True)
+    resultado = await _buscar_pane_por_id(db, pane_id, incluir_inativos=True)
     if not resultado:
         raise ValueError("Pane não encontrada.")
     
-    pane, _, _ = resultado
+    pane = resultado
     if pane.ativo:
         raise ValueError("Pane já está ativa.")
     pane.ativo = True
@@ -419,11 +447,11 @@ async def upload_anexo(
         ValueError: se tipo ou tamanho inválidos.
     """
     settings = get_settings()
-    resultado = await buscar_pane(db, pane_id)
+    resultado = await _buscar_pane_por_id(db, pane_id)
     if not resultado:
         raise ValueError("Pane não encontrada.")
 
-    pane, _, _ = resultado
+    pane = resultado
     # Validar extensão
     nome_original = nome_original or "arquivo"
     extensao = os.path.splitext(nome_original)[1].lower()
@@ -433,14 +461,16 @@ async def upload_anexo(
             f"Permitidos: {_EXTENSOES_PERMITIDAS}"
         )
 
-    # SEC-05: Validar MIME type real do conteúdo (não confiar na extensão)
-    if _MAGIC_AVAILABLE:
-        mime_real = magic.from_buffer(arquivo_bytes[:2048], mime=True)
-        if mime_real not in _MIMES_PERMITIDOS:
-            raise ValueError(
-                f"Conteúdo real do arquivo ({mime_real}) não é um tipo permitido. "
-                f"Permitidos: {_MIMES_PERMITIDOS}"
-            )
+    # SEC-05: Validar MIME type real do conteúdo (não confiar na extensão) (AUD-09)
+    if not _MAGIC_AVAILABLE:
+        raise ValueError("Validação de tipo de arquivo indisponível (python-magic ausente). Contacte o administrador.")
+
+    mime_real = magic.from_buffer(arquivo_bytes[:2048], mime=True)
+    if mime_real not in _MIMES_PERMITIDOS:
+        raise ValueError(
+            f"Conteúdo real do arquivo ({mime_real}) não é um tipo permitido. "
+            f"Permitidos: {_MIMES_PERMITIDOS}"
+        )
 
     # Validar tamanho
     max_bytes = settings.max_upload_size_mb * 1024 * 1024
@@ -525,11 +555,11 @@ async def adicionar_responsavel(
     Raises:
         ValueError: se usuário já for responsável por esta pane.
     """
-    resultado = await buscar_pane(db, pane_id)
+    resultado = await _buscar_pane_por_id(db, pane_id)
     if not resultado:
         raise ValueError("Pane não encontrada.")
 
-    pane, _, _ = resultado
+    pane = resultado
 
     # Verificar duplicidade
     result = await db.execute(

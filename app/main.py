@@ -33,7 +33,10 @@ async def _ensure_default_aeronaves() -> None:
     """
     Garante a frota padrão em ambientes reais, sem interferir nos testes em SQLite.
     """
-    if "sqlite" in settings.database_url:
+    from app.config import get_settings
+    settings = get_settings()
+
+    if "sqlite" in settings.database_url.lower():
         return
 
     from sqlalchemy import select
@@ -70,8 +73,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     - startup: inicializar conexões, criar diretório de uploads
     - shutdown: fechar conexões graciosamente
     """
+    from app.config import get_settings
+    current_settings = get_settings()
+    
     # Startup: criar diretório de uploads se não existir
-    os.makedirs(settings.upload_dir, exist_ok=True)
+    os.makedirs(current_settings.upload_dir, exist_ok=True)
     await _ensure_default_aeronaves()
 
     yield
@@ -90,6 +96,9 @@ def create_app() -> FastAPI:
     Retorna:
         FastAPI: instância configurada e pronta para uso.
     """
+    from app.config import get_settings
+    current_settings = get_settings()
+
     app = FastAPI(
         title="SAA29 – Sistema de Gestão de Panes",
         description=(
@@ -97,8 +106,8 @@ def create_app() -> FastAPI:
             "com foco na Eletrônica da aeronave A-29."
         ),
         version="1.0.0",
-        docs_url="/docs" if settings.app_debug else None,
-        redoc_url="/redoc" if settings.app_debug else None,
+        docs_url="/docs" if current_settings.app_debug else None,
+        redoc_url="/redoc" if current_settings.app_debug else None,
         lifespan=lifespan,
     )
 
@@ -111,18 +120,21 @@ def create_app() -> FastAPI:
 
 def _register_middlewares(app: FastAPI) -> None:
     """Registra os middlewares globais da aplicação."""
-    # Trusted Hosts (Ajuste para seu domínio real em produção)
+    from app.config import get_settings
+    current_settings = get_settings()
+
+    # Trusted Hosts (Ajuste para seu domínio real em produção) (AUD-07)
     app.add_middleware(
         TrustedHostMiddleware, 
-        allowed_hosts=["localhost", "127.0.0.1"] + (settings.allowed_hosts or [])
+        allowed_hosts=["localhost", "127.0.0.1", "testserver"] + (current_settings.allowed_hosts or [])
     )
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.allowed_origins,
+        allow_origins=current_settings.allowed_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+        allow_headers=["Authorization", "Content-Type"],
     )
 
 

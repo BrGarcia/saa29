@@ -95,7 +95,15 @@ async function apiFetch(endpoint, options = {}) {
     }
 }
 
-// 3. Sistema de Toasts Visuais Premium
+// 3. Utilitários Globais (SEC-04)
+function escapeHtml(text) {
+    if (text === null || text === undefined) return "";
+    const div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+}
+
+// 4. Sistema de Toasts Visuais Premium
 function showToast(message, type = "info") {
     let container = document.getElementById("toast-container");
     if (!container) {
@@ -111,7 +119,11 @@ function showToast(message, type = "info") {
     if(type === 'success') icon = `<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
     else if(type === 'error') icon = `<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
 
-    toast.innerHTML = `${icon} <span>${message}</span>`;
+    const span = document.createElement("span");
+    span.textContent = message;
+    toast.innerHTML = icon;
+    toast.appendChild(span);
+
     container.appendChild(toast);
 
     setTimeout(() => {

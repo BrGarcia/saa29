@@ -9,8 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.auth import schemas, service
-from app.auth.security import criar_token
-from app.dependencies import DBSession, CurrentUser, AdminRequired, EncarregadoRequired
+from app.auth.security import criar_token, invalidar_token, decodificar_token
+from app.dependencies import DBSession, CurrentUser, AdminRequired, EncarregadoRequired, oauth2_scheme
 
 router = APIRouter()
 
@@ -59,13 +59,20 @@ async def login(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Logout de usuário",
 )
-async def logout(usuario_atual: CurrentUser) -> None:
+async def logout(
+    usuario_atual: CurrentUser,
+    token: str = Depends(oauth2_scheme)
+) -> None:
     """
-    Invalida a sessão do usuário.
-    (Stateless JWT: orientação para o cliente descartar o token.)
+    Invalida a sessão do usuário via blacklist do JTI (AUD-03).
     """
-    # Stateless JWT — o cliente simplesmente descarta o token.
-    # Implementação de blacklist pode ser adicionada futuramente.
+    try:
+        payload = decodificar_token(token)
+        jti = payload.get("jti")
+        invalidar_token(jti)
+    except Exception:
+        # Se o token já for inválido ou não tiver JTI, logout é considerado ok.
+        pass
     return None
 
 
@@ -172,14 +179,14 @@ async def atualizar_usuario(
 async def excluir_usuario(
     usuario_id: uuid.UUID,
     db: DBSession,
-    _: AdminRequired,
+    usuario_atual: AdminRequired,
 ) -> None:
     """Desativa um membro do efetivo. Restrito a Administradores."""
     try:
-        await service.excluir_usuario(db, usuario_id)
+        await service.excluir_usuario(db, usuario_id, usuario_atual.id)
     except ValueError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
 

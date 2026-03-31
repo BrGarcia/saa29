@@ -160,13 +160,16 @@ async def atualizar_usuario(
     if not usuario:
         raise ValueError("Usuário não encontrado.")
     
+    # AUD-10: Lista explícita de campos editáveis para evitar escalação de privilégios indesejada
+    CAMPOS_EDITAVEIS = {"nome", "posto", "especialidade", "funcao", "ramal", "trigrama"}
+
     for campo, valor in dados.model_dump(exclude_unset=True).items():
-        if campo == "username":
-            valor = valor.lower()
-            if valor != usuario.username:
-                existente = await buscar_por_username(db, valor)
-                if existente:
-                    raise ValueError(f"Username '{valor}' já está em uso.")
+        if campo not in CAMPOS_EDITAVEIS:
+            continue
+        
+        if campo == "trigrama" and valor:
+            valor = valor.upper()
+            
         setattr(usuario, campo, valor)
     await db.flush()
     return usuario
@@ -199,20 +202,40 @@ async def alterar_senha(
 async def excluir_usuario(
     db: AsyncSession,
     usuario_id: uuid.UUID,
+    usuario_logado_id: uuid.UUID | None = None,
 ) -> None:
     """
     Desativa (exclusão lógica) um usuário do efetivo.
 
+    Implementa proteção contra auto-exclusão e exclusão do último admin (AUD-17).
+
     Args:
         db: sessão de banco de dados.
         usuario_id: UUID do usuário a desativar.
+        usuario_logado_id: UUID do usuário que está realizando a operação.
 
     Raises:
-        ValueError: se o usuário não for encontrado.
+        ValueError: se o usuário não for encontrado ou se for auto-exclusão/último admin.
     """
+    if usuario_id == usuario_logado_id:
+        raise ValueError("Não é possível desativar o próprio usuário (AUD-17).")
+
     usuario = await buscar_por_id(db, usuario_id)
     if not usuario:
         raise ValueError("Usuário não encontrado.")
+
+    # Verificar se é o último administrador ativo
+    from sqlalchemy import func
+    if usuario.funcao == "ADMINISTRADOR":
+        result = await db.execute(
+            select(func.count(Usuario.id)).where(
+                Usuario.funcao == "ADMINISTRADOR",
+                Usuario.ativo == True
+            )
+        )
+        admins_ativos = result.scalar()
+        if admins_ativos <= 1:
+            raise ValueError("Não é possível desativar o último administrador do sistema (AUD-17).")
 
     usuario.ativo = False
     await db.flush()

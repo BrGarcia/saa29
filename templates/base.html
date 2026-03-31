@@ -11,7 +11,7 @@
 
 <body>
 
-    {% if request.url.path != "/login" %}
+{% if request.url.path != "/login" %}
     <div class="app-container">
         <!-- Conteúdo Principal -->
         <main class="main-content">
@@ -79,7 +79,7 @@
         </main>
     </div>
 
-    <!-- Script de Inicialização da Autenticação para todas rotas (exceto /login) -->
+    <!-- Script de Inicialização da Autenticação -->
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             const token = localStorage.getItem("saa29_access_token");
@@ -88,7 +88,6 @@
             } else {
                 try {
                     const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
-                    // Exibir os links da barra superior para roles com acesso administrativo
                     const funcao = user.funcao ? user.funcao.toUpperCase() : '';
                     if (funcao === 'ADMINISTRADOR' || funcao === 'ENCARREGADO') {
                         const adminNav = document.getElementById('admin-nav');
@@ -98,10 +97,10 @@
             }
         });
     </script>
-    {% else %}
-    <!-- Caso seja rota /login, não renderiza sidebar -->
+{% else %}
+    <!-- Caso seja rota /login -->
     {% block login_content %}{% endblock %}
-    {% endif %}
+{% endif %}
 
     <script src="/static/js/app.js"></script>
     {% block scripts %}{% endblock %}

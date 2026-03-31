@@ -8,7 +8,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.aeronaves import schemas, service
-from app.dependencies import AdminRequired, CurrentUser, DBSession
+from app.dependencies import AdminRequired, CurrentUser, DBSession, EncarregadoOuAdmin
 
 router = APIRouter()
 
@@ -84,7 +84,7 @@ async def atualizar_aeronave(
     aeronave_id: uuid.UUID,
     dados: schemas.AeronaveUpdate,
     db: DBSession,
-    _: CurrentUser,
+    _: EncarregadoOuAdmin,
 ) -> schemas.AeronaveOut:
     try:
         aeronave = await service.atualizar_aeronave(db, aeronave_id, dados)
@@ -110,7 +110,7 @@ async def atualizar_aeronave(
 async def alternar_status_aeronave(
     aeronave_id: uuid.UUID,
     db: DBSession,
-    _: CurrentUser,
+    _: EncarregadoOuAdmin,
 ) -> schemas.AeronaveOut:
     try:
         aeronave = await service.alternar_status_aeronave(db, aeronave_id)

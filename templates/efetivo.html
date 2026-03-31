@@ -75,7 +75,7 @@
             <div class="form-group">
                 <label class="form-label">Função (Nível de Acesso) *</label>
                 <select id="funcaoInput" class="form-input" required>
-                    <option value="INSPETOR">INSPETOR</option>
+                    <option value="ADMINISTRADOR">ADMINISTRADOR</option>
                     <option value="ENCARREGADO">ENCARREGADO</option>
                     <option value="MANTENEDOR">MANTENEDOR</option>
                 </select>
@@ -218,10 +218,10 @@
             if (!u.ativo) tr.style.opacity = "0.6";
             
             tr.innerHTML = `
-                <td style="padding: 1rem; font-weight: 500;">${u.posto} ${u.nome} ${u.trigrama ? `<span style="font-size:0.75rem; font-family:monospace; background:var(--bg-tertiary); padding:0.1rem 0.4rem; border-radius:4px; margin-left:0.25rem;">${u.trigrama}</span>` : ''}</td>
-                <td style="padding: 1rem; font-family: monospace;">${u.username}</td>
-                <td style="padding: 1rem;"><span style="color: var(${roleColor}); font-weight: 600; font-size: 0.85rem;">${u.funcao}</span></td>
-                <td style="padding: 1rem; color: var(--text-secondary);">${u.ramal || '-'}</td>
+                <td style="padding: 1rem; font-weight: 500;">${escapeHtml(u.posto)} ${escapeHtml(u.nome)} ${u.trigrama ? `<span style="font-size:0.75rem; font-family:monospace; background:var(--bg-tertiary); padding:0.1rem 0.4rem; border-radius:4px; margin-left:0.25rem;">${escapeHtml(u.trigrama)}</span>` : ''}</td>
+                <td style="padding: 1rem; font-family: monospace;">${escapeHtml(u.username)}</td>
+                <td style="padding: 1rem;"><span style="color: var(${roleColor}); font-weight: 600; font-size: 0.85rem;">${escapeHtml(u.funcao)}</span></td>
+                <td style="padding: 1rem; color: var(--text-secondary);">${escapeHtml(u.ramal) || '-'}</td>
                 ${acoesHtml}
             `;
             body.appendChild(tr);
