@@ -149,6 +149,21 @@
         </form>
     </div>
 </div>
+
+<!-- Modal Visualizar Anexo (Visualização Interna) -->
+<div id="modal-anexo" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); z-index: 2000; align-items: center; justify-content: center; padding: 2rem;">
+    <div class="card glass-panel" style="width: 100%; max-width: 1000px; max-height: 90vh; display: flex; flex-direction: column; position: relative; border: 1px solid rgba(255,255,255,0.1); overflow: hidden;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.2);">
+            <h3 style="font-size: 1rem; color: var(--text-primary); margin: 0;">Visualização de Evidência</h3>
+            <button onclick="closeAnexoModal()" class="btn-icon" style="background: var(--bg-tertiary); width: 32px; height: 32px;" title="Fechar">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+        <div id="anexo-content" style="flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; min-height: 400px; background: #000;">
+            <p style="color: var(--text-secondary);">Carregando conteúdo...</p>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -408,19 +423,52 @@
         } catch (e) { }
     }
 
-    async function abrirAnexo(anexoId) {
-        const token = getToken();
-        const res = await fetch(`/panes/${PANE_ID}/anexos/${anexoId}/download`, {
-            headers: { "Authorization": `Bearer ${token}` }
-        });
-        if (!res.ok) {
-            showToast("Falha ao carregar anexo.", "error");
-            return;
+    const modalAnexo = document.getElementById("modal-anexo");
+    const anexoContent = document.getElementById("anexo-content");
+    let currentAnexoUrl = null;
+
+    function closeAnexoModal() {
+        modalAnexo.style.display = "none";
+        if (currentAnexoUrl) {
+            URL.revokeObjectURL(currentAnexoUrl);
+            currentAnexoUrl = null;
         }
-        const blob = await res.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        window.open(blobUrl, "_blank", "noopener,noreferrer");
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+        anexoContent.innerHTML = "";
+    }
+
+    async function abrirAnexo(anexoId) {
+        modalAnexo.style.display = "flex";
+        anexoContent.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">Carregando arquivo...</p>';
+
+        const token = getToken();
+        try {
+            const res = await fetch(`/panes/${PANE_ID}/anexos/${anexoId}/download`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            
+            if (!res.ok) throw new Error("Falha ao carregar");
+
+            const blob = await res.blob();
+            currentAnexoUrl = URL.createObjectURL(blob);
+            const contentType = res.headers.get("Content-Type") || "";
+
+            if (contentType.startsWith("image/")) {
+                anexoContent.innerHTML = `<img src="${currentAnexoUrl}" style="max-width: 100%; max-height: 80vh; object-fit: contain; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">`;
+            } else if (contentType === "application/pdf") {
+                anexoContent.innerHTML = `<iframe src="${currentAnexoUrl}" style="width: 100%; height: 80vh; border: none;"></iframe>`;
+            } else {
+                anexoContent.innerHTML = `
+                    <div style="text-align: center; color: var(--text-primary);">
+                        <p style="margin-bottom: 1.5rem;">O arquivo não pode ser visualizado diretamente no navegador.</p>
+                        <a href="${currentAnexoUrl}" download="anexo" class="btn btn-primary">Baixar Arquivo</a>
+                    </div>
+                `;
+            }
+        } catch (e) {
+            console.error(e);
+            showToast("Falha ao abrir anexo.", "error");
+            closeAnexoModal();
+        }
     }
 
     async function handleUpload(e) {
