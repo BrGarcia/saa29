@@ -87,8 +87,27 @@
         <p style="color: var(--text-secondary); font-size: 0.85rem; text-align: center;">Buscando arquivos...</p>
     </div>
 
-    <form id="formUpload" onsubmit="handleUpload(event)" style="display: flex; gap: 0.5rem; max-width: 600px;">
-        <input type="file" id="arquivoInput" class="form-input" style="padding: 0.3rem; flex: 1; font-size: 0.8rem;" required>
+    <style>
+        /* Customizando o botão "Escolher ficheiro" nativo */
+        #arquivoInput::file-selector-button {
+            background-color: var(--bg-tertiary, #2c2d33);
+            color: var(--text-primary, #e2e8f0);
+            border: 1px solid var(--border-color, #3f414d);
+            padding: 0.4rem 0.8rem;
+            border-radius: var(--radius-sm, 6px);
+            cursor: pointer;
+            margin-right: 0.75rem;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+        #arquivoInput::file-selector-button:hover {
+            background-color: var(--primary-color-dark, #3b82f6);
+            border-color: var(--primary-color, #3b82f6);
+        }
+    </style>
+    <form id="formUpload" onsubmit="handleUpload(event)" style="display: flex; gap: 0.5rem; max-width: 600px; align-items: center;">
+        <input type="file" id="arquivoInput" class="form-input" style="padding: 0.25rem; flex: 1; font-size: 0.8rem; border: 1px dashed var(--border-color); background: var(--bg-primary);" required>
         <button type="submit" class="btn btn-outline" id="btnUpload" title="Anexar">
             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
         </button>
