@@ -74,7 +74,7 @@ class Pane(Base):
     # --- Datas ---
     data_abertura: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=func.now(),
+        default=func.now(),
         nullable=False,
         comment="Data/hora de abertura automática (RN-08)",
     )
@@ -110,7 +110,7 @@ class Pane(Base):
     # --- Auditoria ---
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=func.now(),
+        default=func.now(),
         nullable=False,
     )
     updated_at: Mapped[datetime | None] = mapped_column(
@@ -178,7 +178,7 @@ class Anexo(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=func.now(),
+        default=func.now(),
         nullable=False,
     )
 
@@ -214,7 +214,7 @@ class PaneResponsavel(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=func.now(),
+        default=func.now(),
         nullable=False,
     )
 

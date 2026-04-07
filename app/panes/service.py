@@ -178,12 +178,12 @@ async def listar_panes(
 
         if filtros.texto:
             from app.aeronaves.models import Aeronave
-            texto_like = f"%{_escape_like(filtros.texto)}%"
+            texto_like = f"%{_escape_like(filtros.texto.lower())}%"
             query = query.outerjoin(Aeronave, Pane.aeronave_id == Aeronave.id).where(
                 or_(
-                    Pane.descricao.ilike(texto_like),
-                    Pane.sistema_subsistema.ilike(texto_like),
-                    Aeronave.matricula.ilike(texto_like),
+                    func.lower(Pane.descricao).like(texto_like),
+                    func.lower(Pane.sistema_subsistema).like(texto_like),
+                    func.lower(Aeronave.matricula).like(texto_like),
                 )
             )
 

@@ -21,7 +21,9 @@ class Settings(BaseSettings):
     app_secret_key: str = "INSECURE_DEFAULT_SECRET_KEY_CHANGE_ME_IN_PRODUCTION"
 
     # --- Banco de Dados ---
-    database_url: str = "postgresql+asyncpg://saa29_user:senha@localhost:5432/saa29_db"
+    # Padrão: SQLite para instalação local/monousuário.
+    # Em produção, defina DATABASE_URL no .env apontando para PostgreSQL.
+    database_url: str = "sqlite+aiosqlite:///./saa29_local.db"
 
     # --- JWT ---
     jwt_algorithm: str = "HS256"

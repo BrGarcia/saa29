@@ -32,7 +32,7 @@ def upgrade() -> None:
     sa.Column('matricula', sa.String(length=20), nullable=False, comment='Matrícula operacional (ex: 5900, 5901)'),
     sa.Column('modelo', sa.String(length=50), nullable=False, comment='Modelo da aeronave'),
     sa.Column('status', sa.String(length=20), nullable=False, comment='Status operacional: OPERACIONAL | MANUTENCAO | INATIVA'),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_aeronaves_matricula'), 'aeronaves', ['matricula'], unique=True)
@@ -43,7 +43,7 @@ def upgrade() -> None:
     sa.Column('nome', sa.String(length=100), nullable=False, comment='Nome do equipamento (ex: VUHF2, ELT, MDP)'),
     sa.Column('sistema', sa.String(length=50), nullable=True, comment='Sistema ao qual pertence (ex: COM, NAV, AP)'),
     sa.Column('descricao', sa.String(length=500), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_equipamentos_part_number'), 'equipamentos', ['part_number'], unique=False)
@@ -52,7 +52,7 @@ def upgrade() -> None:
     sa.Column('nome', sa.String(length=50), nullable=False),
     sa.Column('descricao', sa.String(length=300), nullable=True),
     sa.Column('periodicidade_meses', sa.Integer(), nullable=False, comment='Intervalo em meses entre execuções do controle'),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_tipos_controle_nome'), 'tipos_controle', ['nome'], unique=True)
@@ -65,7 +65,7 @@ def upgrade() -> None:
     sa.Column('ramal', sa.String(length=20), nullable=True, comment='Ramal telefônico para contato'),
     sa.Column('username', sa.String(length=50), nullable=False, comment='Nome de usuário único para login'),
     sa.Column('senha_hash', sa.String(length=255), nullable=False, comment='Hash bcrypt da senha do usuário'),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_usuarios_username'), 'usuarios', ['username'], unique=True)
@@ -83,7 +83,7 @@ def upgrade() -> None:
     sa.Column('equipamento_id', sa.Uuid(), nullable=False),
     sa.Column('numero_serie', sa.String(length=100), nullable=False, comment='Número de série único do item físico'),
     sa.Column('status', sa.String(length=20), nullable=False, comment='Status: ATIVO | ESTOQUE | REMOVIDO'),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.ForeignKeyConstraint(['equipamento_id'], ['equipamentos.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -95,11 +95,11 @@ def upgrade() -> None:
     sa.Column('status', sa.String(length=20), nullable=False, comment='Status da pane: ABERTA | EM_PESQUISA | RESOLVIDA'),
     sa.Column('sistema_subsistema', sa.String(length=100), nullable=True, comment='Sistema/subsistema onde a pane foi identificada'),
     sa.Column('descricao', sa.Text(), nullable=False, comment='Descrição detalhada da pane (RN-05)'),
-    sa.Column('data_abertura', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False, comment='Data/hora de abertura automática (RN-08)'),
+    sa.Column('data_abertura', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False, comment='Data/hora de abertura automática (RN-08)'),
     sa.Column('data_conclusao', sa.DateTime(timezone=True), nullable=True, comment='Preenchido automaticamente ao concluir (RN-04)'),
     sa.Column('criado_por_id', sa.Uuid(), nullable=False, comment='Usuário que registrou a pane'),
     sa.Column('concluido_por_id', sa.Uuid(), nullable=True, comment='Usuário que concluiu a pane'),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.ForeignKeyConstraint(['aeronave_id'], ['aeronaves.id'], ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['concluido_por_id'], ['usuarios.id'], ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['criado_por_id'], ['usuarios.id'], ondelete='RESTRICT'),
@@ -112,7 +112,7 @@ def upgrade() -> None:
     sa.Column('pane_id', sa.Uuid(), nullable=False),
     sa.Column('caminho_arquivo', sa.String(length=500), nullable=False, comment='Caminho relativo ao diretório de uploads'),
     sa.Column('tipo', sa.String(length=20), nullable=False, comment='IMAGEM | DOCUMENTO'),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.ForeignKeyConstraint(['pane_id'], ['panes.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -125,7 +125,7 @@ def upgrade() -> None:
     sa.Column('data_vencimento', sa.Date(), nullable=True, comment='Data calculada: data_ultima_exec + periodicidade_meses'),
     sa.Column('status', sa.String(length=20), nullable=False, comment='OK | VENCENDO | VENCIDO'),
     sa.Column('origem', sa.String(length=20), nullable=False, comment='PADRAO (herdado) | ESPECIFICO (adicionado ao item)'),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.ForeignKeyConstraint(['item_id'], ['itens_equipamento.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['tipo_controle_id'], ['tipos_controle.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id'),
@@ -150,7 +150,7 @@ def upgrade() -> None:
     sa.Column('pane_id', sa.Uuid(), nullable=False),
     sa.Column('usuario_id', sa.Uuid(), nullable=False),
     sa.Column('papel', sa.String(length=30), nullable=False, comment='Papel do responsável: INSPETOR | ENCARREGADO | MANTENEDOR'),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     sa.ForeignKeyConstraint(['pane_id'], ['panes.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['usuario_id'], ['usuarios.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id')

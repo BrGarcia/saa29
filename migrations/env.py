@@ -2,6 +2,7 @@
 migrations/env.py
 Ambiente Alembic para o projeto SAA29.
 Suporta migração síncrona (padrão Alembic) e async (via asyncio.run).
+Compatível com SQLite (render_as_batch) e PostgreSQL.
 """
 
 import asyncio
@@ -35,11 +36,15 @@ config = context.config
 settings = get_settings()
 database_url = settings.database_url
 
+# Definir a URL no config do Alembic (mantendo o driver async para online mode)
 if database_url:
     config.set_main_option("sqlalchemy.url", database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+# Detectar se estamos usando SQLite para habilitar batch mode
+_using_sqlite = "sqlite" in database_url.lower()
 
 
 def run_migrations_offline() -> None:
@@ -51,6 +56,8 @@ def run_migrations_offline() -> None:
     # Para o modo offline (que é síncrono), precisamos garantir um driver síncrono
     if url and "asyncpg" in url:
         url = url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+    if url and "aiosqlite" in url:
+        url = url.replace("sqlite+aiosqlite", "sqlite")
 
     context.configure(
         url=url,
@@ -58,6 +65,8 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
+        compare_server_default=True,
+        render_as_batch=_using_sqlite,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -69,13 +78,15 @@ def do_run_migrations(connection: Connection) -> None:
         connection=connection,
         target_metadata=target_metadata,
         compare_type=True,
+        compare_server_default=True,
+        render_as_batch=_using_sqlite,
     )
     with context.begin_transaction():
         context.run_migrations()
 
 
 async def run_async_migrations() -> None:
-    """Versão assíncrona para compatibilidade com asyncpg."""
+    """Versão assíncrona para compatibilidade com asyncpg/aiosqlite."""
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

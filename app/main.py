@@ -31,14 +31,9 @@ FROTA_PADRAO = (
 
 async def _ensure_default_aeronaves() -> None:
     """
-    Garante a frota padrão em ambientes reais, sem interferir nos testes em SQLite.
+    Garante a frota padrão no banco de dados (SQLite ou PostgreSQL).
+    Cria aeronaves iniciais se não existirem.
     """
-    from app.config import get_settings
-    settings = get_settings()
-
-    if "sqlite" in settings.database_url.lower():
-        return
-
     from sqlalchemy import select
 
     import app.aeronaves.models  # garante mapeamentos

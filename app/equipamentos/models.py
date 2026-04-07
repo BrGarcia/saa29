@@ -45,7 +45,7 @@ class Equipamento(Base):
         comment="Sistema ao qual pertence (ex: COM, NAV, AP)",
     )
     descricao: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now(), nullable=True,
         comment="Atualizado automaticamente em cada modificação",
@@ -78,7 +78,7 @@ class TipoControle(Base):
         Integer, nullable=False,
         comment="Intervalo em meses entre execuções do controle",
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
 
     # --- Relacionamentos ---
     equipamento_controles: Mapped[list["EquipamentoControle"]] = relationship(
@@ -138,7 +138,7 @@ class ItemEquipamento(Base):
         String(20), nullable=False, default=StatusItem.ATIVO.value,
         comment="Status: ATIVO | ESTOQUE | REMOVIDO",
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now(), nullable=True,
         comment="Atualizado automaticamente em cada modificação",
@@ -222,7 +222,7 @@ class ControleVencimento(Base):
         String(20), nullable=False, default=OrigemControle.PADRAO.value,
         comment="PADRAO (herdado) | ESPECIFICO (adicionado ao item)",
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
 
     # --- Relacionamentos ---
     item: Mapped["ItemEquipamento"] = relationship(back_populates="controles_vencimento")
