@@ -3,6 +3,12 @@ set -e
 
 echo "🚀 Iniciando SAA29..."
 
+# Garantir que o diretório de uploads exista no volume
+if [ -n "$UPLOAD_DIR" ]; then
+    echo "📁 Criando diretório de uploads em $UPLOAD_DIR..."
+    mkdir -p "$UPLOAD_DIR"
+fi
+
 # 1. Executar migrações do banco
 echo "🔄 Rodando migrações (Alembic)..."
 python -m alembic upgrade head
