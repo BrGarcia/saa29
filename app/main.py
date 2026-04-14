@@ -119,9 +119,11 @@ def _register_middlewares(app: FastAPI) -> None:
     current_settings = get_settings()
 
     # Trusted Hosts (Ajuste para seu domínio real em produção) (AUD-07)
+    # Railway pode usar diversos domínios, permitindo "*" se não houver lista específica
+    allowed_hosts = current_settings.allowed_hosts or ["*"]
     app.add_middleware(
         TrustedHostMiddleware, 
-        allowed_hosts=["localhost", "127.0.0.1", "testserver"] + (current_settings.allowed_hosts or [])
+        allowed_hosts=["localhost", "127.0.0.1", "testserver"] + allowed_hosts
     )
 
     app.add_middleware(

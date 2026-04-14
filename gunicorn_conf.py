@@ -1,7 +1,9 @@
 import multiprocessing
+import os
 
-# Bind
-bind = "0.0.0.0:8000"
+# Bind - Railway uses the PORT environment variable
+port = os.getenv("PORT", "8000")
+bind = f"0.0.0.0:{port}"
 
 # Workers
 workers = multiprocessing.cpu_count() * 2 + 1
