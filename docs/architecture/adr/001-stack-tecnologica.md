@@ -14,14 +14,14 @@ A equipe possui familiaridade com Python. O sistema precisa ser mantido por dife
 
 ## Decisão
 
-Adotar **FastAPI + SQLAlchemy 2.x + PostgreSQL 16 + Pydantic v2** como stack principal.
+Adotar **FastAPI + SQLAlchemy 2.x + SQLite (Local) / PostgreSQL 16 (Produção)** como stack principal.
 
 | Camada | Escolha | Versão |
 |--------|---------|--------|
 | Framework Web | FastAPI | 0.115.x |
 | ORM | SQLAlchemy (async) | 2.0.x |
-| Banco de Dados | PostgreSQL | 16 |
-| Migrações | Alembic | 1.14.x |
+| Banco de Dados | SQLite (Local) / PostgreSQL (Prod) | 3 / 16 |
+| Migrações | Alembic (Batch Mode) | 1.14.x |
 | Validação | Pydantic | v2 |
 | Auth | python-jose + passlib | latest |
 | Config | pydantic-settings | 2.x |
@@ -42,12 +42,13 @@ Adotar **FastAPI + SQLAlchemy 2.x + PostgreSQL 16 + Pydantic v2** como stack pri
 - Validação de entrada com erros detalhados via Pydantic
 - Queries assíncronas para melhor throughput
 - Migrações versionadas com Alembic
-- Tipagem estrita facilita manutenção a longo prazo
+- SQLite permite execução local residindo em arquivo único, facilitando testes e deploy monousuário
 
 **Negativas / Trade-offs:**
 - Curva de aprendizado maior para devs acostumados com Django síncrono
 - `async/await` em toda a camada de dados requer atenção
-- PostgreSQL requer infraestrutura dedicada (não embarcado como SQLite)
+- SQLite possui limitações em escritas paralelas (resolvido via WAL mode e single-writer pattern)
+- SQLite requer Alembic Batch Mode para migrações complexas
 
 ## Referências
 - [FastAPI Docs](https://fastapi.tiangolo.com/)
