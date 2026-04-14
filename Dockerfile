@@ -17,9 +17,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Criar diretório de uploads
-RUN mkdir -p uploads
+RUN mkdir -p uploads && chmod +x scripts/start.sh
 
 EXPOSE 8000
 
-# Usar Gunicorn por padrão (recomendado para produção com Uvicorn workers)
-CMD ["gunicorn", "-c", "gunicorn_conf.py", "app.main:app"]
+# Usar o script de inicialização para rodar migrações e seed antes do app
+CMD ["/bin/bash", "scripts/start.sh"]
+
