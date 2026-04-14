@@ -36,3 +36,6 @@ pytest-asyncio==0.24.0
 httpx==0.28.1             # TestClient assíncrono
 anyio==4.7.0
 aiosqlite>=0.21.0         # Driver SQLite async para testes in-memory
+
+boto3
+python-dotenv
