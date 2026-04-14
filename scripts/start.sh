@@ -20,7 +20,6 @@ echo "🔄 Rodando migrações (Alembic)..."
 python -m alembic upgrade head
 
 # 2. Popular dados iniciais (seed)
-# O script de seed agora é idempotente e usa variáveis de ambiente
 echo "🌱 Populando banco de dados..."
 python -m scripts.seed
 
