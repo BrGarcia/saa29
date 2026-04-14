@@ -52,6 +52,7 @@ class PaneUpdate(BaseModel):
     """Payload para edição de pane aberta (RF-10). RN-03: apenas panes abertas."""
     sistema_subsistema: str | None = Field(default=None, max_length=100)
     descricao: str | None = None
+    comentarios: str | None = None
     status: StatusPane | None = Field(
         default=None,
         description="Transições: ABERTA→RESOLVIDA",
@@ -99,6 +100,7 @@ class PaneOut(BaseModel):
     data_abertura: datetime
     data_conclusao: datetime | None
     observacao_conclusao: str | None
+    comentarios: str | None
     criado_por_id: uuid.UUID
     criador: UsuarioOut | None = None
     concluido_por_id: uuid.UUID | None
@@ -122,6 +124,7 @@ class PaneListItem(BaseModel):
     data_abertura: datetime
     data_conclusao: datetime | None
     observacao_conclusao: str | None
+    comentarios: str | None
     criado_por_id: uuid.UUID
     criador: UsuarioOut | None = None
     ativo: bool

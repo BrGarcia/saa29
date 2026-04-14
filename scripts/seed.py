@@ -4,9 +4,14 @@ Popula o banco de dados com dados iniciais para desenvolvimento.
 Executar: python -m scripts.seed
 """
 import asyncio
+import os
+from dotenv import load_dotenv
 from app.database import get_session_factory
 from app.auth.security import hash_senha
 from sqlalchemy import select
+
+# Carregar variáveis do .env explicitamente
+load_dotenv()
 
 # Importar TODOS os módulos para resolver os nomes das classes em referências de string cruzadas (avoid InvalidRequestError)
 import app.auth.models
@@ -24,26 +29,47 @@ FROTA_PADRAO = [
 
 
 async def seed():
+    # Carregar variáveis do .env explicitamente dentro da função
+    load_dotenv(override=True)
+    
+    admin_user = os.getenv("DEFAULT_ADMIN_USER", "admin").strip()
+    admin_pass = os.getenv("DEFAULT_ADMIN_PASSWORD", "admin123").strip()
+    
     AsyncSessionLocal = get_session_factory()
     async with AsyncSessionLocal() as session:
-        # Verificar se já existe o admin
-        result = await session.execute(select(Usuario).where(Usuario.username == "admin"))
+        # Verificar se já existe o admin com o username configurado
+        result = await session.execute(select(Usuario).where(Usuario.username == admin_user))
         admin = result.scalar_one_or_none()
         
         if not admin:
-            admin = Usuario(
-                nome="Administrador",
-                posto="-",
-                especialidade="-",
-                funcao="ADMINISTRADOR",
-                ramal="1234",
-                username="admin",
-                senha_hash=hash_senha("admin123"),
-            )
-            session.add(admin)
-            print("✅ Usuário admin adicionado.")
+            # Caso não exista o novo admin, verificar se existe o antigo 'admin' para renomear/atualizar
+            if admin_user != "admin":
+                res_old = await session.execute(select(Usuario).where(Usuario.username == "admin"))
+                old_admin = res_old.scalar_one_or_none()
+                if old_admin:
+                    print(f"🔄 Atualizando admin antigo para {admin_user}...")
+                    old_admin.username = admin_user
+                    old_admin.senha_hash = hash_senha(admin_pass)
+                    admin = old_admin
+            
+            if not admin:
+                print(f"➕ Criando usuário {admin_user}...")
+                admin = Usuario(
+                    nome="Administrador",
+                    posto="-",
+                    especialidade="-",
+                    funcao="ADMINISTRADOR",
+                    ramal="1234",
+                    username=admin_user,
+                    senha_hash=hash_senha(admin_pass),
+                )
+                session.add(admin)
+            
+            print(f"✅ Usuário {admin_user} configurado.")
         else:
-            print("ℹ️ Usuário admin já existe.")
+            print(f"ℹ️ Usuário {admin_user} já existe. Atualizando senha...")
+            admin.senha_hash = hash_senha(admin_pass)
+            print("✅ Senha atualizada.")
 
         aeronaves_dados = [
             {"matricula": matricula, "serial_number": f"SN-{matricula}"}

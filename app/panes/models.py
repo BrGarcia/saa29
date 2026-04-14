@@ -89,6 +89,11 @@ class Pane(Base):
         nullable=True,
         comment="Ação corretiva ou observações de conclusão",
     )
+    comentarios: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Comentários ou observações internas de manutenção",
+    )
     ativo: Mapped[bool] = mapped_column(
         default=True,
         index=True,

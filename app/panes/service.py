@@ -306,9 +306,13 @@ async def editar_pane(
 
     status_atual = StatusPane(pane.status)
 
-    # RN-03: apenas panes abertas podem ser editadas por este fluxo
-    if status_atual != StatusPane.ABERTA:
-        raise ValueError("Apenas panes abertas podem ser editadas.")
+    # Permitir atualização de comentários independente do status
+    if dados.comentarios is not None:
+        pane.comentarios = dados.comentarios
+
+    # RN-03: apenas panes abertas podem ser editadas (exceto comentários)
+    if status_atual != StatusPane.ABERTA and (dados.descricao is not None or dados.sistema_subsistema is not None or dados.status is not None):
+        raise ValueError("Apenas panes abertas podem ter descrição ou status alterados.")
 
     # Atualizar campos
     if dados.descricao is not None:
@@ -529,6 +533,40 @@ async def buscar_anexo(
         )
     )
     return result.scalar_one_or_none()
+
+
+async def excluir_anexo(
+    db: AsyncSession,
+    pane_id: uuid.UUID,
+    anexo_id: uuid.UUID,
+) -> bool:
+    """
+    Remove um anexo do banco e deleta o arquivo físico.
+    """
+    anexo = await buscar_anexo(db, pane_id, anexo_id)
+    if not anexo:
+        raise ValueError("Anexo não encontrado.")
+
+    # Resolver caminho físico
+    try:
+        caminho_fisico = resolver_caminho_anexo(anexo.caminho_arquivo)
+    except ValueError:
+        caminho_fisico = None
+
+    # Deletar do banco
+    await db.delete(anexo)
+    await db.flush()
+
+    # Deletar arquivo físico (não bloqueante)
+    if caminho_fisico and caminho_fisico.exists() and caminho_fisico.is_file():
+        def _remover_fisico():
+            try:
+                os.remove(caminho_fisico)
+            except OSError:
+                pass
+        await anyio.to_thread.run_sync(_remover_fisico)
+
+    return True
 
 
 def resolver_caminho_anexo(caminho_relativo: str) -> Path:

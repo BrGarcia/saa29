@@ -213,6 +213,28 @@ async def listar_anexos(
     return [schemas.AnexoOut.model_validate(a) for a in anexos]
 
 
+@router.delete(
+    "/{pane_id}/anexos/{anexo_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remover anexo da pane",
+)
+async def excluir_anexo(
+    pane_id: uuid.UUID,
+    anexo_id: uuid.UUID,
+    db: DBSession,
+    usuario_atual: CurrentUser,
+) -> None:
+    """Remove o anexo (banco e arquivo físico). Restrito a Encarregados/Admins."""
+    ensure_role(usuario_atual, "ENCARREGADO", "ADMINISTRADOR")
+    try:
+        await service.excluir_anexo(db, pane_id, anexo_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
 @router.get(
     "/{pane_id}/anexos/{anexo_id}/download",
     summary="Baixar anexo autenticado",
