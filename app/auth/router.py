@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.auth import schemas, service
-from app.auth.security import criar_token, invalidar_token, decodificar_token
+from app.auth.security import criar_token, decodificar_token
 from app.dependencies import DBSession, CurrentUser, AdminRequired, EncarregadoRequired, oauth2_scheme
 
 router = APIRouter()
@@ -19,14 +19,18 @@ router = APIRouter()
 #  Autenticação
 # ------------------------------------------------------------------ #
 
+from fastapi import Response
+from app.dependencies import get_token_from_request
+
 @router.post(
     "/login",
     response_model=schemas.Token,
     summary="Login de usuário",
-    description="Autentica o usuário e retorna um JWT de acesso. (RF-01)",
+    description="Autentica o usuário e retorna um JWT (agora também via Cookie HttpOnly). (RF-01)",
 )
 async def login(
     db: DBSession,
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
 ) -> schemas.Token:
     """
@@ -35,6 +39,7 @@ async def login(
         2. Buscar usuário no banco
         3. Verificar senha com bcrypt
         4. Gerar e retornar JWT
+        5. Lançar o token também via Cookie seguro
     """
     usuario = await service.autenticar_usuario(
         db, form_data.username, form_data.password
@@ -47,6 +52,16 @@ async def login(
         )
 
     token = criar_token(dados={"sub": usuario.username})
+    
+    # Prevenção contra XSS: o browser guardará e enviará automaticamente o token (HttpOnly)
+    response.set_cookie(
+        key="saa29_token",
+        value=token,
+        httponly=True,
+        samesite="lax"
+        # secure=True  # Ativar em produção num ambiente puramente HTTPS
+    )
+
     return schemas.Token(
         access_token=token,
         token_type="bearer",
@@ -61,17 +76,30 @@ async def login(
 )
 async def logout(
     usuario_atual: CurrentUser,
-    token: str = Depends(oauth2_scheme)
+    db: DBSession,
+    response: Response,
+    token: str = Depends(get_token_from_request)
 ) -> None:
     """
-    Invalida a sessão do usuário via blacklist do JTI (AUD-03).
+    Invalida a sessão do usuário via blacklist do JTI e expurga o Cookie (HttpOnly).
+    A blacklist é persistida no banco, sobrevivendo a restarts e escalonamento.
     """
+    # Deleta cookie do lado do client
+    response.delete_cookie(key="saa29_token")
     try:
         payload = decodificar_token(token)
         jti = payload.get("jti")
-        invalidar_token(jti)
+        exp = payload.get("exp")
+        if jti and exp:
+            from datetime import datetime, timezone
+            from app.auth.models import TokenBlacklist
+            db.add(TokenBlacklist(
+                jti=jti,
+                expira_em=datetime.fromtimestamp(exp, tz=timezone.utc)
+            ))
+            await db.commit()
     except Exception:
-        # Se o token já for inválido ou não tiver JTI, logout é considerado ok.
+        # Se o token já for inválido, logout é considerado ok.
         pass
     return None
 

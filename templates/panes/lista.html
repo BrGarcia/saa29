@@ -395,12 +395,24 @@
             if(fileInput.files.length > 0) {
                 const formData = new FormData();
                 formData.append("arquivo", fileInput.files[0]);
-                const token = getToken();
-                await fetch(`/panes/${pane.id}/anexos`, {
+                const uploadResp = await fetch(`/panes/${pane.id}/anexos`, {
                     method: "POST",
                     body: formData,
-                    headers: { "Authorization": `Bearer ${token}` }
+                    credentials: "same-origin"
                 });
+                
+                if (!uploadResp.ok) {
+                    let errMsg = "Erro no envio";
+                    try {
+                        const errData = await uploadResp.json();
+                        errMsg = errData.detail || errMsg;
+                    } catch(e) {}
+                    
+                    showToast(`Pane criada, mas o anexo falhou: ${errMsg}`, "warning");
+                    closeNovaPaneModal();
+                    loadPanes();
+                    return; // Interrompe fluxo de sucesso silencioso
+                }
             }
 
             showToast("Relato de Pane Registrado!", "success");

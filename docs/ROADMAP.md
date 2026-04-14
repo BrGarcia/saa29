@@ -16,6 +16,18 @@ v5.0: Ecossistema Total    ░░ Visão Final (IA & Supply)
 
 ---
 
+## 🛠️ Correções e Implementações Imediatas (Backlog Codex)
+*Foco: Resolução de débitos técnicos e falhas de segurança identificados na auditoria Codex (14/04/26).*
+
+- [ ] **Segurança (Logout - Critical):** Fazer `clearAuth()` chamar `POST /auth/logout` no backend antes de limpar o storage no client; resolver dependência de blacklist em memória para ambientes multi-workers.
+- [ ] **Infraestrutura (DB - High):** Remover o rewrite silencioso da configuração de `DATABASE_URL` para SQLite em ambiente de desenvolvimento. O sistema deve validar e respeitar a URL informada.
+- [ ] **Confiabilidade (Uploads - High):** Interromper o fluxo de criação da pane quando ocorrer falha no envio do anexo, checando corretamente o status da resposta HTTP no frontend ou criando um fluxo transacional único.
+- [ ] **Segurança (Token - Medium):** Migrar a autenticação do frontend que hoje usa `localStorage` explícito para Cookies com `HttpOnly` e `SameSite`, bloqueando o acesso direto às proteções de rotas via navegador.
+- [x] **Documentação (Docs - Medium):** Atualizar documentação principal e a documentação da API, removendo defasagens de papéis descontinuados, ajustando referências históricas para `archives` e limpando artefatos mortos.
+- [ ] **Manutenção (Code Cleanup - Low):** Excluir esquemas (`LoginRequest`), imports mortos (`IntegrityError`) e código/métodos que não estão conectados à API ou à interface.
+
+---
+
 ## ✅ v1.x – Estabilização e Refinamento (Atual)
 *Foco: Usabilidade Web, Performance e Segurança.*
 - [x] **v1.0.0**: Lançamento estável com CRUD de Panes, Frota e Efetivo.

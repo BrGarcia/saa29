@@ -10,8 +10,8 @@ const toggleThemeBtn = document.getElementById("theme-toggle");
 function initTheme() {
     let theme = localStorage.getItem(THEME_KEY);
     if (!theme) {
-        // Fallback p/ preferência do SO
-        theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        // Default: Modo Claro (IGNORA preferência do SO se não houver escolha salva)
+        theme = "light";
     }
     document.documentElement.setAttribute("data-theme", theme);
     updateThemeIcon(theme);
@@ -35,32 +35,26 @@ function updateThemeIcon(theme) {
     }
 }
 
-// 2. JWT & HTTP Auth Header Interceptor logic
-const TOKEN_KEY = "saa29_access_token";
-
-function setToken(token) {
-    localStorage.setItem(TOKEN_KEY, token);
-}
-
-function getToken() {
-    return localStorage.getItem(TOKEN_KEY);
-}
-
+// 2. JWT Cookies Interceptor logic
 function clearAuth() {
-    localStorage.removeItem(TOKEN_KEY);
+    try {
+        fetch("/auth/logout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" } // Fetch via cookies auth automatically
+        }).catch(e => {});
+    } catch(e) {}
+    
+    localStorage.removeItem("saa29_user");
     window.location.href = "/login";
 }
 
 async function apiFetch(endpoint, options = {}) {
-    const token = getToken();
+    // Para endpoints na mesma origem, envia os Cookies de sessão (HttpOnly)
+    options.credentials = 'same-origin';
+    
     const headers = {
         ...(options.headers || {})
     };
-
-    // Auto-inject Authorization
-    if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-    }
 
     // Auto-inject JSON se aplicável
     if (options.body && !(options.body instanceof FormData) && typeof options.body === 'object') {

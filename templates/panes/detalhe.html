@@ -459,10 +459,9 @@
         modalAnexo.style.display = "flex";
         anexoContent.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">Carregando arquivo...</p>';
 
-        const token = getToken();
         try {
             const res = await fetch(`/panes/${PANE_ID}/anexos/${anexoId}/download`, {
-                headers: { "Authorization": `Bearer ${token}` }
+                credentials: "same-origin"
             });
             
             if (!res.ok) throw new Error("Falha ao carregar");
@@ -502,11 +501,10 @@
         btn.disabled = true;
 
         try {
-            const token = getToken();
             const res = await fetch(`/panes/${PANE_ID}/anexos`, {
                 method: "POST",
                 body: formData,
-                headers: { "Authorization": `Bearer ${token}` }
+                credentials: "same-origin"
             });
 
             if (!res.ok) throw new Error("Falha no upload.");

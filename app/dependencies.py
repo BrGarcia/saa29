@@ -38,8 +38,26 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
+from fastapi import Request
+
+def get_token_from_request(
+    request: Request,
+    token_header: str | None = Depends(OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False))
+) -> str:
+    """Extrai JWT: tenta primeiro do header (Swagger/API), depois do Cookie (Web)."""
+    if token_header:
+        return token_header
+    token_cookie = request.cookies.get("saa29_token")
+    if token_cookie:
+        return token_cookie
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Não autenticado.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
 async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
+    token: Annotated[str, Depends(get_token_from_request)],
     db: AsyncSession = Depends(get_db),
 ) -> Usuario:
     """
@@ -62,8 +80,17 @@ async def get_current_user(
         from app.auth.security import decodificar_token
         payload = decodificar_token(token)
         username: str | None = payload.get("sub")
-        if username is None:
+        jti: str | None = payload.get("jti")
+        if username is None or jti is None:
             raise credentials_exception
+            
+        # Verificar Blacklist no banco de dados
+        from sqlalchemy import select
+        from app.auth.models import TokenBlacklist
+        result = await db.execute(select(TokenBlacklist).where(TokenBlacklist.jti == jti))
+        if result.scalar_one_or_none() is not None:
+            raise credentials_exception
+            
     except JWTError:
         raise credentials_exception
 

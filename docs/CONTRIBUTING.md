@@ -1,25 +1,24 @@
 # CONTRIBUTING.md – Guia de Contribuição
 
 **Projeto:** SAA29 – Sistema de Gestão de Panes – Eletrônica A-29  
-**Metodologia:** Método Akita · **Fase atual:** Dia 3 → Dia 4
+**Metodologia:** Método Akita · **Fase atual:** v1.x (Estabilização)
 
 ---
 
 ## 1. Contexto
 
-A estrutura do projeto foi criada no **Dia 2 (Fundação)** do Método Akita. Todo código funcional está declarado com `raise NotImplementedError` e um comentário `# TODO (Dia 4)` que descreve o algoritmo a ser implementado.
+O projeto saiu da fase de prototipação (Dia 3/4) e o core da aplicação está funcional. O desenvolvimento atual foca na estabilização, correções de bugs, segurança (autenticação) e experiência de usuário no frontend Vanilla JS.
 
-**Sua missão como equipe de implementação:**
-1. **Dia 3:** Implementar os testes nos stubs de `tests/test_*.py`
-2. **Dia 4:** Substituir cada `raise NotImplementedError` pela lógica real
-3. **Nunca** implementar lógica sem o teste correspondente escrito antes
+**Sua missão como desenvolvedor(a):**
+1. **Nunca** submeter código sem garantir os testes correspondentes (ou criá-los).
+2. Manter a divisão restrita de camadas (Rotas vs Serviços).
 
 ---
 
 ## 2. Pré-requisitos
 
 - Python **3.12+**
-- PostgreSQL **16** (local ou Docker)
+- SQLite **(Local)** ou PostgreSQL **(Produção)**
 - Git configurado com seu nome e e-mail
 
 ```bash
@@ -111,8 +110,7 @@ fix(equipamentos): corrige calculo de data de vencimento
 - **Título:** seguir convenção de commits
 - **Descrição:** descrever o que foi implementado e como testar
 - **Checklist obrigatório antes de abrir PR:**
-  - [ ] Testes escritos e passando (`pytest tests/ -v`)
-  - [ ] Nenhum `raise NotImplementedError` remanescente no escopo do PR
+  - [ ] Testes escritos e passando (`pytest tests/ -v` ou `pytest tests/ -q`)
   - [ ] Sem credenciais ou dados sensíveis no código
   - [ ] Migrações geradas se houver mudança de model
 
@@ -174,38 +172,11 @@ except ValueError as e:
 
 ---
 
-## 6. Onde Implementar: Mapa dos TODO
+## 6. Onde Implementar: Camadas
 
-Cada arquivo de serviço contém comentários com o algoritmo completo. Exemplo:
-
-```python
-# app/panes/service.py
-
-async def concluir_pane(db, pane_id, concluido_por_id):
-    """
-    Algoritmo (SPECS §7 – Concluir Pane):
-        1. Verificar se já está RESOLVIDA
-        2. status = RESOLVIDA
-        3. data_conclusao = NOW() (RN-04)
-        4. concluido_por = usuário logado
-        5. Salvar alterações
-    """
-    # TODO (Dia 4):
-    # pane = await buscar_pane(db, pane_id)
-    # if pane.status == StatusPane.RESOLVIDA:
-    #     raise ValueError("Pane já está resolvida.")
-    # ...
-    raise NotImplementedError  # ← substituir pela lógica
-```
-
-### Ordem de implementação recomendada
-
-1. `app/auth/security.py` — `hash_senha`, `verificar_senha`, `criar_token`, `decodificar_token`
-2. `app/dependencies.py` — `get_current_user`
-3. `app/auth/service.py` e `router.py`
-4. `app/aeronaves/service.py` e `router.py`
-5. `app/panes/service.py` e `router.py`
-6. `app/equipamentos/service.py` e `router.py` (mais complexo — herança de controles)
+- **`router.py`**: Apenas recebe a requisição HTTP, delega para o service e serializa a resposta em Pydantic ou HTML.
+- **`service.py`**: Toda a lógica pesada, validações entre tabelas, regras (como preencher status dinamicamente ou manipular descrições vazias) e exceções.
+- **`models.py`**: Apenas declarações de tipagem do banco. Sem métodos lógicos extensivos além de repr ou propriedades muito simples.
 
 ---
 

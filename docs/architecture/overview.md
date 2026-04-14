@@ -25,7 +25,7 @@ O sistema adota **Arquitetura em Camadas** (_Layered Architecture_) com separaç
 └───────────────────┬─────────────────────────────────┘
                     │
 ┌───────────────────▼─────────────────────────────────┐
-│           PostgreSQL 16 (banco de dados)             │
+│       PostgreSQL 16 / SQLite (banco de dados)       │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -113,9 +113,8 @@ Diagrama completo: [`03_MODEL_DB.md`](./03_MODEL_DB.md)
 
 | ADR | Decisão |
 |-----|---------|
-| [ADR-001](./adr/001-stack-tecnologica.md) | Stack: FastAPI + SQLAlchemy 2 + PostgreSQL |
+| [ADR-001](./adr/001-stack-tecnologica.md) | Stack: FastAPI + SQLAlchemy 2 + PostgreSQL/SQLite |
 | [ADR-002](./adr/002-autenticacao-jwt.md) | Autenticação stateless via JWT |
-| [ADR-003](./adr/003-heranca-controles-vencimento.md) | Herança automática de controles de vencimento |
 
 ---
 

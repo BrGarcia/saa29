@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-theme="dark">
+<html lang="pt-BR" data-theme="light">
 
 <head>
     <meta charset="UTF-8">
@@ -82,12 +82,12 @@
     <!-- Script de Inicialização da Autenticação -->
     <script>
         document.addEventListener("DOMContentLoaded", () => {
-            const token = localStorage.getItem("saa29_access_token");
-            if (!token) {
+            const userJson = localStorage.getItem("saa29_user");
+            if (!userJson) {
                 window.location.href = "/login";
             } else {
                 try {
-                    const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
+                    const user = JSON.parse(userJson);
                     const funcao = user.funcao ? user.funcao.toUpperCase() : '';
                     if (funcao === 'ADMINISTRADOR' || funcao === 'ENCARREGADO') {
                         const adminNav = document.getElementById('admin-nav');

@@ -44,13 +44,6 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    @model_validator(mode="after")
-    def validate_db_url(self):
-        """Força SQLite se em development e a URL for a padrão do exemplo (AUD-07)."""
-        if self.app_env == "development" and "postgresql" in self.database_url:
-             # Se o usuário não trocou a URL padrão no .env local, usamos SQLite para facilitar
-             self.database_url = "sqlite+aiosqlite:///./saa29_local.db"
-        return self
 
     @model_validator(mode="after")
     def validate_secret(self):

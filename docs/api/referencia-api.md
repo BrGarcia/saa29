@@ -26,7 +26,7 @@ password=senha123
     "id": "uuid",
     "nome": "Ten João Silva",
     "posto": "Ten",
-    "funcao": "INSPETOR",
+    "funcao": "ENCARREGADO",
     "username": "joao.silva"
   }
 }
@@ -173,7 +173,7 @@ Cadastra tipo de equipamento.
 ```
 
 ### `POST /equipamentos/itens`
-Cria item físico. **Herda automaticamente** os controles do equipamento (MODEL_DB §5.1).
+Cria item físico associado a um equipamento.
 
 ```json
 {
@@ -183,7 +183,7 @@ Cria item físico. **Herda automaticamente** os controles do equipamento (MODEL_
 ```
 
 ### `POST /equipamentos/{equip_id}/controles/{tipo_id}`
-Associa tipo de controle ao equipamento e **propaga** para todos os itens existentes (MODEL_DB §5.2).
+Associa tipo de controle ao equipamento e aos seus respectivos itens cadastrados.
 
 ### `PATCH /equipamentos/vencimentos/{id}/executar`
 Registra execução de controle. Recalcula `data_vencimento`.

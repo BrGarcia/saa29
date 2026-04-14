@@ -16,9 +16,7 @@ settings = get_settings()
 # Contexto bcrypt para hashing de senhas
 _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Blacklist em memória para tokens invalidados (logout).
-# Em produção com múltiplas instâncias, usar Redis.
-_token_blacklist: set[str] = set()
+
 
 
 def hash_senha(senha_plana: str) -> str:
@@ -76,7 +74,8 @@ def decodificar_token(token: str) -> dict:
     """
     Decodifica e valida um token JWT.
 
-    Verifica se o JTI está na blacklist (SEC-03).
+    A verificação se o JTI está na blacklist (SEC-03) será delegada 
+    à dependency que tem acesso ao banco de dados, para suportar multi-workers.
 
     Args:
         token: string JWT recebida na requisição.
@@ -85,19 +84,7 @@ def decodificar_token(token: str) -> dict:
         Dicionário com o payload decodificado.
 
     Raises:
-        JWTError: se o token for inválido, expirado, adulterado ou estiver na blacklist.
+        JWTError: se o token for inválido, expirado ou adulterado.
     """
     payload = jwt.decode(token, settings.app_secret_key, algorithms=[settings.jwt_algorithm])
-    
-    # Validar blacklist
-    jti = payload.get("jti")
-    if jti in _token_blacklist:
-        raise JWTError("Token invalidado (blacklist).")
-    
     return payload
-
-
-def invalidar_token(jti: str) -> None:
-    """Adiciona um JTI à blacklist de tokens."""
-    if jti:
-        _token_blacklist.add(jti)

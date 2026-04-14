@@ -56,9 +56,9 @@ uvicorn app.main:app --reload # Inicia servidor: http://localhost:8000
 - [`Referência API`](./api/referencia-api.md): Endpoints e payloads.
 
 ### 🔄 Processo e Histórico
-- [`ROADMAP.md`](../ROADMAP.md): Planejamento de fases.
-- [`CHANGELOG.md`](../CHANGELOG.md): Histórico de versões.
-- [`CONTRIBUTING.md`](../CONTRIBUTING.md): Guia de contribuição.
+- [`ROADMAP.md`](./ROADMAP.md): Planejamento de fases.
+- [`CHANGELOG.md`](./CHANGELOG.md): Histórico de versões.
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md): Guia de contribuição.
 
 ---
 

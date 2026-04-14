@@ -116,3 +116,31 @@ class Usuario(Base):
 
     def __repr__(self) -> str:
         return f"<Usuario id={self.id} username={self.username!r} funcao={self.funcao!r}>"
+
+
+class TokenBlacklist(Base):
+    """
+    Armazena os identificadores (JTI) dos de tokens JWT invalidados (logout)
+    para permitir escalabilidade e sobrevivência a reinicializações.
+    """
+    __tablename__ = "token_blacklist"
+
+    jti: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        index=True,
+        comment="JWT ID do token invalidado"
+    )
+    expira_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        comment="Data de expiração original do token. Útil para limpeza periódica da tabela."
+    )
+    criado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=func.now(),
+        nullable=False,
+    )
+
+    def __repr__(self) -> str:
+        return f"<TokenBlacklist jti={self.jti!r}>"

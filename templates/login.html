@@ -43,9 +43,9 @@
 
 {% block scripts %}
 <script>
-    // Se o usuário já tiver token local, mande p/ dashboard.
+    // Se o usuário já estiver na sessão, mande p/ dashboard.
     document.addEventListener("DOMContentLoaded", () => {
-        if (localStorage.getItem("saa29_access_token")) {
+        if (localStorage.getItem("saa29_user")) {
             window.location.href = "/panes";
         }
     });
@@ -76,8 +76,7 @@
 
             const data = await response.json();
 
-            // Sucesso! Grava o token e dados do usuário
-            setToken(data.access_token);
+            // Grava APENAS metadados do usuário para renderização UI condicional
             if (data.usuario) {
                 localStorage.setItem("saa29_user", JSON.stringify(data.usuario));
             }
