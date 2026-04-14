@@ -20,6 +20,7 @@ pydantic-settings==2.7.0
 # --- Autenticação ---
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+bcrypt==3.2.0             # Versão específica para evitar erro com passlib
 python-multipart==0.0.20  # form data (login)
 
 # --- Upload de arquivos ---

@@ -22,28 +22,19 @@ _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def hash_senha(senha_plana: str) -> str:
     """
     Gera o hash bcrypt de uma senha em texto plano.
-
-    Args:
-        senha_plana: senha em texto claro fornecida pelo usuário.
-
-    Returns:
-        Hash bcrypt da senha para armazenamento seguro no banco.
+    Bcrypt limita a entrada a 72 bytes.
     """
-    return _pwd_context.hash(senha_plana)
+    # Truncate to 72 chars to avoid ValueError (SEC-18)
+    senha_ajustada = senha_plana[:72]
+    return _pwd_context.hash(senha_ajustada)
 
 
 def verificar_senha(senha_plana: str, senha_hash: str) -> bool:
     """
     Compara a senha em texto plano com o hash armazenado.
-
-    Args:
-        senha_plana: senha fornecida no login.
-        senha_hash: hash armazenado no banco de dados.
-
-    Returns:
-        True se a senha for válida, False caso contrário.
     """
-    return _pwd_context.verify(senha_plana, senha_hash)
+    senha_ajustada = senha_plana[:72]
+    return _pwd_context.verify(senha_ajustada, senha_hash)
 
 
 def criar_token(dados: dict) -> str:
