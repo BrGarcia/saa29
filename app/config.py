@@ -31,7 +31,7 @@ class Settings(BaseSettings):
 
     # --- Upload ---
     upload_dir: str = "uploads"
-    max_upload_size_mb: int = 10
+    max_upload_size_mb: float = 0.5
 
     # --- CORS / SEGURANÇA ---
     allowed_origins: list[str] = ["http://localhost:8000"]
