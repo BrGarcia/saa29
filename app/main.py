@@ -119,11 +119,18 @@ def _register_middlewares(app: FastAPI) -> None:
     current_settings = get_settings()
 
     # Trusted Hosts (Ajuste para seu domínio real em produção) (AUD-07)
-    # Railway pode usar diversos domínios, permitindo "*" se não houver lista específica
-    allowed_hosts = current_settings.allowed_hosts or ["*"]
+    # Se allowed_hosts for vazio ou contiver "*", permitimos tudo para evitar bloqueios no Railway.
+    allowed_hosts = current_settings.allowed_hosts
+    if not allowed_hosts or "*" in allowed_hosts:
+        # Se for para permitir tudo, o Starlette espera exatamente ["*"] ou nenhum middleware.
+        # Aqui optamos por passar ["*"] para o middleware.
+        final_allowed_hosts = ["*"]
+    else:
+        final_allowed_hosts = ["localhost", "127.0.0.1", "testserver"] + allowed_hosts
+
     app.add_middleware(
         TrustedHostMiddleware, 
-        allowed_hosts=["localhost", "127.0.0.1", "testserver"] + allowed_hosts
+        allowed_hosts=final_allowed_hosts
     )
 
     app.add_middleware(

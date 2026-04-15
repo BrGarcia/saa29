@@ -25,6 +25,19 @@ class Settings(BaseSettings):
     # Em produção, defina DATABASE_URL no .env apontando para PostgreSQL.
     database_url: str = "sqlite+aiosqlite:///./saa29_local.db"
 
+    @model_validator(mode="after")
+    def fix_database_url(self) -> "Settings":
+        """
+        Corrige a URL do banco de dados para usar o driver asyncpg se for PostgreSQL.
+        O Railway fornece a URL no formato postgresql://, mas o SQLAlchemy 2.0+
+        com driver assíncrono exige postgresql+asyncpg://.
+        """
+        if self.database_url.startswith("postgresql://"):
+            self.database_url = self.database_url.replace(
+                "postgresql://", "postgresql+asyncpg://", 1
+            )
+        return self
+
     # --- JWT ---
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 120  # 2 horas (AUD-18)
