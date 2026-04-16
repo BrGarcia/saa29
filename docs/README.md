@@ -30,7 +30,7 @@ uvicorn app.main:app --reload # Inicia servidor: http://localhost:8000
 | Camada | Tecnologia |
 |--------|-----------|
 | **Backend** | FastAPI 0.115 (Python 3.12) |
-| **Banco de Dados** | SQLite + aiosqlite (Local) / PostgreSQL (Prod) |
+| **Banco de Dados** | SQLite + aiosqlite (Local/Produção) |
 | **ORM / Migrações** | SQLAlchemy 2.x + Alembic |
 | **Frontend** | HTML5 (Jinja2) + Vanilla JS + CSS Glassmorphism |
 | **Segurança** | JWT (OAuth2) + RBAC (3 níveis) |

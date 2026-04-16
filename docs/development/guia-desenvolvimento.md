@@ -120,11 +120,26 @@ alembic upgrade head
 
 | Variável | Obrigatória | Descrição |
 |----------|-------------|-----------|
-| `DATABASE_URL` | ✅ | URL do banco (Ex: `sqlite+aiosqlite:///./saa29_local.db`) |
-| `APP_SECRET_KEY` | ✅ | Chave JWT (min. 32 chars aleatórios) |
+| `DATABASE_URL` | ✅ | URL do banco (Ex: `sqlite+aiosqlite:///./saa29.db`) |
+| `APP_SECRET_KEY` | ✅ | Chave JWT (Não use a palavra "INSECURE" em produção) |
+| `ALLOWED_HOSTS` | ✅ | `*` ou lista separada por vírgula para domínios permitidos |
+| `ALLOWED_ORIGINS` | ✅ | `*` ou lista separada por vírgula para CORS |
+| `GUNICORN_WORKERS` | ❌ | Número de workers (Padrão: 2. Recomendado: 1 ou 2 para SQLite) |
 | `APP_ENV` | ❌ | `development` ou `production` |
-| `JWT_EXPIRE_MINUTES` | ❌ | Expiração do token (padrão: 120) |
-| `UPLOAD_DIR` | ❌ | Diretório de uploads (padrão: `uploads`) |
+| `JWT_EXPIRE_MINUTES` | ❌ | Expiração do token em minutos (Padrão: 120) |
+| `UPLOAD_DIR` | ❌ | Diretório de uploads (Padrão: `uploads`) |
+
+---
+
+## Deploy no Railway (SQLite)
+
+O SAA29 está pronto para o Railway utilizando SQLite.
+
+### Passos:
+1.  **Networking:** Configure a porta **8000** em *Settings -> Networking*.
+2.  **Variables:** Use o editor *Raw* e cole as variáveis do `.env`.
+3.  **Persistência:** Para manter os dados após deploys, crie um **Volume** e monte em `/app/data`. Ajuste a `DATABASE_URL` para `sqlite+aiosqlite:////app/data/saa29.db`.
+
 
 Gerar uma chave segura:
 ```bash
