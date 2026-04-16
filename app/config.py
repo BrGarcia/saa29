@@ -28,9 +28,17 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 120  # 2 horas (AUD-18)
 
-    # --- Upload ---
+    # --- Upload e Storage ---
     upload_dir: str = "uploads"
     max_upload_size_mb: float = 0.5
+    storage_backend: str = "local"  # local | r2
+
+    # --- Cloudflare R2 ---
+    r2_account_id: str | None = None
+    r2_access_key_id: str | None = None
+    r2_secret_access_key: str | None = None
+    r2_endpoint: str | None = None
+    r2_bucket_name: str | None = None
 
     # --- CORS / SEGURANÇA ---
     # Aceita lista via JSON ou string separada por vírgula

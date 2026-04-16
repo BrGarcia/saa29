@@ -23,6 +23,7 @@ from app.aeronaves.models import Aeronave # Importar aqui para evitar InvalidReq
 from app.panes.schemas import PaneCreate, PaneUpdate, FiltroPane, AdicionarResponsavel
 from app.core.enums import StatusPane
 from app.config import get_settings
+from app.core.storage import get_storage_service
 
 
 def _get_year_func(column):
@@ -500,21 +501,14 @@ async def upload_anexo(
     from app.core.enums import TipoAnexo
     tipo_anexo = TipoAnexo.IMAGEM if extensao in {".jpg", ".jpeg", ".png"} else TipoAnexo.DOCUMENTO
 
-    # Gerar nome único e salvar arquivo de forma não bloqueante
-    nome_unico = f"{uuid.uuid4()}{extensao}"
-    caminho = os.path.join(settings.upload_dir, nome_unico)
-
-    def _salvar_arquivo():
-        os.makedirs(settings.upload_dir, exist_ok=True)
-        with open(caminho, "wb") as f:
-            f.write(arquivo_bytes)
-
-    await anyio.to_thread.run_sync(_salvar_arquivo)
+    # Gerar nome único e salvar arquivo através do StorageService
+    storage_svc = get_storage_service()
+    caminho_salvo = await storage_svc.upload(arquivo_bytes, nome_original, mime_real)
 
     # Criar registro no banco
     anexo = Anexo(
         pane_id=pane_id,
-        caminho_arquivo=nome_unico,
+        caminho_arquivo=caminho_salvo,
         tipo=tipo_anexo.value,
     )
     db.add(anexo)
@@ -560,39 +554,23 @@ async def excluir_anexo(
     if not anexo:
         raise ValueError("Anexo não encontrado.")
 
-    # Resolver caminho físico
-    try:
-        caminho_fisico = resolver_caminho_anexo(anexo.caminho_arquivo)
-    except ValueError:
-        caminho_fisico = None
-
     # Deletar do banco
     await db.delete(anexo)
     await db.flush()
 
-    # Deletar arquivo físico (não bloqueante)
-    if caminho_fisico and caminho_fisico.exists() and caminho_fisico.is_file():
-        def _remover_fisico():
-            try:
-                os.remove(caminho_fisico)
-            except OSError:
-                pass
-        await anyio.to_thread.run_sync(_remover_fisico)
+    # Deletar arquivo físico/R2 via StorageService
+    storage_svc = get_storage_service()
+    await storage_svc.delete(anexo.caminho_arquivo)
 
     return True
 
 
-def resolver_caminho_anexo(caminho_relativo: str) -> Path:
+async def obter_url_anexo(caminho_relativo: str) -> str:
     """
-    Resolve o caminho físico do anexo garantindo permanência dentro de upload_dir.
+    Retorna a URL assinada (R2) ou caminho relativo (Local) para o anexo.
     """
-    settings = get_settings()
-    base_dir = Path(settings.upload_dir).resolve()
-    arquivo = base_dir / Path(caminho_relativo).name
-    arquivo = arquivo.resolve()
-    if arquivo.parent != base_dir:
-        raise ValueError("Caminho de anexo inválido.")
-    return arquivo
+    storage_svc = get_storage_service()
+    return await storage_svc.get_url(caminho_relativo)
 
 
 async def adicionar_responsavel(

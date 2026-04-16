@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, File, UploadFile, Query, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 from app.panes import schemas, service
 from app.dependencies import DBSession, CurrentUser, ensure_role
@@ -244,7 +244,7 @@ async def baixar_anexo(
     anexo_id: uuid.UUID,
     db: DBSession,
     usuario_atual: CurrentUser,
-) -> FileResponse:
+):
     """Entrega o anexo apenas dentro do fluxo autenticado do sistema."""
     anexo = await service.buscar_anexo(db, pane_id, anexo_id)
     if not anexo:
@@ -253,12 +253,17 @@ async def baixar_anexo(
             detail="Anexo não encontrado.",
         )
     try:
-        caminho = service.resolver_caminho_anexo(anexo.caminho_arquivo)
+        url_or_path = await service.obter_url_anexo(anexo.caminho_arquivo)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
+    if url_or_path.startswith("http://") or url_or_path.startswith("https://"):
+        return RedirectResponse(url_or_path)
+
+    caminho = Path(url_or_path)
     if not caminho.exists() or not caminho.is_file():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -266,7 +271,7 @@ async def baixar_anexo(
         )
     media_type = "application/pdf" if caminho.suffix.lower() == ".pdf" else None
     return FileResponse(
-        path=Path(caminho),
+        path=caminho,
         filename=caminho.name,
         media_type=media_type,
     )
