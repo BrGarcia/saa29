@@ -19,14 +19,16 @@ fi
 echo "🔄 Rodando migrações (Alembic)..."
 python -m alembic upgrade head
 
-# 2. Popular dados iniciais (seed) - Apenas se não for produção
-if [ "$APP_ENV" != "production" ]; then
-    echo "🌱 Populando banco de dados (Ambiente: $APP_ENV)..."
+# 2. Inicialização básica (Sempre roda, só cria o que não existe)
+echo "🔧 Inicializando banco de dados (Bootstrap)..."
+python -m scripts.init_db
+
+# 3. Popular dados de teste (Apenas se em desenvolvimento)
+if [ "$APP_ENV" == "development" ]; then
+    echo "🌱 Populando dados de teste (Seed)..."
     python -m scripts.seed
-else
-    echo "ℹ️ Pulando seed (Ambiente: production)..."
 fi
 
-# 3. Iniciar a aplicação
+# 4. Iniciar a aplicação
 echo "✨ Iniciando servidor Gunicorn..."
 exec gunicorn -c gunicorn_conf.py app.main:app
