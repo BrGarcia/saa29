@@ -5,8 +5,8 @@ import os
 port = os.getenv("PORT", "8000")
 bind = f"0.0.0.0:{port}"
 
-# Workers
-workers = multiprocessing.cpu_count() * 2 + 1
+# Workers - Limited for Railway memory constraints and SQLite stability
+workers = int(os.getenv("GUNICORN_WORKERS", "2"))
 worker_class = "uvicorn.workers.UvicornWorker"
 
 # Logging
