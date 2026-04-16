@@ -99,7 +99,21 @@ async def criar_pane(
 
 ---
 
-## Migrações Alembic
+## Inicialização e Dados
+
+O SAA29 possui dois fluxos distintos de carga de dados:
+
+### 1. Bootstrap (`scripts/init_db.py`)
+- **O que faz:** Garante a existência do usuário **Admin** e da **Frota Padrão** (20 aeronaves).
+- **Quando roda:** Sempre que o sistema inicia (via `start.sh`).
+- **Comportamento:** É idempotente (só cria se não existir). Seguro para Produção.
+
+### 2. Seed de Teste (`scripts/seed.py`)
+- **O que faz:** Popula o sistema com panes de exemplo, usuários fictícios e logs de teste.
+- **Quando roda:** Apenas se `APP_ENV=development`.
+- **Uso:** Exclusivo para desenvolvedores validarem a interface e filtros.
+
+---
 
 ```bash
 # 1. Editar model em app/<modulo>/models.py
