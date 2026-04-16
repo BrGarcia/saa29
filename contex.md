@@ -24,7 +24,8 @@ decisions:[
   {id:DELETE_ANEXO,ts:20260414,d:implementado_remocao_anexo_restrita_gestores},
   {id:DOCKER_START_SCRIPT,ts:20260414,d:criado_start_sh_para_migracoes_e_seed_no_boot},
   {id:FIX_MODEL_IMPORT_ORDER,ts:20260416,d:equipamentos_models_deve_preceder_aeronaves_models_no_import_do_main},
-  {id:FIX_SQLALCHEMY_CAST,ts:20260416,d:func_Integer_substituido_por_Integer_importado_no_cast_do_year_func}
+  {id:FIX_SQLALCHEMY_CAST,ts:20260416,d:func_Integer_substituido_por_Integer_importado_no_cast_do_year_func},
+  {id:UPDATE_ADMIN_CREDENTIALS,ts:20260416,d:senha_admin_atualizada_para_BisKP76pg3IU_nos_scripts_e_docs}
 ]
 
 open:[]

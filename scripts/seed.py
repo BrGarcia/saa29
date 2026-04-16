@@ -33,7 +33,7 @@ async def seed():
     load_dotenv(override=True)
     
     admin_user = os.getenv("DEFAULT_ADMIN_USER", "admin").strip()
-    admin_pass = os.getenv("DEFAULT_ADMIN_PASSWORD", "admin123").strip()
+    admin_pass = os.getenv("DEFAULT_ADMIN_PASSWORD", "BisKP76pg3IU").strip()
     
     AsyncSessionLocal = get_session_factory()
     async with AsyncSessionLocal() as session:
