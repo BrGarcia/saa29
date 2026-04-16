@@ -1,6 +1,6 @@
 # NEXT.md – Status e Próximos Passos
 
-**Versão Atual:** `1.0.0` (Produção)
+**Versão Atual:** `1.0.1` (Produção)
 
 ---
 
@@ -47,4 +47,4 @@ uvicorn app.main:app --reload
 
 ---
 
-*Última atualização: 2026-04-09*
+*Última atualização: 2026-04-16*

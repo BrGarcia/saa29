@@ -1,12 +1,7 @@
 """
 app/database.py
-Configuração do banco de dados: engine lazy, sessão e Base declarativa.
-
-A engine é criada sob demanda (lazy) via get_engine() para permitir
-que os testes sobrescrevam a URL sem depender de asyncpg nem de um
-.env configurado.
-
-Compatível com SQLite (padrão local) e PostgreSQL (produção).
+Configuração do banco de dados: engine e sessão.
+Focado exclusivamente em SQLite para o MVP SAA29.
 """
 
 from sqlalchemy import event
@@ -24,27 +19,14 @@ _AsyncSessionLocal: async_sessionmaker | None = None
 
 
 class Base(DeclarativeBase):
-    """
-    Classe base para todos os modelos ORM do projeto.
-    Todos os modelos devem herdar de Base para serem detectados
-    pelo Alembic e pelo engine.
-    """
+    """Classe base para todos os modelos ORM do projeto."""
     pass
-
-
-def _is_sqlite(url: str) -> bool:
-    """Verifica se a URL aponta para um banco SQLite."""
-    return "sqlite" in url.lower()
 
 
 def get_engine() -> AsyncEngine:
     """
-    Retorna a engine assíncrona, criando-a na primeira chamada (lazy).
-    Isso evita a dependência de asyncpg em tempo de importação nos testes.
-
-    Para SQLite:
-        - Habilita PRAGMA foreign_keys=ON (integridade referencial)
-        - Habilita PRAGMA journal_mode=WAL (reduz bloqueios de leitura)
+    Retorna a engine assíncrona para SQLite.
+    Habilita PRAGMAs foreign_keys e WAL para melhor desempenho e integridade.
     """
     global _engine
     if _engine is None:
@@ -54,30 +36,16 @@ def get_engine() -> AsyncEngine:
             settings.database_url,
             echo=settings.app_debug,
             pool_pre_ping=True,
-            **_pool_kwargs(settings.database_url),
         )
 
         # SQLite: habilitar foreign keys e WAL via listener no connect
-        if _is_sqlite(settings.database_url):
-            _register_sqlite_pragmas(_engine)
+        _register_sqlite_pragmas(_engine)
 
     return _engine
 
 
-def _pool_kwargs(url: str) -> dict:
-    """SQLite não suporta pool_size/max_overflow — ignorar para SQLite."""
-    if _is_sqlite(url):
-        return {}
-    return {"pool_size": 10, "max_overflow": 20}
-
-
 def _register_sqlite_pragmas(engine: AsyncEngine) -> None:
-    """
-    Registra PRAGMAs essenciais para SQLite via event listener.
-
-    - foreign_keys=ON: garante integridade referencial (desabilitado por padrão no SQLite)
-    - journal_mode=WAL: reduz bloqueios de leitura em acessos concorrentes
-    """
+    """Registra PRAGMAs essenciais para SQLite."""
     @event.listens_for(engine.sync_engine, "connect")
     def _enable_sqlite_pragmas(dbapi_connection, connection_record):
         cursor = dbapi_connection.cursor()
@@ -101,16 +69,12 @@ def get_session_factory() -> async_sessionmaker:
 
 
 async def create_all_tables() -> None:
-    """
-    Cria todas as tabelas no banco de dados.
-    Usar apenas em desenvolvimento / testes.
-    Em produção usar as migrações Alembic.
-    """
+    """Cria todas as tabelas no banco de dados."""
     async with get_engine().begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
 
 async def drop_all_tables() -> None:
-    """Remove todas as tabelas. Usar apenas em testes."""
+    """Remove todas as tabelas."""
     async with get_engine().begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)

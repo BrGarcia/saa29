@@ -3,14 +3,21 @@ app/aeronaves/models.py
 Modelo ORM para Aeronaves.
 """
 
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import String, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 from app.core.enums import StatusAeronave
+
+if TYPE_CHECKING:
+    from app.equipamentos.models import Instalacao
+    from app.panes.models import Pane
 
 
 class Aeronave(Base):

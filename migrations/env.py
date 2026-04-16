@@ -53,9 +53,7 @@ def run_migrations_offline() -> None:
     Gera scripts SQL para revisão manual antes de aplicar.
     """
     url = config.get_main_option("sqlalchemy.url")
-    # Para o modo offline (que é síncrono), precisamos garantir um driver síncrono
-    if url and "asyncpg" in url:
-        url = url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+    # Para o modo offline (que é síncrono), precisamos garantir um driver síncrono para SQLite
     if url and "aiosqlite" in url:
         url = url.replace("sqlite+aiosqlite", "sqlite")
 

@@ -7,6 +7,14 @@ e aderente ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [1.0.1] – 2026-04-16
+
+### Corrigido
+- **Bug crítico 500 – Mapper `Instalacao` não encontrado**: `Aeronave` tem `relationship("Instalacao", ...)`, mas em `app/main.py` o módulo `app.equipamentos.models` era importado *depois* de `app.aeronaves.models`. O SQLAlchemy tentava resolver o nome `"Instalacao"` no registry antes da classe existir. **Fix:** invertida a ordem dos imports — `app.equipamentos.models` agora precede `app.aeronaves.models`. Comentário de aviso adicionado para prevenir regressão futura.
+- **Bug crítico 500 – `AttributeError: _static_cache_key`**: Em `app/panes/service.py`, `_get_year_func` usava `func.Integer` nos dois caminhos de `cast()`. `func.Integer` cria uma chamada SQL chamada `"Integer"` (não é um tipo), tornando a query não-cacheável. **Fix:** importado `Integer` de `sqlalchemy` e substituído `func.Integer` → `Integer` nas chamadas `.cast()` para SQLite e PostgreSQL.
+
+---
+
 ## [0.7.0] – 2026-03-31
 
 ### Adicionado
@@ -142,7 +150,10 @@ e aderente ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ---
 
-[Unreleased]: https://github.com/BrGarcia/saa29/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/BrGarcia/saa29/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/BrGarcia/saa29/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/BrGarcia/saa29/compare/v0.7.0...v1.0.0
+[0.7.0]: https://github.com/BrGarcia/saa29/compare/v0.3.0...v0.7.0
 [0.3.0]: https://github.com/BrGarcia/saa29/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/BrGarcia/saa29/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/BrGarcia/saa29/releases/tag/v0.1.0

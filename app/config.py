@@ -21,22 +21,8 @@ class Settings(BaseSettings):
     app_secret_key: str = "INSECURE_DEFAULT_SECRET_KEY_CHANGE_ME_IN_PRODUCTION"
 
     # --- Banco de Dados ---
-    # Padrão: SQLite para instalação local/monousuário.
-    # Em produção, defina DATABASE_URL no .env apontando para PostgreSQL.
+    # Padrão: SQLite para instalação local ou produção básica (monolito).
     database_url: str = "sqlite+aiosqlite:///./saa29_local.db"
-
-    @model_validator(mode="after")
-    def fix_database_url(self) -> "Settings":
-        """
-        Corrige a URL do banco de dados para usar o driver asyncpg se for PostgreSQL.
-        O Railway fornece a URL no formato postgresql://, mas o SQLAlchemy 2.0+
-        com driver assíncrono exige postgresql+asyncpg://.
-        """
-        if self.database_url.startswith("postgresql://"):
-            self.database_url = self.database_url.replace(
-                "postgresql://", "postgresql+asyncpg://", 1
-            )
-        return self
 
     # --- JWT ---
     jwt_algorithm: str = "HS256"
@@ -47,8 +33,8 @@ class Settings(BaseSettings):
     max_upload_size_mb: float = 0.5
 
     # --- CORS / SEGURANÇA ---
-    allowed_origins: list[str] = ["http://localhost:8000"]
-    allowed_hosts: list[str] = []  # Em produção, especifique os hosts permitidos (AUD-07)
+    allowed_origins: list[str] = ["*"]
+    allowed_hosts: list[str] = ["*"]  # Em produção, especifique os hosts permitidos (AUD-07)
 
     model_config = SettingsConfigDict(
         env_file=".env",

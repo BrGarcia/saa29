@@ -213,10 +213,9 @@
                 body.appendChild(tr);
             });
         } catch (e) {
-            console.error(e);
-            body.innerHTML = `<tr><td colspan="5" style="padding: 2rem; text-align: center; color: var(--status-danger);">Falha de Comunicação ao extrair telemetria!</td></tr>`;
-        }
-    }
+            console.error("Erro na busca de panes:", e);
+            body.innerHTML = `<tr><td colspan="5" style="padding: 2rem; text-align: center; color: var(--status-danger);">Falha na comunicação com a API: ${e.message}</td></tr>`;
+        }    }
 
     // Modais e Lógica Intermediária
     const modalSelecao = document.getElementById('modal-selecao-aeronave');

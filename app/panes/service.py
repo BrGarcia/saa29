@@ -14,14 +14,25 @@ try:
     _MAGIC_AVAILABLE = True
 except ImportError:
     _MAGIC_AVAILABLE = False
-from sqlalchemy import select, or_, func
+from sqlalchemy import select, or_, func, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.panes.models import Pane, Anexo, PaneResponsavel
+from app.aeronaves.models import Aeronave # Importar aqui para evitar InvalidRequestError
 from app.panes.schemas import PaneCreate, PaneUpdate, FiltroPane, AdicionarResponsavel
 from app.core.enums import StatusPane
 from app.config import get_settings
+
+
+def _get_year_func(column):
+    """Retorna a função de extração de ano compatível com o banco atual."""
+    settings = get_settings()
+    if "sqlite" in settings.database_url.lower():
+        # SQLite: strftime('%Y', data) retorna string, convertemos para int
+        return func.cast(func.strftime("%Y", column), Integer)
+    # PostgreSQL / Outros: extract(year from data)
+    return func.extract("year", column).cast(Integer)
 
 
 # Transições de status permitidas (SPECS §8)
@@ -44,13 +55,14 @@ def _escape_like(text: str) -> str:
 
 async def _get_ranking_subquery():
     """Retorna a subquery de ranking para cálculo do código ddd/yy."""
+    year_func = _get_year_func(Pane.data_abertura)
     return select(
         Pane.id.label("pane_id"),
         func.row_number().over(
-            partition_by=func.extract("year", Pane.data_abertura),
-            order_by=(Pane.data_abertura.asc(), Pane.id.asc()),
+            partition_by=[year_func],
+            order_by=[Pane.data_abertura.asc(), Pane.id.asc()],
         ).label("sequencia"),
-        func.extract("year", Pane.data_abertura).label("ano"),
+        year_func.label("ano"),
     ).subquery()
 
 
@@ -147,13 +159,14 @@ async def listar_panes(
     Returns:
         Lista de Panes filtradas.
     """
+    year_func = _get_year_func(Pane.data_abertura)
     ranking_subquery = select(
         Pane.id.label("pane_id"),
         func.row_number().over(
-            partition_by=func.extract("year", Pane.data_abertura),
-            order_by=(Pane.data_abertura.asc(), Pane.id.asc()),
+            partition_by=[year_func],
+            order_by=[Pane.data_abertura.asc(), Pane.id.asc()],
         ).label("sequencia"),
-        func.extract("year", Pane.data_abertura).label("ano"),
+        year_func.label("ano"),
     ).subquery()
 
     query = (

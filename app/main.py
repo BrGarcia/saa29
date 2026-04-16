@@ -12,6 +12,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 
+# Importar TODOS os modelos explicitamente para o SQLAlchemy Registry (SEC-02/COR-01)
+# ATENÇÃO: a ordem importa — equipamentos.models deve vir antes de aeronaves.models
+# pois Aeronave tem relationship("Instalacao") e o mapper precisa que Instalacao já esteja registrada.
+import app.auth.models
+import app.equipamentos.models
+import app.aeronaves.models
+import app.panes.models
+
 from app.config import get_settings
 
 # Importação dos routers (serão registrados no create_app)
@@ -119,26 +127,33 @@ def _register_middlewares(app: FastAPI) -> None:
     current_settings = get_settings()
 
     # Trusted Hosts (Ajuste para seu domínio real em produção) (AUD-07)
-    # Se allowed_hosts for vazio ou contiver "*", permitimos tudo para evitar bloqueios no Railway.
-    allowed_hosts = current_settings.allowed_hosts
-    if not allowed_hosts or "*" in allowed_hosts:
-        # Se for para permitir tudo, o Starlette espera exatamente ["*"] ou nenhum middleware.
-        # Aqui optamos por passar ["*"] para o middleware.
-        final_allowed_hosts = ["*"]
-    else:
-        final_allowed_hosts = ["localhost", "127.0.0.1", "testserver"] + allowed_hosts
+    # No Railway, o host muda dinamicamente. Se estiver como "*", permitimos todos.
+    if "*" not in current_settings.allowed_hosts:
+        app.add_middleware(
+            TrustedHostMiddleware, 
+            allowed_hosts=["localhost", "127.0.0.1", "testserver"] + current_settings.allowed_hosts
+        )
 
-    app.add_middleware(
-        TrustedHostMiddleware, 
-        allowed_hosts=final_allowed_hosts
-    )
+    # CORS
+    # O navegador proíbe allow_origins=["*"] com allow_credentials=True.
+    # Como o frontend e a API estão no mesmo app, as chamadas são na mesma origem.
+    # Vamos definir explicitamente as origens permitidas.
+    cors_origins = current_settings.allowed_origins
+    if "*" in cors_origins:
+        # Se for "*", permitimos as origens comuns de dev e a origem da requisição
+        # Para ser compatível com credentials, não podemos usar "*"
+        cors_origins = [
+            "http://localhost:8000",
+            "http://127.0.0.1:8000",
+            "http://localhost:3000",
+        ]
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=current_settings.allowed_origins,
+        allow_origins=cors_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-        allow_headers=["Authorization", "Content-Type"],
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
 
