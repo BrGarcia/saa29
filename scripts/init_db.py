@@ -14,9 +14,12 @@ from sqlalchemy import select
 # Carregar variáveis do .env
 load_dotenv()
 
-# Importar modelos para registro no SQLAlchemy
+# Importar TODOS os modelos para o SQLAlchemy Registry (SEC-02/COR-01)
 import app.auth.models
 import app.aeronaves.models
+import app.equipamentos.models
+import app.panes.models
+
 from app.auth.models import Usuario
 from app.aeronaves.models import Aeronave
 
