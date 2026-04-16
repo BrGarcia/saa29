@@ -33,8 +33,18 @@ class Settings(BaseSettings):
     max_upload_size_mb: float = 0.5
 
     # --- CORS / SEGURANÇA ---
-    allowed_origins: list[str] = ["*"]
-    allowed_hosts: list[str] = ["*"]  # Em produção, especifique os hosts permitidos (AUD-07)
+    # Aceita lista via JSON ou string separada por vírgula
+    allowed_origins: list[str] | str = ["*"]
+    allowed_hosts: list[str] | str = ["*"]
+
+    @model_validator(mode="after")
+    def validate_origins_and_hosts(self) -> "Settings":
+        """Converte strings separadas por vírgula em listas, se necessário."""
+        if isinstance(self.allowed_origins, str):
+            self.allowed_origins = [o.strip() for o in self.allowed_origins.split(",")]
+        if isinstance(self.allowed_hosts, str):
+            self.allowed_hosts = [h.strip() for h in self.allowed_hosts.split(",")]
+        return self
 
     model_config = SettingsConfigDict(
         env_file=".env",
