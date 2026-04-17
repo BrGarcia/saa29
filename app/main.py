@@ -4,6 +4,7 @@ Factory da aplicação FastAPI para o SAA29.
 """
 
 import os
+import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -69,23 +70,65 @@ async def _ensure_default_aeronaves() -> None:
             raise
 
 
+def _run_r2_backup() -> None:
+    """Executa backup síncrono do banco SQLite para o Cloudflare R2."""
+    import subprocess, sys
+    try:
+        result = subprocess.run(
+            [sys.executable, "scripts/r2_manager.py", "backup"],
+            capture_output=True, text=True, timeout=60
+        )
+        if result.returncode == 0:
+            logging.info("[R2 Backup] %s", result.stdout.strip())
+        else:
+            logging.warning("[R2 Backup] Falha: %s", result.stderr.strip())
+    except Exception as exc:
+        logging.error("[R2 Backup] Erro inesperado: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     Gerenciador de ciclo de vida da aplicação.
-    - startup: inicializar conexões, criar diretório de uploads
-    - shutdown: fechar conexões graciosamente
+    - startup: inicializar conexões, criar diretório de uploads, iniciar backup periódico
+    - shutdown: backup final + fechar conexões graciosamente
     """
     from app.config import get_settings
     current_settings = get_settings()
-    
+
     # Startup: criar diretório de uploads se não existir
     os.makedirs(current_settings.upload_dir, exist_ok=True)
     await _ensure_default_aeronaves()
 
+    # Iniciar scheduler de backup periódico (apenas se R2 estiver configurado)
+    scheduler = None
+    if current_settings.storage_backend.lower() == "r2" and current_settings.r2_bucket_name:
+        try:
+            from apscheduler.schedulers.background import BackgroundScheduler
+            scheduler = BackgroundScheduler()
+            scheduler.add_job(
+                _run_r2_backup,
+                trigger="interval",
+                minutes=30,
+                id="r2_backup",
+                max_instances=1,
+                replace_existing=True,
+            )
+            scheduler.start()
+            logging.info("[R2 Backup] Scheduler iniciado — backup a cada 30 minutos.")
+        except ImportError:
+            logging.warning("[R2 Backup] apscheduler não instalado. Backup periódico desativado.")
+
     yield
 
-    # Shutdown: fechar engine de banco de dados
+    # Shutdown: salvar banco no R2 antes de fechar (evita perda de dados)
+    if scheduler and scheduler.running:
+        scheduler.shutdown(wait=False)
+    if current_settings.storage_backend.lower() == "r2" and current_settings.r2_bucket_name:
+        logging.info("[R2 Backup] Executando backup final antes do shutdown...")
+        _run_r2_backup()
+
+    # Fechar engine de banco de dados
     from app.database import _engine
     if _engine is not None:
         await _engine.dispose()
