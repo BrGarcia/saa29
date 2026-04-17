@@ -147,10 +147,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await _ensure_default_aeronaves()
 
     # Registrar listener de escrita no banco (event-driven backup)
+    # Nota: AsyncSession não suporta after_commit diretamente.
+    # O evento deve ser registrado no Session síncrono subjacente.
     if current_settings.storage_backend.lower() == "r2" and current_settings.r2_bucket_name:
-        from app.database import get_session_factory
         from sqlalchemy import event as sa_event
-        sa_event.listen(get_session_factory().class_, "after_commit", _mark_db_dirty)
+        from sqlalchemy.orm import Session
+        sa_event.listen(Session, "after_commit", _mark_db_dirty)
         logging.info("[R2 Backup] Backup orientado a eventos ativo (debounce: %ds).", _BACKUP_DEBOUNCE_SECONDS)
 
     yield
