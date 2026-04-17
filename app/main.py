@@ -70,6 +70,52 @@ async def _ensure_default_aeronaves() -> None:
             raise
 
 
+# ---------------------------------------------------------------------------
+# Backup orientado a eventos (event-driven) — sem timer periódico
+# ---------------------------------------------------------------------------
+
+_db_dirty: bool = False          # True quando há escrita não salva no R2
+_backup_task = None              # asyncio.Task do debounce em andamento
+_BACKUP_DEBOUNCE_SECONDS = 120   # aguarda 2 min após última escrita antes de enviar
+
+
+def _mark_db_dirty(*args, **kwargs) -> None:
+    """Chamado pelo SQLAlchemy after_commit. Agenda o backup com debounce."""
+    global _db_dirty
+    _db_dirty = True
+    _schedule_debounced_backup()
+
+
+def _schedule_debounced_backup() -> None:
+    """Cancela qualquer backup pendente e agenda um novo após DEBOUNCE segundos."""
+    import asyncio
+    global _backup_task
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return  # Fora de um contexto async, ignora
+
+    if _backup_task and not _backup_task.done():
+        _backup_task.cancel()
+
+    _backup_task = loop.create_task(_debounced_backup())
+
+
+async def _debounced_backup() -> None:
+    """Aguarda o debounce e executa o backup se o banco estiver sujo."""
+    import asyncio
+    global _db_dirty
+
+    try:
+        await asyncio.sleep(_BACKUP_DEBOUNCE_SECONDS)
+        if _db_dirty:
+            _run_r2_backup()
+            _db_dirty = False
+    except asyncio.CancelledError:
+        pass  # Nova escrita chegou — será reagendado pelo próximo commit
+
+
 def _run_r2_backup() -> None:
     """Executa backup síncrono do banco SQLite para o Cloudflare R2."""
     import subprocess, sys
@@ -90,8 +136,8 @@ def _run_r2_backup() -> None:
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     Gerenciador de ciclo de vida da aplicação.
-    - startup: inicializar conexões, criar diretório de uploads, iniciar backup periódico
-    - shutdown: backup final + fechar conexões graciosamente
+    - startup: inicializar conexões, registrar listener de backup, criar uploads/
+    - shutdown: backup final (se houver dados não salvos) + fechar conexões
     """
     from app.config import get_settings
     current_settings = get_settings()
@@ -100,32 +146,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     os.makedirs(current_settings.upload_dir, exist_ok=True)
     await _ensure_default_aeronaves()
 
-    # Iniciar scheduler de backup periódico (apenas se R2 estiver configurado)
-    scheduler = None
+    # Registrar listener de escrita no banco (event-driven backup)
     if current_settings.storage_backend.lower() == "r2" and current_settings.r2_bucket_name:
-        try:
-            from apscheduler.schedulers.background import BackgroundScheduler
-            scheduler = BackgroundScheduler()
-            scheduler.add_job(
-                _run_r2_backup,
-                trigger="interval",
-                minutes=30,
-                id="r2_backup",
-                max_instances=1,
-                replace_existing=True,
-            )
-            scheduler.start()
-            logging.info("[R2 Backup] Scheduler iniciado — backup a cada 30 minutos.")
-        except ImportError:
-            logging.warning("[R2 Backup] apscheduler não instalado. Backup periódico desativado.")
+        from app.database import get_session_factory
+        from sqlalchemy import event as sa_event
+        sa_event.listen(get_session_factory().class_, "after_commit", _mark_db_dirty)
+        logging.info("[R2 Backup] Backup orientado a eventos ativo (debounce: %ds).", _BACKUP_DEBOUNCE_SECONDS)
 
     yield
 
-    # Shutdown: salvar banco no R2 antes de fechar (evita perda de dados)
-    if scheduler and scheduler.running:
-        scheduler.shutdown(wait=False)
-    if current_settings.storage_backend.lower() == "r2" and current_settings.r2_bucket_name:
-        logging.info("[R2 Backup] Executando backup final antes do shutdown...")
+    # Shutdown: backup final se houver dados não persistidos no R2
+    if _db_dirty and current_settings.storage_backend.lower() == "r2" and current_settings.r2_bucket_name:
+        logging.info("[R2 Backup] Shutdown com dados não salvos — executando backup final...")
         _run_r2_backup()
 
     # Fechar engine de banco de dados

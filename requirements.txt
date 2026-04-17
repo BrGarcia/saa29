@@ -40,4 +40,3 @@ aiosqlite>=0.21.0         # Driver SQLite async para testes in-memory
 
 boto3
 python-dotenv
-apscheduler>=3.10.0       # Backup periódico do SQLite para o R2
