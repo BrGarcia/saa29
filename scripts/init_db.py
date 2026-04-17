@@ -35,19 +35,33 @@ async def init_db():
     AsyncSessionLocal = get_session_factory()
     async with AsyncSessionLocal() as session:
         # 1. Garantir Usuário Admin
+        # COR-BOOT: Primeiro busca pelo username configurado. Se não achar,
+        # verifica se já existe qualquer ADMINISTRADOR no banco (banco restaurado do R2
+        # pode ter um admin com username diferente da variável de ambiente atual).
         result = await session.execute(select(Usuario).where(Usuario.username == admin_user))
-        if not result.scalar_one_or_none():
-            print(f"➕ Criando usuário mestre: {admin_user}...")
-            admin = Usuario(
-                nome="Administrador Sistema",
-                posto="MAJ",
-                especialidade="ELE",
-                funcao="ADMINISTRADOR",
-                ramal="1234",
-                username=admin_user,
-                senha_hash=hash_senha(admin_pass),
+        admin_existente = result.scalar_one_or_none()
+
+        if not admin_existente:
+            # Verifica se já existe qualquer administrador (evita duplicata ao restaurar DB do R2)
+            result_any = await session.execute(
+                select(Usuario).where(Usuario.funcao == "ADMINISTRADOR")
             )
-            session.add(admin)
+            admin_qualquer = result_any.scalar_one_or_none()
+
+            if admin_qualquer:
+                print(f"ℹ️ Admin já existe com username '{admin_qualquer.username}'. Nenhum novo admin criado.")
+            else:
+                print(f"➕ Criando usuário mestre: {admin_user}...")
+                admin = Usuario(
+                    nome="Administrador Sistema",
+                    posto="MAJ",
+                    especialidade="ELE",
+                    funcao="ADMINISTRADOR",
+                    ramal="1234",
+                    username=admin_user,
+                    senha_hash=hash_senha(admin_pass),
+                )
+                session.add(admin)
         else:
             print(f"ℹ️ Usuário {admin_user} já existe.")
 
