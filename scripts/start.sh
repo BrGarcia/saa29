@@ -12,7 +12,7 @@ fi
 # 0. Restaurar backup do R2 (se configurado)
 if [ -n "$R2_BUCKET_NAME" ]; then
     echo "🔄 Restaurando banco de dados do Cloudflare R2..."
-    python scripts/backup_r2.py restore
+    python scripts/r2_manager.py restore
 fi
 
 # 1. Executar migrações do banco
