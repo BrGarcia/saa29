@@ -127,3 +127,15 @@ class ControleVencimentoOut(BaseModel):
     status: StatusVencimento
     origem: OrigemControle
     created_at: datetime
+
+class InventarioItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    equipamento_nome: str
+    part_number: str
+    sistema: str | None = None
+    numero_serie: str
+    status_item: StatusItem
+    instalacao_id: uuid.UUID
+    data_instalacao: date
+    data_remocao: date | None = None

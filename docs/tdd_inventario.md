@@ -12,22 +12,22 @@ da implementação.
 
 | ID | Teste | Classe | Status |
 | :---: | :--- | :--- | :---: |
-| T01 | Inventário retorna itens instalados | `TestInventarioEndpoint` | 🔴 RED |
-| T02 | Resposta contém campos obrigatórios | `TestInventarioEndpoint` | 🔴 RED |
-| T03 | Ignora itens removidos (data_remocao != NULL) | `TestInventarioEndpoint` | 🔴 RED |
-| T04 | Aeronave sem itens retorna lista vazia | `TestInventarioEndpoint` | 🔴 RED |
-| T05 | Aeronave inexistente retorna 404 | `TestInventarioEndpoint` | 🔴 RED |
-| T06 | Filtro por nome exato de equipamento | `TestInventarioFiltros` | 🔴 RED |
-| T07 | Filtro por nome parcial (case-insensitive) | `TestInventarioFiltros` | 🔴 RED |
-| T08 | Itens ordenados por sistema e nome | `TestInventarioAgrupamento` | 🔴 RED |
-| T09 | Campo sistema presente para agrupamento | `TestInventarioAgrupamento` | 🔴 RED |
-| T10 | Requer autenticação (401 sem token) | `TestInventarioPermissoes` | 🔴 RED |
-| T11 | Mantenedor pode consultar inventário | `TestInventarioPermissoes` | 🔴 RED |
-| T12 | Endpoint é somente leitura (POST → 405) | `TestInventarioPermissoes` | 🔴 RED |
-| T13 | Não mistura itens entre aeronaves | `TestInventarioIsolamento` | 🔴 RED |
-| T14 | Item transferido aparece só no destino | `TestInventarioIsolamento` | 🔴 RED |
-| T15 | Dados refletem JOIN correto (nome, PN, SN) | `TestInventarioIsolamento` | 🔴 RED |
-| T16 | Página /inventario retorna HTML 200 | `TestInventarioPagina` | 🔴 RED |
+| T01 | Inventário retorna itens instalados | `TestInventarioEndpoint` | ✅ IMPLEMENTADO |
+| T02 | Resposta contém campos obrigatórios | `TestInventarioEndpoint` | ✅ IMPLEMENTADO |
+| T03 | Ignora itens removidos (data_remocao != NULL) | `TestInventarioEndpoint` | ✅ IMPLEMENTADO |
+| T04 | Aeronave sem itens retorna lista vazia | `TestInventarioEndpoint` | ✅ IMPLEMENTADO |
+| T05 | Aeronave inexistente retorna 404 | `TestInventarioEndpoint` | ✅ IMPLEMENTADO |
+| T06 | Filtro por nome exato de equipamento | `TestInventarioFiltros` | ✅ IMPLEMENTADO |
+| T07 | Filtro por nome parcial (case-insensitive) | `TestInventarioFiltros` | ✅ IMPLEMENTADO |
+| T08 | Itens ordenados por sistema e nome | `TestInventarioAgrupamento` | ✅ IMPLEMENTADO |
+| T09 | Campo sistema presente para agrupamento | `TestInventarioAgrupamento` | ✅ IMPLEMENTADO |
+| T10 | Requer autenticação (401 sem token) | `TestInventarioPermissoes` | ✅ IMPLEMENTADO |
+| T11 | Mantenedor pode consultar inventário | `TestInventarioPermissoes` | ✅ IMPLEMENTADO |
+| T12 | Endpoint é somente leitura (POST → 405) | `TestInventarioPermissoes` | ✅ IMPLEMENTADO |
+| T13 | Não mistura itens entre aeronaves | `TestInventarioIsolamento` | ✅ IMPLEMENTADO |
+| T14 | Item transferido aparece só no destino | `TestInventarioIsolamento` | ✅ IMPLEMENTADO |
+| T15 | Dados refletem JOIN correto (nome, PN, SN) | `TestInventarioIsolamento` | ✅ IMPLEMENTADO |
+| T16 | Página /inventario retorna HTML 200 | `TestInventarioPagina` | ✅ IMPLEMENTADO |
 
 ---
 

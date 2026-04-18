@@ -4,9 +4,13 @@ Camada de serviço para gestão de equipamentos e controle de vencimentos.
 """
 
 import uuid
-from datetime import date
+from app.equipamentos.schemas import InventarioItemOut
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.equipamentos.models import Instalacao, ItemEquipamento, Equipamento
 
 from dateutil.relativedelta import relativedelta
+from datetime import date
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -411,3 +415,58 @@ async def propagar_controle_para_itens(
         await db.flush()
 
     return count
+
+
+# ------------------------------------------------------------
+# Inventário de Aeronave
+# ------------------------------------------------------------
+
+async def listar_inventario_aeronave(
+    db: AsyncSession,
+    aeronave_id: uuid.UUID,
+    nome: str | None = None,
+) -> list[InventarioItemOut]:
+    """Retorna lista de itens instalados na aeronave.
+    Opcionalmente filtra por nome de equipamento (case-insensitive, parcial).
+    Levanta ValueError se a aeronave não existir.
+    """
+    from app.aeronaves.service import buscar_aeronave
+    aeronave = await buscar_aeronave(db, aeronave_id)
+    if not aeronave:
+        raise ValueError("Aeronave não encontrada.")
+
+    # Consulta de instalações ativas com joins
+    stmt = (
+        select(Instalacao, ItemEquipamento, Equipamento)
+        .join(ItemEquipamento, Instalacao.item_id == ItemEquipamento.id)
+        .join(Equipamento, ItemEquipamento.equipamento_id == Equipamento.id)
+        .where(
+            Instalacao.aeronave_id == aeronave_id,
+            Instalacao.data_remocao.is_(None),
+        )
+    )
+    if nome:
+        stmt = stmt.where(Equipamento.nome.ilike(f"%{nome}%"))
+
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    inventario: list[InventarioItemOut] = []
+    for instalacao, item, equip in rows:
+        inventario.append(
+            InventarioItemOut(
+                equipamento_nome=equip.nome,
+                part_number=equip.part_number,
+                sistema=equip.sistema,
+                numero_serie=item.numero_serie,
+                status_item=item.status,
+                instalacao_id=instalacao.id,
+                data_instalacao=instalacao.data_instalacao,
+                data_remocao=instalacao.data_remocao,
+            )
+        )
+
+    # Ordenar por sistema (alfab.) e depois por nome do equipamento
+    inventario.sort(key=lambda x: (x.sistema or "", x.equipamento_nome))
+    return inventario
+

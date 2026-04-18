@@ -213,3 +213,25 @@ async def registrar_execucao(
         return schemas.ControleVencimentoOut.model_validate(vencimento)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+# ---- Inventário ----
+
+@router.get(
+    "/inventario/{aeronave_id}",
+    response_model=list[schemas.InventarioItemOut],
+    summary="Listar inventário da aeronave",
+)
+async def listar_inventario(
+    aeronave_id: uuid.UUID,
+    db: DBSession,
+    _: CurrentUser,
+    nome: str | None = None,
+):
+    """Retorna inventário de itens instalados na aeronave.
+    Aceita filtro opcional por nome de equipamento (?nome=...).
+    """
+    try:
+        return await service.listar_inventario_aeronave(db, aeronave_id, nome=nome)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+

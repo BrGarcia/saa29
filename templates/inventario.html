@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block page_title %}Inventário de Equipamentos{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div style="display: flex; gap: 1rem; flex: 1; max-width: 600px;">
+            <select id="aeronave-select" class="form-input" style="flex: 1;" onchange="loadInventario()">
+                <option value="">Selecione uma aeronave...</option>
+            </select>
+            <input type="text" id="filter-nome" class="form-input" placeholder="Filtrar por equipamento..." style="flex: 1;" oninput="loadInventario()">
+        </div>
+    </div>
+
+    <div id="inventario-container">
+        <!-- Tabelas por sistema serão inseridas aqui -->
+        <div class="card glass-panel" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
+            Selecione uma aeronave para visualizar o inventário.
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadAeronaves() {
+        const select = document.getElementById('aeronave-select');
+        try {
+            const data = await apiFetch('/aeronaves/?limit=100');
+            data.forEach(acft => {
+                const opt = document.createElement('option');
+                opt.value = acft.id;
+                opt.textContent = acft.matricula;
+                select.appendChild(opt);
+            });
+            
+            // Se houver aeronave_id na URL, seleciona
+            const urlParams = new URLSearchParams(window.location.search);
+            const acftId = urlParams.get('aeronave_id');
+            if (acftId) {
+                select.value = acftId;
+                loadInventario();
+            }
+        } catch (e) {
+            console.error("Erro ao carregar aeronaves", e);
+        }
+    }
+
+    async function loadInventario() {
+        const aeronaveId = document.getElementById('aeronave-select').value;
+        const nomeFilter = document.getElementById('filter-nome').value;
+        const container = document.getElementById('inventario-container');
+
+        if (!aeronaveId) {
+            container.innerHTML = `<div class="card glass-panel" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Selecione uma aeronave para visualizar o inventário.</div>`;
+            return;
+        }
+
+        try {
+            let url = `/equipamentos/inventario/${aeronaveId}`;
+            if (nomeFilter) url += `?nome=${encodeURIComponent(nomeFilter)}`;
+            
+            const data = await apiFetch(url);
+            renderInventario(data);
+        } catch (e) {
+            container.innerHTML = `<div class="card glass-panel" style="padding: 2rem; text-align: center; color: var(--status-danger);">Erro ao carregar inventário.</div>`;
+        }
+    }
+
+    function renderInventario(items) {
+        const container = document.getElementById('inventario-container');
+        if (items.length === 0) {
+            container.innerHTML = `<div class="card glass-panel" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Nenhum item encontrado.</div>`;
+            return;
+        }
+
+        // Agrupar por sistema
+        const grupos = {};
+        items.forEach(item => {
+            const sistema = item.sistema || "SEM SISTEMA";
+            if (!grupos[sistema]) grupos[sistema] = [];
+            grupos[sistema].push(item);
+        });
+
+        container.innerHTML = '';
+        Object.keys(grupos).sort().forEach(sistema => {
+            const section = document.createElement('div');
+            section.className = 'inventory-section';
+            section.style.marginBottom = '2rem';
+            
+            let html = `
+                <h3 style="margin-bottom: 1rem; color: var(--primary-color); border-left: 4px solid var(--primary-color); padding-left: 1rem;">${sistema}</h3>
+                <div class="card glass-panel" style="padding: 0; overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <thead style="background-color: var(--bg-tertiary); border-bottom: 1px solid var(--border-color);">
+                            <tr>
+                                <th style="padding: 1rem;">Equipamento</th>
+                                <th style="padding: 1rem;">P/N</th>
+                                <th style="padding: 1rem;">S/N</th>
+                                <th style="padding: 1rem;">Status</th>
+                                <th style="padding: 1rem;">Instalado em</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            grupos[sistema].forEach(item => {
+                html += `
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-weight: 500;">${item.equipamento_nome}</td>
+                        <td style="padding: 1rem; font-family: monospace;">${item.part_number}</td>
+                        <td style="padding: 1rem; font-family: monospace;">${item.numero_serie}</td>
+                        <td style="padding: 1rem;"><span class="badge" style="background-color: var(--bg-tertiary); color: var(--text-primary);">${item.status_item}</span></td>
+                        <td style="padding: 1rem; font-size: 0.9rem;">${new Date(item.data_instalacao).toLocaleDateString('pt-BR')}</td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table></div>`;
+            section.innerHTML = html;
+            container.appendChild(section);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', loadAeronaves);
+</script>
+{% endblock %}

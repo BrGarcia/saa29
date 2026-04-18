@@ -53,3 +53,10 @@ async def frota_page(request: Request):
 async def efetivo_page(request: Request):
     """Visualização da Gestão de Usuários e Efetivo (Militares)"""
     return templates.TemplateResponse("efetivo.html", {"request": request})
+
+
+@router.get("/inventario", response_class=HTMLResponse, include_in_schema=False)
+async def inventario_page(request: Request):
+    """Visualização do Inventário de Equipamentos por Aeronave"""
+    return templates.TemplateResponse("inventario.html", {"request": request})
+
