@@ -1,22 +1,20 @@
 """
 app/equipamentos/service.py
-Camada de serviço para gestão de equipamentos e controle de vencimentos.
+Camada de serviço para gestão de equipamentos seguindo a arquitetura PN vs Slot.
 """
 
 import uuid
-from app.equipamentos.schemas import InventarioItemOut
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.equipamentos.models import Instalacao, ItemEquipamento, Equipamento
-
-from dateutil.relativedelta import relativedelta
+import app.aeronaves.models
 from datetime import date
-from sqlalchemy import select
+from dateutil.relativedelta import relativedelta
+from sqlalchemy import select, and_, or_, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.aeronaves.models import Aeronave
 from app.equipamentos.models import (
-    Equipamento,
+    ModeloEquipamento,
+    SlotInventario,
     TipoControle,
     EquipamentoControle,
     ItemEquipamento,
@@ -24,449 +22,250 @@ from app.equipamentos.models import (
     ControleVencimento,
 )
 from app.equipamentos.schemas import (
-    EquipamentoCreate,
-    EquipamentoUpdate,
+    ModeloEquipamentoCreate,
+    SlotInventarioCreate,
     ItemEquipamentoCreate,
     TipoControleCreate,
+    InventarioItemOut,
+    AjusteInventarioCreate,
+    AjusteInventarioResponse,
 )
-from app.core.enums import OrigemControle, StatusVencimento
+from app.core.enums import OrigemControle, StatusVencimento, StatusItem
 
 
 # ============================================================
-# Equipamentos
+# Catálogo (ModeloEquipamento / PN)
 # ============================================================
 
-async def listar_equipamentos(db: AsyncSession) -> list[Equipamento]:
-    """Retorna todos os tipos de equipamento cadastrados."""
-    result = await db.execute(select(Equipamento).order_by(Equipamento.nome))
-    return list(result.scalars().all())
-
-
-async def criar_equipamento(db: AsyncSession, dados: EquipamentoCreate) -> Equipamento:
-    """Cadastra um novo tipo de equipamento."""
-    equipamento = Equipamento(**dados.model_dump())
-    db.add(equipamento)
+async def criar_modelo(db: AsyncSession, dados: ModeloEquipamentoCreate) -> ModeloEquipamento:
+    """Cadastra um novo Part Number no catálogo."""
+    modelo = ModeloEquipamento(**dados.model_dump())
+    db.add(modelo)
     await db.flush()
-    return equipamento
+    return modelo
 
-
-async def buscar_equipamento(db: AsyncSession, equipamento_id: uuid.UUID) -> Equipamento | None:
-    """Busca equipamento por ID."""
-    result = await db.execute(
-        select(Equipamento).where(Equipamento.id == equipamento_id)
-    )
+async def buscar_modelo_por_pn(db: AsyncSession, pn: str) -> ModeloEquipamento | None:
+    result = await db.execute(select(ModeloEquipamento).where(ModeloEquipamento.part_number == pn))
     return result.scalar_one_or_none()
 
 
-async def atualizar_equipamento(
-    db: AsyncSession,
-    equipamento_id: uuid.UUID,
-    dados: EquipamentoUpdate,
-) -> Equipamento:
-    """Atualiza parcialmente um equipamento."""
-    equipamento = await buscar_equipamento(db, equipamento_id)
-    if not equipamento:
-        raise ValueError("Equipamento não encontrado.")
-    for campo, valor in dados.model_dump(exclude_unset=True).items():
-        setattr(equipamento, campo, valor)
+# ============================================================
+# Slots (Configuração da Aeronave)
+# ============================================================
+
+async def criar_slot(db: AsyncSession, dados: SlotInventarioCreate) -> SlotInventario:
+    """Define um novo slot/posição de inventário."""
+    slot = SlotInventario(**dados.model_dump())
+    db.add(slot)
     await db.flush()
-    return equipamento
+    return slot
 
 
 # ============================================================
-# TipoControle
-# ============================================================
-
-async def criar_tipo_controle(db: AsyncSession, dados: TipoControleCreate) -> TipoControle:
-    """
-    Cria um novo tipo de controle.
-    """
-    # Verificar unicidade do nome
-    result = await db.execute(
-        select(TipoControle).where(TipoControle.nome == dados.nome)
-    )
-    if result.scalar_one_or_none():
-        raise ValueError(f"Tipo de controle '{dados.nome}' já existe.")
-
-    tipo = TipoControle(**dados.model_dump())
-    db.add(tipo)
-    await db.flush()
-    return tipo
-
-
-async def listar_tipos_controle(db: AsyncSession) -> list[TipoControle]:
-    """Lista todos os tipos de controle cadastrados."""
-    result = await db.execute(select(TipoControle).order_by(TipoControle.nome))
-    return list(result.scalars().all())
-
-
-async def associar_controle_a_equipamento(
-    db: AsyncSession,
-    equipamento_id: uuid.UUID,
-    tipo_controle_id: uuid.UUID,
-) -> EquipamentoControle:
-    """
-    Associa um TipoControle a um Equipamento e propaga para itens existentes.
-
-    Algoritmo (MODEL_DB §5.2):
-        1. Criar registro em EquipamentoControle
-        2. Buscar todos os itens do equipamento
-        3. Para cada item sem este controle, criar ControleVencimento com origem=PADRAO
-    """
-    # Verificar se o equipamento existe
-    equipamento = await buscar_equipamento(db, equipamento_id)
-    if not equipamento:
-        raise ValueError("Equipamento não encontrado.")
-
-    # Verificar se o tipo de controle existe
-    result_tc = await db.execute(
-        select(TipoControle).where(TipoControle.id == tipo_controle_id)
-    )
-    tipo_controle = result_tc.scalar_one_or_none()
-    if not tipo_controle:
-        raise ValueError("Tipo de controle não encontrado.")
-
-    # Verificar duplicidade
-    result = await db.execute(
-        select(EquipamentoControle).where(
-            EquipamentoControle.equipamento_id == equipamento_id,
-            EquipamentoControle.tipo_controle_id == tipo_controle_id,
-        )
-    )
-    if result.scalar_one_or_none():
-        raise ValueError("Controle já associado a este equipamento.")
-
-    # 1. Criar registro em EquipamentoControle
-    assoc = EquipamentoControle(
-        equipamento_id=equipamento_id,
-        tipo_controle_id=tipo_controle_id,
-    )
-    db.add(assoc)
-    await db.flush()
-
-    # 2 & 3. Propagar para itens existentes
-    await propagar_controle_para_itens(db, equipamento_id, tipo_controle_id)
-
-    return assoc
-
-
-# ============================================================
-# ItemEquipamento
-# ============================================================
-
-async def criar_item_com_heranca(
-    db: AsyncSession,
-    dados: ItemEquipamentoCreate,
-) -> ItemEquipamento:
-    """
-    Cria um item físico e herda automaticamente os controles do equipamento.
-
-    Algoritmo (MODEL_DB §5.1):
-        1. Criar ItemEquipamento
-        2. Buscar controles do Equipamento (equipamento_controles)
-        3. Para cada controle, criar ControleVencimento com origem=PADRAO
-    """
-    # Verificar se o equipamento existe
-    equipamento = await buscar_equipamento(db, dados.equipamento_id)
-    if not equipamento:
-        raise ValueError("Equipamento não encontrado.")
-
-    # Verificar unicidade do numero_serie
-    result = await db.execute(
-        select(ItemEquipamento).where(
-            ItemEquipamento.numero_serie == dados.numero_serie
-        )
-    )
-    if result.scalar_one_or_none():
-        raise ValueError(f"Número de série '{dados.numero_serie}' já cadastrado.")
-
-    # 1. Criar item
-    item = ItemEquipamento(
-        equipamento_id=dados.equipamento_id,
-        numero_serie=dados.numero_serie,
-        status=dados.status.value,
-    )
-    db.add(item)
-    await db.flush()
-
-    # 2. Buscar controles template do equipamento
-    result_ctrls = await db.execute(
-        select(EquipamentoControle).where(
-            EquipamentoControle.equipamento_id == dados.equipamento_id
-        )
-    )
-    controles_template: list[EquipamentoControle] = list(result_ctrls.scalars().all())
-
-    # 3. Criar ControleVencimento herdado para cada controle
-    for ctrl in controles_template:
-        vencimento = ControleVencimento(
-            item_id=item.id,
-            tipo_controle_id=ctrl.tipo_controle_id,
-            status=StatusVencimento.OK.value,
-            origem=OrigemControle.PADRAO.value,
-        )
-        db.add(vencimento)
-
-    await db.flush()
-    return item
-
-
-async def listar_itens(
-    db: AsyncSession,
-    equipamento_id: uuid.UUID | None = None,
-) -> list[ItemEquipamento]:
-    """Lista itens, opcionalmente filtrados por equipamento."""
-    query = select(ItemEquipamento)
-    if equipamento_id:
-        query = query.where(ItemEquipamento.equipamento_id == equipamento_id)
-    query = query.order_by(ItemEquipamento.numero_serie)
-    result = await db.execute(query)
-    return list(result.scalars().all())
-
-
-async def buscar_item(db: AsyncSession, item_id: uuid.UUID) -> ItemEquipamento | None:
-    """Busca item por ID."""
-    result = await db.execute(
-        select(ItemEquipamento).where(ItemEquipamento.id == item_id)
-    )
-    return result.scalar_one_or_none()
-
-
-async def listar_vencimentos_por_item(
-    db: AsyncSession,
-    item_id: uuid.UUID,
-) -> list[ControleVencimento]:
-    """Lista todos os controles de vencimento de um item específico."""
-    result = await db.execute(
-        select(ControleVencimento)
-        .where(ControleVencimento.item_id == item_id)
-        .options(selectinload(ControleVencimento.tipo_controle))
-    )
-    return list(result.scalars().all())
-
-
-# ============================================================
-# Instalacao
-# ============================================================
-
-async def instalar_item(
-    db: AsyncSession,
-    item_id: uuid.UUID,
-    aeronave_id: uuid.UUID,
-    data_instalacao: date,
-) -> Instalacao:
-    """
-    Registra a instalação de um item em uma aeronave.
-
-    Raises:
-        ValueError: se o item já estiver instalado (data_remocao=None).
-    """
-    # Verificar se o item existe
-    item = await buscar_item(db, item_id)
-    if not item:
-        raise ValueError("Item não encontrado.")
-
-    # Verificar se a aeronave existe
-    from app.aeronaves.service import buscar_aeronave
-    aeronave = await buscar_aeronave(db, aeronave_id)
-    if not aeronave:
-        raise ValueError("Aeronave não encontrada.")
-
-    # Verificar se o item já está instalado em alguma aeronave
-    result = await db.execute(
-        select(Instalacao).where(
-            Instalacao.item_id == item_id,
-            Instalacao.data_remocao.is_(None),
-        )
-    )
-    if result.scalar_one_or_none():
-        raise ValueError("Item já está instalado em uma aeronave. Remova antes de reinstalar.")
-
-    instalacao = Instalacao(
-        item_id=item_id,
-        aeronave_id=aeronave_id,
-        data_instalacao=data_instalacao,
-    )
-    db.add(instalacao)
-    await db.flush()
-    return instalacao
-
-
-async def remover_item(
-    db: AsyncSession,
-    instalacao_id: uuid.UUID,
-    data_remocao: date,
-) -> Instalacao:
-    """Registra a remoção de um item de uma aeronave."""
-    result_inst = await db.execute(
-        select(Instalacao).where(Instalacao.id == instalacao_id)
-    )
-    instalacao = result_inst.scalar_one_or_none()
-    if not instalacao:
-        raise ValueError("Instalação não encontrada.")
-    if instalacao.data_remocao is not None:
-        raise ValueError("Item já foi removido desta instalação.")
-
-    instalacao.data_remocao = data_remocao
-    await db.flush()
-    return instalacao
-
-
-# ============================================================
-# ControleVencimento
-# ============================================================
-
-async def registrar_execucao(
-    db: AsyncSession,
-    vencimento_id: uuid.UUID,
-    data_exec: date,
-) -> ControleVencimento:
-    """
-    Registra a execução de um controle de manutenção.
-
-    Recalcula data_vencimento = data_exec + periodicidade_meses.
-    Atualiza status (OK / VENCENDO / VENCIDO).
-    """
-    # Buscar vencimento com tipo_controle carregado
-    result = await db.execute(
-        select(ControleVencimento)
-        .where(ControleVencimento.id == vencimento_id)
-        .options(selectinload(ControleVencimento.tipo_controle))
-    )
-    vencimento = result.scalar_one_or_none()
-    if not vencimento:
-        raise ValueError("Controle de vencimento não encontrado.")
-
-    periodicidade = vencimento.tipo_controle.periodicidade_meses
-
-    # Atualizar datas
-    vencimento.data_ultima_exec = data_exec
-    vencimento.data_vencimento = calcular_vencimento(data_exec, periodicidade)
-
-    # Recalcular status baseado na data_vencimento
-    hoje = date.today()
-    if vencimento.data_vencimento < hoje:
-        vencimento.status = StatusVencimento.VENCIDO.value
-    elif (vencimento.data_vencimento - hoje).days <= 30:
-        vencimento.status = StatusVencimento.VENCENDO.value
-    else:
-        vencimento.status = StatusVencimento.OK.value
-
-    await db.flush()
-    return vencimento
-
-
-def calcular_vencimento(
-    data_exec: date,
-    periodicidade_meses: int,
-) -> date:
-    """
-    Calcula a data de vencimento a partir da data de execução.
-
-    Args:
-        data_exec: data em que o controle foi executado.
-        periodicidade_meses: intervalo em meses do tipo de controle.
-
-    Returns:
-        Data calculada para o próximo vencimento.
-    """
-    return data_exec + relativedelta(months=periodicidade_meses)
-
-
-async def propagar_controle_para_itens(
-    db: AsyncSession,
-    equipamento_id: uuid.UUID,
-    tipo_controle_id: uuid.UUID,
-) -> int:
-    """
-    Propaga um novo controle para todos os itens existentes de um equipamento.
-
-    Returns:
-        Número de registros ControleVencimento criados.
-    """
-    # Buscar todos os itens do equipamento
-    result = await db.execute(
-        select(ItemEquipamento).where(
-            ItemEquipamento.equipamento_id == equipamento_id
-        )
-    )
-    itens = list(result.scalars().all())
-
-    count = 0
-    for item in itens:
-        # Verificar se o item já tem este controle
-        result_ctrl = await db.execute(
-            select(ControleVencimento).where(
-                ControleVencimento.item_id == item.id,
-                ControleVencimento.tipo_controle_id == tipo_controle_id,
-            )
-        )
-        if result_ctrl.scalar_one_or_none() is None:
-            vencimento = ControleVencimento(
-                item_id=item.id,
-                tipo_controle_id=tipo_controle_id,
-                status=StatusVencimento.OK.value,
-                origem=OrigemControle.PADRAO.value,
-            )
-            db.add(vencimento)
-            count += 1
-
-    if count > 0:
-        await db.flush()
-
-    return count
-
-
-# ------------------------------------------------------------
 # Inventário de Aeronave
-# ------------------------------------------------------------
+# ============================================================
 
 async def listar_inventario_aeronave(
     db: AsyncSession,
     aeronave_id: uuid.UUID,
     nome: str | None = None,
 ) -> list[InventarioItemOut]:
-    """Retorna lista de itens instalados na aeronave.
-    Opcionalmente filtra por nome de equipamento (case-insensitive, parcial).
-    Levanta ValueError se a aeronave não existir.
-    """
+    """Retorna a situação de TODOS os slots da aeronave."""
     from app.aeronaves.service import buscar_aeronave
-    aeronave = await buscar_aeronave(db, aeronave_id)
-    if not aeronave:
+    aeronave_atual = await buscar_aeronave(db, aeronave_id)
+    if not aeronave_atual:
         raise ValueError("Aeronave não encontrada.")
 
-    # Consulta de instalações ativas com joins
-    stmt = (
-        select(Instalacao, ItemEquipamento, Equipamento)
-        .join(ItemEquipamento, Instalacao.item_id == ItemEquipamento.id)
-        .join(Equipamento, ItemEquipamento.equipamento_id == Equipamento.id)
-        .where(
-            Instalacao.aeronave_id == aeronave_id,
-            Instalacao.data_remocao.is_(None),
-        )
-    )
+    # 1. Buscar todos os slots (posições) configurados
+    stmt_slots = select(SlotInventario).options(selectinload(SlotInventario.modelo))
     if nome:
-        stmt = stmt.where(Equipamento.nome.ilike(f"%{nome}%"))
-
-    result = await db.execute(stmt)
-    rows = result.all()
+        # Filtra pelo nome da posição (ex: MDP) ou nome genérico do equipamento
+        stmt_slots = stmt_slots.join(ModeloEquipamento).where(
+            or_(
+                SlotInventario.nome_posicao.ilike(f"%{nome}%"),
+                ModeloEquipamento.nome_generico.ilike(f"%{nome}%")
+            )
+        )
+    
+    res_slots = await db.execute(stmt_slots)
+    slots = res_slots.scalars().all()
 
     inventario: list[InventarioItemOut] = []
-    for instalacao, item, equip in rows:
+
+    for slot in slots:
+        # 2. Buscar instalação ativa NESTE SLOT desta aeronave
+        stmt_inst = (
+            select(Instalacao, ItemEquipamento)
+            .join(ItemEquipamento, Instalacao.item_id == ItemEquipamento.id)
+            .where(
+                Instalacao.slot_id == slot.id,
+                Instalacao.aeronave_id == aeronave_id,
+                Instalacao.data_remocao.is_(None)
+            )
+        )
+        res_inst = await db.execute(stmt_inst)
+        row = res_inst.first()
+        
+        instalacao, item = row if row else (None, None)
+        anv_anterior = None
+
+        if item:
+            # 3. Buscar histórico (Aeronave Anterior)
+            stmt_ant = (
+                select(Aeronave.matricula)
+                .join(Instalacao, Instalacao.aeronave_id == Aeronave.id)
+                .where(
+                    Instalacao.item_id == item.id,
+                    Instalacao.data_remocao.is_not(None),
+                    Instalacao.aeronave_id != aeronave_id
+                )
+                .order_by(desc(Instalacao.data_remocao))
+                .limit(1)
+            )
+            res_ant = await db.execute(stmt_ant)
+            anv_anterior = res_ant.scalar_one_or_none()
+
         inventario.append(
             InventarioItemOut(
-                equipamento_nome=equip.nome,
-                part_number=equip.part_number,
-                sistema=equip.sistema,
-                numero_serie=item.numero_serie,
-                status_item=item.status,
-                instalacao_id=instalacao.id,
-                data_instalacao=instalacao.data_instalacao,
-                data_remocao=instalacao.data_remocao,
+                slot_id=slot.id,
+                nome_posicao=slot.nome_posicao,
+                sistema=slot.sistema,
+                part_number=slot.modelo.part_number,
+                nome_generico=slot.modelo.nome_generico,
+                equipamento_nome=slot.nome_posicao,
+                equipamento_id=slot.id,
+                item_id=item.id if item else None,
+                numero_serie=item.numero_serie if item else None,
+                status_item=item.status if item else None,
+                instalacao_id=instalacao.id if instalacao else None,
+                data_instalacao=instalacao.data_instalacao if instalacao else None,
+                aeronave_anterior=anv_anterior,
             )
         )
 
-    # Ordenar por sistema (alfab.) e depois por nome do equipamento
-    inventario.sort(key=lambda x: (x.sistema or "", x.equipamento_nome))
+    # Ordenar por sistema e posição
+    inventario.sort(key=lambda x: (x.sistema or "ZZZ", x.nome_posicao))
     return inventario
 
+
+async def ajustar_inventario_item(
+    db: AsyncSession,
+    dados: AjusteInventarioCreate,
+) -> AjusteInventarioResponse:
+    """
+    Sincroniza o S/N REAL com um SLOT de uma aeronave.
+    Garante unicidade de SN por PN e gerencia transferências.
+    """
+    aeronave_id = dados.aeronave_id
+    slot_id = dados.slot_id or dados.equipamento_id
+    if not slot_id:
+        return AjusteInventarioResponse(sucesso=False, mensagem="ID do slot/equipamento não fornecido.")
+        
+    sn_real = dados.numero_serie_real.strip().upper()
+
+    # 1. Buscar o slot e o PN exigido
+    res_slot = await db.execute(
+        select(SlotInventario).where(SlotInventario.id == slot_id).options(selectinload(SlotInventario.modelo))
+    )
+    slot = res_slot.scalar_one_or_none()
+    if not slot:
+        return AjusteInventarioResponse(sucesso=False, mensagem="Slot de inventário não encontrado.")
+
+    modelo_id = slot.modelo_id
+
+    # 2. Buscar instalação atual nesse slot
+    res_inst_atual = await db.execute(
+        select(Instalacao)
+        .where(Instalacao.slot_id == slot_id, Instalacao.aeronave_id == aeronave_id, Instalacao.data_remocao.is_(None))
+        .options(selectinload(Instalacao.item))
+    )
+    inst_atual = res_inst_atual.scalar_one_or_none()
+
+    if inst_atual and inst_atual.item.numero_serie == sn_real:
+        return AjusteInventarioResponse(sucesso=True, mensagem="S/N já está sincronizado.")
+
+    # 3. Buscar/Criar o item físico vinculado ao PN
+    res_item = await db.execute(
+        select(ItemEquipamento).where(
+            ItemEquipamento.numero_serie == sn_real,
+            ItemEquipamento.modelo_id == modelo_id
+        )
+    )
+    item_real = res_item.scalar_one_or_none()
+
+    if not item_real:
+        item_real = ItemEquipamento(
+            id=uuid.uuid4(),
+            modelo_id=modelo_id,
+            numero_serie=sn_real,
+            status=StatusItem.ATIVO
+        )
+        db.add(item_real)
+        await db.flush()
+
+    # 4. Verificar se o item_real está em uso em OUTRA aeronave (ou outro slot)
+    res_conflito = await db.execute(
+        select(Instalacao)
+        .where(Instalacao.item_id == item_real.id, Instalacao.data_remocao.is_(None))
+    )
+    inst_conflito = res_conflito.scalar_one_or_none()
+
+    if inst_conflito and (inst_conflito.aeronave_id != aeronave_id or inst_conflito.slot_id != slot_id):
+        if not dados.forcar_transferencia:
+            res_acft = await db.execute(select(Aeronave.matricula).where(Aeronave.id == inst_conflito.aeronave_id))
+            matricula = res_acft.scalar_one()
+            return AjusteInventarioResponse(
+                sucesso=False,
+                mensagem=f"O item {sn_real} está instalado na aeronave {matricula}.",
+                requer_confirmacao=True,
+                aeronave_conflito=matricula
+            )
+        else:
+            inst_conflito.data_remocao = date.today()
+
+    # 5. Encerrar instalação atual do slot (se houver)
+    if inst_atual:
+        inst_atual.data_remocao = date.today()
+
+    # 6. Criar nova instalação
+    nova_inst = Instalacao(
+        id=uuid.uuid4(),
+        item_id=item_real.id,
+        aeronave_id=aeronave_id,
+        slot_id=slot_id,
+        data_instalacao=date.today()
+    )
+    db.add(nova_inst)
+    
+    await db.commit()
+    return AjusteInventarioResponse(sucesso=True, mensagem="Inventário ajustado com sucesso.")
+
+
+# ============================================================
+# Legado / Manutenção (Controles)
+# ============================================================
+
+async def registrar_execucao(db: AsyncSession, vencimento_id: uuid.UUID, data_exec: date) -> ControleVencimento:
+    result = await db.execute(
+        select(ControleVencimento)
+        .where(ControleVencimento.id == vencimento_id)
+        .options(selectinload(ControleVencimento.tipo_controle))
+    )
+    vencimento = result.scalar_one_or_none()
+    if not vencimento: raise ValueError("Vencimento não encontrado.")
+
+    periodicidade = vencimento.tipo_controle.periodicidade_meses
+    vencimento.data_ultima_exec = data_exec
+    vencimento.data_vencimento = data_exec + relativedelta(months=periodicidade)
+
+    hoje = date.today()
+    if vencimento.data_vencimento < hoje: vencimento.status = StatusVencimento.VENCIDO.value
+    elif (vencimento.data_vencimento - hoje).days <= 30: vencimento.status = StatusVencimento.VENCENDO.value
+    else: vencimento.status = StatusVencimento.OK.value
+
+    await db.flush()
+    return vencimento
+
+async def listar_modelos(db: AsyncSession) -> list[ModeloEquipamento]:
+    result = await db.execute(select(ModeloEquipamento).order_by(ModeloEquipamento.part_number))
+    return list(result.scalars().all())

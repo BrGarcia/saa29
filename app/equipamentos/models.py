@@ -2,13 +2,11 @@
 app/equipamentos/models.py
 Modelos ORM para a gestão de equipamentos aeronáuticos.
 
-Entidades:
-    - Equipamento: tipo/part number de equipamento
-    - TipoControle: TBV, RBA, CRI etc.
-    - EquipamentoControle: relação N:N equipamento x tipo de controle (TEMPLATE)
-    - ItemEquipamento: instância física por número de série
-    - Instalacao: histórico de instalação em aeronaves
-    - ControleVencimento: instância real de controle por item
+Nova Estrutura:
+    - ModeloEquipamento: Catálogo de Part Numbers (PNs únicos)
+    - SlotInventario: Definição de posições na aeronave (ex: MDP1, MDP2)
+    - ItemEquipamento: Instância física vinculada ao PN (Serial Number)
+    - Instalacao: Registro histórico de item em um slot de uma aeronave
 """
 
 from __future__ import annotations
@@ -26,207 +24,159 @@ if TYPE_CHECKING:
     from app.aeronaves.models import Aeronave
 
 
-class Equipamento(Base):
+class ModeloEquipamento(Base):
     """
-    Representa um tipo de equipamento identificado por part number.
-    Define o template de controles que todos os itens herdarão.
+    Representa o Catálogo de Part Numbers (PN).
+    É a entidade base que define o que o equipamento é.
     """
-
-    __tablename__ = "equipamentos"
+    __tablename__ = "modelos_equipamento"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    part_number: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    nome: Mapped[str] = mapped_column(
-        String(100), nullable=False,
-        comment="Nome do equipamento (ex: VUHF2, ELT, MDP)",
-    )
-    sistema: Mapped[str | None] = mapped_column(
-        String(50), nullable=True,
-        comment="Sistema ao qual pertence (ex: COM, NAV, AP)",
-    )
+    part_number: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
+    nome_generico: Mapped[str] = mapped_column(String(100), nullable=False)
     descricao: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
-    updated_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), onupdate=func.now(), nullable=True,
-        comment="Atualizado automaticamente em cada modificação",
+
+    # --- Relacionamentos ---
+    slots: Mapped[list["SlotInventario"]] = relationship(back_populates="modelo")
+    itens: Mapped[list["ItemEquipamento"]] = relationship(back_populates="modelo")
+    # Template de controles (TBV, RBA) vinculados ao PN
+    controles_template: Mapped[list["EquipamentoControle"]] = relationship(back_populates="modelo")
+
+    def __repr__(self) -> str:
+        return f"<ModeloEquipamento pn={self.part_number!r}>"
+
+
+class SlotInventario(Base):
+    """
+    Representa uma posição física pré-definida na aeronave (LCN/Slot).
+    Exemplos: MDP1, MDP2, CMFD1, CMFD2, VUHF1.
+    """
+    __tablename__ = "slots_inventario"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    nome_posicao: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    sistema: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    modelo_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("modelos_equipamento.id", ondelete="RESTRICT"), nullable=False
     )
 
     # --- Relacionamentos ---
-    controles: Mapped[list["EquipamentoControle"]] = relationship(
-        back_populates="equipamento", lazy="select"
-    )
-    itens: Mapped[list["ItemEquipamento"]] = relationship(
-        back_populates="equipamento", lazy="select"
-    )
+    modelo: Mapped["ModeloEquipamento"] = relationship(back_populates="slots")
+    instalacoes: Mapped[list["Instalacao"]] = relationship(back_populates="slot")
 
     def __repr__(self) -> str:
-        return f"<Equipamento nome={self.nome!r} pn={self.part_number!r}>"
+        return f"<SlotInventario nome={self.nome_posicao!r} pn={self.modelo_id}>"
 
 
 class TipoControle(Base):
     """
-    Define um tipo de controle periódico de manutenção.
-    Exemplos: TBV (Teste de Bancada de Verificação), RBA, CRI.
+    Define um tipo de controle periódico de manutenção (TBV, RBA, CRI).
     """
-
     __tablename__ = "tipos_controle"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     nome: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
     descricao: Mapped[str | None] = mapped_column(String(300), nullable=True)
-    periodicidade_meses: Mapped[int] = mapped_column(
-        Integer, nullable=False,
-        comment="Intervalo em meses entre execuções do controle",
-    )
+    periodicidade_meses: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
 
     # --- Relacionamentos ---
-    equipamento_controles: Mapped[list["EquipamentoControle"]] = relationship(
-        back_populates="tipo_controle", lazy="select"
-    )
-    vencimentos: Mapped[list["ControleVencimento"]] = relationship(
-        back_populates="tipo_controle", lazy="select"
-    )
-
-    def __repr__(self) -> str:
-        return f"<TipoControle nome={self.nome!r} periodicidade={self.periodicidade_meses}m>"
+    vencimentos: Mapped[list["ControleVencimento"]] = relationship(back_populates="tipo_controle")
+    equipamento_controles: Mapped[list["EquipamentoControle"]] = relationship(back_populates="tipo_controle")
 
 
 class EquipamentoControle(Base):
     """
-    Relacionamento N:N entre Equipamento e TipoControle.
-    Define o TEMPLATE: todo item deste equipamento herda estes controles.
-    
-    RN: Ao inserir novo EquipamentoControle, propagar para todos os itens existentes.
+    Relacionamento N:N entre ModeloEquipamento e TipoControle.
+    Define quais controles um PN exige.
     """
-
     __tablename__ = "equipamento_controles"
     __table_args__ = (
-        UniqueConstraint("equipamento_id", "tipo_controle_id", name="uq_equip_controle"),
+        UniqueConstraint("modelo_id", "tipo_controle_id", name="uq_equip_controle"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    equipamento_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("equipamentos.id", ondelete="CASCADE"), nullable=False
+    modelo_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("modelos_equipamento.id", ondelete="CASCADE"), nullable=False
     )
     tipo_controle_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("tipos_controle.id", ondelete="CASCADE"), nullable=False
     )
 
     # --- Relacionamentos ---
-    equipamento: Mapped["Equipamento"] = relationship(back_populates="controles")
+    modelo: Mapped["ModeloEquipamento"] = relationship(back_populates="controles_template")
     tipo_controle: Mapped["TipoControle"] = relationship(back_populates="equipamento_controles")
 
 
 class ItemEquipamento(Base):
     """
-    Instância física de um equipamento, identificada por número de série.
-    Herda os controles de manutenção do seu tipo de Equipamento.
+    Instância física de um PN (box), identificada por Serial Number.
+    A unicidade é garantida para a combinação (Modelo/PN + SN).
     """
-
     __tablename__ = "itens_equipamento"
+    __table_args__ = (
+        UniqueConstraint("modelo_id", "numero_serie", name="uq_item_sn_per_pn"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    equipamento_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("equipamentos.id", ondelete="RESTRICT"), nullable=False, index=True
+    modelo_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("modelos_equipamento.id", ondelete="RESTRICT"), nullable=False, index=True
     )
-    numero_serie: Mapped[str] = mapped_column(
-        String(100), unique=True, nullable=False, index=True,
-        comment="Número de série único do item físico",
-    )
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default=StatusItem.ATIVO.value,
-        comment="Status: ATIVO | ESTOQUE | REMOVIDO",
-    )
+    numero_serie: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default=StatusItem.ATIVO.value)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
-    updated_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), onupdate=func.now(), nullable=True,
-        comment="Atualizado automaticamente em cada modificação",
-    )
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     # --- Relacionamentos ---
-    equipamento: Mapped["Equipamento"] = relationship(back_populates="itens")
-    controles_vencimento: Mapped[list["ControleVencimento"]] = relationship(
-        back_populates="item", lazy="select"
-    )
-    instalacoes: Mapped[list["Instalacao"]] = relationship(
-        back_populates="item", lazy="select"
-    )
+    modelo: Mapped["ModeloEquipamento"] = relationship(back_populates="itens")
+    instalacoes: Mapped[list["Instalacao"]] = relationship(back_populates="item")
+    controles_vencimento: Mapped[list["ControleVencimento"]] = relationship(back_populates="item")
 
     def __repr__(self) -> str:
-        return f"<ItemEquipamento sn={self.numero_serie!r} status={self.status!r}>"
+        return f"<ItemEquipamento sn={self.numero_serie!r}>"
 
 
 class Instalacao(Base):
     """
-    Histórico de instalação de um item em uma aeronave.
-    Um item pode ter múltiplas instalações ao longo do tempo.
-    data_remocao=NULL indica instalação ativa.
+    Registro histórico e atual de um Item em um Slot de uma Aeronave.
     """
-
     __tablename__ = "instalacoes"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    item_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("itens_equipamento.id", ondelete="RESTRICT"), nullable=False, index=True
-    )
-    aeronave_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("aeronaves.id", ondelete="RESTRICT"), nullable=False, index=True
-    )
+    item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("itens_equipamento.id"), nullable=False, index=True)
+    aeronave_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("aeronaves.id"), nullable=False, index=True)
+    slot_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("slots_inventario.id"), nullable=False, index=True)
     data_instalacao: Mapped[date] = mapped_column(Date, nullable=False)
-    data_remocao: Mapped[date | None] = mapped_column(
-        Date, nullable=True,
-        comment="NULL indica que o item ainda está instalado",
-    )
+    data_remocao: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     # --- Relacionamentos ---
     item: Mapped["ItemEquipamento"] = relationship(back_populates="instalacoes")
-    aeronave: Mapped["Aeronave"] = relationship(back_populates="instalacoes")  # type: ignore[name-defined]
+    slot: Mapped["SlotInventario"] = relationship(back_populates="instalacoes")
+    aeronave: Mapped["Aeronave"] = relationship(back_populates="instalacoes")  # type: ignore
 
     def __repr__(self) -> str:
-        return f"<Instalacao item={self.item_id} aeronave={self.aeronave_id}>"
+        return f"<Instalacao item_id={self.item_id} slot_id={self.slot_id}>"
 
 
 class ControleVencimento(Base):
     """
-    Instância real de controle de vencimento por item físico.
-
-    Criado automaticamente ao cadastrar um ItemEquipamento (herança).
-    Atualizado após cada execução do controle de manutenção.
-    
-    RN: UNIQUE(item_id, tipo_controle_id) — sem duplicidade por item.
+    Controle real de manutenção vinculado a um item físico.
     """
-
     __tablename__ = "controle_vencimentos"
     __table_args__ = (
         UniqueConstraint("item_id", "tipo_controle_id", name="uq_item_controle"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    item_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("itens_equipamento.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    tipo_controle_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("tipos_controle.id", ondelete="RESTRICT"), nullable=False
-    )
+    item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("itens_equipamento.id"), nullable=False, index=True)
+    tipo_controle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tipos_controle.id"), nullable=False)
     data_ultima_exec: Mapped[date | None] = mapped_column(Date, nullable=True)
-    data_vencimento: Mapped[date | None] = mapped_column(
-        Date, nullable=True, index=True,
-        comment="Data calculada: data_ultima_exec + periodicidade_meses",
-    )
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default=StatusVencimento.OK.value,
-        comment="OK | VENCENDO | VENCIDO",
-    )
-    origem: Mapped[str] = mapped_column(
-        String(20), nullable=False, default=OrigemControle.PADRAO.value,
-        comment="PADRAO (herdado) | ESPECIFICO (adicionado ao item)",
-    )
+    data_vencimento: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default=StatusVencimento.OK.value)
+    origem: Mapped[str] = mapped_column(String(20), nullable=False, default=OrigemControle.PADRAO.value)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
 
     # --- Relacionamentos ---
     item: Mapped["ItemEquipamento"] = relationship(back_populates="controles_vencimento")
     tipo_controle: Mapped["TipoControle"] = relationship(back_populates="vencimentos")
-
-    def __repr__(self) -> str:
-        return f"<ControleVencimento item={self.item_id} status={self.status!r}>"

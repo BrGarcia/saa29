@@ -45,43 +45,50 @@ async def criar_tipo_controle(
 
 # ---- Equipamentos (Tipos / Part Numbers) ----
 
-@router.get("/", response_model=list[schemas.EquipamentoOut], summary="Listar equipamentos")
+@router.get("/", response_model=list[schemas.ModeloEquipamentoOut], summary="Listar equipamentos")
 async def listar_equipamentos(db: DBSession, _: CurrentUser):
-    equipamentos = await service.listar_equipamentos(db)
-    return [schemas.EquipamentoOut.model_validate(e) for e in equipamentos]
+    equipamentos = await service.listar_modelos(db)
+    return [schemas.ModeloEquipamentoOut.model_validate(e) for e in equipamentos]
 
 
 @router.post(
     "/",
-    response_model=schemas.EquipamentoOut,
+    response_model=schemas.ModeloEquipamentoOut,
     status_code=status.HTTP_201_CREATED,
     summary="Cadastrar equipamento",
 )
 async def criar_equipamento(
-    dados: schemas.EquipamentoCreate,
+    dados: schemas.ModeloEquipamentoCreate,
     db: DBSession,
     _: EncarregadoOuAdmin,
 ):
     try:
-        equipamento = await service.criar_equipamento(db, dados)
-        return schemas.EquipamentoOut.model_validate(equipamento)
+        equipamento = await service.criar_modelo(db, dados)
+        return schemas.ModeloEquipamentoOut.model_validate(equipamento)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
-@router.get("/{equipamento_id}", response_model=schemas.EquipamentoOut)
+@router.get("/{equipamento_id}", response_model=schemas.ModeloEquipamentoOut)
 async def buscar_equipamento(
     equipamento_id: uuid.UUID,
     db: DBSession,
     _: CurrentUser,
 ):
-    equipamento = await service.buscar_equipamento(db, equipamento_id)
+    # Nota: No service.py atual só existe buscar_modelo_por_pn. 
+    # Vou assumir que precisamos de um buscar_modelo genérico ou usar ModeloEquipamento diretamente se simples.
+    # Por enquanto, mantendo a estrutura mas corrigindo o schema.
+    from app.equipamentos.models import ModeloEquipamento
+    from sqlalchemy import select
+    result = await db.execute(select(ModeloEquipamento).where(ModeloEquipamento.id == equipamento_id))
+    equipamento = result.scalar_one_or_none()
+    
     if not equipamento:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Equipamento não encontrado.",
         )
-    return schemas.EquipamentoOut.model_validate(equipamento)
+    return schemas.ModeloEquipamentoOut.model_validate(equipamento)
 
 
 @router.post(
@@ -234,4 +241,24 @@ async def listar_inventario(
         return await service.listar_inventario_aeronave(db, aeronave_id, nome=nome)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post(
+    "/inventario/ajuste",
+    response_model=schemas.AjusteInventarioResponse,
+    summary="Ajustar (sincronizar) S/N de uma aeronave/equipamento",
+)
+async def ajustar_inventario(
+    dados: schemas.AjusteInventarioCreate,
+    db: DBSession,
+    _: CurrentUser,
+):
+    """
+    Ajusta o número de série físico de um equipamento.
+    Lida com transferências e criação de novos itens.
+    """
+    try:
+        return await service.ajustar_inventario_item(db, dados)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 

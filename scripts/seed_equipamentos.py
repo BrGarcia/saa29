@@ -1,8 +1,6 @@
 """
 scripts/seed_equipamentos.py
-Popula o banco de dados com equipamentos e itens baseados na ficha de inventário.
-Alvo: Aeronave 5900 (Teste de Inventário)
-Executar: python -m scripts.seed_equipamentos
+Popula o banco com a nova estrutura: ModeloEquipamento (PN) e SlotInventario (Posição).
 """
 import asyncio
 import uuid
@@ -10,136 +8,84 @@ from datetime import date
 from sqlalchemy import select
 from app.database import get_session_factory
 
-# Importar TODOS os modelos para resolver referências do SQLAlchemy
+# Importar modelos para garantir registro no SQLAlchemy
 import app.auth.models
 import app.aeronaves.models
 import app.equipamentos.models
 import app.panes.models
 
 from app.aeronaves.models import Aeronave
-from app.equipamentos.models import Equipamento, ItemEquipamento, Instalacao, StatusItem
+from app.equipamentos.models import ModeloEquipamento, SlotInventario, ItemEquipamento, Instalacao, StatusItem
 
 EQUIPAMENTOS_FICHA = [
     # COMP. ELETRONICO
-    {"nome": "ADF", "pn": "622-7382-101", "sistema": "COMP. ELETRONICO"},
-    {"nome": "DME", "pn": "622-7309-101", "sistema": "COMP. ELETRONICO"},
-    {"nome": "TDR", "pn": "622-9352-004", "sistema": "COMP. ELETRONICO"},
-    {"nome": "STORMSCOPE", "pn": "78-8060-6086-5", "sistema": "COMP. ELETRONICO"},
-    {"nome": "EGIR", "pn": "34200802-80RB", "sistema": "COMP. ELETRONICO"},
-    {"nome": "VOR", "pn": "622-7194-201", "sistema": "COMP. ELETRONICO"},
-    {"nome": "MDP1", "pn": "MA902B-02", "sistema": "COMP. ELETRONICO"},
-    {"nome": "MDP2", "pn": "MA902B-02", "sistema": "COMP. ELETRONICO"},
-    {"nome": "ARTU", "pn": "251-118-012-012", "sistema": "COMP. ELETRONICO"},
-    {"nome": "AFDC", "pn": "449100-02-01", "sistema": "COMP. ELETRONICO"},
-    {"nome": "VUHF1", "pn": "6110.3001.12", "sistema": "COMP. ELETRONICO"},
-    {"nome": "VUHF2", "pn": "6106.7006.12", "sistema": "COMP. ELETRONICO"},
-    {"nome": "VUHF2 BAT", "pn": "0565.1687.00", "sistema": "COMP. ELETRONICO"},
+    {"posicao": "ADF", "nome": "ADF RECEIVER", "pn": "622-7382-101", "sistema": "COMP. ELETRONICO"},
+    {"posicao": "DME", "nome": "DME RECEIVER", "pn": "622-7309-101", "sistema": "COMP. ELETRONICO"},
+    {"posicao": "TDR", "nome": "TRANSPONDER", "pn": "622-9352-004", "sistema": "COMP. ELETRONICO"},
+    {"posicao": "STORMSCOPE", "nome": "STORMSCOPE", "pn": "78-8060-6086-5", "sistema": "COMP. ELETRONICO"},
+    {"posicao": "EGIR", "nome": "EGIR", "pn": "34200802-80RB", "sistema": "COMP. ELETRONICO"},
+    {"posicao": "VOR", "nome": "VOR RECEIVER", "pn": "622-7194-201", "sistema": "COMP. ELETRONICO"},
+    {"posicao": "MDP1", "nome": "MULTI-DISPLAY PROCESSOR", "pn": "MA902B-02", "sistema": "COMP. ELETRONICO"},
+    {"posicao": "MDP2", "nome": "MULTI-DISPLAY PROCESSOR", "pn": "MA902B-02", "sistema": "COMP. ELETRONICO"},
+    {"posicao": "ARTU", "nome": "ARTU", "pn": "251-118-012-012", "sistema": "COMP. ELETRONICO"},
+    {"posicao": "AFDC", "nome": "AFDC", "pn": "449100-02-01", "sistema": "COMP. ELETRONICO"},
+    {"posicao": "VUHF1", "nome": "VUHF RADIO", "pn": "6110.3001.12", "sistema": "COMP. ELETRONICO"},
+    {"posicao": "VUHF2", "nome": "VUHF RADIO", "pn": "6106.7006.12", "sistema": "COMP. ELETRONICO"},
+    {"posicao": "VUHF2 BAT", "nome": "BATTERY", "pn": "0565.1687.00", "sistema": "COMP. ELETRONICO"},
     
     # POSTO DIANTEIRO (1P)
-    {"nome": "AMPLIF. MIC 1P", "pn": "263-000", "sistema": "1P"},
-    {"nome": "PDU", "pn": "4455-1000-01", "sistema": "1P"},
-    {"nome": "UFCP", "pn": "4456-1000-02", "sistema": "1P"},
-    {"nome": "CHVC", "pn": "VEC00054", "sistema": "1P"},
-    {"nome": "CMFD1", "pn": "MB387B-01", "sistema": "1P"},
-    {"nome": "CMFD2", "pn": "MB387B-01", "sistema": "1P"},
-    {"nome": "ASP 1P", "pn": "343-001", "sistema": "1P"},
-    {"nome": "GPS", "pn": "066-04031-1622", "sistema": "1P"},
-    {"nome": "PA CONTROL", "pn": "449300-02-01", "sistema": "1P"},
-    {"nome": "PAINEL PIC/NAV", "pn": "314-04895-403", "sistema": "1P"},
-    {"nome": "PUNHO MANCHE 1P", "pn": "733-0402", "sistema": "1P"},
-    {"nome": "DVR", "pn": "MB211E-03", "sistema": "1P"},
+    {"posicao": "CMFD1", "nome": "COLOR MULTI-FUNCTION DISPLAY", "pn": "MB387B-01", "sistema": "1P"},
+    {"posicao": "CMFD2", "nome": "COLOR MULTI-FUNCTION DISPLAY", "pn": "MB387B-01", "sistema": "1P"},
+    {"posicao": "UFCP", "nome": "UFCP", "pn": "4456-1000-02", "sistema": "1P"},
+    {"posicao": "GPS", "nome": "GPS RECEIVER", "pn": "066-04031-1622", "sistema": "1P"},
+    {"posicao": "DVR", "nome": "DVR", "pn": "MB211E-03", "sistema": "1P"},
 
     # POSTO TRASEIRO (2P)
-    {"nome": "AMPLIF. MIC 2P", "pn": "263-000", "sistema": "2P"},
-    {"nome": "PSU", "pn": "4458-1000-00", "sistema": "2P"},
-    {"nome": "CMFD3", "pn": "MB387B-01", "sistema": "2P"},
-    {"nome": "CMFD4", "pn": "MB387B-01", "sistema": "2P"},
-    {"nome": "ASP 2P", "pn": "343-001", "sistema": "2P"},
-    {"nome": "PUNHO MANCHE 2P", "pn": "733-0402", "sistema": "2P"},
-
-    # COMP. ELT/OBOGS
-    {"nome": "VADR", "pn": "174521-10-01", "sistema": "COMP. ELT/OBOGS"},
-    {"nome": "ELT", "pn": "453-5000-710", "sistema": "COMP. ELT/OBOGS"},
+    {"posicao": "CMFD3", "nome": "COLOR MULTI-FUNCTION DISPLAY", "pn": "MB387B-01", "sistema": "2P"},
+    {"posicao": "CMFD4", "nome": "COLOR MULTI-FUNCTION DISPLAY", "pn": "MB387B-01", "sistema": "2P"},
 ]
 
-async def seed_equipamentos():
+async def seed():
     AsyncSessionLocal = get_session_factory()
     async with AsyncSessionLocal() as session:
-        # 1. Garantir que a aeronave 5900 existe
+        # 1. Garantir aeronave 5900
         res_acft = await session.execute(select(Aeronave).where(Aeronave.matricula == "5900"))
         aeronave = res_acft.scalar_one_or_none()
-        
         if not aeronave:
-            print("✈️ Criando aeronave de teste 5900...")
-            aeronave = Aeronave(
-                id=uuid.uuid4(),
-                matricula="5900",
-                serial_number="SN-A29-TEST",
-                modelo="A-29",
-                status="OPERACIONAL"
-            )
+            aeronave = Aeronave(id=uuid.uuid4(), matricula="5900", serial_number="SN-5900", modelo="A-29", status="OPERACIONAL")
             session.add(aeronave)
             await session.flush()
-        else:
-            print("✅ Aeronave 5900 já existe.")
 
-        # 2. Criar equipamentos e itens
-        for eq_data in EQUIPAMENTOS_FICHA:
-            # Verificar se equipamento (PN) já existe
-            res_eq = await session.execute(
-                select(Equipamento).where(Equipamento.part_number == eq_data["pn"], Equipamento.nome == eq_data["nome"])
-            )
-            equipamento = res_eq.scalar_one_or_none()
-            
-            if not equipamento:
-                print(f"📦 Criando tipo: {eq_data['nome']} (PN: {eq_data['pn']})")
-                equipamento = Equipamento(
-                    id=uuid.uuid4(),
-                    nome=eq_data["nome"],
-                    part_number=eq_data["pn"],
-                    sistema=eq_data["sistema"],
-                    descricao=f"Equipamento {eq_data['nome']} da ficha de inventário"
-                )
-                session.add(equipamento)
+        for data in EQUIPAMENTOS_FICHA:
+            # 2. Criar Modelo (PN) se não existe
+            res_mod = await session.execute(select(ModeloEquipamento).where(ModeloEquipamento.part_number == data["pn"]))
+            modelo = res_mod.scalar_one_or_none()
+            if not modelo:
+                print(f"📦 Criando Modelo PN: {data['pn']} ({data['nome']})")
+                modelo = ModeloEquipamento(id=uuid.uuid4(), part_number=data["pn"], nome_generico=data["nome"])
+                session.add(modelo)
                 await session.flush()
 
-            # Verificar se já existe item instalado desta aeronave para este equipamento
-            res_inst = await session.execute(
-                select(Instalacao)
-                .join(ItemEquipamento)
-                .where(
-                    Instalacao.aeronave_id == aeronave.id,
-                    ItemEquipamento.equipamento_id == equipamento.id,
-                    Instalacao.data_remocao == None
-                )
-            )
-            inst_ativa = res_inst.scalar_one_or_none()
-
-            if not inst_ativa:
-                # Criar um item físico (Serial Number aleatório para o seed)
-                sn = f"SN-{eq_data['nome']}-{str(uuid.uuid4())[:8].upper()}"
-                print(f"  🔧 Instalando item {sn} na 5900...")
-                
-                item = ItemEquipamento(
-                    id=uuid.uuid4(),
-                    equipamento_id=equipamento.id,
-                    numero_serie=sn,
-                    status=StatusItem.ATIVO
-                )
-                session.add(item)
+            # 3. Criar Slot (Posição) se não existe
+            res_slot = await session.execute(select(SlotInventario).where(SlotInventario.nome_posicao == data["posicao"]))
+            slot = res_slot.scalar_one_or_none()
+            if not slot:
+                print(f"📍 Criando Slot: {data['posicao']}")
+                slot = SlotInventario(id=uuid.uuid4(), nome_posicao=data["posicao"], sistema=data["sistema"], modelo_id=modelo.id)
+                session.add(slot)
                 await session.flush()
 
-                # Registrar instalação
-                instalacao = Instalacao(
-                    id=uuid.uuid4(),
-                    item_id=item.id,
-                    aeronave_id=aeronave.id,
-                    data_instalacao=date.today()
-                )
-                session.add(instalacao)
-        
+            # 4. Instalar um item físico na 5900 para teste
+            sn = f"SN-{data['posicao']}-{str(uuid.uuid4())[:4].upper()}"
+            item = ItemEquipamento(id=uuid.uuid4(), modelo_id=modelo.id, numero_serie=sn, status=StatusItem.ATIVO)
+            session.add(item)
+            await session.flush()
+
+            instalacao = Instalacao(id=uuid.uuid4(), item_id=item.id, aeronave_id=aeronave.id, slot_id=slot.id, data_instalacao=date.today())
+            session.add(instalacao)
+
         await session.commit()
-        print("\n🚀 Seed de inventário concluído com sucesso!")
+        print("\n🚀 Seed estrutural concluído!")
 
 if __name__ == "__main__":
-    asyncio.run(seed_equipamentos())
+    asyncio.run(seed())

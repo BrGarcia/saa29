@@ -4,8 +4,13 @@
 
 {% block content %}
 <style>
+    .real-input-container {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
     .real-input {
-        width: 100%;
+        flex: 1;
         padding: 0.5rem;
         border: 1px solid var(--border-color);
         border-radius: 4px;
@@ -13,6 +18,7 @@
         color: var(--text-primary);
         font-family: monospace;
         transition: all 0.2s;
+        min-width: 140px;
     }
     .real-input:focus {
         outline: none;
@@ -30,8 +36,57 @@
         color: var(--status-danger) !important;
     }
     .status-pending {
-        border-color: #eab308 !important; /* Amarelo */
+        border-color: #eab308 !important;
         background-color: rgba(234, 179, 8, 0.1) !important;
+    }
+    .btn-sync {
+        padding: 0.5rem;
+        border-radius: 4px;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 0.2s;
+        opacity: 0;
+        pointer-events: none;
+    }
+    .btn-sync.visible {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .btn-sync:hover {
+        filter: brightness(1.1);
+    }
+
+    /* Modal Customizado */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+    .modal-content {
+        max-width: 500px;
+        width: 90%;
+        padding: 2rem;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+    }
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        margin-top: 2rem;
     }
 </style>
 
@@ -44,7 +99,7 @@
             <input type="text" id="filter-nome" class="form-input" placeholder="Filtrar por equipamento..." style="flex: 1;" oninput="loadInventario()">
         </div>
         <div id="stats-summary" style="display: flex; gap: 1.5rem; font-size: 0.9rem; font-weight: 500;">
-            <!-- Estatísticas serão inseridas via JS -->
+            <!-- Estatísticas via JS -->
         </div>
     </div>
 
@@ -54,15 +109,34 @@
         </div>
     </div>
 </div>
+
+<!-- Modal de Confirmação de Transferência -->
+<div id="modal-transferencia" class="modal-overlay">
+    <div class="modal-content card glass-panel">
+        <div style="display: flex; align-items: center; gap: 1rem; color: var(--status-danger); margin-bottom: 1rem;">
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <h3 style="margin: 0;">Conflito de Instalação</h3>
+        </div>
+        <p id="modal-transferencia-msg" style="line-height: 1.6; color: var(--text-primary);"></p>
+        <p style="color: var(--text-secondary); font-size: 0.95rem;">Deseja remover o item da aeronave anterior e transferi-lo para a aeronave atual?</p>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+            <button class="btn btn-primary" id="btn-confirmar-transferencia" style="background-color: var(--status-danger); border-color: var(--status-danger);">Transferir S/N</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+    let pendingAjuste = null;
+
     async function loadAeronaves() {
         const select = document.getElementById('aeronave-select');
         try {
             const data = await apiFetch('/aeronaves/?limit=100');
-            // Ordenar por matrícula
             data.sort((a, b) => a.matricula.localeCompare(b.matricula));
             data.forEach(acft => {
                 const opt = document.createElement('option');
@@ -77,9 +151,7 @@
                 select.value = acftId;
                 loadInventario();
             }
-        } catch (e) {
-            console.error("Erro ao carregar aeronaves", e);
-        }
+        } catch (e) { console.error(e); }
     }
 
     async function loadInventario() {
@@ -105,22 +177,69 @@
         }
     }
 
-    function compareSN(input, snOriginal) {
+    function compareSN(input, snOriginal, equipamentoId) {
         const val = input.value.trim().toUpperCase();
+        const btn = document.getElementById(`btn-sync-${equipamentoId}`);
+        
         input.classList.remove('status-match', 'status-mismatch', 'status-pending');
         
+        const original = (snOriginal || "").toUpperCase();
+
         if (val === '') {
             input.classList.add('status-pending');
-        } else if (val === snOriginal.toUpperCase()) {
+            btn.classList.remove('visible');
+        } else if (val === original) {
             input.classList.add('status-match');
+            btn.classList.remove('visible');
         } else {
             input.classList.add('status-mismatch');
+            btn.classList.add('visible');
         }
         updateStats();
     }
 
+    async function ajustarInventario(equipamentoId, snReal, forcar = false) {
+        const aeronaveId = document.getElementById('aeronave-select').value;
+        try {
+            const response = await apiFetch(`/equipamentos/inventario/ajuste`, {
+                method: 'POST',
+                body: {
+                    aeronave_id: aeronaveId,
+                    equipamento_id: equipamentoId,
+                    numero_serie_real: snReal,
+                    forcar_transferencia: forcar
+                }
+            });
+
+            if (response.sucesso) {
+                showToast(response.mensagem, "success");
+                fecharModal();
+                loadInventario();
+            } else if (response.requer_confirmacao) {
+                abrirModal(equipamentoId, snReal, response.aeronave_conflito);
+            } else {
+                showToast(response.mensagem, "error");
+            }
+        } catch (e) {
+            showToast(e.message || "Erro ao ajustar inventário.", "error");
+        }
+    }
+
+    function abrirModal(equipamentoId, snReal, anvConflito) {
+        document.getElementById('modal-transferencia-msg').innerHTML = 
+            `O item <strong>${snReal}</strong> consta como instalado na aeronave <strong>${anvConflito}</strong>.`;
+        document.getElementById('modal-transferencia').style.display = 'flex';
+        
+        document.getElementById('btn-confirmar-transferencia').onclick = () => {
+            ajustarInventario(equipamentoId, snReal, true);
+        };
+    }
+
+    function fecharModal() {
+        document.getElementById('modal-transferencia').style.display = 'none';
+    }
+
     function updateStats(items = null) {
-        // Se items não for passado, tenta pegar do estado global/DOM
         const allInputs = document.querySelectorAll('.real-input');
         if (allInputs.length === 0 && !items) return;
 
@@ -134,11 +253,6 @@
             else if (input.classList.contains('status-mismatch')) mismatches++;
             else pending++;
         });
-
-        // Caso inicial (logo após renderizar, antes de qualquer input)
-        if (allInputs.length > 0 && matches === 0 && mismatches === 0 && pending === total) {
-             // Mantém o total mas sem cores até o primeiro input
-        }
 
         const statsDiv = document.getElementById('stats-summary');
         statsDiv.innerHTML = `
@@ -170,38 +284,55 @@
             section.style.marginBottom = '2.5rem';
             
             let html = `
-                <h3 style="margin-bottom: 1rem; color: var(--primary-color); font-size: 1.1rem; border-left: 4px solid var(--primary-color); padding-left: 1rem; text-transform: uppercase; letter-spacing: 0.05em;">${sistema}</h3>
-                <div class="card glass-panel" style="padding: 0; overflow: hidden; border: 1px solid var(--border-color);">
+                <h3 style="margin-bottom: 1rem; color: var(--primary-color); font-size: 1.1rem; border-left: 4px solid var(--primary-color); padding-left: 1rem; text-transform: uppercase;">${sistema}</h3>
+                <div class="card glass-panel" style="padding: 0; overflow: hidden;">
                     <table style="width: 100%; border-collapse: collapse; text-align: left;">
                         <thead style="background-color: var(--bg-tertiary); border-bottom: 1px solid var(--border-color);">
                             <tr>
-                                <th style="padding: 1rem; width: 25%;">Item</th>
-                                <th style="padding: 1rem; width: 20%;">P/N</th>
-                                <th style="padding: 1rem; width: 20%;">S/N (Sistema)</th>
+                                <th style="padding: 1rem; width: 22%;">Item</th>
+                                <th style="padding: 1rem; width: 18%;">P/N</th>
+                                <th style="padding: 1rem; width: 12%;">Anv Ant.</th>
+                                <th style="padding: 1rem; width: 18%;">S/N (Sistema)</th>
                                 <th style="padding: 1rem; width: 20%;">S/N (REAL)</th>
-                                <th style="padding: 1rem; width: 15%;">Instalado em</th>
+                                <th style="padding: 1rem; width: 10%;">Instalado</th>
                             </tr>
                         </thead>
                         <tbody>
             `;
 
             grupos[sistema].sort((a,b) => a.equipamento_nome.localeCompare(b.equipamento_nome)).forEach(item => {
-                const inputId = `real-${item.instalacao_id}`;
+                const inputId = `real-${item.equipamento_id}`;
+                const anvAnt = item.aeronave_anterior ? 
+                    `<span class="badge" style="background: var(--bg-tertiary); color: var(--primary-color);">${item.aeronave_anterior}</span>` : 
+                    `<span style="color: var(--text-secondary); opacity: 0.5;">-</span>`;
+
+                const snSistema = item.numero_serie || '<span style="opacity: 0.3">vazio</span>';
+
                 html += `
                     <tr style="border-bottom: 1px solid var(--border-color);">
                         <td style="padding: 0.8rem 1rem;">
                             <div style="font-weight: 600;">${item.equipamento_nome}</div>
-                            <div style="font-size: 0.75rem; color: var(--text-secondary);">${item.status_item}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">${item.status_item || 'NÃO INSTALADO'}</div>
                         </td>
                         <td style="padding: 0.8rem 1rem; font-family: monospace; font-size: 0.9rem;">${item.part_number}</td>
-                        <td style="padding: 0.8rem 1rem; font-family: monospace; color: var(--text-secondary);">${item.numero_serie}</td>
+                        <td style="padding: 0.8rem 1rem; text-align: center;">${anvAnt}</td>
+                        <td style="padding: 0.8rem 1rem; font-family: monospace; color: var(--text-secondary);">${snSistema}</td>
                         <td style="padding: 0.6rem 1rem;">
-                            <input type="text" id="${inputId}" class="real-input status-pending" 
-                                   placeholder="Digitar SN real..." 
-                                   oninput="compareSN(this, '${item.numero_serie}')">
+                            <div class="real-input-container">
+                                <input type="text" id="${inputId}" class="real-input status-pending" 
+                                       placeholder="S/N real..." 
+                                       oninput="compareSN(this, '${item.numero_serie || ''}', '${item.equipamento_id}')">
+                                <button id="btn-sync-${item.equipamento_id}" class="btn-sync" 
+                                        onclick="ajustarInventario('${item.equipamento_id}', document.getElementById('${inputId}').value)"
+                                        title="Sincronizar com Sistema">
+                                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                    </svg>
+                                </button>
+                            </div>
                         </td>
-                        <td style="padding: 0.8rem 1rem; font-size: 0.85rem; color: var(--text-secondary);">
-                            ${new Date(item.data_instalacao).toLocaleDateString('pt-BR')}
+                        <td style="padding: 0.8rem 1rem; font-size: 0.8rem; color: var(--text-secondary);">
+                            ${item.data_instalacao ? new Date(item.data_instalacao).toLocaleDateString('pt-BR') : '-'}
                         </td>
                     </tr>
                 `;
@@ -211,8 +342,6 @@
             section.innerHTML = html;
             container.appendChild(section);
         });
-        
-        // Inicializar estatísticas após renderizar todos os inputs pendentes
         updateStats();
     }
 
