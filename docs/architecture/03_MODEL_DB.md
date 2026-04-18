@@ -1,21 +1,25 @@
-from pathlib import Path
+# MODEL_DB.md
+**Modelo de Banco de Dados – SAA29 (Sistema de Acompanhamento de Aeronaves A-29)**
 
-content = """# MODEL_DB.md  
-**Modelo de Banco de Dados – Sistema de Gestão de Panes (Eletrônica A-29) – Versão Refinada**
+> Documento sincronizado com o código-fonte em 18/04/2026.
+> Fonte da verdade: arquivos `app/*/models.py` e `app/core/enums.py`.
 
 ---
 
 ## 1. Visão Geral
 
-Este modelo contempla:
+O banco de dados do SAA29 é composto por **10 tabelas** organizadas em 4 domínios:
 
-- Gestão de panes
-- Controle de efetivo
-- Gestão de aeronaves
-- Controle avançado de equipamentos com rastreabilidade por número de série
-- Sistema de vencimentos baseado em herança automática por tipo de equipamento
+| Domínio | Tabelas | Status |
+| :--- | :--- | :---: |
+| **Autenticação** | `usuarios`, `token_blacklist` | ✅ Implementado |
+| **Aeronaves** | `aeronaves` | ✅ Implementado |
+| **Panes** | `panes`, `anexos`, `pane_responsaveis` | ✅ Implementado |
+| **Equipamentos** | `equipamentos`, `tipos_controle`, `equipamento_controles`, `itens_equipamento`, `instalacoes`, `controle_vencimentos` | ⚙️ Modelo ORM criado, pendente de UI/rotas |
 
-Banco recomendado: PostgreSQL
+**Banco:** SQLite (modo WAL) via `aiosqlite` + SQLAlchemy 2.x async.
+**Migrações:** Alembic (9 migrações aplicadas até o momento).
+**IDs:** UUID v4 em todas as tabelas.
 
 ---
 
@@ -25,229 +29,409 @@ Banco recomendado: PostgreSQL
 
 ### 2.1 Usuários (Efetivo)
 
-Tabela: usuarios
+**Tabela:** `usuarios`
+**Arquivo:** `app/auth/models.py` → classe `Usuario`
 
-- id (PK)
-- nome
-- posto
-- especialidade
-- funcao
-- ramal
-- trigrama (3 LETRAS)
-- username (UNIQUE)
-- senha_hash
-- created_at
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, default uuid4 | Identificador único |
+| `nome` | String(150) | NOT NULL | Nome completo do militar |
+| `posto` | String(30) | NOT NULL | Posto ou graduação (ex: Ten, Cap, Sgt) |
+| `especialidade` | String(50) | nullable | Especialidade técnica |
+| `funcao` | String(50) | NOT NULL | `ADMINISTRADOR` \| `ENCARREGADO` \| `MANTENEDOR` |
+| `ramal` | String(20) | nullable | Ramal telefônico |
+| `trigrama` | String(3) | nullable | Código de 3 letras identificador |
+| `username` | String(50) | UNIQUE, NOT NULL, INDEX | Login |
+| `senha_hash` | String(255) | NOT NULL | Hash bcrypt |
+| `ativo` | Boolean | default True, INDEX | Soft delete |
+| `created_at` | DateTime(tz) | NOT NULL, default now() | — |
+| `updated_at` | DateTime(tz) | nullable, onupdate now() | — |
 
----
-
-### 2.2 Aeronaves
-
-Tabela: aeronaves
-
-- id (PK)
-- part_number
-- serial_number (UNIQUE)
-- matricula (UNIQUE)
-- modelo
-- status
-- created_at
+**Relacionamentos:**
+- `1:N` → `panes` (como criador via `criado_por_id`)
+- `1:N` → `panes` (como responsável da conclusão via `concluido_por_id`)
+- `1:N` → `pane_responsaveis`
 
 ---
 
-### 2.3 Equipamentos (Tipo / Part Number)
+### 2.2 Token Blacklist
 
-Tabela: equipamentos
+**Tabela:** `token_blacklist`
+**Arquivo:** `app/auth/models.py` → classe `TokenBlacklist`
 
-- id (PK)
-- part_number
-- nome (ex: VUHF2, ELT, MDP)
-- sistema (ex: COM, NAV, AP)
-- descricao
-- created_at
-
----
-
-### 2.4 Tipos de Controle
-
-Tabela: tipos_controle
-
-- id (PK)
-- nome (TBV, RBA, CRI)
-- descricao
-- periodicidade_meses
-- created_at
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `jti` | String(36) | PK, INDEX | JWT ID do token invalidado |
+| `expira_em` | DateTime(tz) | NOT NULL | Expiração original do token |
+| `criado_em` | DateTime(tz) | NOT NULL, default now() | Data de invalidação |
 
 ---
 
-### 2.5 Relação Equipamento x Controle (TEMPLATE)
+### 2.3 Aeronaves
 
-Tabela: equipamento_controles
+**Tabela:** `aeronaves`
+**Arquivo:** `app/aeronaves/models.py` → classe `Aeronave`
 
-- id (PK)
-- equipamento_id (FK)
-- tipo_controle_id (FK)
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, default uuid4 | Identificador único |
+| `part_number` | String(50) | nullable | Part number da aeronave |
+| `serial_number` | String(50) | UNIQUE, NOT NULL, INDEX | Número de série |
+| `matricula` | String(20) | UNIQUE, NOT NULL, INDEX | Matrícula operacional (ex: 5900) |
+| `modelo` | String(50) | NOT NULL, default "A-29" | Modelo da aeronave |
+| `status` | String(20) | NOT NULL, default "OPERACIONAL" | `OPERACIONAL` \| `INDISPONIVEL` \| `INATIVA` |
+| `created_at` | DateTime(tz) | NOT NULL, default now() | — |
+| `updated_at` | DateTime(tz) | nullable, onupdate now() | — |
 
-CONSTRAINT UNIQUE(equipamento_id, tipo_controle_id)
-
----
-
-### 2.6 Itens de Equipamento (Serial Number)
-
-Tabela: itens_equipamento
-
-- id (PK)
-- equipamento_id (FK)
-- numero_serie (UNIQUE)
-- status (ativo, estoque, removido)
-- created_at
+**Relacionamentos:**
+- `1:N` → `panes`
+- `1:N` → `instalacoes`
 
 ---
 
-### 2.7 Instalação em Aeronaves (Histórico)
+### 2.4 Panes
 
-Tabela: instalacoes
+**Tabela:** `panes`
+**Arquivo:** `app/panes/models.py` → classe `Pane`
 
-- id (PK)
-- item_id (FK)
-- aeronave_id (FK)
-- data_instalacao
-- data_remocao
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, default uuid4 | Identificador único |
+| `aeronave_id` | UUID | FK → aeronaves.id, NOT NULL, INDEX | Aeronave vinculada |
+| `status` | String(20) | NOT NULL, default "ABERTA", INDEX | `ABERTA` \| `RESOLVIDA` |
+| `sistema_subsistema` | String(100) | nullable | Sistema/subsistema da falha |
+| `descricao` | Text | NOT NULL, default "AGUARDANDO EDICAO" | Descrição da pane |
+| `data_abertura` | DateTime(tz) | NOT NULL, default now() | Data de abertura automática |
+| `data_conclusao` | DateTime(tz) | nullable | Preenchido ao concluir |
+| `observacao_conclusao` | Text | nullable | Ação corretiva |
+| `comentarios` | Text | nullable | Observações internas |
+| `ativo` | Boolean | default True, INDEX | Soft delete |
+| `criado_por_id` | UUID | FK → usuarios.id, NOT NULL | Quem registrou |
+| `concluido_por_id` | UUID | FK → usuarios.id, nullable | Quem concluiu |
+| `created_at` | DateTime(tz) | NOT NULL, default now() | — |
+| `updated_at` | DateTime(tz) | nullable, onupdate now() | — |
 
----
+**Relacionamentos:**
+- `N:1` → `aeronaves`
+- `N:1` → `usuarios` (criador)
+- `N:1` → `usuarios` (responsável conclusão)
+- `1:N` → `anexos` (cascade delete)
+- `1:N` → `pane_responsaveis` (cascade delete)
 
-### 2.8 Controle de Vencimentos (INSTÂNCIA REAL)
-
-Tabela: controle_vencimentos
-
-- id (PK)
-- item_id (FK)
-- tipo_controle_id (FK)
-- data_ultima_exec
-- data_vencimento
-- status (OK, VENCENDO, VENCIDO)
-- origem (PADRAO, ESPECIFICO)
-- created_at
-
-CONSTRAINT UNIQUE(item_id, tipo_controle_id)
-
----
-
-### 2.9 Panes
-
-Tabela: panes
-
-- id (PK)
-- aeronave_id (FK)
-- status (ABERTA, EM_PESQUISA, RESOLVIDA)
-- sistema_subsistema
-- descricao
-- data_abertura
-- data_conclusao
-- criado_por (FK usuarios)
-- concluido_por (FK usuarios)
-- created_at
+**Regras de Negócio:**
+- RN-03: Apenas panes ABERTA podem ser editadas.
+- RN-04: `data_conclusao` é preenchida automaticamente ao concluir.
+- RN-05: Descrição padrão = "AGUARDANDO EDICAO" se vazio.
+- Soft delete via campo `ativo`.
 
 ---
 
-### 2.10 Anexos
+### 2.5 Anexos
 
-Tabela: anexos
+**Tabela:** `anexos`
+**Arquivo:** `app/panes/models.py` → classe `Anexo`
 
-- id (PK)
-- pane_id (FK)
-- caminho_arquivo
-- tipo
-- created_at
-
----
-
-### 2.11 Responsáveis por Pane
-
-Tabela: pane_responsaveis
-
-- id (PK)
-- pane_id (FK)
-- usuario_id (FK)
-- papel
-- created_at
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, default uuid4 | Identificador único |
+| `pane_id` | UUID | FK → panes.id (CASCADE), NOT NULL, INDEX | Pane vinculada |
+| `caminho_arquivo` | String(500) | NOT NULL | Caminho relativo ao diretório de uploads |
+| `tipo` | String(20) | NOT NULL, default "IMAGEM" | `IMAGEM` \| `DOCUMENTO` |
+| `created_at` | DateTime(tz) | NOT NULL, default now() | — |
 
 ---
 
-## 3. Relacionamentos
+### 2.6 Responsáveis por Pane
 
-- equipamentos 1:N itens_equipamento  
-- equipamentos N:N tipos_controle (via equipamento_controles)  
-- itens_equipamento 1:N controle_vencimentos  
-- itens_equipamento 1:N instalacoes  
-- aeronaves 1:N instalacoes  
-- aeronaves 1:N panes  
-- panes 1:N anexos  
-- panes N:N usuarios  
+**Tabela:** `pane_responsaveis`
+**Arquivo:** `app/panes/models.py` → classe `PaneResponsavel`
 
----
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, default uuid4 | Identificador único |
+| `pane_id` | UUID | FK → panes.id (CASCADE), NOT NULL, INDEX | Pane vinculada |
+| `usuario_id` | UUID | FK → usuarios.id (RESTRICT), NOT NULL | Usuário responsável |
+| `papel` | String(30) | NOT NULL | `ADMINISTRADOR` \| `ENCARREGADO` \| `MANTENEDOR` |
+| `created_at` | DateTime(tz) | NOT NULL, default now() | — |
 
-## 4. Regras de Negócio (Banco)
-
-- Todo item deve herdar controles do seu equipamento
-- Não permitir duplicidade de controle por item
-- data_conclusao só existe se status = RESOLVIDA
-- descrição padrão: "AGUARDANDO EDICAO"
+**Propriedade auxiliar:** `trigrama` (acessa `usuario.trigrama`).
 
 ---
 
-## 5. Algoritmos de Herança
+### 2.7 Equipamentos (Tipo / Part Number)
 
-### 5.1 Ao criar ITEM
+**Tabela:** `equipamentos`
+**Arquivo:** `app/equipamentos/models.py` → classe `Equipamento`
+**Status:** ⚙️ Modelo ORM criado. Pendente: rotas, serviço, templates de UI.
 
-- Buscar controles do equipamento
-- Criar registros em controle_vencimentos
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, default uuid4 | Identificador único |
+| `part_number` | String(50) | NOT NULL, INDEX | Part number do tipo |
+| `nome` | String(100) | NOT NULL | Nome do equipamento (ex: VUHF2, ELT, MDP) |
+| `sistema` | String(50) | nullable | Sistema ao qual pertence (ex: COM, NAV, AP) |
+| `descricao` | String(500) | nullable | Descrição do equipamento |
+| `created_at` | DateTime(tz) | NOT NULL, default now() | — |
+| `updated_at` | DateTime(tz) | nullable, onupdate now() | — |
 
----
-
-### 5.2 Ao criar novo controle para equipamento
-
-- Buscar todos os itens existentes
-- Criar controles faltantes
-
----
-
-## 6. Índices Recomendados
-
-- INDEX em controle_vencimentos(status)
-- INDEX em controle_vencimentos(data_vencimento)
-- INDEX em itens_equipamento(equipamento_id)
-- INDEX em panes(status)
-- INDEX em panes(aeronave_id)
+**Relacionamentos:**
+- `1:N` → `equipamento_controles` (template de controles)
+- `1:N` → `itens_equipamento` (instâncias físicas)
 
 ---
 
-## 7. Observações Técnicas
+### 2.8 Tipos de Controle
 
-- Usar UUID para escalabilidade
-- Usar ENUM para status
-- Armazenar imagens em cloud (S3 ou similar)
+**Tabela:** `tipos_controle`
+**Arquivo:** `app/equipamentos/models.py` → classe `TipoControle`
+**Status:** ⚙️ Modelo ORM criado. Pendente: rotas, serviço, templates de UI.
+
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, default uuid4 | Identificador único |
+| `nome` | String(50) | UNIQUE, NOT NULL, INDEX | Nome do controle (ex: TBV, RBA, CRI) |
+| `descricao` | String(300) | nullable | Descrição do controle |
+| `periodicidade_meses` | Integer | NOT NULL | Intervalo em meses entre execuções |
+| `created_at` | DateTime(tz) | NOT NULL, default now() | — |
+
+**Relacionamentos:**
+- `1:N` → `equipamento_controles`
+- `1:N` → `controle_vencimentos`
 
 ---
 
-## 8. Evoluções Futuras
+### 2.9 Relação Equipamento × Controle (TEMPLATE)
 
-- Dashboard de vencimentos
-- Alertas automáticos
-- Auditoria completa
-- Integração com manutenção programada
+**Tabela:** `equipamento_controles`
+**Arquivo:** `app/equipamentos/models.py` → classe `EquipamentoControle`
+**Status:** ⚙️ Modelo ORM criado. Pendente: rotas, serviço, templates de UI.
+
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, default uuid4 | Identificador único |
+| `equipamento_id` | UUID | FK → equipamentos.id (CASCADE), NOT NULL | Tipo de equipamento |
+| `tipo_controle_id` | UUID | FK → tipos_controle.id (CASCADE), NOT NULL | Tipo de controle |
+
+**Constraint:** `UNIQUE(equipamento_id, tipo_controle_id)` — nome: `uq_equip_controle`
+
+**Regra de Negócio:**
+- Ao inserir um novo `EquipamentoControle`, propagar automaticamente para todos os `itens_equipamento` existentes desse equipamento (criar `ControleVencimento` para cada item).
 
 ---
 
-## 9. Conclusão
+### 2.10 Itens de Equipamento (Serial Number)
 
-Modelo preparado para:
+**Tabela:** `itens_equipamento`
+**Arquivo:** `app/equipamentos/models.py` → classe `ItemEquipamento`
+**Status:** ⚙️ Modelo ORM criado. Pendente: rotas, serviço, templates de UI.
 
-- Rastreabilidade completa por serial
-- Controle de manutenção aeronáutica realista
-- Escalabilidade e robustez operacional
-"""
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, default uuid4 | Identificador único |
+| `equipamento_id` | UUID | FK → equipamentos.id (RESTRICT), NOT NULL, INDEX | Tipo de equipamento |
+| `numero_serie` | String(100) | UNIQUE, NOT NULL, INDEX | Número de série do item físico |
+| `status` | String(20) | NOT NULL, default "ATIVO" | `ATIVO` \| `ESTOQUE` \| `REMOVIDO` |
+| `created_at` | DateTime(tz) | NOT NULL, default now() | — |
+| `updated_at` | DateTime(tz) | nullable, onupdate now() | — |
 
-file_path = Path('/mnt/data/MODEL_DB_v2.md')
-file_path.write_text(content)
+**Relacionamentos:**
+- `N:1` → `equipamentos`
+- `1:N` → `controle_vencimentos`
+- `1:N` → `instalacoes`
 
-file_path
+**Regra de Negócio:**
+- Ao criar um novo item, herdar automaticamente os controles do equipamento pai (criar registros em `controle_vencimentos`).
+
+---
+
+### 2.11 Instalação em Aeronaves (Histórico)
+
+**Tabela:** `instalacoes`
+**Arquivo:** `app/equipamentos/models.py` → classe `Instalacao`
+**Status:** ⚙️ Modelo ORM criado. Pendente: rotas, serviço, templates de UI.
+
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, default uuid4 | Identificador único |
+| `item_id` | UUID | FK → itens_equipamento.id (RESTRICT), NOT NULL, INDEX | Item instalado |
+| `aeronave_id` | UUID | FK → aeronaves.id (RESTRICT), NOT NULL, INDEX | Aeronave destino |
+| `data_instalacao` | Date | NOT NULL | Data em que o item foi instalado |
+| `data_remocao` | Date | nullable | NULL = item ainda está instalado |
+
+**Relacionamentos:**
+- `N:1` → `itens_equipamento`
+- `N:1` → `aeronaves`
+
+**Regra de Negócio:**
+- `data_remocao = NULL` indica que o item está **atualmente instalado** na aeronave.
+- Para consultar o inventário atual de uma aeronave: `SELECT * FROM instalacoes WHERE aeronave_id = ? AND data_remocao IS NULL`.
+
+---
+
+### 2.12 Controle de Vencimentos (Instância Real)
+
+**Tabela:** `controle_vencimentos`
+**Arquivo:** `app/equipamentos/models.py` → classe `ControleVencimento`
+**Status:** ⚙️ Modelo ORM criado. Pendente: rotas, serviço, templates de UI.
+
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, default uuid4 | Identificador único |
+| `item_id` | UUID | FK → itens_equipamento.id (CASCADE), NOT NULL, INDEX | Item físico |
+| `tipo_controle_id` | UUID | FK → tipos_controle.id (RESTRICT), NOT NULL | Tipo de controle |
+| `data_ultima_exec` | Date | nullable | Última execução do controle |
+| `data_vencimento` | Date | nullable, INDEX | Calculada: `data_ultima_exec + periodicidade_meses` |
+| `status` | String(20) | NOT NULL, default "OK" | `OK` \| `VENCENDO` \| `VENCIDO` |
+| `origem` | String(20) | NOT NULL, default "PADRAO" | `PADRAO` (herdado) \| `ESPECIFICO` |
+| `created_at` | DateTime(tz) | NOT NULL, default now() | — |
+
+**Constraint:** `UNIQUE(item_id, tipo_controle_id)` — nome: `uq_item_controle`
+
+---
+
+## 3. Diagrama de Relacionamentos
+
+```mermaid
+erDiagram
+    USUARIOS ||--o{ PANES : "cria"
+    USUARIOS ||--o{ PANES : "conclui"
+    USUARIOS ||--o{ PANE_RESPONSAVEIS : "é responsável"
+
+    AERONAVES ||--o{ PANES : "possui"
+    AERONAVES ||--o{ INSTALACOES : "recebe"
+
+    PANES ||--o{ ANEXOS : "possui"
+    PANES ||--o{ PANE_RESPONSAVEIS : "designa"
+
+    EQUIPAMENTOS ||--o{ EQUIPAMENTO_CONTROLES : "define template"
+    EQUIPAMENTOS ||--o{ ITENS_EQUIPAMENTO : "possui instâncias"
+
+    TIPOS_CONTROLE ||--o{ EQUIPAMENTO_CONTROLES : "aplicado a"
+    TIPOS_CONTROLE ||--o{ CONTROLE_VENCIMENTOS : "controla"
+
+    ITENS_EQUIPAMENTO ||--o{ INSTALACOES : "instalado em"
+    ITENS_EQUIPAMENTO ||--o{ CONTROLE_VENCIMENTOS : "possui"
+```
+
+---
+
+## 4. Enumeradores (app/core/enums.py)
+
+| Enum | Valores | Usado em |
+| :--- | :--- | :--- |
+| `StatusPane` | `ABERTA`, `RESOLVIDA` | `panes.status` |
+| `StatusItem` | `ATIVO`, `ESTOQUE`, `REMOVIDO` | `itens_equipamento.status` |
+| `StatusVencimento` | `OK`, `VENCENDO`, `VENCIDO` | `controle_vencimentos.status` |
+| `OrigemControle` | `PADRAO`, `ESPECIFICO` | `controle_vencimentos.origem` |
+| `TipoPapel` | `MANTENEDOR`, `ENCARREGADO`, `ADMINISTRADOR` | `pane_responsaveis.papel`, `usuarios.funcao` |
+| `StatusAeronave` | `OPERACIONAL`, `INDISPONIVEL`, `INATIVA` | `aeronaves.status` |
+| `TipoAnexo` | `IMAGEM`, `DOCUMENTO` | `anexos.tipo` |
+
+---
+
+## 5. Regras de Negócio (Banco)
+
+### Panes
+- RN-03: Apenas panes com `status = ABERTA` podem ser editadas.
+- RN-04: `data_conclusao` é preenchida automaticamente ao concluir.
+- RN-05: Descrição padrão = "AGUARDANDO EDICAO".
+- Exclusão lógica via campo `ativo` (soft delete).
+
+### Equipamentos e Herança
+- Ao criar um `ItemEquipamento`, herdar automaticamente os controles do `Equipamento` pai (criar registros em `controle_vencimentos` para cada `equipamento_controle`).
+- Ao criar um novo `EquipamentoControle`, propagar para todos os itens existentes daquele equipamento.
+- `UNIQUE(item_id, tipo_controle_id)` impede duplicidade de controle por item.
+
+### Instalações
+- `data_remocao = NULL` indica instalação ativa.
+- Um item só pode estar instalado em uma aeronave por vez (validação no serviço).
+- Ao remover um item, `data_remocao` é preenchida e o item pode ser reinstalado em outra aeronave.
+
+### Usuários
+- `ativo = False` impede login (soft delete).
+- Username é único e indexado para busca rápida.
+
+---
+
+## 6. Consulta-Chave: Inventário por Aeronave
+
+> Esta é a consulta principal para a página de inventário físico.
+
+```sql
+-- Inventário atual da aeronave (itens instalados)
+SELECT
+    a.matricula,
+    e.nome AS equipamento,
+    e.part_number,
+    e.sistema,
+    ie.numero_serie,
+    ie.status AS status_item,
+    i.data_instalacao
+FROM instalacoes i
+    JOIN itens_equipamento ie ON ie.id = i.item_id
+    JOIN equipamentos e ON e.id = ie.equipamento_id
+    JOIN aeronaves a ON a.id = i.aeronave_id
+WHERE a.id = :aeronave_id
+  AND i.data_remocao IS NULL
+ORDER BY e.sistema, e.nome;
+```
+
+### Resultado esperado (exemplo)
+
+| Matrícula | Equipamento | Part Number | Sistema | Nº Série | Status | Data Instalação |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 5900 | VUHF2 | 822-1468-002 | COM | SN-00123 | ATIVO | 2025-06-15 |
+| 5900 | ELT | 453-6603 | EMG | SN-00456 | ATIVO | 2024-11-20 |
+| 5900 | MDP | 980-6144-001 | NAV | SN-00789 | ATIVO | 2025-01-10 |
+
+---
+
+## 7. Índices Existentes
+
+| Tabela | Coluna(s) | Tipo |
+| :--- | :--- | :--- |
+| `usuarios` | `username` | UNIQUE INDEX |
+| `usuarios` | `ativo` | INDEX |
+| `aeronaves` | `serial_number` | UNIQUE INDEX |
+| `aeronaves` | `matricula` | UNIQUE INDEX |
+| `panes` | `aeronave_id` | INDEX |
+| `panes` | `status` | INDEX |
+| `panes` | `ativo` | INDEX |
+| `anexos` | `pane_id` | INDEX |
+| `pane_responsaveis` | `pane_id` | INDEX |
+| `equipamentos` | `part_number` | INDEX |
+| `itens_equipamento` | `equipamento_id` | INDEX |
+| `itens_equipamento` | `numero_serie` | UNIQUE INDEX |
+| `instalacoes` | `item_id` | INDEX |
+| `instalacoes` | `aeronave_id` | INDEX |
+| `controle_vencimentos` | `item_id` | INDEX |
+| `controle_vencimentos` | `data_vencimento` | INDEX |
+| `token_blacklist` | `jti` | PRIMARY KEY + INDEX |
+
+---
+
+## 8. PRAGMAs SQLite (app/database.py)
+
+O sistema habilita automaticamente ao conectar:
+- `PRAGMA foreign_keys=ON` — Garante integridade referencial.
+- `PRAGMA journal_mode=WAL` — Permite leituras concorrentes sem bloqueio.
+
+---
+
+## 9. Migrações (Alembic)
+
+| Data | Migração | Descrição |
+| :--- | :--- | :--- |
+| 2026-03-28 | `d6a790b729ac` | Schema inicial (todas as tabelas) |
+| 2026-03-28 | `1e829a9c6428` | Schema inicial (complemento) |
+| 2026-03-28 | `dfb912f1f531` | Adicionar `observacao_conclusao` e `ativo` em panes |
+| 2026-03-29 | `986779966fdc` | Adicionar `updated_at` (colunas de auditoria) |
+| 2026-03-29 | `d04aaba36e56` | Adicionar `trigrama` em usuarios |
+| 2026-03-30 | `fc37a9cf5271` | Adicionar `ativo` em usuarios (soft delete) |
+| 2026-04-06 | `2bbaf0779b57` | Compatibilidade SQLite |
+| 2026-04-14 | `37195ef51f55` | Tabela `token_blacklist` |
+| 2026-04-14 | `e7d64985f1b2` | Adicionar `comentarios` em panes |
+
+---
+
+*Documento atualizado em 18 de abril de 2026. Fonte da verdade: código-fonte em `app/*/models.py`.*
