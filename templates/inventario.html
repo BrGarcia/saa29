@@ -3,6 +3,38 @@
 {% block page_title %}Inventário de Equipamentos{% endblock %}
 
 {% block content %}
+<style>
+    .real-input {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        font-family: monospace;
+        transition: all 0.2s;
+    }
+    .real-input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+    }
+    .status-match {
+        border-color: var(--status-success) !important;
+        background-color: rgba(34, 197, 94, 0.1) !important;
+        color: var(--status-success) !important;
+    }
+    .status-mismatch {
+        border-color: var(--status-danger) !important;
+        background-color: rgba(239, 68, 68, 0.1) !important;
+        color: var(--status-danger) !important;
+    }
+    .status-pending {
+        border-color: #eab308 !important; /* Amarelo */
+        background-color: rgba(234, 179, 8, 0.1) !important;
+    }
+</style>
+
 <div class="container">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
         <div style="display: flex; gap: 1rem; flex: 1; max-width: 600px;">
@@ -11,10 +43,12 @@
             </select>
             <input type="text" id="filter-nome" class="form-input" placeholder="Filtrar por equipamento..." style="flex: 1;" oninput="loadInventario()">
         </div>
+        <div id="stats-summary" style="display: flex; gap: 1.5rem; font-size: 0.9rem; font-weight: 500;">
+            <!-- Estatísticas serão inseridas via JS -->
+        </div>
     </div>
 
     <div id="inventario-container">
-        <!-- Tabelas por sistema serão inseridas aqui -->
         <div class="card glass-panel" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
             Selecione uma aeronave para visualizar o inventário.
         </div>
@@ -28,6 +62,8 @@
         const select = document.getElementById('aeronave-select');
         try {
             const data = await apiFetch('/aeronaves/?limit=100');
+            // Ordenar por matrícula
+            data.sort((a, b) => a.matricula.localeCompare(b.matricula));
             data.forEach(acft => {
                 const opt = document.createElement('option');
                 opt.value = acft.id;
@@ -35,7 +71,6 @@
                 select.appendChild(opt);
             });
             
-            // Se houver aeronave_id na URL, seleciona
             const urlParams = new URLSearchParams(window.location.search);
             const acftId = urlParams.get('aeronave_id');
             if (acftId) {
@@ -54,6 +89,7 @@
 
         if (!aeronaveId) {
             container.innerHTML = `<div class="card glass-panel" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Selecione uma aeronave para visualizar o inventário.</div>`;
+            document.getElementById('stats-summary').innerHTML = '';
             return;
         }
 
@@ -63,9 +99,54 @@
             
             const data = await apiFetch(url);
             renderInventario(data);
+            updateStats(data);
         } catch (e) {
             container.innerHTML = `<div class="card glass-panel" style="padding: 2rem; text-align: center; color: var(--status-danger);">Erro ao carregar inventário.</div>`;
         }
+    }
+
+    function compareSN(input, snOriginal) {
+        const val = input.value.trim().toUpperCase();
+        input.classList.remove('status-match', 'status-mismatch', 'status-pending');
+        
+        if (val === '') {
+            input.classList.add('status-pending');
+        } else if (val === snOriginal.toUpperCase()) {
+            input.classList.add('status-match');
+        } else {
+            input.classList.add('status-mismatch');
+        }
+        updateStats();
+    }
+
+    function updateStats(items = null) {
+        // Se items não for passado, tenta pegar do estado global/DOM
+        const allInputs = document.querySelectorAll('.real-input');
+        if (allInputs.length === 0 && !items) return;
+
+        let total = items ? items.length : allInputs.length;
+        let matches = 0;
+        let mismatches = 0;
+        let pending = 0;
+
+        allInputs.forEach(input => {
+            if (input.classList.contains('status-match')) matches++;
+            else if (input.classList.contains('status-mismatch')) mismatches++;
+            else pending++;
+        });
+
+        // Caso inicial (logo após renderizar, antes de qualquer input)
+        if (allInputs.length > 0 && matches === 0 && mismatches === 0 && pending === total) {
+             // Mantém o total mas sem cores até o primeiro input
+        }
+
+        const statsDiv = document.getElementById('stats-summary');
+        statsDiv.innerHTML = `
+            <span style="color: var(--text-secondary)">Total: ${total}</span>
+            <span style="color: var(--status-success)">Conferido: ${matches}</span>
+            <span style="color: var(--status-danger)">Divergente: ${mismatches}</span>
+            <span style="color: #eab308">Pendente: ${pending}</span>
+        `;
     }
 
     function renderInventario(items) {
@@ -75,10 +156,9 @@
             return;
         }
 
-        // Agrupar por sistema
         const grupos = {};
         items.forEach(item => {
-            const sistema = item.sistema || "SEM SISTEMA";
+            const sistema = item.sistema || "OUTROS";
             if (!grupos[sistema]) grupos[sistema] = [];
             grupos[sistema].push(item);
         });
@@ -87,32 +167,42 @@
         Object.keys(grupos).sort().forEach(sistema => {
             const section = document.createElement('div');
             section.className = 'inventory-section';
-            section.style.marginBottom = '2rem';
+            section.style.marginBottom = '2.5rem';
             
             let html = `
-                <h3 style="margin-bottom: 1rem; color: var(--primary-color); border-left: 4px solid var(--primary-color); padding-left: 1rem;">${sistema}</h3>
-                <div class="card glass-panel" style="padding: 0; overflow-x: auto;">
+                <h3 style="margin-bottom: 1rem; color: var(--primary-color); font-size: 1.1rem; border-left: 4px solid var(--primary-color); padding-left: 1rem; text-transform: uppercase; letter-spacing: 0.05em;">${sistema}</h3>
+                <div class="card glass-panel" style="padding: 0; overflow: hidden; border: 1px solid var(--border-color);">
                     <table style="width: 100%; border-collapse: collapse; text-align: left;">
                         <thead style="background-color: var(--bg-tertiary); border-bottom: 1px solid var(--border-color);">
                             <tr>
-                                <th style="padding: 1rem;">Equipamento</th>
-                                <th style="padding: 1rem;">P/N</th>
-                                <th style="padding: 1rem;">S/N</th>
-                                <th style="padding: 1rem;">Status</th>
-                                <th style="padding: 1rem;">Instalado em</th>
+                                <th style="padding: 1rem; width: 25%;">Item</th>
+                                <th style="padding: 1rem; width: 20%;">P/N</th>
+                                <th style="padding: 1rem; width: 20%;">S/N (Sistema)</th>
+                                <th style="padding: 1rem; width: 20%;">S/N (REAL)</th>
+                                <th style="padding: 1rem; width: 15%;">Instalado em</th>
                             </tr>
                         </thead>
                         <tbody>
             `;
 
-            grupos[sistema].forEach(item => {
+            grupos[sistema].sort((a,b) => a.equipamento_nome.localeCompare(b.equipamento_nome)).forEach(item => {
+                const inputId = `real-${item.instalacao_id}`;
                 html += `
                     <tr style="border-bottom: 1px solid var(--border-color);">
-                        <td style="padding: 1rem; font-weight: 500;">${item.equipamento_nome}</td>
-                        <td style="padding: 1rem; font-family: monospace;">${item.part_number}</td>
-                        <td style="padding: 1rem; font-family: monospace;">${item.numero_serie}</td>
-                        <td style="padding: 1rem;"><span class="badge" style="background-color: var(--bg-tertiary); color: var(--text-primary);">${item.status_item}</span></td>
-                        <td style="padding: 1rem; font-size: 0.9rem;">${new Date(item.data_instalacao).toLocaleDateString('pt-BR')}</td>
+                        <td style="padding: 0.8rem 1rem;">
+                            <div style="font-weight: 600;">${item.equipamento_nome}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">${item.status_item}</div>
+                        </td>
+                        <td style="padding: 0.8rem 1rem; font-family: monospace; font-size: 0.9rem;">${item.part_number}</td>
+                        <td style="padding: 0.8rem 1rem; font-family: monospace; color: var(--text-secondary);">${item.numero_serie}</td>
+                        <td style="padding: 0.6rem 1rem;">
+                            <input type="text" id="${inputId}" class="real-input status-pending" 
+                                   placeholder="Digitar SN real..." 
+                                   oninput="compareSN(this, '${item.numero_serie}')">
+                        </td>
+                        <td style="padding: 0.8rem 1rem; font-size: 0.85rem; color: var(--text-secondary);">
+                            ${new Date(item.data_instalacao).toLocaleDateString('pt-BR')}
+                        </td>
                     </tr>
                 `;
             });
@@ -121,6 +211,9 @@
             section.innerHTML = html;
             container.appendChild(section);
         });
+        
+        // Inicializar estatísticas após renderizar todos os inputs pendentes
+        updateStats();
     }
 
     document.addEventListener('DOMContentLoaded', loadAeronaves);
