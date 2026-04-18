@@ -24,9 +24,9 @@ Criar uma nova página acessível pela barra superior de navegação onde o usu�
 | **Schemas** | `app/equipamentos/schemas.py` | ✅ Completo |
 | **Serviço** | `app/equipamentos/service.py` | ✅ Completo |
 | **Router API** | `app/equipamentos/router.py` | ✅ Completo |
-| **Rota de Página** | `app/pages/router.py` | ❌ Falta adicionar `/inventario` |
-| **Template HTML** | `templates/inventario.html` | ❌ Não existe |
-| **Ícone na Navbar** | `templates/base.html` | ❌ Falta adicionar |
+| Rota de Página | `app/pages/router.py` | ✅ Completo |
+| Template HTML | `templates/inventario.html` | ✅ Incompleto (falta coluna REAL) |
+| Ícone na Navbar | `templates/base.html` | ❌ Falta adicionar |
 
 ### Endpoints de API Existentes (já funcionais)
 
@@ -48,7 +48,7 @@ Criar uma nova página acessível pela barra superior de navegação onde o usu�
 
 | Método | Endpoint | Descrição |
 | :--- | :--- | :--- |
-| `GET` | `/equipamentos/inventario/{aeronave_id}` | **[NOVO]** Retornar inventário consolidado da aeronave |
+| `GET` | `/equipamentos/inventario/{aeronave_id}` | **[FUNCIONAL]** Retornar inventário consolidado da aeronave |
 
 Este endpoint deve retornar uma lista de instalações ativas (`data_remocao IS NULL`) com os dados do equipamento e item embarcados (join), evitando N+1 queries no frontend.
 
