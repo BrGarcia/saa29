@@ -109,6 +109,17 @@ class AjusteInventarioCreate(BaseModel):
     equipamento_id: uuid.UUID | None = None  # Compatibilidade Frontend (V1)
     numero_serie_real: str = Field(..., min_length=1)
     forcar_transferencia: bool = False
+    usuario_id: uuid.UUID | None = None
+
+class InventarioHistoricoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    created_at: datetime
+    item_sn: str
+    aeronave_matricula: str
+    slot_nome: str
+    usuario_trigrama: str | None
+    tipo_acao: str # "INSTALAÇÃO" ou "REMOÇÃO"
 
 class AjusteInventarioResponse(BaseModel):
     sucesso: bool

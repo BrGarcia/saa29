@@ -147,6 +147,7 @@ class Instalacao(Base):
     item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("itens_equipamento.id"), nullable=False, index=True)
     aeronave_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("aeronaves.id"), nullable=False, index=True)
     slot_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("slots_inventario.id"), nullable=False, index=True)
+    usuario_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
     data_instalacao: Mapped[date] = mapped_column(Date, nullable=False)
     data_remocao: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())

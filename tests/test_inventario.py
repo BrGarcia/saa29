@@ -151,3 +151,44 @@ class TestInventarioFull:
         sistemas = {i["sistema"] for i in body if prefix in i["nome_posicao"]}
         assert "CEI" in sistemas
         assert "1P" in sistemas
+
+    @pytest.mark.asyncio
+    async def test_t04_historico_alteracoes_com_trigrama(
+        self, client: AsyncClient, db: AsyncSession, usuario_e_token: dict,
+    ):
+        """T04: Valida se o histórico registra o trigrama do usuário corretamente."""
+        headers = usuario_e_token["headers"]
+        user = usuario_e_token["usuario"]
+        
+        # 1. Setup (Atualizar usuário com trigrama para o teste)
+        from sqlalchemy import update
+        from app.auth.models import Usuario
+        await db.execute(update(Usuario).where(Usuario.id == user.id).values(trigrama="ABC"))
+        await db.commit()
+
+        prefix = uuid.uuid4().hex[:4]
+        anv = await _criar_aeronave(client, headers, f"H-{prefix}", f"SNH-{prefix}")
+        mod = await _criar_modelo(client, headers, f"PN-H-{prefix}", "RADIO H")
+        slot = await _criar_slot(db, f"RAD-H-{prefix}", "CEI", mod["id"])
+
+        # 2. Realizar ajuste (Passando o usuario_id)
+        sn = f"SN-H-{prefix}"
+        payload = {
+            "aeronave_id": anv["id"],
+            "slot_id": slot["id"],
+            "numero_serie_real": sn,
+            "usuario_id": str(user.id)
+        }
+        await client.post(f"{INVENTARIO_URL}/ajuste", json=payload, headers=headers)
+
+        # 3. Consultar histórico
+        response = await client.get(f"{INVENTARIO_URL}/historico", headers=headers)
+        assert response.status_code == 200
+        logs = response.json()
+
+        # Buscar o log específico deste teste na lista (pode haver sujeira de outros testes)
+        nosso_log = next((l for l in logs if l["item_sn"] == sn.upper()), None)
+        
+        assert nosso_log is not None, f"Log para o item {sn} não encontrado no histórico"
+        assert nosso_log["usuario_trigrama"] == "ABC"
+        assert nosso_log["aeronave_matricula"] == f"H-{prefix}"

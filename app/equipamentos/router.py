@@ -257,6 +257,16 @@ async def registrar_execucao(
 # ---- Inventário ----
 
 @router.get(
+    "/inventario/historico",
+    response_model=list[schemas.InventarioHistoricoOut],
+    summary="Listar últimas alterações no inventário",
+)
+async def listar_historico_inventario(db: DBSession, _: CurrentUser):
+    """Retorna as 10 últimas movimentações de equipamentos."""
+    return await service.listar_historico_recente(db)
+
+
+@router.get(
     "/inventario/{aeronave_id}",
     response_model=list[schemas.InventarioItemOut],
     summary="Listar inventário da aeronave",

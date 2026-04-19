@@ -115,9 +115,7 @@
     </div>
 
     <div id="inventario-container">
-        <div class="card glass-panel" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
-            Selecione uma aeronave para visualizar o inventário.
-        </div>
+        <!-- Conteúdo dinâmico (Tabela de Inventário ou Histórico Recente) -->
     </div>
 </div>
 
@@ -147,8 +145,6 @@
 
 {% block scripts %}
 <script>
-    let pendingAjuste = null;
-
     async function loadAeronaves() {
         const select = document.getElementById('aeronave-select');
         try {
@@ -166,6 +162,8 @@
             if (acftId) {
                 select.value = acftId;
                 loadInventario();
+            } else {
+                loadHistoricoRecente();
             }
         } catch (e) { console.error(e); }
     }
@@ -176,8 +174,7 @@
         const container = document.getElementById('inventario-container');
 
         if (!aeronaveId) {
-            container.innerHTML = `<div class="card glass-panel" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Selecione uma aeronave para visualizar o inventário.</div>`;
-            document.getElementById('stats-summary').innerHTML = '';
+            loadHistoricoRecente();
             return;
         }
 
@@ -193,12 +190,74 @@
         }
     }
 
+    async function loadHistoricoRecente() {
+        const container = document.getElementById('inventario-container');
+        const statsDiv = document.getElementById('stats-summary');
+        statsDiv.innerHTML = '';
+        
+        try {
+            const data = await apiFetch('/equipamentos/inventario/historico');
+            renderHistorico(data);
+        } catch (e) {
+            container.innerHTML = `<div class="card glass-panel" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Selecione uma aeronave para começar.</div>`;
+        }
+    }
+
+    function renderHistorico(logs) {
+        const container = document.getElementById('inventario-container');
+        
+        let html = `
+            <div style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; color: var(--primary-color);">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <h3 style="margin: 0; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.5px;">Últimas Alterações no Inventário</h3>
+            </div>
+            <div class="card glass-panel" style="padding: 0; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead style="background-color: var(--bg-tertiary); border-bottom: 1px solid var(--border-color);">
+                        <tr>
+                            <th style="padding: 1rem; width: 15%;">Data/Hora</th>
+                            <th style="padding: 1rem; width: 10%;">Aeronave</th>
+                            <th style="padding: 1rem; width: 15%;">Posição</th>
+                            <th style="padding: 1rem; width: 25%;">S/N Instalado</th>
+                            <th style="padding: 1rem; width: 10%;">Trigrama</th>
+                            <th style="padding: 1rem; width: 15%;">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        if (!logs || logs.length === 0) {
+            html += `<tr><td colspan="6" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Nenhuma movimentação registrada recentemente.</td></tr>`;
+        } else {
+            logs.forEach(log => {
+                const dataFormatada = new Date(log.created_at).toLocaleString('pt-BR');
+                html += `
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 0.8rem 1rem; font-size: 0.85rem; color: var(--text-secondary);">${dataFormatada}</td>
+                        <td style="padding: 0.8rem 1rem; font-weight: 700; color: var(--primary-color);">${log.aeronave_matricula}</td>
+                        <td style="padding: 0.8rem 1rem;">${log.slot_nome}</td>
+                        <td style="padding: 0.8rem 1rem; font-family: monospace; font-weight: 500;">${log.item_sn}</td>
+                        <td style="padding: 0.8rem 1rem; text-align: center;">
+                            <span class="badge" style="background: var(--bg-tertiary); color: var(--text-primary); font-weight: 700;">${log.usuario_trigrama || 'SYS'}</span>
+                        </td>
+                        <td style="padding: 0.8rem 1rem;">
+                            <span style="font-size: 0.75rem; font-weight: 700; color: var(--status-success);">● ${log.tipo_acao}</span>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        html += `</tbody></table></div>`;
+        container.innerHTML = html;
+    }
+
     function compareSN(input, snOriginal, equipamentoId) {
         const val = input.value.trim().toUpperCase();
         const btn = document.getElementById(`btn-sync-${equipamentoId}`);
-
         input.classList.remove('status-match', 'status-mismatch', 'status-pending');
-
         const original = (snOriginal || "").toUpperCase();
 
         if (val === '') {
@@ -216,6 +275,8 @@
 
     async function ajustarInventario(equipamentoId, snReal, forcar = false) {
         const aeronaveId = document.getElementById('aeronave-select').value;
+        const user = JSON.parse(localStorage.getItem("saa29_user"));
+        
         try {
             const response = await apiFetch(`/equipamentos/inventario/ajuste`, {
                 method: 'POST',
@@ -223,7 +284,8 @@
                     aeronave_id: aeronaveId,
                     equipamento_id: equipamentoId,
                     numero_serie_real: snReal,
-                    forcar_transferencia: forcar
+                    forcar_transferencia: forcar,
+                    usuario_id: user ? user.id : null
                 }
             });
 
@@ -306,7 +368,6 @@
                     <tbody>
         `;
 
-        // Ordenação: Sigla do Sistema -> Nome do Equipamento
         items.sort((a, b) => {
             const sistemaA = a.sistema || 'ZZZ';
             const sistemaB = b.sistema || 'ZZZ';

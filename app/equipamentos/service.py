@@ -240,12 +240,52 @@ async def ajustar_inventario_item(
         item_id=item_real.id,
         aeronave_id=aeronave_id,
         slot_id=slot_id,
+        usuario_id=dados.usuario_id,
         data_instalacao=date.today()
     )
     db.add(nova_inst)
     
     await db.commit()
     return AjusteInventarioResponse(sucesso=True, mensagem="Inventário ajustado com sucesso.")
+
+
+async def listar_historico_recente(db: AsyncSession, limit: int = 10) -> list[dict]:
+    """Retorna as últimas movimentações de inventário para o painel inicial."""
+    from app.aeronaves.models import Aeronave
+    from app.auth.models import Usuario
+
+    stmt = (
+        select(
+            Instalacao.id,
+            Instalacao.created_at,
+            ItemEquipamento.numero_serie.label("item_sn"),
+            Aeronave.matricula.label("aeronave_matricula"),
+            SlotInventario.nome_posicao.label("slot_nome"),
+            Usuario.trigrama.label("usuario_trigrama")
+        )
+        .join(ItemEquipamento, Instalacao.item_id == ItemEquipamento.id)
+        .join(Aeronave, Instalacao.aeronave_id == Aeronave.id)
+        .join(SlotInventario, Instalacao.slot_id == SlotInventario.id)
+        .outerjoin(Usuario, Instalacao.usuario_id == Usuario.id)
+        .order_by(desc(Instalacao.created_at))
+        .limit(limit)
+    )
+    
+    result = await db.execute(stmt)
+    rows = result.all()
+    
+    return [
+        {
+            "id": r.id,
+            "created_at": r.created_at,
+            "item_sn": r.item_sn,
+            "aeronave_matricula": r.aeronave_matricula,
+            "slot_nome": r.slot_nome,
+            "usuario_trigrama": r.usuario_trigrama,
+            "tipo_acao": "INSTALAÇÃO" # No MVP, focamos no registro da nova instalação
+        }
+        for r in rows
+    ]
 
 
 # ============================================================
