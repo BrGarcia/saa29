@@ -29,7 +29,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), nullable=False, comment='Identificador único universal da aeronave'),
     sa.Column('part_number', sa.String(length=50), nullable=True, comment='Part number da aeronave'),
     sa.Column('serial_number', sa.String(length=50), nullable=False, comment='Número de série único da aeronave'),
-    sa.Column('matricula', sa.String(length=20), nullable=False, comment='Matrícula operacional (ex: 5900, 5901)'),
+    sa.Column('matricula', sa.String(length=20), nullable=False, comment='Matrícula operacional (ex: 5916, 5902)'),
     sa.Column('modelo', sa.String(length=50), nullable=False, comment='Modelo da aeronave'),
     sa.Column('status', sa.String(length=20), nullable=False, comment='Status operacional: OPERACIONAL | MANUTENCAO | INATIVA'),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),

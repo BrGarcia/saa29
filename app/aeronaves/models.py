@@ -55,7 +55,7 @@ class Aeronave(Base):
         unique=True,
         nullable=False,
         index=True,
-        comment="Matrícula operacional (ex: 5900, 5901)",
+        comment="Matrícula operacional (ex: 5916, 5902)",
     )
     modelo: Mapped[str] = mapped_column(
         String(50),

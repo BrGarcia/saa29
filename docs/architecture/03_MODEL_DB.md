@@ -257,6 +257,7 @@ O banco de dados do SAA29 é composto por **10 tabelas** organizadas em 4 domín
 | `aeronave_id` | UUID | FK → aeronaves.id (RESTRICT), NOT NULL, INDEX | Aeronave destino |
 | `data_instalacao` | Date | NOT NULL | Data em que o item foi instalado |
 | `data_remocao` | Date | nullable | NULL = item ainda está instalado |
+| `created_at` | DateTime(tz) | NOT NULL, default now() | Timestamp para rastreabilidade precisa |
 
 **Relacionamentos:**
 - `N:1` → `itens_equipamento`
