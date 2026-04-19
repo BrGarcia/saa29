@@ -16,7 +16,7 @@ data:{entities:[Pane,Anexo,PaneResponsavel,Usuario,Aeronave,Equipamento,ItemEqui
 
 rules:[RN-03_edit_aberta_only,RN-04_auto_conclusao,RN-05_desc_default,soft_delete,delete_anexo_gestor_only]
 
-state:{phase:desenvolvimento_inventario,focus:ui_inventario}
+state:{phase:estavel_local,focus:vencimentos_equipamentos}
 
 decisions:[
   {id:FIELD_COMENTARIOS,ts:20260414,d:adicionado_campo_comentarios_independente_status},
@@ -27,12 +27,14 @@ decisions:[
   {id:FIX_SQLALCHEMY_CAST,ts:20260416,d:func_Integer_substituido_por_Integer_importado_no_cast_do_year_func},
   {id:UPDATE_ADMIN_CREDENTIALS,ts:20260416,d:senha_admin_atualizada_para_BisKP76pg3IU_nos_scripts_e_docs},
   {id:TEST_ACFT_5916,ts:20260419,d:aeronave_5916_definida_como_oficial_para_testes_e_docs_substituindo_5900},
-  {id:INSTALACAO_TRACE,ts:20260419,d:adicionado_created_at_em_Instalacao_para_rastreabilidade_precisa_de_trocas_no_mesmo_dia}
+  {id:INSTALACAO_TRACE,ts:20260419,d:adicionado_created_at_em_Instalacao_para_rastreabilidade_precisa_de_trocas_no_mesmo_dia},
+  {id:AUDIT_INVENTARIO,ts:20260419,d:adicionado_usuario_id_em_Instalacao_para_auditoria_por_trigrama},
+  {id:UI_CONSOLIDADA,ts:20260419,d:tabela_inventario_unificada_com_coluna_Loc_removendo_divisores_de_secao}
 ]
 
 open:[]
 
-todo:[interface_equipamentos_ui,exportacao_inventario_pdf,validacao_vencimentos_ui]
+todo:[exportacao_inventario_pdf,validacao_vencimentos_ui,gestao_de_estoque_bancada]
 
 hist:[
   {id:ADD_COMENTARIOS,ts:20260414,d:implementado_box_comentarios_detalhe_pane_backend_frontend},
@@ -42,5 +44,7 @@ hist:[
   {id:BUG_500_MAPPER,ts:20260416,d:corrigido_InvalidRequestError_Instalacao_not_found_por_ordem_de_import_errada_em_main_py},
   {id:BUG_500_CAST,ts:20260416,d:corrigido_AttributeError_static_cache_key_por_uso_incorreto_de_func_Integer_em_panes_service},
   {id:INVENTARIO_BE,ts:20260419,d:implementado_backend_inventario_consolidado_pn_vs_slot},
-  {id:FIX_INVENTARIO_TRACE,ts:20260419,d:corrigido_bug_rastreabilidade_Anv_Ant_usando_timestamp_de_criacao}
+  {id:FIX_INVENTARIO_TRACE,ts:20260419,d:corrigido_bug_rastreabilidade_Anv_Ant_usando_timestamp_de_criacao},
+  {id:FEAT_HIST_INVENTARIO,ts:20260419,d:dashboard_de_ultimas_alteracoes_com_trigrama_e_integridade_de_sessao},
+  {id:UI_REORG_NAV,ts:20260419,d:reordenacao_da_navbar_com_inventario_em_posicao_central}
 ]
