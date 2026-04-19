@@ -9,6 +9,7 @@
         gap: 0.5rem;
         align-items: center;
     }
+
     .real-input {
         flex: 1;
         padding: 0.5rem;
@@ -20,25 +21,30 @@
         transition: all 0.2s;
         min-width: 140px;
     }
+
     .real-input:focus {
         outline: none;
         border-color: var(--primary-color);
         box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
     }
+
     .status-match {
         border-color: var(--status-success) !important;
         background-color: rgba(34, 197, 94, 0.1) !important;
         color: var(--status-success) !important;
     }
+
     .status-mismatch {
         border-color: var(--status-danger) !important;
         background-color: rgba(239, 68, 68, 0.1) !important;
         color: var(--status-danger) !important;
     }
+
     .status-pending {
         border-color: #eab308 !important;
         background-color: rgba(234, 179, 8, 0.1) !important;
     }
+
     .btn-sync {
         padding: 0.5rem;
         border-radius: 4px;
@@ -53,10 +59,12 @@
         opacity: 0;
         pointer-events: none;
     }
+
     .btn-sync.visible {
         opacity: 1;
         pointer-events: auto;
     }
+
     .btn-sync:hover {
         filter: brightness(1.1);
     }
@@ -75,6 +83,7 @@
         justify-content: center;
         z-index: 1000;
     }
+
     .modal-content {
         max-width: 500px;
         width: 90%;
@@ -82,6 +91,7 @@
         border: 1px solid var(--border-color);
         box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
     }
+
     .modal-actions {
         display: flex;
         justify-content: flex-end;
@@ -96,7 +106,8 @@
             <select id="aeronave-select" class="form-input" style="flex: 1;" onchange="loadInventario()">
                 <option value="">Selecione uma aeronave...</option>
             </select>
-            <input type="text" id="filter-nome" class="form-input" placeholder="Filtrar por equipamento..." style="flex: 1;" oninput="loadInventario()">
+            <input type="text" id="filter-nome" class="form-input" placeholder="Filtrar por equipamento..."
+                style="flex: 1;" oninput="loadInventario()">
         </div>
         <div id="stats-summary" style="display: flex; gap: 1.5rem; font-size: 0.9rem; font-weight: 500;">
             <!-- Estatísticas via JS -->
@@ -115,15 +126,20 @@
     <div class="modal-content card glass-panel">
         <div style="display: flex; align-items: center; gap: 1rem; color: var(--status-danger); margin-bottom: 1rem;">
             <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                </path>
             </svg>
             <h3 style="margin: 0;">Conflito de Instalação</h3>
         </div>
         <p id="modal-transferencia-msg" style="line-height: 1.6; color: var(--text-primary);"></p>
-        <p style="color: var(--text-secondary); font-size: 0.95rem;">Deseja remover o item da aeronave anterior e transferi-lo para a aeronave atual?</p>
+        <p style="color: var(--text-secondary); font-size: 0.95rem;">Deseja remover o item da aeronave anterior e
+            transferi-lo para a aeronave atual?</p>
         <div class="modal-actions">
             <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
-            <button class="btn btn-primary" id="btn-confirmar-transferencia" style="background-color: var(--status-danger); border-color: var(--status-danger);">Transferir S/N</button>
+            <button class="btn btn-primary" id="btn-confirmar-transferencia"
+                style="background-color: var(--status-danger); border-color: var(--status-danger);">Transferir
+                S/N</button>
         </div>
     </div>
 </div>
@@ -144,7 +160,7 @@
                 opt.textContent = acft.matricula;
                 select.appendChild(opt);
             });
-            
+
             const urlParams = new URLSearchParams(window.location.search);
             const acftId = urlParams.get('aeronave_id');
             if (acftId) {
@@ -168,7 +184,7 @@
         try {
             let url = `/equipamentos/inventario/${aeronaveId}`;
             if (nomeFilter) url += `?nome=${encodeURIComponent(nomeFilter)}`;
-            
+
             const data = await apiFetch(url);
             renderInventario(data);
             updateStats(data);
@@ -180,9 +196,9 @@
     function compareSN(input, snOriginal, equipamentoId) {
         const val = input.value.trim().toUpperCase();
         const btn = document.getElementById(`btn-sync-${equipamentoId}`);
-        
+
         input.classList.remove('status-match', 'status-mismatch', 'status-pending');
-        
+
         const original = (snOriginal || "").toUpperCase();
 
         if (val === '') {
@@ -226,10 +242,10 @@
     }
 
     function abrirModal(equipamentoId, snReal, anvConflito) {
-        document.getElementById('modal-transferencia-msg').innerHTML = 
+        document.getElementById('modal-transferencia-msg').innerHTML =
             `O item <strong>${snReal}</strong> consta como instalado na aeronave <strong>${anvConflito}</strong>.`;
         document.getElementById('modal-transferencia').style.display = 'flex';
-        
+
         document.getElementById('btn-confirmar-transferencia').onclick = () => {
             ajustarInventario(equipamentoId, snReal, true);
         };
@@ -282,7 +298,7 @@
             const section = document.createElement('div');
             section.className = 'inventory-section';
             section.style.marginBottom = '2.5rem';
-            
+
             let html = `
                 <h3 style="margin-bottom: 1rem; color: var(--primary-color); font-size: 1.1rem; border-left: 4px solid var(--primary-color); padding-left: 1rem; text-transform: uppercase;">${sistema}</h3>
                 <div class="card glass-panel" style="padding: 0; overflow: hidden;">
@@ -300,10 +316,10 @@
                         <tbody>
             `;
 
-            grupos[sistema].sort((a,b) => a.equipamento_nome.localeCompare(b.equipamento_nome)).forEach(item => {
+            grupos[sistema].sort((a, b) => a.equipamento_nome.localeCompare(b.equipamento_nome)).forEach(item => {
                 const inputId = `real-${item.equipamento_id}`;
-                const anvAnt = item.aeronave_anterior ? 
-                    `<span class="badge" style="background: var(--bg-tertiary); color: var(--primary-color);">${item.aeronave_anterior}</span>` : 
+                const anvAnt = item.aeronave_anterior ?
+                    `<span class="badge" style="background: var(--bg-tertiary); color: var(--primary-color);">${item.aeronave_anterior}</span>` :
                     `<span style="color: var(--text-secondary); opacity: 0.5;">-</span>`;
 
                 const snSistema = item.numero_serie || '<span style="opacity: 0.3">vazio</span>';
