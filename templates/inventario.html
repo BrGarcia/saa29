@@ -286,78 +286,73 @@
             return;
         }
 
-        const grupos = {};
-        items.forEach(item => {
-            const sistema = item.sistema || "OUTROS";
-            if (!grupos[sistema]) grupos[sistema] = [];
-            grupos[sistema].push(item);
-        });
-
         container.innerHTML = '';
-        Object.keys(grupos).sort().forEach(sistema => {
-            const section = document.createElement('div');
-            section.className = 'inventory-section';
-            section.style.marginBottom = '2.5rem';
+        const section = document.createElement('div');
+        section.className = 'inventory-section';
 
-            let html = `
-                <h3 style="margin-bottom: 1rem; color: var(--primary-color); font-size: 1.1rem; border-left: 4px solid var(--primary-color); padding-left: 1rem; text-transform: uppercase;">${sistema}</h3>
-                <div class="card glass-panel" style="padding: 0; overflow: hidden;">
-                    <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                        <thead style="background-color: var(--bg-tertiary); border-bottom: 1px solid var(--border-color);">
-                            <tr>
-                                <th style="padding: 1rem; width: 22%;">Item</th>
-                                <th style="padding: 1rem; width: 18%;">P/N</th>
-                                <th style="padding: 1rem; width: 12%;">Anv Ant.</th>
-                                <th style="padding: 1rem; width: 18%;">S/N (Sistema)</th>
-                                <th style="padding: 1rem; width: 20%;">S/N (REAL)</th>
-                                <th style="padding: 1rem; width: 10%;">Instalado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+        let html = `
+            <div class="card glass-panel" style="padding: 0; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead style="background-color: var(--bg-tertiary); border-bottom: 1px solid var(--border-color);">
+                        <tr>
+                            <th style="padding: 1rem; width: 8%;">Loc.</th>
+                            <th style="padding: 1rem; width: 20%;">Item</th>
+                            <th style="padding: 1rem; width: 18%;">P/N</th>
+                            <th style="padding: 1rem; width: 12%;">Anv Ant.</th>
+                            <th style="padding: 1rem; width: 18%;">S/N (Sistema)</th>
+                            <th style="padding: 1rem; width: 24%;">S/N (REAL)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        // Ordenação: Sigla do Sistema -> Nome do Equipamento
+        items.sort((a, b) => {
+            const sistemaA = a.sistema || 'ZZZ';
+            const sistemaB = b.sistema || 'ZZZ';
+            if (sistemaA !== sistemaB) return sistemaA.localeCompare(sistemaB);
+            return a.equipamento_nome.localeCompare(b.equipamento_nome);
+        }).forEach(item => {
+            const inputId = `real-${item.equipamento_id}`;
+            const anvAnt = item.aeronave_anterior ?
+                `<span class="badge" style="background: var(--bg-tertiary); color: var(--primary-color);">${item.aeronave_anterior}</span>` :
+                `<span style="color: var(--text-secondary); opacity: 0.5;">-</span>`;
+
+            const snSistema = item.numero_serie || '<span style="opacity: 0.3">vazio</span>';
+
+            html += `
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.8rem 1rem;">
+                        <span class="badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary-color); font-weight: 600; font-size: 0.75rem;">${item.sistema || '-'}</span>
+                    </td>
+                    <td style="padding: 0.8rem 1rem;">
+                        <div style="font-weight: 600;">${item.equipamento_nome}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">${item.status_item || 'NÃO INSTALADO'}</div>
+                    </td>
+                    <td style="padding: 0.8rem 1rem; font-family: monospace; font-size: 0.9rem;">${item.part_number}</td>
+                    <td style="padding: 0.8rem 1rem; text-align: center;">${anvAnt}</td>
+                    <td style="padding: 0.8rem 1rem; font-family: monospace; color: var(--text-secondary);">${snSistema}</td>
+                    <td style="padding: 0.6rem 1rem;">
+                        <div class="real-input-container">
+                            <input type="text" id="${inputId}" class="real-input status-pending" 
+                                   placeholder="S/N real..." 
+                                   oninput="compareSN(this, '${item.numero_serie || ''}', '${item.equipamento_id}')">
+                            <button id="btn-sync-${item.equipamento_id}" class="btn-sync" 
+                                    onclick="ajustarInventario('${item.equipamento_id}', document.getElementById('${inputId}').value)"
+                                    title="Sincronizar com Sistema">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
             `;
-
-            grupos[sistema].sort((a, b) => a.equipamento_nome.localeCompare(b.equipamento_nome)).forEach(item => {
-                const inputId = `real-${item.equipamento_id}`;
-                const anvAnt = item.aeronave_anterior ?
-                    `<span class="badge" style="background: var(--bg-tertiary); color: var(--primary-color);">${item.aeronave_anterior}</span>` :
-                    `<span style="color: var(--text-secondary); opacity: 0.5;">-</span>`;
-
-                const snSistema = item.numero_serie || '<span style="opacity: 0.3">vazio</span>';
-
-                html += `
-                    <tr style="border-bottom: 1px solid var(--border-color);">
-                        <td style="padding: 0.8rem 1rem;">
-                            <div style="font-weight: 600;">${item.equipamento_nome}</div>
-                            <div style="font-size: 0.75rem; color: var(--text-secondary);">${item.status_item || 'NÃO INSTALADO'}</div>
-                        </td>
-                        <td style="padding: 0.8rem 1rem; font-family: monospace; font-size: 0.9rem;">${item.part_number}</td>
-                        <td style="padding: 0.8rem 1rem; text-align: center;">${anvAnt}</td>
-                        <td style="padding: 0.8rem 1rem; font-family: monospace; color: var(--text-secondary);">${snSistema}</td>
-                        <td style="padding: 0.6rem 1rem;">
-                            <div class="real-input-container">
-                                <input type="text" id="${inputId}" class="real-input status-pending" 
-                                       placeholder="S/N real..." 
-                                       oninput="compareSN(this, '${item.numero_serie || ''}', '${item.equipamento_id}')">
-                                <button id="btn-sync-${item.equipamento_id}" class="btn-sync" 
-                                        onclick="ajustarInventario('${item.equipamento_id}', document.getElementById('${inputId}').value)"
-                                        title="Sincronizar com Sistema">
-                                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                        </td>
-                        <td style="padding: 0.8rem 1rem; font-size: 0.8rem; color: var(--text-secondary);">
-                            ${item.data_instalacao ? new Date(item.data_instalacao).toLocaleDateString('pt-BR') : '-'}
-                        </td>
-                    </tr>
-                `;
-            });
-
-            html += `</tbody></table></div>`;
-            section.innerHTML = html;
-            container.appendChild(section);
         });
+
+        html += `</tbody></table></div>`;
+        section.innerHTML = html;
+        container.appendChild(section);
         updateStats();
     }
 
