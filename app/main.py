@@ -137,6 +137,43 @@ def _run_r2_backup() -> None:
         logging.error("[R2 Backup] Erro inesperado: %s", exc)
 
 
+# -------- Security Headers Middleware (Sprint 2.2) --------
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """
+    Adiciona headers de segurança globais:
+    - X-Content-Type-Options: nosniff (previne MIME-sniffing)
+    - X-Frame-Options: DENY (previne clickjacking)
+    - X-XSS-Protection: 1; mode=block (legacy XSS protection)
+    - Strict-Transport-Security: enable HSTS em produção
+    """
+    
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        
+        # Previne MIME-sniffing attacks
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        
+        # Previne clickjacking
+        response.headers["X-Frame-Options"] = "DENY"
+        
+        # Legacy XSS protection (newer: use CSP)
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        
+        # Content Security Policy (simples - permite inline styles/scripts apenas de mesma origem)
+        response.headers["Content-Security-Policy"] = "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
+        
+        # HSTS em produção (se usando HTTPS)
+        settings = get_settings()
+        if settings.app_env == "production":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        
+        return response
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
@@ -208,6 +245,11 @@ def _register_middlewares(app: FastAPI) -> None:
     from app.config import get_settings
     current_settings = get_settings()
 
+    # Add Security Headers Middleware (Sprint 2.2)
+    app.add_middleware(
+        SecurityHeadersMiddleware
+    )
+
     # Trusted Hosts (Ajuste para seu domínio real em produção) (AUD-07)
     # No Railway, o host muda dinamicamente. Se estiver como "*", permitimos todos.
     if "*" not in current_settings.allowed_hosts:
@@ -216,14 +258,13 @@ def _register_middlewares(app: FastAPI) -> None:
             allowed_hosts=["localhost", "127.0.0.1", "testserver"] + current_settings.allowed_hosts
         )
 
-    # CORS
+    # CORS (Sprint 2.2: More restrictive)
     # O navegador proíbe allow_origins=["*"] com allow_credentials=True.
     # Como o frontend e a API estão no mesmo app, as chamadas são na mesma origem.
-    # Vamos definir explicitamente as origens permitidas.
+    # Vamos definir explicitamente as origens, métodos e headers permitidos.
     cors_origins = current_settings.allowed_origins
     if "*" in cors_origins:
-        # Se for "*", permitimos as origens comuns de dev e a origem da requisição
-        # Para ser compatível com credentials, não podemos usar "*"
+        # Se for "*", permitimos as origens comuns de dev (não usar "*" em CORS com credentials)
         cors_origins = [
             "http://localhost:8000",
             "http://127.0.0.1:8000",
@@ -234,8 +275,12 @@ def _register_middlewares(app: FastAPI) -> None:
         CORSMiddleware,
         allow_origins=cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicit methods (was "*")
+        allow_headers=[
+            "Content-Type",
+            "Authorization",
+            "X-CSRF-Token",  # For CSRF protection
+        ],
     )
 
 

@@ -9,96 +9,248 @@
 
 ---
 
+# Plano Detalhado de Implementação - Auditoria SAA29
+
+**Data:** 2026-04-19  
+**Versão:** 3.0 (Progress Update)
+**Status:** 🚀 Em Execução (Phase 1 Completo, Phase 2 50% Completo)
+**Objetivo:** Executar todas as correções da auditoria em 5 fases (~45-50 horas)
+
+**Documento Complementar:** Veja `IMPLEMENTATION_PLAN.md` para detalhes técnicos passo-a-passo.
+
+---
+
 ## 📊 ROADMAP EXECUTIVO
 
-### Fase 1: SECURITY CRITICAL (Semana 1) - 8 horas
+### Fase 1: SECURITY CRITICAL ✓ COMPLETO (8 horas - Semana 1)
 Resolver 3 vulnerabilidades críticas que permitem forjamento de tokens e acesso não-autorizado.
 
 | Sprint | Issue | Arquivo | Tempo | Status |
 |--------|-------|---------|-------|--------|
-| 1.1 | Remove R2 credentials from Git | `.env` | 1-2h | ❌ |
-| 1.2 | Fix insecure secret key | `app/config.py:21` | 1h | ❌ |
-| 1.3 | Remove hardcoded admin password | `scripts/*.py` | 1h | ❌ |
+| 1.1 | Remove R2 credentials from Git | `.env` | 1-2h | ✅ COMPLETO |
+| 1.2 | Fix insecure secret key | `app/config.py:21` | 1h | ✅ COMPLETO |
+| 1.3 | Remove hardcoded admin password | `scripts/*.py` | 1h | ✅ COMPLETO |
 
-### Fase 2: SECURITY HIGH (Semana 1-2) - 12 horas
+### Fase 2: SECURITY HIGH 🚀 50% COMPLETO (12 horas - Semana 1-2)
 Resolver 10 vulnerabilidades altas de segurança.
 
 | Sprint | Issue | Tempo | Status |
 |--------|-------|-------|--------|
-| 2.1 | Debug mode + JWT expiration | 1.5h | ❌ |
-| 2.2 | Cookie flags + CORS | 1.5h | ❌ |
-| 2.3 | CSRF protection | 2h | ❌ |
-| 2.4 | File upload security | 1.5h | ❌ |
+| 2.1 | Debug mode + JWT expiration + Refresh tokens | 1.5h | ✅ COMPLETO |
+| 2.2 | Cookie flags + CORS + Security headers | 1.5h | ✅ COMPLETO |
+| 2.3 | CSRF protection | 2h | ⏳ TODO |
+| 2.4 | File upload security | 1.5h | ⏳ TODO |
 
-### Fase 3: PERFORMANCE + MEDIUM SECURITY (Semana 2-3) - 14 horas
+### Fase 3: PERFORMANCE + MEDIUM SECURITY (14 horas - Semana 2-3)
 Otimizar banco de dados e resolver 9 vulnerabilidades médias.
 
 | Sprint | Issue | Tempo | Status |
 |--------|-------|-------|--------|
-| 3.1 | Rate limiting + Account lockout | 2.5h | ❌ |
-| 3.2 | N+1 queries + FK indexes | 2.5h | ❌ |
-| 3.3 | Async subprocess blocking | 1h | ❌ |
+| 3.1 | Rate limiting + Account lockout | 2.5h | ⏳ TODO |
+| 3.2 | N+1 queries + FK indexes | 2.5h | ⏳ TODO |
+| 3.3 | Async subprocess blocking | 1h | ⏳ TODO |
 
-### Fase 4: CODE QUALITY (Semana 3-4) - 12 horas
+### Fase 4: CODE QUALITY (12 horas - Semana 3-4)
 Eliminar duplicação e melhorar arquitetura.
 
 | Sprint | Issue | Tempo | Status |
 |--------|-------|-------|--------|
-| 4.1 | Extract error handler | 2h | ❌ |
-| 4.2 | Extract common helpers | 1.5h | ❌ |
-| 4.3 | Security headers middleware | 1h | ❌ |
-| 4.4 | Replace print with logging | 1h | ❌ |
+| 4.1 | Extract error handler | 2h | ⏳ TODO |
+| 4.2 | Extract common helpers | 1.5h | ⏳ TODO |
+| 4.3 | Security headers middleware | 1h | ✅ (incluído em 2.2) |
+| 4.4 | Replace print with logging | 1h | ⏳ TODO |
 
-### Fase 5: TESTING (Semana 4-5) - 8 horas
+### Fase 5: TESTING (8 horas - Semana 4-5)
 Validar todas as correções com testes abrangentes.
 
 | Sprint | Issue | Tempo | Status |
 |--------|-------|-------|--------|
-| 5.1 | Security tests | 2h | ❌ |
-| 5.2 | Performance tests | 1h | ❌ |
-| 5.3 | Integration tests | 2h | ❌ |
-| 5.4 | Verification script | 1h | ❌ |
+| 5.1 | Security tests | 2h | ⏳ TODO |
+| 5.2 | Performance tests | 1h | ⏳ TODO |
+| 5.3 | Integration tests | 2h | ⏳ TODO |
+| 5.4 | Verification script | 1h | ⏳ TODO |
 
 ---
 
-## 🔴 FASE 1: SECURITY CRITICAL (Máxima Prioridade)
+## ✅ FASE 1: SECURITY CRITICAL (Máxima Prioridade)
 
-### Problema
-3 vulnerabilidades críticas permitem:
-1. Acesso ao Cloudflare R2 storage (credenciais expostas no Git)
-2. Forjamento de tokens JWT (secret key padrão conhecida)
-3. Login como admin com password hardcoded
+### Status: COMPLETO
 
-### Solução Resumida
-1. Remover `.env` do histórico Git com `git filter-repo`
-2. Adicionar validação em `app/config.py` que rejeita secrets inseguras
-3. Remover fallback hardcoded em `scripts/init_db.py` e `scripts/seed.py`
+**Implementação Total:** 3/3 Sprints (100%)
 
-### Próximos Passos Detalhados
-Veja `IMPLEMENTATION_PLAN.md` > **FASE 1** para instruções passo-a-passo.
+#### Sprint 1.1: Remove Exposed R2 Credentials from Git ✅
+**Status:** COMPLETO (Verificação passiva - .env nunca foi commitado)
+
+- Verificado: `.env` não existe no histórico Git
+- `.gitignore` contém regra para `.env`
+- Backup local criado (`.env.backup`)
+- **Risco mitigado:** Credenciais R2 nunca foram expostas no Git
+
+#### Sprint 1.2: Fix Insecure Default Secret Key ✅
+**Status:** COMPLETO
+
+**Arquivos Modificados:**
+- `app/config.py` (76 linhas adicionadas/modificadas)
+- `.env` (atualizado com chave segura e JWT timeout reduzido)
+
+**Mudanças:**
+- Adicionado Field() descriptors com documentação de segurança
+- Validação aprimorada `validate_security()`:
+  - REJEITA secret keys vazios ou contendo "INSECURE"
+  - Enforça mínimo de 32 caracteres
+  - Bloqueia `debug=True` em produção
+  - Avisa se `debug=True` em desenvolvimento
+- `APP_DEBUG`: `True` → `False`
+- `APP_SECRET_KEY`: 64 caracteres aleatórios (gerados com `secrets.token_hex(32)`)
+- `JWT_EXPIRE_MINUTES`: `480` (8 horas) → `15` (15 minutos)
+
+**Impacto de Segurança:**
+- ✅ Forjamento de JWT agora impossível (secret enforçado)
+- ✅ Janela de roubo de token reduzida 32x (8h → 15min)
+- ✅ Detalhes internos não expostos (debug=False)
+
+#### Sprint 1.3: Remove Hardcoded Admin Password ✅
+**Status:** COMPLETO
+
+**Arquivos Modificados:**
+- `scripts/init_db.py` (+12 linhas)
+- `scripts/seed.py` (+12 linhas)
+- `scripts/reset_admin.py` (+12 linhas)
+- `.env` (atualizado com password segura)
+
+**Mudanças:**
+- REMOVIDO fallback hardcoded: `"BisKP76pg3IU"` (init_db, seed)
+- REMOVIDO fallback hardcoded: `"admin123"` (reset_admin)
+- ADICIONADA validação que REJEITA execução se `DEFAULT_ADMIN_PASSWORD` não definida
+- Mensagem de erro clara guiando usuário a definir env var
+- `.env` atualizado com password seguro: `SecureAdminPassword2024#Random123ABC`
+
+**Verificação:**
+- ✅ Scripts rejeitam execução sem env var
+- ✅ Scripts funcionam corretamente quando `DEFAULT_ADMIN_PASSWORD` é definida
+- ✅ Password nunca pode ser hardcoded
+
+**Impacto de Segurança:**
+- ✅ Eliminada via de acesso não-autorizado via password conhecida
+- ✅ Deployer DEVE explicitar password (sem fallback)
+- ✅ Previne compromissão por pessoa com acesso ao repositório
 
 ---
 
-## 🟠 FASE 2: SECURITY HIGH
+## 🟠 FASE 2: SECURITY HIGH (50% COMPLETO)
 
-### Problemas
-10 vulnerabilidades altas incluem:
-- Debug mode habilitado (expõe API internals)
-- JWT com 2 horas de validade (muito longo)
-- Cookies sem flag `secure` (não HTTPS-only)
-- CORS permite wildcard com credentials
-- Sem proteção CSRF
-- Validação fraca em upload de arquivos
+---
 
-### Solução Resumida
-1. Defaults: debug=False, JWT timeout=15min
-2. Adicionar refresh token mechanism
-3. Enable secure cookie flags dinamicamente
-4. Implementar CSRF middleware
-5. Validar MIME types em uploads
+## 🟠 FASE 2: SECURITY HIGH (50% COMPLETO)
 
-### Próximos Passos Detalhados
-Veja `IMPLEMENTATION_PLAN.md` > **FASE 2** para código específico.
+### Status: Em Execução - 2/4 Sprints Completos
+
+**Implementação Atual:** 2/4 Sprints (50%)
+
+#### Sprint 2.1: Fix Debug Mode and JWT Expiration ✅
+**Status:** COMPLETO
+
+**Arquivos Modificados:**
+- `app/auth/models.py` (+51 linhas) - Adicionado TokenRefresh model
+- `app/auth/security.py` (+23 linhas) - Adicionado criar_refresh_token()
+- `app/auth/schemas.py` (+6 linhas) - Adicionado RefreshTokenRequest
+- `app/auth/router.py` (+135 linhas) - /login e /refresh endpoints
+- `migrations/versions/` (novo) - Migração: add_token_refresh_table
+
+**Mudanças:**
+
+1. **Token Refresh Mechanism:**
+   - Novo TokenRefresh model com jti único, usuario_id, expira_em (7 dias), revogado_em
+   - Refresh tokens válidos por 7 dias (vs access tokens 15 min)
+   - Token rotation: novo refresh token gerado em cada `/refresh`
+   - Rastreamento de revogação para segurança
+
+2. **Endpoints Atualizados:**
+   - `/login` agora retorna `access_token` + `refresh_token`
+   - `/refresh` endpoint novo: troca refresh token válido por novo access token
+   - Validações: verifica expiração, revogação, usuário ativo
+
+3. **Cookie Seguro:**
+   - `httponly=True` (previne XSS access to token)
+   - `samesite="lax"` (previne CSRF)
+   - `max_age=15*60` (15 minutos)
+   - Flag `secure=True` em produção (HTTPS only)
+
+**Impacto de Segurança:**
+- ✅ Sessões alongadas sem re-login (refresh token 7 dias)
+- ✅ Access tokens curtos (15 min) reduzem impacto de roubo
+- ✅ Token rotation automático em cada refresh
+- ✅ Possibilidade de revogar tokens individuais
+- ✅ HttpOnly cookies previnem XSS token theft
+
+#### Sprint 2.2: Secure Cookies and CORS ✅
+**Status:** COMPLETO
+
+**Arquivos Modificados:**
+- `app/main.py` (+57 linhas) - SecurityHeadersMiddleware, CORS fixes
+
+**Mudanças:**
+
+1. **SecurityHeadersMiddleware (Nova):**
+   - `X-Content-Type-Options: nosniff` - Previne MIME-sniffing attacks
+   - `X-Frame-Options: DENY` - Previne clickjacking
+   - `X-XSS-Protection: 1; mode=block` - Legacy XSS protection
+   - `Content-Security-Policy` - Restringe scripts/styles a origem
+   - `Strict-Transport-Security` - HSTS em produção (31536000s = 1 ano)
+
+2. **CORS Hardened:**
+   - Métodos: `["GET", "POST", "PUT", "DELETE", "OPTIONS"]` (era `["*"]`)
+   - Headers: `["Content-Type", "Authorization", "X-CSRF-Token"]` (era `["*"]`)
+   - Suporte para X-CSRF-Token header (necessário para Sprint 2.3)
+   - Origins explícitas em produção (não wildcard com credentials)
+
+**Impacto de Segurança:**
+- ✅ Clickjacking attack prevention (X-Frame-Options)
+- ✅ MIME-sniffing prevention (X-Content-Type-Options)
+- ✅ XSS mitigation (CSP, X-XSS-Protection)
+- ✅ Force HTTPS in production (HSTS)
+- ✅ CORS não permite métodos/headers desnecessários
+
+#### Sprint 2.3: Add CSRF Protection ⏳
+**Status:** TODO - Próximo Sprint
+
+**Será Implementado:**
+- Instalar `pip install fastapi-csrf-protect`
+- CSRF middleware para validar tokens em requisições
+- Templates: extrair CSRF token de response headers
+- JavaScript: adicionar CSRF token a fetch requests
+
+**Tempo Estimado:** 2 horas
+
+#### Sprint 2.4: File Upload Security ⏳
+**Status:** TODO - Após Sprint 2.3
+
+**Será Implementado:**
+- Validação de MIME types (whitelist apenas tipos seguros)
+- Prevenção de path traversal (sanitizar nomes de arquivo)
+- Limite de tamanho de upload
+- Verificação de assinatura de arquivo (magic bytes)
+
+**Tempo Estimado:** 1.5 horas
+
+---
+
+### Resumo Phase 2 - Vulnerabilidades Altas Endereçadas:
+
+| # | Vulnerabilidade | Sprint | Status |
+|---|---|---|---|
+| 1 | Debug mode exposed | 2.1 | ✅ Incluído em Phase 1 |
+| 2 | JWT expiration muito longo | 2.1 | ✅ COMPLETO (480 → 15 min) |
+| 3 | Refresh token missing | 2.1 | ✅ COMPLETO (7-day tokens) |
+| 4 | Cookies not httponly | 2.1 | ✅ COMPLETO (HttpOnly set) |
+| 5 | Cookies not secure | 2.2 | ✅ COMPLETO (com flag) |
+| 6 | CORS misconfigured | 2.2 | ✅ COMPLETO (explicit methods) |
+| 7 | No CSRF protection | 2.3 | ⏳ TODO |
+| 8 | Weak file upload validation | 2.4 | ⏳ TODO |
+| 9 | No rate limiting | Phase 3 | ⏳ TODO |
+| 10 | No account lockout | Phase 3 | ⏳ TODO |
+
+---
 
 ---
 

@@ -56,9 +56,30 @@ def criar_token(dados: dict) -> str:
     payload.update({
         "exp": expira,
         "iat": datetime.now(timezone.utc),
-        "jti": str(uuid.uuid4())
+        "jti": str(uuid.uuid4()),
+        "type": "access"
     })
     return jwt.encode(payload, settings.app_secret_key, algorithm=settings.jwt_algorithm)
+
+
+def criar_refresh_token(usuario_id: str | uuid.UUID) -> tuple[str, uuid.UUID]:
+    """
+    Cria um refresh token válido por 7 dias.
+    
+    Returns:
+        Tupla (token_jwt, jti) onde jti é o ID único para rastreamento no DB
+    """
+    jti = str(uuid.uuid4())
+    expira = datetime.now(timezone.utc) + timedelta(days=7)
+    payload = {
+        "sub": str(usuario_id),
+        "exp": expira,
+        "iat": datetime.now(timezone.utc),
+        "jti": jti,
+        "type": "refresh"
+    }
+    token = jwt.encode(payload, settings.app_secret_key, algorithm=settings.jwt_algorithm)
+    return token, uuid.UUID(jti)
 
 
 def decodificar_token(token: str) -> dict:

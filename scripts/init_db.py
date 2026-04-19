@@ -29,8 +29,18 @@ FROTA_PADRAO = [
 ]
 
 async def init_db():
+    # DEFAULT_ADMIN_PASSWORD MUST be set for security
+    admin_pass = os.getenv("DEFAULT_ADMIN_PASSWORD")
+    if not admin_pass:
+        raise ValueError(
+            "CRITICAL: DEFAULT_ADMIN_PASSWORD environment variable is not set.\n"
+            "  - This is required for security (no hardcoded fallback).\n"
+            "  - Set it before running init_db.py\n"
+            "  - Example: export DEFAULT_ADMIN_PASSWORD='your_secure_password'"
+        )
+    
     admin_user = os.getenv("DEFAULT_ADMIN_USER", "admin").strip()
-    admin_pass = os.getenv("DEFAULT_ADMIN_PASSWORD", "BisKP76pg3IU").strip()
+    admin_pass = admin_pass.strip()
     
     AsyncSessionLocal = get_session_factory()
     async with AsyncSessionLocal() as session:

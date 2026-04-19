@@ -26,7 +26,7 @@ from app.dependencies import get_token_from_request
     "/login",
     response_model=schemas.Token,
     summary="Login de usuário",
-    description="Autentica o usuário e retorna um JWT (agora também via Cookie HttpOnly). (RF-01)",
+    description="Autentica o usuário e retorna um JWT + Refresh Token (via Cookie HttpOnly). (RF-01)",
 )
 async def login(
     db: DBSession,
@@ -38,8 +38,9 @@ async def login(
         1. Receber username e senha via form
         2. Buscar usuário no banco
         3. Verificar senha com bcrypt
-        4. Gerar e retornar JWT
-        5. Lançar o token também via Cookie seguro
+        4. Gerar access token (15 min) e refresh token (7 dias)
+        5. Retornar JWT e armazenar refresh token
+        6. Lançar access token também via Cookie seguro
     """
     usuario = await service.autenticar_usuario(
         db, form_data.username, form_data.password
@@ -51,22 +52,139 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    token = criar_token(dados={"sub": usuario.username})
+    # Criar access token (15 min)
+    access_token = criar_token(dados={"sub": usuario.username})
     
-    # Prevenção contra XSS: o browser guardará e enviará automaticamente o token (HttpOnly)
+    # Criar refresh token (7 dias)
+    from app.auth.security import criar_refresh_token
+    from app.auth.models import TokenRefresh
+    from datetime import datetime, timezone, timedelta
+    
+    refresh_token_str, jti = criar_refresh_token(usuario.id)
+    
+    # Armazenar refresh token no banco (para rastreamento e revogação)
+    refresh_token_model = TokenRefresh(
+        usuario_id=usuario.id,
+        jti=str(jti),
+        expira_em=datetime.now(timezone.utc) + timedelta(days=7)
+    )
+    db.add(refresh_token_model)
+    await db.commit()
+    
+    # Set secure cookie for access token (HttpOnly, Secure em produção)
     response.set_cookie(
         key="saa29_token",
-        value=token,
+        value=access_token,
         httponly=True,
-        samesite="lax"
+        samesite="lax",
+        max_age=15*60,  # 15 minutos
         # secure=True  # Ativar em produção num ambiente puramente HTTPS
     )
 
     return schemas.Token(
-        access_token=token,
+        access_token=access_token,
+        refresh_token=refresh_token_str,
         token_type="bearer",
         usuario=schemas.UsuarioOut.model_validate(usuario),
     )
+
+
+@router.post(
+    "/refresh",
+    response_model=schemas.Token,
+    summary="Refresh access token",
+    description="Usa um refresh token válido para obter um novo access token (15 min)",
+)
+async def refresh_access_token(
+    db: DBSession,
+    request_data: schemas.RefreshTokenRequest,
+) -> schemas.Token:
+    """
+    Fluxo de refresh:
+        1. Client envia refresh token válido
+        2. Validar e decodificar refresh token
+        3. Buscar usuário correspondente
+        4. Gerar novo access token
+        5. Opcionalmente gerar novo refresh token (rotate)
+    """
+    from app.auth.security import decodificar_token, criar_refresh_token
+    from app.auth.models import TokenRefresh
+    from datetime import datetime, timezone, timedelta
+    from sqlalchemy import select
+    
+    try:
+        # Decodificar refresh token
+        payload = decodificar_token(request_data.refresh_token)
+        
+        # Validar que é um refresh token
+        if payload.get("type") != "refresh":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token inválido (não é um refresh token)",
+            )
+        
+        usuario_id = payload.get("sub")
+        jti = payload.get("jti")
+        
+        # Buscar no banco para verificar se não foi revogado
+        result = await db.execute(
+            select(TokenRefresh).where(
+                (TokenRefresh.jti == jti) &
+                (TokenRefresh.revogado_em.is_(None)) &
+                (TokenRefresh.expira_em > datetime.now(timezone.utc))
+            )
+        )
+        stored_token = result.scalar_one_or_none()
+        
+        if not stored_token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh token expirado ou revogado",
+            )
+        
+        # Buscar usuário
+        from app.auth.models import Usuario
+        user_result = await db.execute(
+            select(Usuario).where(Usuario.id == usuario_id)
+        )
+        usuario = user_result.scalar_one_or_none()
+        
+        if not usuario or not usuario.ativo:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Usuário inativo ou não encontrado",
+            )
+        
+        # Gerar novo access token
+        new_access_token = criar_token(dados={"sub": usuario.username})
+        
+        # Gerar novo refresh token (token rotation)
+        new_refresh_token, new_jti = criar_refresh_token(usuario.id)
+        new_token_model = TokenRefresh(
+            usuario_id=usuario.id,
+            jti=str(new_jti),
+            expira_em=datetime.now(timezone.utc) + timedelta(days=7)
+        )
+        db.add(new_token_model)
+        
+        # Revogar refresh token antigo (opcional, mas mais seguro)
+        stored_token.revogado_em = datetime.now(timezone.utc)
+        
+        await db.commit()
+        
+        return schemas.Token(
+            access_token=new_access_token,
+            refresh_token=new_refresh_token,
+            token_type="bearer",
+            usuario=schemas.UsuarioOut.model_validate(usuario),
+        )
+        
+    except Exception as e:
+        # Qualquer erro na decodificação é acesso negado
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Refresh token inválido: {str(e)[:50]}",
+        )
 
 
 @router.post(
@@ -102,6 +220,7 @@ async def logout(
         # Se o token já for inválido, logout é considerado ok.
         pass
     return None
+
 
 
 @router.get(

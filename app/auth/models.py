@@ -144,3 +144,54 @@ class TokenBlacklist(Base):
 
     def __repr__(self) -> str:
         return f"<TokenBlacklist jti={self.jti!r}>"
+
+
+class TokenRefresh(Base):
+    """
+    Armazena refresh tokens para estender sessões sem exigir re-autenticação.
+    
+    Fluxo:
+    1. Access token expira a cada 15 min
+    2. Client usa refresh token para obter novo access token (via /auth/refresh)
+    3. Refresh token válido por 7 dias
+    4. Novo refresh token gerado em cada requisição de refresh
+    5. Tokens revogados ficam na blacklist
+    """
+    __tablename__ = "token_refresh"
+    
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="ID único do refresh token"
+    )
+    usuario_id: Mapped[uuid.UUID] = mapped_column(
+        index=True,
+        nullable=False,
+        comment="Referência ao usuário"
+    )
+    jti: Mapped[str] = mapped_column(
+        String(36),
+        unique=True,
+        index=True,
+        nullable=False,
+        comment="JWT ID do refresh token (para rastreamento)"
+    )
+    expira_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        comment="Data de expiração do refresh token (7 dias)"
+    )
+    criado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=func.now(),
+        nullable=False,
+    )
+    revogado_em: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Se preenchido, o token foi revogado"
+    )
+    
+    def __repr__(self) -> str:
+        status = "revoked" if self.revogado_em else "active"
+        return f"<TokenRefresh jti={self.jti!r} status={status}>"

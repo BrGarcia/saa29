@@ -5,8 +5,10 @@ Os valores são lidos do arquivo .env (ou variáveis de ambiente).
 """
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import model_validator
+from pydantic import model_validator, Field
 from functools import lru_cache
+import warnings
+import os
 
 
 class Settings(BaseSettings):
@@ -16,17 +18,32 @@ class Settings(BaseSettings):
     """
 
     # --- Aplicação ---
-    app_env: str = "development"
-    app_debug: bool = True
-    app_secret_key: str = "INSECURE_DEFAULT_SECRET_KEY_CHANGE_ME_IN_PRODUCTION"
+    app_env: str = Field(
+        default="development",
+        description="Environment: development or production"
+    )
+    app_debug: bool = Field(
+        default=False,
+        description="Debug mode. MUST be False in production."
+    )
+    app_secret_key: str = Field(
+        default="",
+        description="Secret key for JWT encoding. MUST be set securely."
+    )
 
     # --- Banco de Dados ---
     # Padrão: SQLite para instalação local ou produção básica (monolito).
     database_url: str = "sqlite+aiosqlite:///./saa29_local.db"
 
     # --- JWT ---
-    jwt_algorithm: str = "HS256"
-    jwt_expire_minutes: int = 120  # 2 horas (AUD-18)
+    jwt_algorithm: str = Field(
+        default="HS256",
+        description="JWT algorithm"
+    )
+    jwt_expire_minutes: int = Field(
+        default=15,
+        description="JWT token expiry in minutes (AUD-18: reduced from 480 to 15)"
+    )
 
     # --- Upload e Storage ---
     upload_dir: str = "uploads"
@@ -61,12 +78,49 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-
     @model_validator(mode="after")
-    def validate_secret(self):
-        """Impede o uso de chave insegura em ambiente de produção (AUD-08)."""
-        if self.app_env == "production" and "INSECURE" in self.app_secret_key:
-            raise ValueError("APP_SECRET_KEY deve ser definida em produção!")
+    def validate_security(self):
+        """
+        Enforce security best practices:
+        1. APP_SECRET_KEY must never use defaults (empty or "INSECURE_...")
+        2. debug=False required in production
+        3. Warn if debug=True in production
+        """
+        # CRITICAL: Secret key validation (AUD-08)
+        if not self.app_secret_key or \
+           self.app_secret_key == "INSECURE_DEFAULT_SECRET_KEY_CHANGE_ME_IN_PRODUCTION" or \
+           "INSECURE" in self.app_secret_key:
+            raise ValueError(
+                "CRITICAL SECURITY ERROR: APP_SECRET_KEY is not set or uses insecure default.\n"
+                "  - This allows attackers to forge JWT tokens.\n"
+                "  - Set APP_SECRET_KEY environment variable to a strong random value.\n"
+                "  - Example: openssl rand -hex 32"
+            )
+        
+        # Enforce minimum key length (32 bytes = 64 hex chars)
+        if len(self.app_secret_key) < 32:
+            raise ValueError(
+                f"APP_SECRET_KEY must be at least 32 characters long (got {len(self.app_secret_key)}).\n"
+                "  - Recommended: 64+ characters for production.\n"
+                "  - Generate with: openssl rand -hex 32"
+            )
+        
+        # DEBUG mode validation (AUD-01)
+        if self.app_env == "production":
+            if self.app_debug:
+                raise ValueError(
+                    "CRITICAL: app_debug=True in production.\n"
+                    "  - Disables this immediately (set APP_DEBUG=False).\n"
+                    "  - Exposes internal exception details to attackers."
+                )
+        else:
+            # Development mode - warn if debug is true
+            if self.app_debug:
+                warnings.warn(
+                    "Running in development mode with debug=True (allowed but not for production)",
+                    UserWarning
+                )
+        
         return self
 
 

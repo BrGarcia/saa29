@@ -49,6 +49,11 @@ class SenhaUpdate(BaseModel):
     nova_senha: str = Field(..., min_length=6)
 
 
+class RefreshTokenRequest(BaseModel):
+    """Payload para requisição de novo access token via refresh token."""
+    refresh_token: str = Field(..., description="Refresh token recebido no login")
+
+
 # ============================================================
 # Schemas de Saída (Responses)
 # ============================================================
@@ -72,6 +77,7 @@ class UsuarioOut(BaseModel):
 class Token(BaseModel):
     """Resposta do endpoint de login."""
     access_token: str
+    refresh_token: str | None = None  # Novo: refresh token retornado no login
     token_type: str = "bearer"
     usuario: UsuarioOut
 
