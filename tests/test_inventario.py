@@ -69,7 +69,7 @@ async def _montar_inventario_completo(client: AsyncClient, headers: dict) -> dic
     Retorna dict com aeronave, equipamentos e itens criados.
     """
     # Aeronave
-    aeronave = await _criar_aeronave(client, headers, "5900", "SN-TEST-001")
+    aeronave = await _criar_aeronave(client, headers, "5916", "SN-TEST-001")
 
     # Equipamentos em compartimentos diferentes
     equip_adf = await _criar_equipamento(client, headers, "ADF", "622-7382-101", "COMP. ELETRONICO")

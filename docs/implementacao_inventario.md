@@ -215,7 +215,7 @@ class InventarioItemOut(BaseModel):
    - 🔴 Vermelho: `SN != REAL` (divergência detectada)
 
 #### Passo 2.2 — JavaScript da página
-- Ao selecionar uma aeronave no dropdown, faz `GET /equipamentos/inventario/{aeronave_id}`
+- Ao selecionar uma aeronave (ex: 5916) no dropdown, faz `GET /equipamentos/inventario/{aeronave_id}`
 - Agrupa os resultados por `sistema` e renderiza as seções
 - Implementa filtro por texto (debounce de 250ms, mesmo padrão das panes)
 - A coluna REAL é apenas visual/local nesta fase (sem persistência no banco)

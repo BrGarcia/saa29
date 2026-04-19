@@ -124,7 +124,7 @@ def dados_usuario_mantenedor() -> dict:
 def dados_aeronave_valida() -> dict:
     return {
         "serial_number": "SN-0001",
-        "matricula": "5900",
+        "matricula": "5916",
         "modelo": "A-29",
         "status": "OPERACIONAL",
     }

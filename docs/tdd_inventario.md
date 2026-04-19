@@ -40,7 +40,7 @@ que ainda **não existe** e deverá ser criado na **Fase 1** da implementação.
 
 #### T01 — Inventário retorna itens instalados
 ```
-DADO    aeronave 5900 com 3 itens instalados (ADF, VUHF1, PDU)
+DADO    aeronave 5916 com 3 itens instalados (ADF, VUHF1, PDU)
 QUANDO  GET /equipamentos/inventario/{aeronave_id}
 ENTÃO   status 200 e lista com 3 itens
 ```

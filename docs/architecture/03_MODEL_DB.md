@@ -77,7 +77,7 @@ O banco de dados do SAA29 é composto por **10 tabelas** organizadas em 4 domín
 | `id` | UUID | PK, default uuid4 | Identificador único |
 | `part_number` | String(50) | nullable | Part number da aeronave |
 | `serial_number` | String(50) | UNIQUE, NOT NULL, INDEX | Número de série |
-| `matricula` | String(20) | UNIQUE, NOT NULL, INDEX | Matrícula operacional (ex: 5900) |
+| `matricula` | String(20) | UNIQUE, NOT NULL, INDEX | Matrícula operacional (ex: 5916) |
 | `modelo` | String(50) | NOT NULL, default "A-29" | Modelo da aeronave |
 | `status` | String(20) | NOT NULL, default "OPERACIONAL" | `OPERACIONAL` \| `INDISPONIVEL` \| `INATIVA` |
 | `created_at` | DateTime(tz) | NOT NULL, default now() | — |
@@ -380,9 +380,9 @@ ORDER BY e.sistema, e.nome;
 
 | Matrícula | Equipamento | Part Number | Sistema | Nº Série | Status | Data Instalação |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| 5900 | VUHF2 | 822-1468-002 | COM | SN-00123 | ATIVO | 2025-06-15 |
-| 5900 | ELT | 453-6603 | EMG | SN-00456 | ATIVO | 2024-11-20 |
-| 5900 | MDP | 980-6144-001 | NAV | SN-00789 | ATIVO | 2025-01-10 |
+| 5916 | VUHF2 | 822-1468-002 | COM | SN-00123 | ATIVO | 2025-06-15 |
+| 5916 | ELT | 453-6603 | EMG | SN-00456 | ATIVO | 2024-11-20 |
+| 5916 | MDP | 980-6144-001 | NAV | SN-00789 | ATIVO | 2025-01-10 |
 
 ---
 

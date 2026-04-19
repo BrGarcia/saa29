@@ -75,7 +75,7 @@ async def seed():
                 session.add(slot)
                 await session.flush()
 
-            # 4. Instalar um item físico na 5900 para teste
+            # 4. Instalar um item físico na 5916 para teste
             sn = f"SN-{data['posicao']}-{str(uuid.uuid4())[:4].upper()}"
             item = ItemEquipamento(id=uuid.uuid4(), modelo_id=modelo.id, numero_serie=sn, status=StatusItem.ATIVO)
             session.add(item)
