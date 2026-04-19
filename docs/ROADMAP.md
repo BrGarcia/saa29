@@ -37,8 +37,8 @@ v5.0: Ecossistema Total    ░░ Visão Final (IA & Supply)
 - [x] **Resiliência SQLite:** Configurar PRAGMAs de performance (`WAL mode`) de forma persistente no engine do banco.
 
 ### Fase 2: Arquitetura e Domínio
-- [ ] **Exceções de Domínio:** Substituir erros genéricos por exceções tipadas e implementar um Global Exception Handler no FastAPI.
-- [ ] **Desacoplamento de Services:** Refatorar "God Functions" (como `ajustar_inventario_item`) em componentes menores e testáveis.
+- [x] **Exceções de Domínio:** Substituir erros genéricos por exceções tipadas e implementar um Global Exception Handler no FastAPI.
+- [x] **Desacoplamento de Services:** Refatorar "God Functions" (como `ajustar_inventario_item`) em componentes menores e testáveis.
 - [ ] **Redução de Acoplamento:** Isolar as dependências entre os módulos de Equipamentos e Aeronaves através de interfaces ou repositórios.
 
 ---

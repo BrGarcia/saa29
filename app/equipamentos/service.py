@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from app.aeronaves.models import Aeronave
 from app.auth.models import Usuario
+from app.core import exceptions as domain_exc
 from app.equipamentos.models import (
     ModeloEquipamento,
     SlotInventario,
@@ -75,7 +76,7 @@ async def listar_inventario_aeronave(
     from app.aeronaves.service import buscar_aeronave
     aeronave_atual = await buscar_aeronave(db, aeronave_id)
     if not aeronave_atual:
-        raise ValueError("Aeronave não encontrada.")
+        raise domain_exc.EntidadeNaoEncontradaError("Aeronave não encontrada.")
 
     # 1. Buscar todos os slots (posições) configurados
     stmt_slots = select(SlotInventario).options(selectinload(SlotInventario.modelo))
@@ -208,82 +209,26 @@ async def ajustar_inventario_item(
         
     sn_real = dados.numero_serie_real.strip().upper()
 
-    # 1. Buscar o slot e o PN exigido
-    res_slot = await db.execute(
-        select(SlotInventario).where(SlotInventario.id == slot_id).options(selectinload(SlotInventario.modelo))
-    )
-    slot = res_slot.scalar_one_or_none()
+    # 1. Obter Slot e Validar Existência
+    slot = await _obter_slot_com_modelo(db, slot_id)
     if not slot:
         return AjusteInventarioResponse(sucesso=False, mensagem="Slot de inventário não encontrado.")
 
-    modelo_id = slot.modelo_id
-
-    # 2. Buscar instalação atual nesse slot
-    res_inst_atual = await db.execute(
-        select(Instalacao)
-        .where(Instalacao.slot_id == slot_id, Instalacao.aeronave_id == aeronave_id, Instalacao.data_remocao.is_(None))
-        .options(selectinload(Instalacao.item))
-    )
-    inst_atual = res_inst_atual.scalar_one_or_none()
-
+    # 2. Verificar se o S/N já está no lugar certo
+    inst_atual = await _obter_instalacao_ativa_no_slot(db, aeronave_id, slot_id)
     if inst_atual and inst_atual.item.numero_serie == sn_real:
         return AjusteInventarioResponse(sucesso=True, mensagem="S/N já está sincronizado.")
 
-    # 3. Buscar/Criar o item físico vinculado ao PN
-    res_item = await db.execute(
-        select(ItemEquipamento).where(
-            ItemEquipamento.numero_serie == sn_real,
-            ItemEquipamento.modelo_id == modelo_id
-        )
-    )
-    item_real = res_item.scalar_one_or_none()
+    # 3. Obter ou Criar o Item Físico
+    item_real = await _obter_ou_criar_item_por_pn(db, slot.modelo_id, sn_real)
 
-    if not item_real:
-        item_real = ItemEquipamento(
-            id=uuid.uuid4(),
-            modelo_id=modelo_id,
-            numero_serie=sn_real,
-            status=StatusItem.ATIVO
-        )
-        db.add(item_real)
-        await db.flush()
+    # 4. Validar e Resolver Conflitos de Instalação (Transferência entre ACFTs)
+    conflito_resp = await _validar_e_resolver_conflitos(db, item_real, dados)
+    if conflito_resp:
+        return conflito_resp
 
-    # 4. Verificar se o item_real está em uso em OUTRA aeronave (ou outro slot)
-    res_conflito = await db.execute(
-        select(Instalacao)
-        .where(Instalacao.item_id == item_real.id, Instalacao.data_remocao.is_(None))
-    )
-    inst_conflito = res_conflito.scalar_one_or_none()
-
-    if inst_conflito and (inst_conflito.aeronave_id != aeronave_id or inst_conflito.slot_id != slot_id):
-        if not dados.forcar_transferencia:
-            res_acft = await db.execute(select(Aeronave.matricula).where(Aeronave.id == inst_conflito.aeronave_id))
-            matricula = res_acft.scalar_one()
-            return AjusteInventarioResponse(
-                sucesso=False,
-                mensagem=f"O item {sn_real} está instalado na aeronave {matricula}.",
-                requer_confirmacao=True,
-                aeronave_conflito=matricula
-            )
-        else:
-            inst_conflito.data_remocao = date.today()
-            inst_conflito.updated_at = func.now()
-
-    # 5. Encerrar instalação atual do slot (se houver)
-    if inst_atual:
-        inst_atual.data_remocao = date.today()
-        inst_atual.updated_at = func.now()
-
-    # 6. Criar nova instalação
-    nova_inst = Instalacao(
-        id=uuid.uuid4(),
-        item_id=item_real.id,
-        aeronave_id=aeronave_id,
-        slot_id=slot_id,
-        usuario_id=dados.usuario_id,
-        data_instalacao=date.today()
-    )
-    db.add(nova_inst)
+    # 5. Efetivar a Troca (Remover antigo e Instalar novo)
+    await _efetivar_troca_no_slot(db, inst_atual, item_real, dados)
     
     try:
         await db.commit()
@@ -297,6 +242,80 @@ async def ajustar_inventario_item(
         raise e
 
     return AjusteInventarioResponse(sucesso=True, mensagem="Inventário ajustado com sucesso.")
+
+
+# --- Funções Auxiliares (Desacoplamento de Domínio) ---
+
+async def _obter_slot_com_modelo(db: AsyncSession, slot_id: uuid.UUID) -> SlotInventario | None:
+    res = await db.execute(
+        select(SlotInventario).where(SlotInventario.id == slot_id).options(selectinload(SlotInventario.modelo))
+    )
+    return res.scalar_one_or_none()
+
+async def _obter_instalacao_ativa_no_slot(db: AsyncSession, aeronave_id: uuid.UUID, slot_id: uuid.UUID) -> Instalacao | None:
+    res = await db.execute(
+        select(Instalacao)
+        .where(Instalacao.slot_id == slot_id, Instalacao.aeronave_id == aeronave_id, Instalacao.data_remocao.is_(None))
+        .options(selectinload(Instalacao.item))
+    )
+    return res.scalar_one_or_none()
+
+async def _obter_ou_criar_item_por_pn(db: AsyncSession, modelo_id: uuid.UUID, sn: str) -> ItemEquipamento:
+    res = await db.execute(
+        select(ItemEquipamento).where(
+            ItemEquipamento.numero_serie == sn,
+            ItemEquipamento.modelo_id == modelo_id
+        )
+    )
+    item = res.scalar_one_or_none()
+    if not item:
+        item = ItemEquipamento(id=uuid.uuid4(), modelo_id=modelo_id, numero_serie=sn, status=StatusItem.ATIVO)
+        db.add(item)
+        await db.flush()
+    return item
+
+async def _validar_e_resolver_conflitos(
+    db: AsyncSession, item: ItemEquipamento, dados: AjusteInventarioCreate
+) -> AjusteInventarioResponse | None:
+    """Verifica se o item está instalado em outro lugar e gerencia a transferência."""
+    res = await db.execute(
+        select(Instalacao).where(Instalacao.item_id == item.id, Instalacao.data_remocao.is_(None))
+    )
+    inst_conflito = res.scalar_one_or_none()
+
+    if inst_conflito and (inst_conflito.aeronave_id != dados.aeronave_id or inst_conflito.slot_id != (dados.slot_id or dados.equipamento_id)):
+        if not dados.forcar_transferencia:
+            res_acft = await db.execute(select(Aeronave.matricula).where(Aeronave.id == inst_conflito.aeronave_id))
+            matricula = res_acft.scalar_one()
+            return AjusteInventarioResponse(
+                sucesso=False,
+                mensagem=f"O item {item.numero_serie} está instalado na aeronave {matricula}.",
+                requer_confirmacao=True,
+                aeronave_conflito=matricula
+            )
+        else:
+            inst_conflito.data_remocao = date.today()
+            inst_conflito.updated_at = func.now()
+    return None
+
+async def _efetivar_troca_no_slot(
+    db: AsyncSession, inst_atual: Instalacao | None, item_novo: ItemEquipamento, dados: AjusteInventarioCreate
+):
+    """Realiza a remoção do item antigo e a instalação do novo no slot."""
+    hoje = date.today()
+    if inst_atual:
+        inst_atual.data_remocao = hoje
+        inst_atual.updated_at = func.now()
+
+    nova_inst = Instalacao(
+        id=uuid.uuid4(),
+        item_id=item_novo.id,
+        aeronave_id=dados.aeronave_id,
+        slot_id=dados.slot_id or dados.equipamento_id,
+        usuario_id=dados.usuario_id,
+        data_instalacao=hoje
+    )
+    db.add(nova_inst)
 
 
 async def listar_historico_recente(db: AsyncSession, limit: int = 15, offset: int = 0) -> list[dict]:
@@ -374,7 +393,7 @@ async def remover_item(db: AsyncSession, instalacao_id: uuid.UUID, data_remocao:
     result = await db.execute(select(Instalacao).where(Instalacao.id == instalacao_id))
     instalacao = result.scalar_one_or_none()
     if not instalacao:
-        raise ValueError("Instalação não encontrada.")
+        raise domain_exc.EntidadeNaoEncontradaError("Instalação não encontrada.")
     
     instalacao.data_remocao = data_remocao
     instalacao.updated_at = func.now()
@@ -396,7 +415,7 @@ async def registrar_execucao(db: AsyncSession, vencimento_id: uuid.UUID, data_ex
         .options(selectinload(ControleVencimento.tipo_controle))
     )
     vencimento = result.scalar_one_or_none()
-    if not vencimento: raise ValueError("Vencimento não encontrado.")
+    if not vencimento: raise domain_exc.EntidadeNaoEncontradaError("Vencimento não encontrado.")
 
     periodicidade = vencimento.tipo_controle.periodicidade_meses
     vencimento.data_ultima_exec = data_exec

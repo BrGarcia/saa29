@@ -47,7 +47,7 @@ uvicorn app.main:app --reload
 
 3. **Correções Técnicas (Pós-Auditoria)**:
    - [x] Implementar `selectinload` para mitigar N+1 queries em listagens de inventário.
-   - [ ] Refatorar tratamento de erros para Exceções de Domínio + Global Exception Handler.
+   - [x] Refatorar tratamento de erros para Exceções de Domínio + Global Exception Handler.
    - [x] Configurar PRAGMA WAL no SQLite para performance concorrente.
 
 ---

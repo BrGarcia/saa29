@@ -8,9 +8,9 @@ Este plano detalha as etapas para corrigir as falhas identificadas no `RELATORIO
 - [x] **Configuração WAL no SQLite:** Ajustar `app/database.py` para garantir que `journal_mode=WAL` seja aplicado em todas as conexões, melhorando a concorrência de leitura/escrita.
 
 ## Fase 2: Refatoração Arquitetural (SOLID)
-- [ ] **Desacoplar Ajuste de Inventário:** Quebrar a função `ajustar_inventario_item` em `app/equipamentos/service.py`. Criar um validador de regras de negócio separado.
-- [ ] **Implementar Exceções de Domínio:** Criar `app/core/exceptions.py` e substituir o uso genérico de `ValueError` por exceções tipadas (ex: `EntidadeNaoEncontradaError`, `ConflitoInventarioError`).
-- [ ] **Global Exception Handler:** Configurar um handler no FastAPI (`app/main.py`) para traduzir exceções de domínio em respostas HTTP (404, 409, 400) de forma automática.
+- [x] **Desacoplar Ajuste de Inventário:** Quebrar a função `ajustar_inventario_item` em `app/equipamentos/service.py`. Criar um validador de regras de negócio separado.
+- [x] **Implementar Exceções de Domínio:** Criar `app/core/exceptions.py` e substituir o uso genérico de `ValueError` por exceções tipadas (ex: `EntidadeNaoEncontradaError`, `ConflitoInventarioError`).
+- [x] **Global Exception Handler:** Configurar um handler no FastAPI (`app/main.py`) para traduzir exceções de domínio em respostas HTTP (404, 409, 400) de forma automática.
 
 ## Fase 3: Redução de Duplicação e Qualidade
 - [ ] **Base Repository / Helper de Queries:** Extrair lógicas repetitivas de busca de usuário e aeronave para funções utilitárias compartilhadas ou um padrão Repository simples.

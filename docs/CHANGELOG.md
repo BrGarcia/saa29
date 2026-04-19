@@ -18,6 +18,8 @@ e aderente ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 - **Histórico Unificado**: A página de inventário agora exibe cronologicamente tanto eventos de INSTALAÇÃO quanto de REMOÇÃO.
 - **Otimização de Performance (Fase 1)**: Refatoração da listagem de inventário para eliminar queries N+1, reduzindo a carga no banco de dados em mais de 50%.
 - **Resiliência de Dados**: Ativação do modo `WAL` no SQLite para suporte a concorrência e integridade em ambientes multi-worker.
+- **Arquitetura (Fase 2)**: Implementação de Exceções de Domínio e tratamento global de erros, removendo complexidade desnecessária dos roteadores.
+- **SOLID Refactoring**: Desacoplamento da lógica de inventário em funções auxiliares especialistas, melhorando a testabilidade e manutenção.
 
 ### Corrigido
 - **N+1 no Inventário**: Redução drástica de queries em loops de listagem através de carregamento em lote (bulk loading).

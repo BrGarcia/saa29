@@ -206,13 +206,10 @@ async def instalar_item(
     db: DBSession,
     _: EncarregadoOuAdmin,
 ):
-    try:
-        instalacao = await service.instalar_item(
-            db, item_id, dados.aeronave_id, dados.data_instalacao
-        )
-        return schemas.InstalacaoOut.model_validate(instalacao)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    instalacao = await service.instalar_item(
+        db, item_id, dados.aeronave_id, dados.data_instalacao
+    )
+    return schemas.InstalacaoOut.model_validate(instalacao)
 
 
 @router.patch(
@@ -226,13 +223,10 @@ async def remover_item(
     db: DBSession,
     current_user: EncarregadoOuAdmin,
 ):
-    try:
-        instalacao = await service.remover_item(
-            db, instalacao_id, dados.data_remocao, usuario_id=current_user.id
-        )
-        return schemas.InstalacaoOut.model_validate(instalacao)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    instalacao = await service.remover_item(
+        db, instalacao_id, dados.data_remocao, usuario_id=current_user.id
+    )
+    return schemas.InstalacaoOut.model_validate(instalacao)
 
 
 # ---- Controles de Vencimento ----
@@ -248,13 +242,10 @@ async def registrar_execucao(
     db: DBSession,
     _: EncarregadoOuAdmin,
 ):
-    try:
-        vencimento = await service.registrar_execucao(
-            db, vencimento_id, dados.data_ultima_exec
-        )
-        return schemas.ControleVencimentoOut.model_validate(vencimento)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    vencimento = await service.registrar_execucao(
+        db, vencimento_id, dados.data_ultima_exec
+    )
+    return schemas.ControleVencimentoOut.model_validate(vencimento)
 
 # ---- Inventário ----
 
@@ -287,10 +278,7 @@ async def listar_inventario(
     """Retorna inventário de itens instalados na aeronave.
     Aceita filtro opcional por nome de equipamento (?nome=...).
     """
-    try:
-        return await service.listar_inventario_aeronave(db, aeronave_id, nome=nome)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    return await service.listar_inventario_aeronave(db, aeronave_id, nome=nome)
 
 
 @router.post(
@@ -307,8 +295,5 @@ async def ajustar_inventario(
     Ajusta o número de série físico de um equipamento.
     Lida com transferências e criação de novos itens.
     """
-    try:
-        return await service.ajustar_inventario_item(db, dados)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return await service.ajustar_inventario_item(db, dados)
 
