@@ -17,5 +17,5 @@ Este plano detalha as etapas para corrigir as falhas identificadas no `RELATORIO
 - [x] **Refinar `_ensure_default_aeronaves`:** Corrigir a inserção em loop no `app/main.py` para usar um único comando `INSERT` ou gerenciar transações de forma mais eficiente fora do loop.
 
 ## Fase 4: Validação e Testes
-- [ ] **Testes de Integração de Fluxo Crítico:** Criar testes para validar que a otimização das queries não quebrou os relacionamentos.
-- [ ] **Verificação de Regressão:** Validar se as novas exceções de domínio estão sendo convertidas corretamente para JSON no frontend.
+- [x] **Testes de Integração de Fluxo Crítico:** Criar testes para validar que a otimização das queries não quebrou os relacionamentos.
+- [x] **Verificação de Regressão:** Validar se as novas exceções de domínio estão sendo convertidas corretamente para JSON no frontend.

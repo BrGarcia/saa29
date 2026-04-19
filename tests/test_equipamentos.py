@@ -101,7 +101,7 @@ class TestEquipamentos:
         assert response.status_code == 201
         body = response.json()
         assert "id" in body
-        assert body["nome"] == dados_equipamento_valido["nome"]
+        assert body["nome_generico"] == dados_equipamento_valido["nome_generico"]
         assert body["part_number"] == dados_equipamento_valido["part_number"]
 
     @pytest.mark.asyncio

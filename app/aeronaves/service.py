@@ -25,13 +25,33 @@ async def buscar_aeronave(
 async def listar_aeronaves(
     db: AsyncSession,
     incluir_inativas: bool = False,
+    skip: int = 0,
+    limit: int = 100,
 ) -> list[Aeronave]:
     """Retorna a lista de todas as aeronaves cadastradas."""
     query = select(Aeronave)
     if not incluir_inativas:
         query = query.where(Aeronave.status != StatusAeronave.INATIVA.value)
-    result = await db.execute(query.order_by(Aeronave.matricula))
+    result = await db.execute(query.order_by(Aeronave.matricula).offset(skip).limit(limit))
     return list(result.scalars().all())
+
+
+async def alternar_status_aeronave(
+    db: AsyncSession,
+    aeronave_id: uuid.UUID,
+) -> Aeronave:
+    """Alterna entre OPERACIONAL e INATIVA."""
+    aeronave = await buscar_aeronave(db, aeronave_id)
+    if not aeronave:
+        raise ValueError("Aeronave não encontrada.")
+    
+    if aeronave.status == StatusAeronave.INATIVA.value:
+        aeronave.status = StatusAeronave.OPERACIONAL.value
+    else:
+        aeronave.status = StatusAeronave.INATIVA.value
+        
+    await db.flush()
+    return aeronave
 
 
 async def criar_aeronave(

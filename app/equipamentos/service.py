@@ -50,6 +50,60 @@ async def buscar_modelo_por_pn(db: AsyncSession, pn: str) -> ModeloEquipamento |
     result = await db.execute(select(ModeloEquipamento).where(ModeloEquipamento.part_number == pn))
     return result.scalar_one_or_none()
 
+async def listar_modelos(db: AsyncSession) -> list[ModeloEquipamento]:
+    result = await db.execute(select(ModeloEquipamento).order_by(ModeloEquipamento.part_number))
+    return list(result.scalars().all())
+
+
+# ============================================================
+# Tipos de Controle (Periodicidades)
+# ============================================================
+
+async def criar_tipo_controle(db: AsyncSession, dados: TipoControleCreate) -> TipoControle:
+    tipo = TipoControle(**dados.model_dump())
+    db.add(tipo)
+    await db.flush()
+    return tipo
+
+
+# ============================================================
+# Itens (Serial Number)
+# ============================================================
+
+async def criar_item_com_heranca(db: AsyncSession, dados: ItemEquipamentoCreate) -> ItemEquipamento:
+    """Cria um item e herda os controles definidos no modelo (PN)."""
+    # 1. Verificar se SN já existe para este PN
+    res_ex = await db.execute(
+        select(ItemEquipamento).where(
+            ItemEquipamento.numero_serie == dados.numero_serie,
+            ItemEquipamento.modelo_id == dados.modelo_id
+        )
+    )
+    if res_ex.scalar_one_or_none():
+        raise ValueError(f"S/N '{dados.numero_serie}' já cadastrado para este P/N.")
+
+    item = ItemEquipamento(**dados.model_dump())
+    db.add(item)
+    await db.flush()
+
+    # 2. Herdar controles do Modelo (EquipamentoControle -> ControleVencimento)
+    res_ctrl = await db.execute(
+        select(EquipamentoControle).where(EquipamentoControle.modelo_id == item.modelo_id)
+    )
+    controles = res_ctrl.scalars().all()
+
+    for ctrl in controles:
+        vencimento = ControleVencimento(
+            id=uuid.uuid4(),
+            item_id=item.id,
+            tipo_controle_id=ctrl.tipo_id,
+            status=StatusVencimento.OK.value
+        )
+        db.add(vencimento)
+
+    await db.flush()
+    return item
+
 
 # ============================================================
 # Slots (Configuração da Aeronave)
@@ -118,7 +172,7 @@ async def listar_inventario_aeronave(
                     Aeronave.matricula,
                     func.row_number().over(
                         partition_by=Instalacao.item_id,
-                        order_by=desc(Instalacao.data_remocao)
+                        order_by=[desc(Instalacao.data_remocao), desc(Instalacao.created_at)]
                     ).label("rn")
                 )
                 .join(Aeronave, Instalacao.aeronave_id == Aeronave.id)
@@ -316,6 +370,96 @@ async def _efetivar_troca_no_slot(
         data_instalacao=hoje
     )
     db.add(nova_inst)
+
+
+async def instalar_item(
+    db: AsyncSession, item_id: uuid.UUID, aeronave_id: uuid.UUID, data_instalacao: date
+) -> Instalacao:
+    """Instala um item em uma aeronave."""
+    # Encerrar instalação anterior do item (se houver)
+    stmt_old = select(Instalacao).where(Instalacao.item_id == item_id, Instalacao.data_remocao.is_(None))
+    res_old = await db.execute(stmt_old)
+    old_inst = res_old.scalar_one_or_none()
+    if old_inst:
+        old_inst.data_remocao = data_instalacao
+        old_inst.updated_at = func.now()
+
+    instalacao = Instalacao(
+        id=uuid.uuid4(),
+        item_id=item_id,
+        aeronave_id=aeronave_id,
+        data_instalacao=data_instalacao,
+        created_at=func.now()
+    )
+    db.add(instalacao)
+    await db.commit()
+    return instalacao
+
+
+async def associar_controle_a_equipamento(
+    db: AsyncSession, modelo_id: uuid.UUID, tipo_controle_id: uuid.UUID
+) -> EquipamentoControle:
+    """Vincula um tipo de controle (ex: TBV) a um modelo (ex: MDP)."""
+    # 1. Verificar se já existe
+    res = await db.execute(
+        select(EquipamentoControle).where(
+            EquipamentoControle.modelo_id == modelo_id,
+            EquipamentoControle.tipo_controle_id == tipo_controle_id
+        )
+    )
+    if res.scalar_one_or_none():
+        raise ValueError("Este controle já está associado ao equipamento.")
+
+    assoc = EquipamentoControle(id=uuid.uuid4(), modelo_id=modelo_id, tipo_controle_id=tipo_controle_id)
+    db.add(assoc)
+    await db.flush()
+
+    # 2. Propagar para itens existentes (criar ControleVencimento se não houver)
+    res_itens = await db.execute(select(ItemEquipamento).where(ItemEquipamento.modelo_id == modelo_id))
+    itens = res_itens.scalars().all()
+
+    for item in itens:
+        res_venc = await db.execute(
+            select(ControleVencimento).where(
+                ControleVencimento.item_id == item.id,
+                ControleVencimento.tipo_controle_id == tipo_controle_id
+            )
+        )
+        if not res_venc.scalar_one_or_none():
+            venc = ControleVencimento(
+                id=uuid.uuid4(),
+                item_id=item.id,
+                tipo_controle_id=tipo_controle_id,
+                status=StatusVencimento.OK.value
+            )
+            db.add(venc)
+
+    await db.flush()
+    return assoc
+
+
+async def registrar_execucao(db: AsyncSession, vencimento_id: uuid.UUID, data_exec: date) -> ControleVencimento:
+    """Registra que um controle foi executado e calcula o próximo vencimento."""
+    result = await db.execute(
+        select(ControleVencimento)
+        .where(ControleVencimento.id == vencimento_id)
+        .options(selectinload(ControleVencimento.tipo_controle))
+    )
+    vencimento = result.scalar_one_or_none()
+    if not vencimento: raise domain_exc.EntidadeNaoEncontradaError("Vencimento não encontrado.")
+
+    periodicidade = vencimento.tipo_controle.periodicidade_meses
+    vencimento.data_ultima_exec = data_exec
+    vencimento.data_vencimento = data_exec + relativedelta(months=periodicidade)
+
+    # Atualizar Status (Lógica simplificada para o MVP)
+    hoje = date.today()
+    if vencimento.data_vencimento < hoje: vencimento.status = StatusVencimento.VENCIDO.value
+    elif (vencimento.data_vencimento - hoje).days <= 30: vencimento.status = StatusVencimento.VENCENDO.value
+    else: vencimento.status = StatusVencimento.OK.value
+
+    await db.flush()
+    return vencimento
 
 
 async def listar_historico_recente(db: AsyncSession, limit: int = 15, offset: int = 0) -> list[dict]:

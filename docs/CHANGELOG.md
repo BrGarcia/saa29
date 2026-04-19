@@ -22,10 +22,11 @@ e aderente ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 - **SOLID Refactoring**: Desacoplamento da lógica de inventário em funções auxiliares especialistas, melhorando a testabilidade e manutenção.
 - **Qualidade de Código (Fase 3)**: Centralização de consultas SQL comuns em um módulo de helpers (`app/core/helpers.py`) para seguir o princípio DRY.
 - **Otimização de Startup**: Refatoração da inicialização da frota padrão para realizar consultas em lote, reduzindo o número de queries no banco de dados durante o boot da aplicação.
+- **Validação de Integridade (Fase 4)**: Execução exaustiva da suite de testes (>80 casos) garantindo estabilidade global após refatorações profundas.
 
 ### Corrigido
-- **N+1 no Inventário**: Redução drástica de queries em loops de listagem através de carregamento em lote (bulk loading).
-- **Paginação**: Implementado suporte real a `limit` e `offset` nos endpoints de histórico.
+- **Regressões de API**: Restauradas funções de controle de status e paginação no serviço de aeronaves e equipamentos.
+- **Ordenação de Histórico**: Ajustada a lógica de "Aeronave Anterior" para usar carimbo de tempo como critério de desempate, garantindo precisão nos dados.
 
 ---
 

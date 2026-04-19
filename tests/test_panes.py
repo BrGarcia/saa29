@@ -677,6 +677,7 @@ class TestUploadAnexo:
         response = await client.get(
             f"{PANES_URL}{pane['id']}/anexos/{anexo_id}/download",
             headers=headers,
+            follow_redirects=True
         )
         assert response.status_code == 200
         assert response.content

@@ -153,7 +153,7 @@ def dados_aeronave_secundaria() -> dict:
 def dados_equipamento_valido() -> dict:
     return {
         "part_number": "AN/ARC-182",
-        "nome": "VUHF2",
+        "nome_generico": "VUHF2",
         "sistema": "COM",
         "descricao": "Rádio VHF/UHF principal",
     }
