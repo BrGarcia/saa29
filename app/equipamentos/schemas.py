@@ -101,6 +101,8 @@ class InventarioItemOut(BaseModel):
     status_item: StatusItem | None = None
     instalacao_id: uuid.UUID | None = None
     data_instalacao: date | None = None
+    data_atualizacao: datetime | None = None
+    usuario_trigrama: str | None = None
     aeronave_anterior: str | None = None
 
 class AjusteInventarioCreate(BaseModel):

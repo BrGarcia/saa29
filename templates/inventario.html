@@ -141,6 +141,27 @@
         </div>
     </div>
 </div>
+
+<!-- Modal de Confirmação de Remoção -->
+<div id="modal-remocao" class="modal-overlay">
+    <div class="modal-content card glass-panel">
+        <div style="display: flex; align-items: center; gap: 1rem; color: var(--status-danger); margin-bottom: 1rem;">
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                </path>
+            </svg>
+            <h3 style="margin: 0;">Desinstalar Equipamento</h3>
+        </div>
+        <p id="modal-remocao-msg" style="line-height: 1.6; color: var(--text-primary);"></p>
+        <p style="color: var(--text-secondary); font-size: 0.95rem;">Esta ação registrará a remoção do item desta aeronave no sistema.</p>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="fecharModalRemocao()">Cancelar</button>
+            <button class="btn btn-primary" id="btn-confirmar-remocao"
+                style="background-color: var(--status-danger); border-color: var(--status-danger);">Confirmar Remoção</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -317,6 +338,34 @@
         document.getElementById('modal-transferencia').style.display = 'none';
     }
 
+    function abrirModalRemocao(instalacaoId, sn, slotNome) {
+        document.getElementById('modal-remocao-msg').innerHTML =
+            `Deseja registrar a remoção do item <strong>${sn}</strong> da posição <strong>${slotNome}</strong>?`;
+        document.getElementById('modal-remocao').style.display = 'flex';
+
+        document.getElementById('btn-confirmar-remocao').onclick = () => {
+            removerEquipamento(instalacaoId);
+        };
+    }
+
+    function fecharModalRemocao() {
+        document.getElementById('modal-remocao').style.display = 'none';
+    }
+
+    async function removerEquipamento(instalacaoId) {
+        try {
+            await apiFetch(`/equipamentos/instalacoes/${instalacaoId}/remover`, {
+                method: 'PATCH',
+                body: { data_remocao: new Date().toISOString().split('T')[0] }
+            });
+            showToast("Equipamento removido com sucesso.", "success");
+            fecharModalRemocao();
+            loadInventario();
+        } catch (e) {
+            showToast(e.message || "Erro ao remover equipamento.", "error");
+        }
+    }
+
     function updateStats(items = null) {
         const allInputs = document.querySelectorAll('.real-input');
         if (allInputs.length === 0 && !items) return;
@@ -357,12 +406,13 @@
                 <table style="width: 100%; border-collapse: collapse; text-align: center;">
                     <thead style="background-color: var(--bg-tertiary); border-bottom: 1px solid var(--border-color);">
                         <tr>
-                            <th style="padding: 1rem; width: 8%;">Loc.</th>
-                            <th style="padding: 1rem; width: 20%;">Item</th>
-                            <th style="padding: 1rem; width: 18%;">P/N</th>
+                            <th style="padding: 1rem; width: 6%;">Loc.</th>
+                            <th style="padding: 1rem; width: 18%;">Item</th>
+                            <th style="padding: 1rem; width: 12%;">P/N</th>
+                            <th style="padding: 1rem; width: 14%;">S/N (SILOMS)</th>
+                            <th style="padding: 1rem; width: 16%;">Atualização/Trigrama</th>
+                            <th style="padding: 1rem; width: 22%;">S/N (REAL)</th>
                             <th style="padding: 1rem; width: 12%;">Anv Ant.</th>
-                            <th style="padding: 1rem; width: 18%;">S/N (Sistema)</th>
-                            <th style="padding: 1rem; width: 24%;">S/N (REAL)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -379,7 +429,33 @@
                 `<span class="badge" style="background: var(--bg-tertiary); color: var(--primary-color);">${item.aeronave_anterior}</span>` :
                 `<span style="color: var(--text-secondary); opacity: 0.5;">-</span>`;
 
-            const snSistema = item.numero_serie || '<span style="opacity: 0.3">vazio</span>';
+            const snSiloms = item.numero_serie ? 
+                `<span class="badge" style="background-color: var(--status-ok); color: #fff; border: 1px solid var(--border-color); cursor: pointer; padding: 0.4rem 0.8rem; font-family: monospace;" onclick="abrirModalRemocao('${item.instalacao_id}', '${item.numero_serie}', '${item.nome_posicao}')" title="Clique para desinstalar">${item.numero_serie}</span>` :
+                `<span class="badge" style="background-color: var(--status-danger); color: #fff; border: 1px solid var(--border-color); font-weight: 700; font-size: 0.7rem; padding: 0.4rem 0.6rem;">DESINSTALADO</span>`;
+
+            // Formatação da Rastreabilidade
+            let rastreabilidade = '<span style="color: var(--text-secondary); opacity: 0.5;">-</span>';
+            if (item.data_atualizacao) {
+                const dataObj = new Date(item.data_atualizacao);
+                if (!isNaN(dataObj)) {
+                    const dia = String(dataObj.getDate()).padStart(2, '0');
+                    const mes = String(dataObj.getMonth() + 1).padStart(2, '0');
+                    const ano = String(dataObj.getFullYear()).slice(-2);
+                    const hora = String(dataObj.getHours()).padStart(2, '0');
+                    const min = String(dataObj.getMinutes()).padStart(2, '0');
+                    
+                    const dataStr = `${dia}/${mes}/${ano}`;
+                    const horaStr = `${hora}:${min}`;
+                    const trigrama = item.usuario_trigrama || 'SYS';
+                    
+                    rastreabilidade = `
+                        <div style="font-size: 0.8rem; line-height: 1.2;">
+                            <div style="color: var(--text-secondary);">${dataStr} ${horaStr}</div>
+                            <div style="font-weight: 700; color: var(--primary-color); margin-top: 2px;">${trigrama}</div>
+                        </div>
+                    `;
+                }
+            }
 
             html += `
                 <tr style="border-bottom: 1px solid var(--border-color);">
@@ -391,8 +467,8 @@
                         <div style="font-size: 0.75rem; color: var(--text-secondary);">${item.status_item || 'NÃO INSTALADO'}</div>
                     </td>
                     <td style="padding: 0.8rem 1rem; font-family: monospace; font-size: 0.9rem;">${item.part_number}</td>
-                    <td style="padding: 0.8rem 1rem; text-align: center;">${anvAnt}</td>
-                    <td style="padding: 0.8rem 1rem; font-family: monospace; color: var(--text-secondary);">${snSistema}</td>
+                    <td style="padding: 0.8rem 1rem;">${snSiloms}</td>
+                    <td style="padding: 0.8rem 1rem;">${rastreabilidade}</td>
                     <td style="padding: 0.6rem 1rem;">
                         <div class="real-input-container">
                             <input type="text" id="${inputId}" class="real-input status-pending" 
@@ -407,6 +483,7 @@
                             </button>
                         </div>
                     </td>
+                    <td style="padding: 0.8rem 1rem;">${anvAnt}</td>
                 </tr>
             `;
         });

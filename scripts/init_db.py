@@ -65,6 +65,43 @@ async def init_db():
         else:
             print(f"ℹ️ Usuário {admin_user} já existe.")
 
+        # 1.1 Garantir Usuários de Teste (Encarregado e Mantenedor)
+        usuarios_teste = [
+            {
+                "nome": "Encarregado Eletrônica",
+                "funcao": "ENCARREGADO",
+                "username": "encarregado",
+                "senha": "12345678",
+                "posto": "1S",
+                "especialidade": "BCO"
+            },
+            {
+                "nome": "Mantenedor Linha",
+                "funcao": "MANTENEDOR",
+                "username": "mantenedor",
+                "senha": "12345678",
+                "posto": "3S",
+                "especialidade": "BET"
+            }
+        ]
+
+        for u in usuarios_teste:
+            res_u = await session.execute(select(Usuario).where(Usuario.username == u["username"]))
+            if not res_u.scalar_one_or_none():
+                print(f"➕ Criando usuário de teste: {u['username']}...")
+                novo_u = Usuario(
+                    nome=u["nome"],
+                    posto=u["posto"],
+                    especialidade=u["especialidade"],
+                    funcao=u["funcao"],
+                    ramal="5678",
+                    username=u["username"],
+                    senha_hash=hash_senha(u["senha"]),
+                )
+                session.add(novo_u)
+            else:
+                print(f"ℹ️ Usuário {u['username']} já existe.")
+
         # 2. Garantir Frota Padrão
         for matricula in FROTA_PADRAO:
             result = await session.execute(select(Aeronave).where(Aeronave.matricula == matricula))

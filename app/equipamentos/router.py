@@ -224,10 +224,12 @@ async def remover_item(
     instalacao_id: uuid.UUID,
     dados: schemas.InstalacaoRemocao,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    current_user: EncarregadoOuAdmin,
 ):
     try:
-        instalacao = await service.remover_item(db, instalacao_id, dados.data_remocao)
+        instalacao = await service.remover_item(
+            db, instalacao_id, dados.data_remocao, usuario_id=current_user.id
+        )
         return schemas.InstalacaoOut.model_validate(instalacao)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

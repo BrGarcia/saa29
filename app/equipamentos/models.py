@@ -151,6 +151,7 @@ class Instalacao(Base):
     data_instalacao: Mapped[date] = mapped_column(Date, nullable=False)
     data_remocao: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     # --- Relacionamentos ---
     item: Mapped["ItemEquipamento"] = relationship(back_populates="instalacoes")

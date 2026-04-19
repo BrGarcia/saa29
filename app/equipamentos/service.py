@@ -7,11 +7,12 @@ import uuid
 import app.aeronaves.models
 from datetime import date
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import select, and_, or_, desc
+from sqlalchemy import select, and_, or_, desc, union_all, String, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.aeronaves.models import Aeronave
+from app.auth.models import Usuario
 from app.equipamentos.models import (
     ModeloEquipamento,
     SlotInventario,
@@ -94,10 +95,11 @@ async def listar_inventario_aeronave(
         inventario: list[InventarioItemOut] = []
 
         for slot in slots:
-            # 2. Buscar instalação ativa NESTE SLOT desta aeronave
+            # 2. Buscar item instalado atualmente nesse slot da aeronave específica
             stmt_inst = (
-                select(Instalacao, ItemEquipamento)
+                select(Instalacao, ItemEquipamento, Usuario.trigrama)
                 .join(ItemEquipamento, Instalacao.item_id == ItemEquipamento.id)
+                .outerjoin(Usuario, Instalacao.usuario_id == Usuario.id)
                 .where(
                     Instalacao.slot_id == slot.id,
                     Instalacao.aeronave_id == aeronave_id,
@@ -106,9 +108,29 @@ async def listar_inventario_aeronave(
             )
             res_inst = await db.execute(stmt_inst)
             row = res_inst.first()
-            
-            instalacao, item = row if row else (None, None)
+
+            instalacao, item, user_trigrama = row if row else (None, None, None)
             anv_anterior = None
+            data_rastreio = instalacao.created_at if instalacao else None
+
+            if not instalacao:
+                # Se slot vazio, buscar a última remoção para mostrar quem desinstalou
+                stmt_last_rem = (
+                    select(Instalacao, Usuario.trigrama)
+                    .outerjoin(Usuario, Instalacao.usuario_id == Usuario.id)
+                    .where(
+                        Instalacao.slot_id == slot.id,
+                        Instalacao.aeronave_id == aeronave_id,
+                        Instalacao.data_remocao.is_not(None)
+                    )
+                    .order_by(desc(Instalacao.updated_at), desc(Instalacao.created_at))
+                    .limit(1)
+                )
+                res_last = await db.execute(stmt_last_rem)
+                row_last = res_last.first()
+                if row_last:
+                    last_inst, user_trigrama = row_last
+                    data_rastreio = last_inst.updated_at or last_inst.created_at
 
             if item:
                 # 3. Buscar histórico (Aeronave Anterior)
@@ -140,6 +162,8 @@ async def listar_inventario_aeronave(
                     status_item=item.status if item else None,
                     instalacao_id=instalacao.id if instalacao else None,
                     data_instalacao=instalacao.data_instalacao if instalacao else None,
+                    data_atualizacao=data_rastreio,
+                    usuario_trigrama=user_trigrama,
                     aeronave_anterior=anv_anterior,
                 )
             )
@@ -229,10 +253,12 @@ async def ajustar_inventario_item(
             )
         else:
             inst_conflito.data_remocao = date.today()
+            inst_conflito.updated_at = func.now()
 
     # 5. Encerrar instalação atual do slot (se houver)
     if inst_atual:
         inst_atual.data_remocao = date.today()
+        inst_atual.updated_at = func.now()
 
     # 6. Criar nova instalação
     nova_inst = Instalacao(
@@ -259,43 +285,90 @@ async def ajustar_inventario_item(
     return AjusteInventarioResponse(sucesso=True, mensagem="Inventário ajustado com sucesso.")
 
 
-async def listar_historico_recente(db: AsyncSession, limit: int = 10) -> list[dict]:
-    """Retorna as últimas movimentações de inventário para o painel inicial."""
+async def listar_historico_recente(db: AsyncSession, limit: int = 15) -> list[dict]:
+    """Retorna as últimas movimentações (instalações e remoções) de inventário."""
     from app.aeronaves.models import Aeronave
     from app.auth.models import Usuario
 
-    stmt = (
+    # Eventos de Instalação (baseados em created_at)
+    stmt_ins = (
         select(
-            Instalacao.id,
-            Instalacao.created_at,
+            Instalacao.id.label("id"),
+            Instalacao.created_at.label("event_at"),
             ItemEquipamento.numero_serie.label("item_sn"),
             Aeronave.matricula.label("aeronave_matricula"),
             SlotInventario.nome_posicao.label("slot_nome"),
-            Usuario.trigrama.label("usuario_trigrama")
+            Usuario.trigrama.label("usuario_trigrama"),
+            func.cast("INSTALAÇÃO", String).label("tipo_acao")
         )
         .join(ItemEquipamento, Instalacao.item_id == ItemEquipamento.id)
         .join(Aeronave, Instalacao.aeronave_id == Aeronave.id)
         .join(SlotInventario, Instalacao.slot_id == SlotInventario.id)
         .outerjoin(Usuario, Instalacao.usuario_id == Usuario.id)
-        .order_by(desc(Instalacao.created_at))
-        .limit(limit)
+    )
+
+    # Eventos de Remoção (baseados em updated_at onde data_remocao existe)
+    stmt_rem = (
+        select(
+            Instalacao.id.label("id"),
+            Instalacao.updated_at.label("event_at"),
+            ItemEquipamento.numero_serie.label("item_sn"),
+            Aeronave.matricula.label("aeronave_matricula"),
+            SlotInventario.nome_posicao.label("slot_nome"),
+            Usuario.trigrama.label("usuario_trigrama"),
+            func.cast("REMOÇÃO", String).label("tipo_acao")
+        )
+        .join(ItemEquipamento, Instalacao.item_id == ItemEquipamento.id)
+        .join(Aeronave, Instalacao.aeronave_id == Aeronave.id)
+        .join(SlotInventario, Instalacao.slot_id == SlotInventario.id)
+        .outerjoin(Usuario, Instalacao.usuario_id == Usuario.id)
+        .where(Instalacao.data_remocao.is_not(None), Instalacao.updated_at.is_not(None))
     )
     
-    result = await db.execute(stmt)
+    # Combinar e ordenar
+    query_union = union_all(stmt_ins, stmt_rem).alias("historico_union")
+    # Nota: alias.c.coluna é o padrão SQLAlchemy para colunas em subqueries/unions
+    stmt_final = select(
+        query_union.c.id,
+        query_union.c.event_at,
+        query_union.c.item_sn,
+        query_union.c.aeronave_matricula,
+        query_union.c.slot_nome,
+        query_union.c.usuario_trigrama,
+        query_union.c.tipo_acao
+    ).order_by(desc(query_union.c.event_at)).limit(limit)
+    
+    result = await db.execute(stmt_final)
     rows = result.all()
     
     return [
         {
             "id": r.id,
-            "created_at": r.created_at,
+            "created_at": r.event_at, # Usando event_at para o campo created_at do schema
             "item_sn": r.item_sn,
             "aeronave_matricula": r.aeronave_matricula,
             "slot_nome": r.slot_nome,
             "usuario_trigrama": r.usuario_trigrama,
-            "tipo_acao": "INSTALAÇÃO" # No MVP, focamos no registro da nova instalação
+            "tipo_acao": r.tipo_acao
         }
         for r in rows
     ]
+
+
+async def remover_item(db: AsyncSession, instalacao_id: uuid.UUID, data_remocao: date, usuario_id: uuid.UUID | None = None) -> Instalacao:
+    """Marca uma instalação como removida."""
+    result = await db.execute(select(Instalacao).where(Instalacao.id == instalacao_id))
+    instalacao = result.scalar_one_or_none()
+    if not instalacao:
+        raise ValueError("Instalação não encontrada.")
+    
+    instalacao.data_remocao = data_remocao
+    instalacao.updated_at = func.now()
+    if usuario_id:
+        instalacao.usuario_id = usuario_id
+        
+    await db.commit()
+    return instalacao
 
 
 # ============================================================
