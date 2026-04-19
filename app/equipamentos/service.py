@@ -87,65 +87,72 @@ async def listar_inventario_aeronave(
             )
         )
     
-    res_slots = await db.execute(stmt_slots)
-    slots = res_slots.scalars().all()
+    try:
+        res_slots = await db.execute(stmt_slots)
+        slots = res_slots.scalars().all()
 
-    inventario: list[InventarioItemOut] = []
+        inventario: list[InventarioItemOut] = []
 
-    for slot in slots:
-        # 2. Buscar instalação ativa NESTE SLOT desta aeronave
-        stmt_inst = (
-            select(Instalacao, ItemEquipamento)
-            .join(ItemEquipamento, Instalacao.item_id == ItemEquipamento.id)
-            .where(
-                Instalacao.slot_id == slot.id,
-                Instalacao.aeronave_id == aeronave_id,
-                Instalacao.data_remocao.is_(None)
-            )
-        )
-        res_inst = await db.execute(stmt_inst)
-        row = res_inst.first()
-        
-        instalacao, item = row if row else (None, None)
-        anv_anterior = None
-
-        if item:
-            # 3. Buscar histórico (Aeronave Anterior)
-            stmt_ant = (
-                select(Aeronave.matricula)
-                .join(Instalacao, Instalacao.aeronave_id == Aeronave.id)
+        for slot in slots:
+            # 2. Buscar instalação ativa NESTE SLOT desta aeronave
+            stmt_inst = (
+                select(Instalacao, ItemEquipamento)
+                .join(ItemEquipamento, Instalacao.item_id == ItemEquipamento.id)
                 .where(
-                    Instalacao.item_id == item.id,
-                    Instalacao.data_remocao.is_not(None),
-                    Instalacao.aeronave_id != aeronave_id
+                    Instalacao.slot_id == slot.id,
+                    Instalacao.aeronave_id == aeronave_id,
+                    Instalacao.data_remocao.is_(None)
                 )
-                .order_by(desc(Instalacao.data_remocao))
-                .limit(1)
             )
-            res_ant = await db.execute(stmt_ant)
-            anv_anterior = res_ant.scalar_one_or_none()
+            res_inst = await db.execute(stmt_inst)
+            row = res_inst.first()
+            
+            instalacao, item = row if row else (None, None)
+            anv_anterior = None
 
-        inventario.append(
-            InventarioItemOut(
-                slot_id=slot.id,
-                nome_posicao=slot.nome_posicao,
-                sistema=slot.sistema,
-                part_number=slot.modelo.part_number,
-                nome_generico=slot.modelo.nome_generico,
-                equipamento_nome=slot.nome_posicao,
-                equipamento_id=slot.id,
-                item_id=item.id if item else None,
-                numero_serie=item.numero_serie if item else None,
-                status_item=item.status if item else None,
-                instalacao_id=instalacao.id if instalacao else None,
-                data_instalacao=instalacao.data_instalacao if instalacao else None,
-                aeronave_anterior=anv_anterior,
+            if item:
+                # 3. Buscar histórico (Aeronave Anterior)
+                stmt_ant = (
+                    select(Aeronave.matricula)
+                    .join(Instalacao, Instalacao.aeronave_id == Aeronave.id)
+                    .where(
+                        Instalacao.item_id == item.id,
+                        Instalacao.data_remocao.is_not(None),
+                        Instalacao.aeronave_id != aeronave_id
+                    )
+                    .order_by(desc(Instalacao.data_remocao))
+                    .limit(1)
+                )
+                res_ant = await db.execute(stmt_ant)
+                anv_anterior = res_ant.scalar_one_or_none()
+
+            inventario.append(
+                InventarioItemOut(
+                    slot_id=slot.id,
+                    nome_posicao=slot.nome_posicao,
+                    sistema=slot.sistema,
+                    part_number=slot.modelo.part_number,
+                    nome_generico=slot.modelo.nome_generico,
+                    equipamento_nome=slot.nome_posicao,
+                    equipamento_id=slot.id,
+                    item_id=item.id if item else None,
+                    numero_serie=item.numero_serie if item else None,
+                    status_item=item.status if item else None,
+                    instalacao_id=instalacao.id if instalacao else None,
+                    data_instalacao=instalacao.data_instalacao if instalacao else None,
+                    aeronave_anterior=anv_anterior,
+                )
             )
-        )
 
-    # Ordenar por sistema e posição
-    inventario.sort(key=lambda x: (x.sistema or "ZZZ", x.nome_posicao))
-    return inventario
+        # Ordenar por sistema e posição
+        inventario.sort(key=lambda x: (x.sistema or "ZZZ", x.nome_posicao))
+        return inventario
+
+    except Exception as e:
+        import traceback
+        print(f"CRITICAL ERROR in listar_inventario_aeronave: {e}")
+        traceback.print_exc()
+        raise
 
 
 async def ajustar_inventario_item(

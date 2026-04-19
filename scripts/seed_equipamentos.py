@@ -48,11 +48,11 @@ EQUIPAMENTOS_FICHA = [
 async def seed():
     AsyncSessionLocal = get_session_factory()
     async with AsyncSessionLocal() as session:
-        # 1. Garantir aeronave 5900
-        res_acft = await session.execute(select(Aeronave).where(Aeronave.matricula == "5900"))
+        # 1. Garantir aeronave 5916
+        res_acft = await session.execute(select(Aeronave).where(Aeronave.matricula == "5916"))
         aeronave = res_acft.scalar_one_or_none()
         if not aeronave:
-            aeronave = Aeronave(id=uuid.uuid4(), matricula="5900", serial_number="SN-5900", modelo="A-29", status="OPERACIONAL")
+            aeronave = Aeronave(id=uuid.uuid4(), matricula="5916", serial_number="SN-5916", modelo="A-29", status="OPERACIONAL")
             session.add(aeronave)
             await session.flush()
 
