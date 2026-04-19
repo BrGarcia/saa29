@@ -120,7 +120,7 @@ async def listar_inventario_aeronave(
                         Instalacao.data_remocao.is_not(None),
                         Instalacao.aeronave_id != aeronave_id
                     )
-                    .order_by(desc(Instalacao.data_remocao))
+                    .order_by(desc(Instalacao.data_remocao), desc(Instalacao.created_at))
                     .limit(1)
                 )
                 res_ant = await db.execute(stmt_ant)

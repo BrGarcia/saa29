@@ -149,6 +149,7 @@ class Instalacao(Base):
     slot_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("slots_inventario.id"), nullable=False, index=True)
     data_instalacao: Mapped[date] = mapped_column(Date, nullable=False)
     data_remocao: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
 
     # --- Relacionamentos ---
     item: Mapped["ItemEquipamento"] = relationship(back_populates="instalacoes")
