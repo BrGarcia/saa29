@@ -108,14 +108,14 @@ A ficha `docs/ficha_inventario.pdf` define a estrutura de dados organizada por *
 
 ## 4. Modelo de Dados para Localização
 
-O campo `sistema` da tabela `equipamentos` será utilizado como **compartimento/localização** para agrupar os itens na ficha. Os valores devem seguir a nomenclatura da ficha PDF:
+O campo `sistema` da tabela `slots_inventario` será utilizado como **compartimento/localização** para agrupar os itens na ficha. Os valores seguem a nomenclatura técnica abreviada:
 
-| Valor do campo `sistema` | Seção na Ficha |
+| Sigla | Localização Completa |
 | :--- | :--- |
-| `COMP. ELETRONICO` | Compartimento Eletrônico |
+| `CEI` | Compartimento Eletrônico Inferior |
 | `1P` | Posto Dianteiro (1P) |
 | `2P` | Posto Traseiro (2P) |
-| `COMP. ELT/OBOGS` | Comp. ELT/OBOGS |
+| `CES` | Compartimento Eletrônico Superior |
 
 > O campo `sistema` (String 50, nullable) já existe no modelo ORM. Não é necessário criar migração.
 
@@ -264,25 +264,24 @@ async def inventario_page(request: Request):
 **Objetivo:** Popular o banco com os equipamentos e itens da ficha de inventário para que a página tenha dados para exibir.
 
 #### Passo 4.1 — Criar script de seed de equipamentos
-- **Arquivo:** `scripts/seed_equipamentos.py` (novo)
-- **Ação:** Inserir os equipamentos listados na ficha PDF com seus respectivos PNs e localizações:
+- **Arquivo:** `scripts/seed_equipamentos.py`
+- **Ação:** Inserir os equipamentos listados na ficha com suas respectivas localizações:
 
 | Nome | Part Number | Sistema |
 | :--- | :--- | :--- |
-| ADF | 622-7382-101 | COMP. ELETRONICO |
-| DME | 622-7309-101 | COMP. ELETRONICO |
-| TDR | 622-9352-004 | COMP. ELETRONICO |
-| STORMSCOPE | 78-8060-6086-5 | COMP. ELETRONICO |
-| EGIR | 34200802-80RB | COMP. ELETRONICO |
-| VOR | 622-7194-201 | COMP. ELETRONICO |
-| MDP1 | MA902B-02 | COMP. ELETRONICO |
-| MDP2 | MA902B-02 | COMP. ELETRONICO |
-| ARTU | 251-118-012-012 | COMP. ELETRONICO |
-| AFDC | 449100-02-01 | COMP. ELETRONICO |
-| VUHF1 | 6110.3001.12 | COMP. ELETRONICO |
-| VUHF2 | 6106.7006.12 | COMP. ELETRONICO |
-| VUHF2 BAT | 0565.1687.00 | COMP. ELETRONICO |
-| AMPLIF. MIC 1P | 263-000 | 1P |
+| ADF | 622-7382-101 | CEI |
+| DME | 622-7309-101 | CEI |
+| TDR | 622-9352-004 | CEI |
+| STORMSCOPE | 78-8060-6086-5 | CEI |
+| EGIR | 34200802-80RB | CEI |
+| VOR | 622-7194-201 | CEI |
+| MDP1 | MA902B-02 | CEI |
+| MDP2 | MA902B-02 | CEI |
+| ARTU | 251-118-012-012 | CEI |
+| AFDC | 449100-02-01 | CEI |
+| VUHF1 | 6110.3001.12 | CEI |
+| VUHF2 | 6106.7006.12 | CEI |
+| AMPMIC 1P | 263-000 | 1P |
 | PDU | 4455-1000-01 | 1P |
 | UFCP | 4456-1000-02 | 1P |
 | CHVC | VEC00054 | 1P |
@@ -291,17 +290,18 @@ async def inventario_page(request: Request):
 | ASP 1P | 343-001 | 1P |
 | GPS | 066-04031-1622 | 1P |
 | PA CONTROL | 449300-02-01 | 1P |
-| PAINEL PIC/NAV | 314-04895-403 | 1P |
-| PUNHO MANCHE 1P | 733-0402 | 1P |
+| PIC/NAV | 314-04895-403 | 1P |
+| PUNHO DO MANCHE 1P | 733-0402 | 1P |
 | DVR | MB211E-03 | 1P |
-| AMPLIF. MIC 2P | 263-000 | 2P |
+| AMPMIC 2P | 263-000 | 2P |
 | PSU | 4458-1000-00 | 2P |
 | CMFD3 | MB387B-01 | 2P |
 | CMFD4 | MB387B-01 | 2P |
 | ASP 2P | 343-001 | 2P |
-| PUNHO MANCHE 2P | 733-0402 | 2P |
-| VADR | 174521-10-01 | COMP. ELT/OBOGS |
-| ELT | 453-5000-710 | COMP. ELT/OBOGS |
+| PUNHO DO MANCHE 2P | 733-0402 | 2P |
+| VADR | 174521-10-01 | CES |
+| ELT | 453-5000-710 | CES |
+| BEACON | 8888-8888 | CES |
 
 > **Nota:** Como os PNs são do tipo de equipamento (não do item), cada aeronave terá sua própria instância (ItemEquipamento) com SN único.
 
