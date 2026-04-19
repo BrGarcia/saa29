@@ -9,6 +9,7 @@ Estratégia (Método Akita – Dia 3):
     - Fixtures de dados e autenticação reutilizáveis
 """
 
+import uuid
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
@@ -194,13 +195,14 @@ async def usuario_e_token(
     Retorna {usuario, token, headers} para uso nos testes.
     """
     # Criar usuário direto no banco
+    unique_username = f"{dados_usuario_valido['username']}_{uuid.uuid4().hex[:6]}"
     usuario = Usuario(
         nome=dados_usuario_valido["nome"],
         posto=dados_usuario_valido["posto"],
         especialidade=dados_usuario_valido["especialidade"],
         funcao=dados_usuario_valido["funcao"],
         ramal=dados_usuario_valido["ramal"],
-        username=dados_usuario_valido["username"],
+        username=unique_username,
         senha_hash=hash_senha(dados_usuario_valido["password"]),
     )
     db.add(usuario)
@@ -228,13 +230,14 @@ async def client_autenticado(
     Útil para testes de módulos que não são de autenticação.
     """
     # Criar usuário direto no banco
+    unique_username = f"{dados_usuario_valido['username']}_{uuid.uuid4().hex[:6]}"
     usuario = Usuario(
         nome=dados_usuario_valido["nome"],
         posto=dados_usuario_valido["posto"],
         especialidade=dados_usuario_valido["especialidade"],
         funcao=dados_usuario_valido["funcao"],
         ramal=dados_usuario_valido["ramal"],
-        username=dados_usuario_valido["username"],
+        username=unique_username,
         senha_hash=hash_senha(dados_usuario_valido["password"]),
     )
     db.add(usuario)

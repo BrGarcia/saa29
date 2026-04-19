@@ -115,6 +115,39 @@ async def associar_controle(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
+# ---- Slots de Inventário (Posições na ANV) ----
+
+@router.get(
+    "/slots/",
+    response_model=list[schemas.SlotInventarioOut],
+    summary="Listar todos os slots configurados",
+)
+async def listar_slots(db: DBSession, _: CurrentUser):
+    from app.equipamentos.models import SlotInventario
+    from sqlalchemy import select
+    result = await db.execute(select(SlotInventario))
+    return [schemas.SlotInventarioOut.model_validate(s) for s in result.scalars().all()]
+
+
+@router.post(
+    "/slots/",
+    response_model=schemas.SlotInventarioOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Configurar novo slot/posição",
+)
+async def criar_slot(
+    dados: schemas.SlotInventarioCreate,
+    db: DBSession,
+    _: EncarregadoOuAdmin,
+):
+    try:
+        slot = await service.criar_slot(db, dados)
+        await db.commit()
+        return schemas.SlotInventarioOut.model_validate(slot)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
 # ---- Itens (Serial Number) ----
 
 @router.get("/itens/", response_model=list[schemas.ItemEquipamentoOut], summary="Listar itens")
