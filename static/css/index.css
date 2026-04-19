@@ -315,7 +315,6 @@ h1, h2, h3, h4, h5 {
 
 .card:hover {
   box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
 }
 
 .card-title {
@@ -364,6 +363,16 @@ h1, h2, h3, h4, h5 {
   z-index: 10;
   padding: 2.5rem;
   text-align: center;
+}
+
+/* Tabelas */
+table tr {
+  transition: background-color 0.2s ease;
+}
+
+table tbody tr:hover {
+  background-color: var(--bg-tertiary) !important;
+  cursor: default;
 }
 
 /* Badges e Status */
