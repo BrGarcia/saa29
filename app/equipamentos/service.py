@@ -245,7 +245,17 @@ async def ajustar_inventario_item(
     )
     db.add(nova_inst)
     
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        if "FOREIGN KEY constraint failed" in str(e):
+            return AjusteInventarioResponse(
+                sucesso=False, 
+                mensagem="Erro de integridade: Usuário ou Aeronave não encontrados. Tente fazer logoff e login novamente."
+            )
+        raise e
+
     return AjusteInventarioResponse(sucesso=True, mensagem="Inventário ajustado com sucesso.")
 
 
