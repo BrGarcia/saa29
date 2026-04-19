@@ -20,6 +20,8 @@ e aderente ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 - **Resiliência de Dados**: Ativação do modo `WAL` no SQLite para suporte a concorrência e integridade em ambientes multi-worker.
 - **Arquitetura (Fase 2)**: Implementação de Exceções de Domínio e tratamento global de erros, removendo complexidade desnecessária dos roteadores.
 - **SOLID Refactoring**: Desacoplamento da lógica de inventário em funções auxiliares especialistas, melhorando a testabilidade e manutenção.
+- **Qualidade de Código (Fase 3)**: Centralização de consultas SQL comuns em um módulo de helpers (`app/core/helpers.py`) para seguir o princípio DRY.
+- **Otimização de Startup**: Refatoração da inicialização da frota padrão para realizar consultas em lote, reduzindo o número de queries no banco de dados durante o boot da aplicação.
 
 ### Corrigido
 - **N+1 no Inventário**: Redução drástica de queries em loops de listagem através de carregamento em lote (bulk loading).

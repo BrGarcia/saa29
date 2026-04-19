@@ -13,8 +13,8 @@ Este plano detalha as etapas para corrigir as falhas identificadas no `RELATORIO
 - [x] **Global Exception Handler:** Configurar um handler no FastAPI (`app/main.py`) para traduzir exceções de domínio em respostas HTTP (404, 409, 400) de forma automática.
 
 ## Fase 3: Redução de Duplicação e Qualidade
-- [ ] **Base Repository / Helper de Queries:** Extrair lógicas repetitivas de busca de usuário e aeronave para funções utilitárias compartilhadas ou um padrão Repository simples.
-- [ ] **Refinar `_ensure_default_aeronaves`:** Corrigir a inserção em loop no `app/main.py` para usar um único comando `INSERT` ou gerenciar transações de forma mais eficiente fora do loop.
+- [x] **Base Repository / Helper de Queries:** Extrair lógicas repetitivas de busca de usuário e aeronave para funções utilitárias compartilhadas ou um padrão Repository simples.
+- [x] **Refinar `_ensure_default_aeronaves`:** Corrigir a inserção em loop no `app/main.py` para usar um único comando `INSERT` ou gerenciar transações de forma mais eficiente fora do loop.
 
 ## Fase 4: Validação e Testes
 - [ ] **Testes de Integração de Fluxo Crítico:** Criar testes para validar que a otimização das queries não quebrou os relacionamentos.

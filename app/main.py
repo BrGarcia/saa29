@@ -40,32 +40,37 @@ FROTA_PADRAO = (
 
 async def _ensure_default_aeronaves() -> None:
     """
-    Garante a frota padrão no banco de dados (SQLite ou PostgreSQL).
-    Cria aeronaves iniciais se não existirem.
+    Garante a frota padrão no banco de dados.
+    Otimizado para realizar apenas uma query de verificação inicial.
     """
     from sqlalchemy import select
-
-    import app.aeronaves.models  # garante mapeamentos
     from app.aeronaves.models import Aeronave
     from app.database import get_session_factory
 
     async with get_session_factory()() as session:
         try:
-            for matricula in FROTA_PADRAO:
-                existente = await session.execute(
-                    select(Aeronave).where(Aeronave.matricula == matricula)
-                )
-                if existente.scalar_one_or_none():
-                    continue
-                session.add(
-                    Aeronave(
-                        matricula=matricula,
-                        serial_number=f"SN-{matricula}",
-                        modelo="A-29",
+            # 1. Buscar todas as matrículas existentes da frota padrão
+            result = await session.execute(
+                select(Aeronave.matricula).where(Aeronave.matricula.in_(FROTA_PADRAO))
+            )
+            existentes = {row[0] for row in result.all()}
+
+            # 2. Identificar quais faltam e adicionar
+            faltantes = [m for m in FROTA_PADRAO if m not in existentes]
+            
+            if faltantes:
+                print(f"➕ Adicionando {len(faltantes)} aeronaves à frota padrão...")
+                for matricula in faltantes:
+                    session.add(
+                        Aeronave(
+                            matricula=matricula,
+                            serial_number=f"SN-{matricula}",
+                            modelo="A-29",
+                        )
                     )
-                )
-            await session.commit()
-        except Exception:
+                await session.commit()
+        except Exception as e:
+            print(f"❌ Erro ao inicializar frota: {e}")
             await session.rollback()
             raise
 

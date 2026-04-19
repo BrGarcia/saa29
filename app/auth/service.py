@@ -5,13 +5,13 @@ Camada de serviço (regras de negócio) para autenticação e usuários.
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sqlalchemy.exc import IntegrityError
 from app.auth.models import Usuario
 from app.auth.schemas import UsuarioCreate, UsuarioUpdate
 from app.auth.security import hash_senha, verificar_senha
+from app.core import helpers
 
 
 async def autenticar_usuario(
@@ -46,18 +46,6 @@ async def criar_usuario(
 ) -> Usuario:
     """
     Cria um novo usuário no banco de dados.
-
-    Faz o hash da senha antes de persistir.
-
-    Args:
-        db: sessão de banco de dados.
-        dados: schema com os dados de criação.
-
-    Returns:
-        Objeto Usuario recém-criado.
-
-    Raises:
-        ValueError: se o username já estiver em uso.
     """
     username_lower = dados.username.lower()
     existente = await buscar_por_username(db, username_lower)
@@ -82,39 +70,16 @@ async def buscar_por_username(
     db: AsyncSession,
     username: str,
 ) -> Usuario | None:
-    """
-    Busca um usuário pelo username de forma case-insensitive.
-
-    Args:
-        db: sessão de banco de dados.
-        username: nome de usuário a buscar.
-
-    Returns:
-        Objeto Usuario ou None se não encontrado.
-    """
-    from sqlalchemy import func
-    result = await db.execute(
-        select(Usuario).where(func.lower(Usuario.username) == username.lower())
-    )
-    return result.scalar_one_or_none()
+    """Busca um usuário pelo username de forma case-insensitive."""
+    return await helpers.buscar_usuario_por_username(db, username)
 
 
 async def buscar_por_id(
     db: AsyncSession,
     usuario_id: uuid.UUID,
 ) -> Usuario | None:
-    """
-    Busca um usuário pelo ID.
-
-    Args:
-        db: sessão de banco de dados.
-        usuario_id: UUID do usuário.
-
-    Returns:
-        Objeto Usuario ou None se não encontrado.
-    """
-    result = await db.execute(select(Usuario).where(Usuario.id == usuario_id))
-    return result.scalar_one_or_none()
+    """Busca um usuário pelo ID."""
+    return await helpers.buscar_usuario_por_id(db, usuario_id)
 
 
 async def listar_usuarios(
@@ -122,13 +87,6 @@ async def listar_usuarios(
 ) -> list[Usuario]:
     """
     Retorna a lista completa de usuários do sistema (efetivo).
-
-    Args:
-        db: sessão de banco de dados.
-        incluir_inativos: se True, traz também usuários desativados.
-
-    Returns:
-        Lista de objetos Usuario.
     """
     query = select(Usuario)
     if not incluir_inativos:
@@ -144,23 +102,11 @@ async def atualizar_usuario(
 ) -> Usuario:
     """
     Atualiza parcialmente os dados de um usuário.
-
-    Args:
-        db: sessão de banco de dados.
-        usuario_id: UUID do usuário a atualizar.
-        dados: schema com os campos a modificar.
-
-    Returns:
-        Objeto Usuario atualizado.
-
-    Raises:
-        ValueError: se o usuário não for encontrado.
     """
     usuario = await buscar_por_id(db, usuario_id)
     if not usuario:
         raise ValueError("Usuário não encontrado.")
     
-    # AUD-10: Lista explícita de campos editáveis para evitar escalação de privilégios indesejada
     CAMPOS_EDITAVEIS = {"nome", "posto", "especialidade", "funcao", "ramal", "trigrama"}
 
     for campo, valor in dados.model_dump(exclude_unset=True).items():
@@ -183,15 +129,6 @@ async def alterar_senha(
 ) -> None:
     """
     Altera a senha de um usuário autenticado.
-
-    Args:
-        db: sessão de banco de dados.
-        usuario: objeto Usuario autenticado.
-        senha_atual: senha atual para confirmação.
-        nova_senha: nova senha a ser definida.
-
-    Raises:
-        ValueError: se a senha atual for incorreta.
     """
     if not verificar_senha(senha_atual, usuario.senha_hash):
         raise ValueError("Senha atual incorreta.")
@@ -206,16 +143,6 @@ async def excluir_usuario(
 ) -> None:
     """
     Desativa (exclusão lógica) um usuário do efetivo.
-
-    Implementa proteção contra auto-exclusão e exclusão do último admin (AUD-17).
-
-    Args:
-        db: sessão de banco de dados.
-        usuario_id: UUID do usuário a desativar.
-        usuario_logado_id: UUID do usuário que está realizando a operação.
-
-    Raises:
-        ValueError: se o usuário não for encontrado ou se for auto-exclusão/último admin.
     """
     if usuario_id == usuario_logado_id:
         raise ValueError("Não é possível desativar o próprio usuário (AUD-17).")
@@ -224,8 +151,6 @@ async def excluir_usuario(
     if not usuario:
         raise ValueError("Usuário não encontrado.")
 
-    # Verificar se é o último administrador ativo
-    from sqlalchemy import func
     if usuario.funcao == "ADMINISTRADOR":
         result = await db.execute(
             select(func.count(Usuario.id)).where(
@@ -247,16 +172,6 @@ async def restaurar_usuario(
 ) -> Usuario:
     """
     Reativa um usuário desativado.
-
-    Args:
-        db: sessão de banco de dados.
-        usuario_id: UUID do usuário a restaurar.
-
-    Returns:
-        Objeto Usuario reativado.
-
-    Raises:
-        ValueError: se o usuário não for encontrado.
     """
     usuario = await buscar_por_id(db, usuario_id)
     if not usuario:
