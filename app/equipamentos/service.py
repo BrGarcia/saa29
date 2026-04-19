@@ -92,29 +92,59 @@ async def listar_inventario_aeronave(
         res_slots = await db.execute(stmt_slots)
         slots = res_slots.scalars().all()
 
+        # 2. OTIMIZAÇÃO: Buscar todas as instalações ativas da aeronave de uma vez
+        stmt_todas_inst = (
+            select(Instalacao, ItemEquipamento, Usuario.trigrama)
+            .join(ItemEquipamento, Instalacao.item_id == ItemEquipamento.id)
+            .outerjoin(Usuario, Instalacao.usuario_id == Usuario.id)
+            .where(
+                Instalacao.aeronave_id == aeronave_id,
+                Instalacao.data_remocao.is_(None)
+            )
+        )
+        res_inst = await db.execute(stmt_todas_inst)
+        inst_list = res_inst.all()
+        inst_map = {row[0].slot_id: row for row in inst_list}
+
+        # 3. OTIMIZAÇÃO: Buscar Aeronave Anterior para todos os itens de uma vez
+        item_ids = [row[1].id for row in inst_list]
+        ant_map = {}
+        if item_ids:
+            # Busca a última instalação (removida) para cada item em aeronaves diferentes da atual
+            subq = (
+                select(
+                    Instalacao.item_id,
+                    Aeronave.matricula,
+                    func.row_number().over(
+                        partition_by=Instalacao.item_id,
+                        order_by=desc(Instalacao.data_remocao)
+                    ).label("rn")
+                )
+                .join(Aeronave, Instalacao.aeronave_id == Aeronave.id)
+                .where(
+                    Instalacao.item_id.in_(item_ids),
+                    Instalacao.data_remocao.is_not(None),
+                    Instalacao.aeronave_id != aeronave_id
+                )
+            ).subquery()
+            
+            stmt_ant_all = select(subq.c.item_id, subq.c.matricula).where(subq.c.rn == 1)
+            res_ant_all = await db.execute(stmt_ant_all)
+            ant_map = {r.item_id: r.matricula for r in res_ant_all.all()}
+
         inventario: list[InventarioItemOut] = []
 
         for slot in slots:
-            # 2. Buscar item instalado atualmente nesse slot da aeronave específica
-            stmt_inst = (
-                select(Instalacao, ItemEquipamento, Usuario.trigrama)
-                .join(ItemEquipamento, Instalacao.item_id == ItemEquipamento.id)
-                .outerjoin(Usuario, Instalacao.usuario_id == Usuario.id)
-                .where(
-                    Instalacao.slot_id == slot.id,
-                    Instalacao.aeronave_id == aeronave_id,
-                    Instalacao.data_remocao.is_(None)
-                )
-            )
-            res_inst = await db.execute(stmt_inst)
-            row = res_inst.first()
+            # Recuperar do mapa em memória em vez de fazer nova query
+            row = inst_map.get(slot.id)
 
             instalacao, item, user_trigrama = row if row else (None, None, None)
-            anv_anterior = None
+            anv_anterior = ant_map.get(item.id) if item else None
             data_rastreio = instalacao.created_at if instalacao else None
 
             if not instalacao:
                 # Se slot vazio, buscar a última remoção para mostrar quem desinstalou
+                # (Esta query ainda é pontual por slot vazio, mas agora apenas para slots vazios)
                 stmt_last_rem = (
                     select(Instalacao, Usuario.trigrama)
                     .outerjoin(Usuario, Instalacao.usuario_id == Usuario.id)
@@ -131,22 +161,6 @@ async def listar_inventario_aeronave(
                 if row_last:
                     last_inst, user_trigrama = row_last
                     data_rastreio = last_inst.updated_at or last_inst.created_at
-
-            if item:
-                # 3. Buscar histórico (Aeronave Anterior)
-                stmt_ant = (
-                    select(Aeronave.matricula)
-                    .join(Instalacao, Instalacao.aeronave_id == Aeronave.id)
-                    .where(
-                        Instalacao.item_id == item.id,
-                        Instalacao.data_remocao.is_not(None),
-                        Instalacao.aeronave_id != aeronave_id
-                    )
-                    .order_by(desc(Instalacao.data_remocao), desc(Instalacao.created_at))
-                    .limit(1)
-                )
-                res_ant = await db.execute(stmt_ant)
-                anv_anterior = res_ant.scalar_one_or_none()
 
             inventario.append(
                 InventarioItemOut(
@@ -285,7 +299,7 @@ async def ajustar_inventario_item(
     return AjusteInventarioResponse(sucesso=True, mensagem="Inventário ajustado com sucesso.")
 
 
-async def listar_historico_recente(db: AsyncSession, limit: int = 15) -> list[dict]:
+async def listar_historico_recente(db: AsyncSession, limit: int = 15, offset: int = 0) -> list[dict]:
     """Retorna as últimas movimentações (instalações e remoções) de inventário."""
     from app.aeronaves.models import Aeronave
     from app.auth.models import Usuario
@@ -336,7 +350,7 @@ async def listar_historico_recente(db: AsyncSession, limit: int = 15) -> list[di
         query_union.c.slot_nome,
         query_union.c.usuario_trigrama,
         query_union.c.tipo_acao
-    ).order_by(desc(query_union.c.event_at)).limit(limit)
+    ).order_by(desc(query_union.c.event_at)).limit(limit).offset(offset)
     
     result = await db.execute(stmt_final)
     rows = result.all()

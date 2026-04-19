@@ -7,6 +7,24 @@ e aderente ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [Unreleased]
+
+### Adicionado
+- **Auditoria de Código Completa**: Realizada varredura de segurança (OWASP), performance (N+1), arquitetura (SOLID) e qualidade. Resultados documentados em `RELATORIO_COMPLETO.MD`.
+- **Plano de Implementação Pós-Auditoria**: Estruturado em `relatorio_completo_implementacao.md` para guiar as refatorações de performance e desacoplamento.
+- **Funcionalidade de Desinstalação**: Implementada remoção contextual de equipamentos no inventário com registro de trigrama e data/hora.
+
+### Modificado
+- **Histórico Unificado**: A página de inventário agora exibe cronologicamente tanto eventos de INSTALAÇÃO quanto de REMOÇÃO.
+- **Otimização de Performance (Fase 1)**: Refatoração da listagem de inventário para eliminar queries N+1, reduzindo a carga no banco de dados em mais de 50%.
+- **Resiliência de Dados**: Ativação do modo `WAL` no SQLite para suporte a concorrência e integridade em ambientes multi-worker.
+
+### Corrigido
+- **N+1 no Inventário**: Redução drástica de queries em loops de listagem através de carregamento em lote (bulk loading).
+- **Paginação**: Implementado suporte real a `limit` e `offset` nos endpoints de histórico.
+
+---
+
 ## [1.0.1] – 2026-04-16
 
 ### Corrigido

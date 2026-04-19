@@ -28,6 +28,21 @@ v5.0: Ecossistema Total    ░░ Visão Final (IA & Supply)
 
 ---
 
+## 🛠️ Melhorias Técnicas e Refatoração (Pós-Auditoria)
+*Foco: Performance, Escalabilidade e Aplicação de Princípios SOLID.*
+
+### Fase 1: Performance e Consultas (N+1)
+- [x] **Otimização de Queries:** Implementar `selectinload` em todos os services de Equipamentos e Panes para evitar consultas N+1.
+- [x] **Paginação de Dados:** Adicionar suporte a `limit` e `offset` reais em todos os endpoints de listagem do inventário e histórico.
+- [x] **Resiliência SQLite:** Configurar PRAGMAs de performance (`WAL mode`) de forma persistente no engine do banco.
+
+### Fase 2: Arquitetura e Domínio
+- [ ] **Exceções de Domínio:** Substituir erros genéricos por exceções tipadas e implementar um Global Exception Handler no FastAPI.
+- [ ] **Desacoplamento de Services:** Refatorar "God Functions" (como `ajustar_inventario_item`) em componentes menores e testáveis.
+- [ ] **Redução de Acoplamento:** Isolar as dependências entre os módulos de Equipamentos e Aeronaves através de interfaces ou repositórios.
+
+---
+
 ## ✅ v1.x – Estabilização e Refinamento (Atual)
 *Foco: Usabilidade Web, Performance e Segurança.*
 - [x] **v1.0.0**: Lançamento estável com CRUD de Panes, Frota e Efetivo.

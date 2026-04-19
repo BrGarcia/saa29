@@ -13,6 +13,7 @@ import uuid
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 from app.main import app
@@ -29,6 +30,13 @@ test_engine = create_async_engine(
     echo=False,
     connect_args={"check_same_thread": False},
 )
+
+@event.listens_for(test_engine.sync_engine, "connect")
+def _enable_sqlite_pragmas(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.close()
 
 TestSessionLocal = async_sessionmaker(
     bind=test_engine,

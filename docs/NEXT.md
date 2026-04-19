@@ -45,6 +45,11 @@ uvicorn app.main:app --reload
    - Validar workflow de CI no repositório.
    - Testar estabilidade do container em ambiente de homologação.
 
+3. **Correções Técnicas (Pós-Auditoria)**:
+   - [x] Implementar `selectinload` para mitigar N+1 queries em listagens de inventário.
+   - [ ] Refatorar tratamento de erros para Exceções de Domínio + Global Exception Handler.
+   - [x] Configurar PRAGMA WAL no SQLite para performance concorrente.
+
 ---
 
-*Última atualização: 2026-04-16*
+*Última atualização: 2026-04-19*
