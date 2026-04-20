@@ -376,6 +376,19 @@ window.handleSalvarComentarios = handleSalvarComentarios;
 document.addEventListener("DOMContentLoaded", () => {
     carregarDetalhe();
     
+    // Bind button events
+    const btnConcluir = document.getElementById('btn-concluir');
+    if(btnConcluir) btnConcluir.addEventListener('click', handleConcluirDireto);
+
+    const btnSalvarCom = document.getElementById('btn-salvar-comentarios');
+    if(btnSalvarCom) btnSalvarCom.addEventListener('click', handleSalvarComentarios);
+
+    const btnDelegar = document.getElementById('btn-delegar');
+    if(btnDelegar) btnDelegar.addEventListener('click', openDelegarModal);
+
+    const btnEditOcorr = document.getElementById('btn-edit-ocorrencia');
+    if(btnEditOcorr) btnEditOcorr.addEventListener('click', openEditarModal);
+    
     // Bind form events
     const formUpload = document.getElementById('formUpload');
     if(formUpload) formUpload.addEventListener('submit', handleUpload);
