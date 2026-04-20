@@ -92,8 +92,14 @@ async function apiFetch(endpoint, options = {}) {
         }
 
         if (response.status === 401) {
+            // Apenas 401 (Unauthorized) limpa a sessão.
             clearAuth();
             throw new Error("Sessão expirada.");
+        }
+
+        if (response.status === 403) {
+            // 403 (Forbidden) é erro de CSRF, não desloga.
+            throw new Error("Falha na sincronia de segurança (CSRF). Por favor, recarregue a página (F5).");
         }
         
         let data;

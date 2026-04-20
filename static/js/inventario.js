@@ -1,9 +1,18 @@
+/**
+ * static/js/inventario.js
+ * Gestão de Inventário de Equipamentos por Aeronave
+ */
+
+let aeronavesCache = [];
+
 async function loadAeronaves() {
     const select = document.getElementById('aeronave-select');
     if (!select) return;
     try {
         const data = await apiFetch('/aeronaves/?limit=100&incluir_inativas=true');
         data.sort((a, b) => a.matricula.localeCompare(b.matricula));
+        
+        select.innerHTML = '<option value="">Selecione uma aeronave...</option>';
         data.forEach(acft => {
             const opt = document.createElement('option');
             opt.value = acft.id;
@@ -42,7 +51,6 @@ async function loadInventario() {
 
         const data = await apiFetch(url);
         renderInventario(data);
-        updateStats(data);
     } catch (e) {
         container.innerHTML = `<div class="card glass-panel" style="padding: 2rem; text-align: center; color: var(--status-danger);">Erro ao carregar inventário.</div>`;
     }
@@ -134,7 +142,7 @@ function compareSN(input, snOriginal, equipamentoId) {
 
 async function ajustarInventario(equipamentoId, snReal, forcar = false) {
     const select = document.getElementById('aeronave-select');
-    if(!select) return;
+    if(!select || !snReal) return;
     const aeronaveId = select.value;
     const user = JSON.parse(localStorage.getItem("saa29_user"));
     
@@ -162,6 +170,144 @@ async function ajustarInventario(equipamentoId, snReal, forcar = false) {
     } catch (e) {
         showToast(e.message || "Erro ao ajustar inventário.", "error");
     }
+}
+
+async function removerEquipamento(instalacaoId) {
+    if (!instalacaoId) return;
+    try {
+        await apiFetch(`/equipamentos/instalacoes/${instalacaoId}/remover`, {
+            method: 'PATCH',
+            body: { data_remocao: new Date().toISOString().split('T')[0] }
+        });
+        showToast("Item desinstalado com sucesso.", "info");
+        fecharModalRemocao();
+        loadInventario();
+    } catch (e) {
+        showToast("Erro ao remover equipamento.", "error");
+    }
+}
+
+function renderInventario(items) {
+    const container = document.getElementById('inventario-container');
+    if(!container) return;
+
+    container.innerHTML = '';
+    
+    const section = document.createElement('div');
+    section.innerHTML = `
+        <div class="card glass-panel" style="padding: 0; overflow: hidden;">
+            <table style="width: 100%; border-collapse: collapse; text-align: center;">
+                <thead style="background-color: var(--bg-tertiary); border-bottom: 1px solid var(--border-color);">
+                    <tr>
+                        <th style="padding: 1rem; width: 6%;">Loc.</th>
+                        <th style="padding: 1rem; width: 18%;">Item</th>
+                        <th style="padding: 1rem; width: 12%;">P/N</th>
+                        <th style="padding: 1rem; width: 14%;">S/N (SILOMS)</th>
+                        <th style="padding: 1rem; width: 16%;">Atualização/Trigrama</th>
+                        <th style="padding: 1rem; width: 22%;">S/N (REAL)</th>
+                        <th style="padding: 1rem; width: 12%;">Anv Ant.</th>
+                    </tr>
+                </thead>
+                <tbody id="inventory-tbody"></tbody>
+            </table>
+        </div>
+    `;
+
+    const tbody = section.querySelector('#inventory-tbody');
+    
+    // Sort: Primeiro por Sistema, depois por Nome
+    items.sort((a,b) => {
+        const sisA = a.sistema || 'ZZZ';
+        const sisB = b.sistema || 'ZZZ';
+        if(sisA !== sisB) return sisA.localeCompare(sisB);
+        return a.equipamento_nome.localeCompare(b.equipamento_nome);
+    });
+
+    items.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = "1px solid var(--border-color)";
+        const inputId = `real-${item.equipamento_id}`;
+        
+        const snSilomsHtml = item.numero_serie ? 
+            `<span class="badge badge-sn-siloms" style="background-color: var(--status-ok); color: #fff; border: 1px solid var(--border-color); cursor: pointer; padding: 0.4rem 0.8rem; font-family: monospace;" title="Clique para desinstalar">${item.numero_serie}</span>` :
+            `<span class="badge" style="background-color: var(--status-danger); color: #fff; border: 1px solid var(--border-color); font-weight: 700; font-size: 0.7rem; padding: 0.4rem 0.6rem;">DESINSTALADO</span>`;
+
+        let rastreabilidade = '<span style="color: var(--text-secondary); opacity: 0.5;">-</span>';
+        if (item.data_atualizacao) {
+            const dataObj = new Date(item.data_atualizacao);
+            if (!isNaN(dataObj)) {
+                const dia = String(dataObj.getDate()).padStart(2, '0');
+                const mes = String(dataObj.getMonth() + 1).padStart(2, '0');
+                const ano = String(dataObj.getFullYear()).slice(-2);
+                const hora = String(dataObj.getHours()).padStart(2, '0');
+                const min = String(dataObj.getMinutes()).padStart(2, '0');
+                rastreabilidade = `<div style="font-size: 0.8rem; line-height: 1.2;">
+                    <div style="color: var(--text-secondary);">${dia}/${mes}/${ano} ${hora}:${min}</div>
+                    <div style="font-weight: 700; color: var(--primary-color); margin-top: 2px;">${item.usuario_trigrama || 'SYS'}</div>
+                </div>`;
+            }
+        }
+
+        tr.innerHTML = `
+            <td style="padding: 0.8rem 1rem;"><span class="badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary-color); font-weight: 600; font-size: 0.75rem;">${item.sistema || '-'}</span></td>
+            <td style="padding: 0.8rem 1rem;"><div style="font-weight: 600;">${item.equipamento_nome}</div><div style="font-size: 0.75rem; color: var(--text-secondary);">${item.status_item || 'NÃO INSTALADO'}</div></td>
+            <td style="padding: 0.8rem 1rem; font-family: monospace; font-size: 0.9rem;">${item.part_number}</td>
+            <td style="padding: 0.8rem 1rem;" class="td-sn-siloms">${snSilomsHtml}</td>
+            <td style="padding: 0.8rem 1rem;">${rastreabilidade}</td>
+            <td style="padding: 0.6rem 1rem;">
+                <div class="real-input-container">
+                    <input type="text" id="${inputId}" class="real-input status-pending" placeholder="S/N real...">
+                    <button id="btn-sync-${item.equipamento_id}" class="btn-sync" title="Sincronizar">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    </button>
+                </div>
+            </td>
+            <td style="padding: 0.8rem 1rem;">${item.aeronave_anterior ? `<span class="badge" style="background: var(--bg-tertiary); color: var(--primary-color);">${item.aeronave_anterior}</span>` : '-'}</td>
+        `;
+        
+        const badgeSn = tr.querySelector('.badge-sn-siloms');
+        if(badgeSn) badgeSn.onclick = () => abrirModalRemocao(item.instalacao_id, item.numero_serie, item.nome_posicao);
+        
+        const input = tr.querySelector('.real-input');
+        input.oninput = () => compareSN(input, item.numero_serie || '', item.equipamento_id);
+        
+        const btnSync = tr.querySelector('.btn-sync');
+        btnSync.onclick = () => ajustarInventario(item.equipamento_id, input.value);
+        
+        tbody.appendChild(tr);
+    });
+
+    container.appendChild(section);
+    updateStats(items);
+}
+
+function updateStats(items) {
+    const statsDiv = document.getElementById('stats-summary');
+    if (!statsDiv) return;
+
+    if (!items) {
+        statsDiv.innerHTML = '';
+        return;
+    }
+
+    const total = items.length;
+    const ok = items.filter(i => {
+        const input = document.getElementById(`real-${i.equipamento_id}`);
+        return input && input.classList.contains('status-match');
+    }).length;
+
+    const pendente = items.filter(i => {
+        const input = document.getElementById(`real-${i.equipamento_id}`);
+        return !input || input.classList.contains('status-pending');
+    }).length;
+
+    const erro = total - ok - pendente;
+
+    statsDiv.innerHTML = `
+        <span style="color: var(--text-secondary);">Total: <strong>${total}</strong></span>
+        <span style="color: var(--status-success);">Conferidos: <strong>${ok}</strong></span>
+        <span style="color: var(--status-danger);">Divergentes: <strong>${erro}</strong></span>
+    `;
 }
 
 function abrirModal(equipamentoId, snReal, anvConflito) {
@@ -202,229 +348,6 @@ function fecharModalRemocao() {
     if(modal) modal.style.display = 'none';
 }
 
-async function removerEquipamento(instalacaoId) {
-    try {
-        await apiFetch(`/equipamentos/instalacoes/${instalacaoId}/remover`, {
-            method: 'PATCH',
-            body: { data_remocao: new Date().toISOString().split('T')[0] }
-        });
-        showToast("Equipamento removido com sucesso.", "success");
-        fecharModalRemocao();
-        loadInventario();
-    } catch (e) {
-        showToast(e.message || "Erro ao remover equipamento.", "error");
-    }
-}
-
-function updateStats(items = null) {
-    const allInputs = document.querySelectorAll('.real-input');
-    const statsDiv = document.getElementById('stats-summary');
-    if (!statsDiv) return;
-    if (allInputs.length === 0 && !items) return;
-
-    let total = items ? items.length : allInputs.length;
-    let matches = 0;
-    let mismatches = 0;
-    let pending = 0;
-
-    allInputs.forEach(input => {
-        if (input.classList.contains('status-match')) matches++;
-        else if (input.classList.contains('status-mismatch')) mismatches++;
-        else pending++;
-    });
-
-    statsDiv.innerHTML = `
-        <span style="color: var(--text-secondary)">Total: ${total}</span>
-        <span style="color: var(--status-success)">Conferido: ${matches}</span>
-        <span style="color: var(--status-danger)">Divergente: ${mismatches}</span>
-        <span style="color: #eab308">Pendente: ${pending}</span>
-    `;
-}
-
-function renderInventario(items) {
-    const container = document.getElementById('inventario-container');
-    if(!container) return;
-    if (items.length === 0) {
-        container.innerHTML = `<div class="card glass-panel" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Nenhum item encontrado.</div>`;
-        return;
-    }
-
-    container.innerHTML = '';
-    const section = document.createElement('div');
-    section.className = 'inventory-section';
-
-    let html = `
-        <div class="card glass-panel" style="padding: 0; overflow: hidden;">
-            <table style="width: 100%; border-collapse: collapse; text-align: center;">
-                <thead style="background-color: var(--bg-tertiary); border-bottom: 1px solid var(--border-color);">
-                    <tr>
-                        <th style="padding: 1rem; width: 6%;">Loc.</th>
-                        <th style="padding: 1rem; width: 18%;">Item</th>
-                        <th style="padding: 1rem; width: 12%;">P/N</th>
-                        <th style="padding: 1rem; width: 14%;">S/N (SILOMS)</th>
-                        <th style="padding: 1rem; width: 16%;">Atualização/Trigrama</th>
-                        <th style="padding: 1rem; width: 22%;">S/N (REAL)</th>
-                        <th style="padding: 1rem; width: 12%;">Anv Ant.</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-
-    items.sort((a, b) => {
-        const sistemaA = a.sistema || 'ZZZ';
-        const sistemaB = b.sistema || 'ZZZ';
-        if (sistemaA !== sistemaB) return sistemaA.localeCompare(sistemaB);
-        return a.equipamento_nome.localeCompare(b.equipamento_nome);
-    }).forEach(item => {
-        const inputId = `real-${item.equipamento_id}`;
-        const anvAnt = item.aeronave_anterior ?
-            `<span class="badge" style="background: var(--bg-tertiary); color: var(--primary-color);">${item.aeronave_anterior}</span>` :
-            `<span style="color: var(--text-secondary); opacity: 0.5;">-</span>`;
-
-        const snSiloms = item.numero_serie ? 
-            `<span class="badge badge-sn-siloms" style="background-color: var(--status-ok); color: #fff; border: 1px solid var(--border-color); cursor: pointer; padding: 0.4rem 0.8rem; font-family: monospace;" title="Clique para desinstalar">${item.numero_serie}</span>` :
-            `<span class="badge" style="background-color: var(--status-danger); color: #fff; border: 1px solid var(--border-color); font-weight: 700; font-size: 0.7rem; padding: 0.4rem 0.6rem;">DESINSTALADO</span>`;
-
-        let rastreabilidade = '<span style="color: var(--text-secondary); opacity: 0.5;">-</span>';
-        if (item.data_atualizacao) {
-            const dataObj = new Date(item.data_atualizacao);
-            if (!isNaN(dataObj)) {
-                const dia = String(dataObj.getDate()).padStart(2, '0');
-                const mes = String(dataObj.getMonth() + 1).padStart(2, '0');
-                const ano = String(dataObj.getFullYear()).slice(-2);
-                const hora = String(dataObj.getHours()).padStart(2, '0');
-                const min = String(dataObj.getMinutes()).padStart(2, '0');
-                
-                const dataStr = `${dia}/${mes}/${ano}`;
-                const horaStr = `${hora}:${min}`;
-                const trigrama = item.usuario_trigrama || 'SYS';
-                
-                rastreabilidade = `
-                    <div style="font-size: 0.8rem; line-height: 1.2;">
-                        <div style="color: var(--text-secondary);">${dataStr} ${horaStr}</div>
-                        <div style="font-weight: 700; color: var(--primary-color); margin-top: 2px;">${trigrama}</div>
-                    </div>
-                `;
-            }
-        }
-
-        const tr = document.createElement('tr');
-        tr.style.borderBottom = "1px solid var(--border-color)";
-        tr.innerHTML = `
-                <td style="padding: 0.8rem 1rem;">
-                    <span class="badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary-color); font-weight: 600; font-size: 0.75rem;">${item.sistema || '-'}</span>
-                </td>
-                <td style="padding: 0.8rem 1rem;">
-                    <div style="font-weight: 600;">${item.equipamento_nome}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-secondary);">${item.status_item || 'NÃO INSTALADO'}</div>
-                </td>
-                <td style="padding: 0.8rem 1rem; font-family: monospace; font-size: 0.9rem;">${item.part_number}</td>
-                <td style="padding: 0.8rem 1rem;" class="td-sn-siloms"></td>
-                <td style="padding: 0.8rem 1rem;">${rastreabilidade}</td>
-                <td style="padding: 0.6rem 1rem;">
-                    <div class="real-input-container">
-                        <input type="text" id="${inputId}" class="real-input status-pending" 
-                               placeholder="S/N real...">
-                        <button id="btn-sync-${item.equipamento_id}" class="btn-sync" 
-                                title="Sincronizar com Sistema">
-                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                            </svg>
-                        </button>
-                    </div>
-                </td>
-                <td style="padding: 0.8rem 1rem;">${anvAnt}</td>
-        `;
-
-        const tdSnSiloms = tr.querySelector('.td-sn-siloms');
-        tdSnSiloms.innerHTML = snSiloms;
-        const badgeSn = tdSnSiloms.querySelector('.badge-sn-siloms');
-        if(badgeSn) badgeSn.onclick = () => abrirModalRemocao(item.instalacao_id, item.numero_serie, item.nome_posicao);
-
-        const input = tr.querySelector('.real-input');
-        input.oninput = () => compareSN(input, item.numero_serie || '', item.equipamento_id);
-
-        const btnSync = tr.querySelector('.btn-sync');
-        btnSync.onclick = () => ajustarInventario(item.equipamento_id, input.value);
-
-        html += tr.outerHTML; // This is not efficient, better append tr to section
-        // Refactoring to appendChild
-    });
-
-    // Re-rendering properly
-    section.innerHTML = `
-        <div class="card glass-panel" style="padding: 0; overflow: hidden;">
-            <table style="width: 100%; border-collapse: collapse; text-align: center;">
-                <thead style="background-color: var(--bg-tertiary); border-bottom: 1px solid var(--border-color);">
-                    <tr>
-                        <th style="padding: 1rem; width: 6%;">Loc.</th>
-                        <th style="padding: 1rem; width: 18%;">Item</th>
-                        <th style="padding: 1rem; width: 12%;">P/N</th>
-                        <th style="padding: 1rem; width: 14%;">S/N (SILOMS)</th>
-                        <th style="padding: 1rem; width: 16%;">Atualização/Trigrama</th>
-                        <th style="padding: 1rem; width: 22%;">S/N (REAL)</th>
-                        <th style="padding: 1rem; width: 12%;">Anv Ant.</th>
-                    </tr>
-                </thead>
-                <tbody id="inventory-tbody"></tbody>
-            </table>
-        </div>
-    `;
-    const tbody = section.querySelector('#inventory-tbody');
-    items.sort((a,b) => (a.sistema || 'ZZZ').localeCompare(b.sistema || 'ZZZ') || a.equipamento_nome.localeCompare(b.equipamento_nome)).forEach(item => {
-        const tr = document.createElement('tr');
-        tr.style.borderBottom = "1px solid var(--border-color)";
-        const inputId = `real-${item.equipamento_id}`;
-        const snSilomsHtml = item.numero_serie ? 
-            `<span class="badge badge-sn-siloms" style="background-color: var(--status-ok); color: #fff; border: 1px solid var(--border-color); cursor: pointer; padding: 0.4rem 0.8rem; font-family: monospace;" title="Clique para desinstalar">${item.numero_serie}</span>` :
-            `<span class="badge" style="background-color: var(--status-danger); color: #fff; border: 1px solid var(--border-color); font-weight: 700; font-size: 0.7rem; padding: 0.4rem 0.6rem;">DESINSTALADO</span>`;
-
-        let rastreabilidade = '<span style="color: var(--text-secondary); opacity: 0.5;">-</span>';
-        if (item.data_atualizacao) {
-            const dataObj = new Date(item.data_atualizacao);
-            if (!isNaN(dataObj)) {
-                const dia = String(dataObj.getDate()).padStart(2, '0');
-                const mes = String(dataObj.getMonth() + 1).padStart(2, '0');
-                const ano = String(dataObj.getFullYear()).slice(-2);
-                const hora = String(dataObj.getHours()).padStart(2, '0');
-                const min = String(dataObj.getMinutes()).padStart(2, '0');
-                rastreabilidade = `${dia}/${mes}/${ano} ${hora}:${min}<br><strong>${item.usuario_trigrama || 'SYS'}</strong>`;
-            }
-        }
-
-        tr.innerHTML = `
-            <td style="padding: 0.8rem 1rem;"><span class="badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary-color); font-weight: 600; font-size: 0.75rem;">${item.sistema || '-'}</span></td>
-            <td style="padding: 0.8rem 1rem;"><div style="font-weight: 600;">${item.equipamento_nome}</div><div style="font-size: 0.75rem; color: var(--text-secondary);">${item.status_item || 'NÃO INSTALADO'}</div></td>
-            <td style="padding: 0.8rem 1rem; font-family: monospace; font-size: 0.9rem;">${item.part_number}</td>
-            <td style="padding: 0.8rem 1rem;" class="td-sn-siloms">${snSilomsHtml}</td>
-            <td style="padding: 0.8rem 1rem; font-size: 0.8rem;">${rastreabilidade}</td>
-            <td style="padding: 0.6rem 1rem;">
-                <div class="real-input-container">
-                    <input type="text" id="${inputId}" class="real-input status-pending" placeholder="S/N real...">
-                    <button id="btn-sync-${item.equipamento_id}" class="btn-sync" title="Sincronizar">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                    </button>
-                </div>
-            </td>
-            <td style="padding: 0.8rem 1rem;">${item.aeronave_anterior ? `<span class="badge" style="background: var(--bg-tertiary); color: var(--primary-color);">${item.aeronave_anterior}</span>` : '-'}</td>
-        `;
-        
-        const badgeSn = tr.querySelector('.badge-sn-siloms');
-        if(badgeSn) badgeSn.onclick = () => abrirModalRemocao(item.instalacao_id, item.numero_serie, item.nome_posicao);
-        
-        const input = tr.querySelector('.real-input');
-        input.oninput = () => compareSN(input, item.numero_serie || '', item.equipamento_id);
-        
-        const btnSync = tr.querySelector('.btn-sync');
-        btnSync.onclick = () => ajustarInventario(item.equipamento_id, input.value);
-        
-        tbody.appendChild(tr);
-    });
-
-    container.appendChild(section);
-    updateStats();
-}
-
 window.fecharModal = fecharModal;
 window.fecharModalRemocao = fecharModalRemocao;
 window.loadInventario = loadInventario;
@@ -437,7 +360,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (select) {
         select.addEventListener('change', () => {
-            // Atualiza a URL sem recarregar a página para manter o estado
             const url = new URL(window.location);
             if (select.value) {
                 url.searchParams.set('aeronave_id', select.value);

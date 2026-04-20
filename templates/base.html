@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="/static/css/index.css">
     
     {% if request and request.state and request.state.csrf_token %}
-    <meta name="csrf-token" content='{{ request.state.csrf_token | safe }}'>
+    <meta name="csrf-token" content="{{ request.state.csrf_token }}">
     {% endif %}
 </head>
 
