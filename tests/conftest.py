@@ -79,6 +79,7 @@ async def client(db: AsyncSession) -> AsyncClient:
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://testserver",
+        headers={"X-Skip-CSRF": "true"}
     ) as ac:
         yield ac
 

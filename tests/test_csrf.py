@@ -62,6 +62,10 @@ async def _fazer_requisicao_escrita(
     headers: dict,
     payload: dict | None,
 ):
+    # Sobrescrevemos o header X-Skip-CSRF para garantir que o teste seja real
+    headers = headers.copy()
+    headers["X-Skip-CSRF"] = "false"
+    
     kwargs = {"headers": headers}
     if payload is not None:
         kwargs["json"] = payload
@@ -155,6 +159,7 @@ class TestSincronizacaoCSRF:
                 headers={
                     **usuario_e_token["headers"],
                     CSRF_HEADER: token_atual,
+                    "X-Skip-CSRF": "false",
                 },
             )
             assert response.status_code == 200
@@ -181,6 +186,7 @@ class TestSincronizacaoCSRF:
             headers={
                 **usuario_e_token["headers"],
                 CSRF_HEADER: token_atual,
+                "X-Skip-CSRF": "false",
             },
         )
 

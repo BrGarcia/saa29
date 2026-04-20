@@ -16,6 +16,7 @@ Cobertura (ROADMAP Fase 2 – 2.1):
 Padrão: Given / When / Then
 """
 
+import uuid
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -107,12 +108,12 @@ class TestLogin:
         from app.auth.models import Usuario
         from app.auth.security import hash_senha
         
-        username_cadastrado = "joao.silva"
+        unique_username = f"user_{uuid.uuid4().hex[:6]}"
         usuario = Usuario(
             nome=dados_usuario_valido["nome"],
             posto=dados_usuario_valido["posto"],
             funcao=dados_usuario_valido["funcao"],
-            username=username_cadastrado,
+            username=unique_username,
             senha_hash=hash_senha(dados_usuario_valido["password"]),
         )
         db.add(usuario)
@@ -122,23 +123,23 @@ class TestLogin:
         response = await client.post(
             LOGIN_URL,
             data={
-                "username": "JOAO.SILVA",
+                "username": unique_username.upper(),
                 "password": dados_usuario_valido["password"],
             },
         )
         assert response.status_code == 200
-        assert response.json()["usuario"]["username"] == username_cadastrado
+        assert response.json()["usuario"]["username"] == unique_username
 
         # Tentar com CamelCase
         response = await client.post(
             LOGIN_URL,
             data={
-                "username": "Joao.Silva",
+                "username": unique_username.capitalize(),
                 "password": dados_usuario_valido["password"],
             },
         )
         assert response.status_code == 200
-        assert response.json()["usuario"]["username"] == username_cadastrado
+        assert response.json()["usuario"]["username"] == unique_username
 
     @pytest.mark.asyncio
     async def test_login_senha_errada(self, client: AsyncClient, db: AsyncSession, dados_usuario_valido: dict):
@@ -149,13 +150,13 @@ class TestLogin:
         """
         from app.auth.models import Usuario
         from app.auth.security import hash_senha
-        
-        # Criar usuário direto no banco
+
+        unique_username = f"user_{uuid.uuid4().hex[:6]}"
         usuario = Usuario(
             nome=dados_usuario_valido["nome"],
             posto=dados_usuario_valido["posto"],
             funcao=dados_usuario_valido["funcao"],
-            username=dados_usuario_valido["username"],
+            username=unique_username,
             senha_hash=hash_senha(dados_usuario_valido["password"]),
         )
         db.add(usuario)
@@ -164,8 +165,8 @@ class TestLogin:
         response = await client.post(
             LOGIN_URL,
             data={
-                "username": dados_usuario_valido["username"],
-                "password": "senha_ERRADA_999",
+                "username": unique_username,
+                "password": "senha_errada_total",
             },
         )
         assert response.status_code == 401

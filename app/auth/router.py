@@ -142,8 +142,17 @@ async def refresh_access_token(
         
         # Buscar usuário
         from app.auth.models import Usuario
+        import uuid
+        try:
+            val_usuario_id = uuid.UUID(usuario_id)
+        except (ValueError, TypeError):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="ID de usuário inválido no token",
+            )
+            
         user_result = await db.execute(
-            select(Usuario).where(Usuario.id == usuario_id)
+            select(Usuario).where(Usuario.id == val_usuario_id)
         )
         usuario = user_result.scalar_one_or_none()
         
