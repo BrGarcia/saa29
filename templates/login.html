@@ -20,7 +20,7 @@
             </p>
         </div>
 
-        <form id="loginForm" onsubmit="handleLogin(event)">
+        <form id="loginForm">
             <div class="form-group" style="text-align: left;">
                 <label for="username" class="form-label">Identificação (NIP)</label>
                 <input type="text" id="username" name="username" class="form-input" required autocomplete="username"
@@ -42,57 +42,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-    // Se o usuário já estiver na sessão, mande p/ dashboard.
-    document.addEventListener("DOMContentLoaded", () => {
-        if (localStorage.getItem("saa29_user")) {
-            window.location.href = "/panes";
-        }
-    });
-
-    async function handleLogin(e) {
-        e.preventDefault();
-
-        const form = document.getElementById('loginForm');
-        const loginBtn = document.getElementById('loginBtn');
-        const formData = new FormData(form);
-
-        loginBtn.disabled = true;
-        loginBtn.innerHTML = 'Conectando... <svg class="spinner" width="16" height="16" ...></svg>';
-
-        try {
-            // O endpoint do FastAPI com OAuth2PasswordRequestForm aceita FormData urlencoded
-            const response = await fetch('/auth/login', {
-                method: 'POST',
-                body: new URLSearchParams(formData)
-            });
-
-            if (!response.ok) {
-                let msg = 'Credenciais inválidas ou erro no servidor.';
-                if (response.status === 401) msg = "Login ou senha incorretos.";
-                showToast(msg, "error");
-                throw new Error(msg);
-            }
-
-            const data = await response.json();
-
-            // Grava APENAS metadados do usuário para renderização UI condicional
-            if (data.usuario) {
-                localStorage.setItem("saa29_user", JSON.stringify(data.usuario));
-            }
-            showToast("Acesso autorizado. Carregando Painel...", "success");
-
-            // Redireciona
-            setTimeout(() => {
-                window.location.href = "/panes";
-            }, 800);
-
-        } catch (err) {
-            console.error(err);
-        } finally {
-            loginBtn.disabled = false;
-            loginBtn.innerHTML = 'Autenticar';
-        }
-    }
-</script>
+<script src="/static/js/login.js"></script>
 {% endblock %}

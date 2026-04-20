@@ -12,8 +12,8 @@
 # Plano Detalhado de Implementação - Auditoria SAA29
 
 **Data:** 2026-04-19  
-**Versão:** 3.0 (Progress Update)
-**Status:** 🚀 Em Execução (Phase 1 Completo, Phase 2 50% Completo)
+**Versão:** 3.1 (Progress Update)
+**Status:** 🚀 Em Execução (Phase 1 e Phase 2 100% Completos)
 **Objetivo:** Executar todas as correções da auditoria em 5 fases (~45-50 horas)
 
 **Documento Complementar:** Veja `IMPLEMENTATION_PLAN.md` para detalhes técnicos passo-a-passo.
@@ -31,15 +31,15 @@ Resolver 3 vulnerabilidades críticas que permitem forjamento de tokens e acesso
 | 1.2 | Fix insecure secret key | `app/config.py:21` | 1h | ✅ COMPLETO |
 | 1.3 | Remove hardcoded admin password | `scripts/*.py` | 1h | ✅ COMPLETO |
 
-### Fase 2: SECURITY HIGH 🚀 50% COMPLETO (12 horas - Semana 1-2)
+### Fase 2: SECURITY HIGH 🚀 100% COMPLETO (12 horas - Semana 1-2)
 Resolver 10 vulnerabilidades altas de segurança.
 
 | Sprint | Issue | Tempo | Status |
 |--------|-------|-------|--------|
 | 2.1 | Debug mode + JWT expiration + Refresh tokens | 1.5h | ✅ COMPLETO |
 | 2.2 | Cookie flags + CORS + Security headers | 1.5h | ✅ COMPLETO |
-| 2.3 | CSRF protection | 2h | ⏳ TODO |
-| 2.4 | File upload security | 1.5h | ⏳ TODO |
+| 2.3 | CSRF protection | 2h | ✅ COMPLETO |
+| 2.4 | File upload security | 1.5h | ✅ COMPLETO |
 
 ### Fase 3: PERFORMANCE + MEDIUM SECURITY (14 horas - Semana 2-3)
 Otimizar banco de dados e resolver 9 vulnerabilidades médias.
@@ -141,11 +141,11 @@ Validar todas as correções com testes abrangentes.
 
 ---
 
-## 🟠 FASE 2: SECURITY HIGH (50% COMPLETO)
+## 🟢 FASE 2: SECURITY HIGH (100% COMPLETO)
 
-### Status: Em Execução - 2/4 Sprints Completos
+### Status: Em Execução - 4/4 Sprints Completos
 
-**Implementação Atual:** 2/4 Sprints (50%)
+**Implementação Atual:** 4/4 Sprints (100%)
 
 #### Sprint 2.1: Fix Debug Mode and JWT Expiration ✅
 **Status:** COMPLETO
@@ -211,27 +211,30 @@ Validar todas as correções com testes abrangentes.
 - ✅ Force HTTPS in production (HSTS)
 - ✅ CORS não permite métodos/headers desnecessários
 
-#### Sprint 2.3: Add CSRF Protection ⏳
-**Status:** TODO - Próximo Sprint
+#### Sprint 2.3: Add CSRF Protection ✅
+**Status:** COMPLETO
 
-**Será Implementado:**
-- Instalar `pip install fastapi-csrf-protect`
-- CSRF middleware para validar tokens em requisições
-- Templates: extrair CSRF token de response headers
-- JavaScript: adicionar CSRF token a fetch requests
+**Arquivos Modificados:**
+- `app/middleware/csrf.py` (Novo)
+- `app/main.py` (+ middleware injetado)
+- `templates/base.html` (+ tag meta csrf-token)
+- `static/js/app.js` (+ header injection X-CSRF-Token)
 
-**Tempo Estimado:** 2 horas
+**Lógica Implementada:**
+- Middleware `CSRFMiddleware` customizado intercepta as requisições protegidas usando biblioteca `fastapi-csrf-protect`.
+- CSRF Token é repassado nas variáveis de estado (para renderização) e extraido dinamicamente no JS root para todas as mutations de dados da API.
 
-#### Sprint 2.4: File Upload Security ⏳
-**Status:** TODO - Após Sprint 2.3
+#### Sprint 2.4: File Upload Security ✅
+**Status:** COMPLETO
 
-**Será Implementado:**
-- Validação de MIME types (whitelist apenas tipos seguros)
-- Prevenção de path traversal (sanitizar nomes de arquivo)
-- Limite de tamanho de upload
-- Verificação de assinatura de arquivo (magic bytes)
+**Arquivos Modificados:**
+- `app/core/file_validators.py` (Novo)
+- `app/panes/router.py` (Aplicando validador)
+- `app/core/storage.py` (Mitigação Path Traversal em ambos os backends Local & R2)
 
-**Tempo Estimado:** 1.5 horas
+**Lógica Implementada:**
+- Magic bytes verification usando `python-magic` (Libmagic). Extensões não combinantes com bytes crus resultam em banimento de operação (HTTP 422).
+- Upload payloads são blindados contra RCE ou Directory Traversing (ex. `../../../`).
 
 ---
 
@@ -245,8 +248,8 @@ Validar todas as correções com testes abrangentes.
 | 4 | Cookies not httponly | 2.1 | ✅ COMPLETO (HttpOnly set) |
 | 5 | Cookies not secure | 2.2 | ✅ COMPLETO (com flag) |
 | 6 | CORS misconfigured | 2.2 | ✅ COMPLETO (explicit methods) |
-| 7 | No CSRF protection | 2.3 | ⏳ TODO |
-| 8 | Weak file upload validation | 2.4 | ⏳ TODO |
+| 7 | No CSRF protection | 2.3 | ✅ COMPLETO (Middleware injetado) |
+| 8 | Weak file upload validation | 2.4 | ✅ COMPLETO (MagicBytes via libmagic e Storage Strict) |
 | 9 | No rate limiting | Phase 3 | ⏳ TODO |
 | 10 | No account lockout | Phase 3 | ⏳ TODO |
 
@@ -354,11 +357,11 @@ Usar este documento para rastrear progresso:
     [ ] Sprint 1.2: Fix secret key (1h)
     [ ] Sprint 1.3: Remove admin password (1h)
 
-[ ] FASE 2: SECURITY HIGH (12h)
-    [ ] Sprint 2.1: Debug + JWT (1.5h)
-    [ ] Sprint 2.2: Cookies + CORS (1.5h)
-    [ ] Sprint 2.3: CSRF (2h)
-    [ ] Sprint 2.4: File Upload (1.5h)
+[x] FASE 2: SECURITY HIGH (12h)
+    [x] Sprint 2.1: Debug + JWT (1.5h)
+    [x] Sprint 2.2: Cookies + CORS (1.5h)
+    [x] Sprint 2.3: CSRF (2h)
+    [x] Sprint 2.4: File Upload (1.5h)
 
 [ ] FASE 3: PERFORMANCE + MED (14h)
     [ ] Sprint 3.1: Rate limiting (2.5h)

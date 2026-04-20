@@ -19,8 +19,10 @@ router = APIRouter()
 #  Autenticação
 # ------------------------------------------------------------------ #
 
-from fastapi import Response
+from fastapi import Response, Request
 from app.dependencies import get_token_from_request
+
+from app.core.limiter import limiter
 
 @router.post(
     "/login",
@@ -28,19 +30,15 @@ from app.dependencies import get_token_from_request
     summary="Login de usuário",
     description="Autentica o usuário e retorna um JWT + Refresh Token (via Cookie HttpOnly). (RF-01)",
 )
+@limiter.limit("5/minute")
 async def login(
+    request: Request,
     db: DBSession,
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
 ) -> schemas.Token:
     """
-    Fluxo de autenticação:
-        1. Receber username e senha via form
-        2. Buscar usuário no banco
-        3. Verificar senha com bcrypt
-        4. Gerar access token (15 min) e refresh token (7 dias)
-        5. Retornar JWT e armazenar refresh token
-        6. Lançar access token também via Cookie seguro
+    Fluxo de autenticação com proteção contra força bruta.
     """
     usuario = await service.autenticar_usuario(
         db, form_data.username, form_data.password

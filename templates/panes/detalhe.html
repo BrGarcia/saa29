@@ -33,12 +33,12 @@
             Descrição da Pane
         </div>
         <div style="display: flex; gap: 0.5rem;">
-            <button class="btn btn-outline-primary" onclick="openDelegarModal()" id="btn-delegar"
+            <button class="btn btn-outline-primary" id="btn-delegar"
                 style="display:none; padding: 0.25rem 0.75rem; font-size: 0.8rem;">
                 Delegar
             </button>
             <button id="btn-edit-ocorrencia" class="btn btn-outline-warning"
-                style="display: none; padding: 0.25rem 0.75rem; font-size: 0.8rem;" onclick="openEditarModal()">
+                style="display: none; padding: 0.25rem 0.75rem; font-size: 0.8rem;">
                 Editar Pane
             </button>
         </div>
@@ -91,7 +91,7 @@
             Solução da Pane
         </div>
         <div style="display: flex; gap: 0.5rem;">
-            <button class="btn btn-success" onclick="handleConcluirDireto()" id="btn-concluir"
+            <button class="btn btn-success" id="btn-concluir"
                 style="display:none; padding: 0.25rem 0.75rem; font-size: 0.8rem;">
                 Concluir e Assinar
             </button>
@@ -120,7 +120,7 @@
             Observações / Comentários
         </div>
         <div style="display: flex; gap: 0.5rem;">
-            <button class="btn btn-primary" onclick="handleSalvarComentarios()" id="btn-salvar-comentarios"
+            <button class="btn btn-primary" id="btn-salvar-comentarios"
                 style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">
                 Salvar Comentário
             </button>
@@ -172,7 +172,7 @@
             border-color: var(--primary-color, #3b82f6);
         }
     </style>
-    <form id="formUpload" onsubmit="handleUpload(event)"
+    <form id="formUpload"
         style="display: flex; gap: 0.5rem; max-width: 600px; align-items: center;">
         <input type="file" id="arquivoInput" class="form-input"
             style="padding: 0.25rem; flex: 1; font-size: 0.8rem; border: 1px dashed var(--border-color); background: var(--bg-primary);"
@@ -191,7 +191,7 @@
     <div class="card glass-panel" style="width: 100%; max-width: 500px; margin: 1rem;">
         <h3 style="margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Finalizar
             Intervenção</h3>
-        <form id="formConcluir" onsubmit="enviarConclusao(event)">
+        <form id="formConcluir">
             <div class="form-group">
                 <label class="form-label">Causa e Ação Adotada</label>
                 <textarea id="obsConclusao" class="form-input" rows="4"
@@ -210,7 +210,7 @@
     <div class="card glass-panel" style="width: 100%; max-width: 500px; margin: 1rem;">
         <h3 style="margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Editar
             Panes</h3>
-        <form id="formEditar" onsubmit="salvarEdicao(event)">
+        <form id="formEditar">
             <div class="form-group">
                 <label class="form-label">Sistema / ATA</label>
                 <input type="text" id="editSistema" class="form-input">
@@ -232,7 +232,7 @@
     <div class="card glass-panel" style="width: 100%; max-width: 400px; margin: 1rem;">
         <h3 style="margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Delegar
             Pane</h3>
-        <form id="formDelegar" onsubmit="enviarDelegacao(event)">
+        <form id="formDelegar">
             <div class="form-group">
                 <label class="form-label">Selecionar Responsável</label>
                 <select id="mantenedorSelect" class="form-input" required>
@@ -273,392 +273,6 @@
 {% block scripts %}
 <script>
     const PANE_ID = "{{ pane_id }}";
-    let ehGestorGlobal = false;
-
-    async function carregarDetalhe() {
-        try {
-            const pane = await apiFetch(`/panes/${PANE_ID}`);
-
-            // Textos base e Cabeçalho (Matrícula)
-            document.getElementById("det-id").innerText = pane.codigo || "---/--";
-            document.getElementById("det-sistema").innerText = pane.sistema_subsistema;
-            document.getElementById("det-descricao").innerText = pane.descricao;
-
-            // Relator
-            const relator = pane.criador;
-            if (relator) {
-                const postoNome = [relator.posto, relator.nome].filter(Boolean).join(" ");
-                document.getElementById("det-relator").innerText = postoNome;
-            } else {
-                document.getElementById("det-relator").innerText = "Não registrado";
-            }
-
-            // Formatar Data e Hora
-            if (pane.data_abertura) {
-                const dObj = new Date(pane.data_abertura);
-                const fullDate = dObj.toLocaleString('pt-BR', {
-                    day: '2-digit', month: '2-digit', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit'
-                });
-                document.getElementById("det-data").innerText = fullDate;
-            } else {
-                document.getElementById("det-data").innerText = "--";
-            }
-
-            // Popula a matrícula da aeronave no cabeçalho
-            const matricula = pane.aeronave?.matricula || "59XX";
-            document.getElementById("det-matricula").innerText = `Aeronave ${matricula}`;
-
-            // Botões de fluxo e Status badge
-            const btnConc = document.getElementById("btn-concluir");
-            const btnDelegar = document.getElementById("btn-delegar");
-            const btnEditOcorrencia = document.getElementById("btn-edit-ocorrencia");
-            const spanSts = document.getElementById("det-status");
-            const formUp = document.getElementById("formUpload");
-
-            const resInput = document.getElementById("resolucao-texto");
-            const resStatus = document.getElementById("status-resolucao-salva");
-            const divAssinatura = document.getElementById("det-assinatura");
-            const comInput = document.getElementById("comentarios-texto");
-
-            btnConc.style.display = "none";
-            btnDelegar.style.display = "none";
-            btnEditOcorrencia.style.display = "none";
-            formUp.style.display = "flex";
-            resInput.disabled = false;
-            resStatus.style.display = "none";
-            divAssinatura.style.display = "none";
-            comInput.value = pane.comentarios || "";
-
-            const localUser = JSON.parse(localStorage.getItem("saa29_user") || '{}');
-            ehGestorGlobal = (localUser.funcao === 'ENCARREGADO' || localUser.funcao === 'ADMINISTRADOR');
-
-            let bClass = "badge-aberta";
-            if (pane.status === "RESOLVIDA") {
-                bClass = "badge-resolvida";
-                formUp.style.display = "none";
-                resInput.disabled = true;
-
-                if (pane.observacao_conclusao) {
-                    resInput.value = pane.observacao_conclusao;
-                    resStatus.style.display = "block";
-                    resStatus.innerText = "Ação Corretiva Finalizada e Assinada.";
-                }
-
-                if (pane.concluido_por) {
-                    divAssinatura.style.display = "block";
-                    const u = pane.concluido_por;
-                    const postoNome = [u.posto, u.nome].filter(Boolean).join(" ");
-                    divAssinatura.innerHTML = `<strong>Finalizado por:</strong> ${postoNome} (${u.trigrama || u.username})`;
-                }
-            } else if (pane.status === "ABERTA") {
-                btnConc.style.display = "block";
-                if (ehGestorGlobal) {
-                    btnDelegar.style.display = "block";
-                    btnEditOcorrencia.style.display = "block";
-                }
-                resInput.value = pane.observacao_conclusao || "";
-            }
-
-            spanSts.innerHTML = `<span class="badge ${bClass}">${pane.status.replace("_", " ")}</span>`;
-
-            carregarAnexos();
-
-        } catch (e) {
-            console.error(e);
-            showToast("Falha ao recuperar informações da Pane.", "error");
-        }
-    }
-
-    // NOVA FUNCAO: Salvar Comentários Independentes
-    async function handleSalvarComentarios() {
-        const comentarios = document.getElementById("comentarios-texto").value.trim();
-        const btn = document.getElementById("btn-salvar-comentarios");
-        const statusMsg = document.getElementById("status-comentarios-salvo");
-
-        btn.disabled = true;
-        btn.innerText = "Salvando...";
-        statusMsg.style.display = "none";
-
-        try {
-            await apiFetch(`/panes/${PANE_ID}`, {
-                method: "PUT",
-                body: { comentarios: comentarios }
-            });
-
-            showToast("Observações salvas com sucesso!", "success");
-            statusMsg.style.display = "block";
-            setTimeout(() => { statusMsg.style.display = "none"; }, 3000);
-        } catch (e) {
-            console.error(e);
-            showToast("Erro ao salvar observações.", "error");
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "Salvar Comentário";
-        }
-    }
-
-    // NOVA FUNCAO: Conclusão Direta sem Modal
-    async function handleConcluirDireto() {
-        const obs = document.getElementById("resolucao-texto").value.trim();
-        if (!obs) {
-            showToast("Por favor, descreva a ação corretiva antes de concluir.", "error");
-            document.getElementById("resolucao-texto").focus();
-            return;
-        }
-
-        const btn = document.getElementById("btn-concluir");
-        btn.disabled = true;
-        btn.innerText = "Processando...";
-
-        try {
-            // 1. Salvar a conclusão
-            await apiFetch(`/panes/${PANE_ID}/concluir`, {
-                method: "POST",
-                body: { observacao_conclusao: obs }
-            });
-
-            showToast("Pane finalizada com sucesso!", "success");
-            carregarDetalhe();
-        } catch (e) {
-            btn.disabled = false;
-            btn.innerText = "Concluir e Assinar";
-        }
-    }
-
-    async function mudarStatus(novoStatus) {
-        try {
-            await apiFetch(`/panes/${PANE_ID}`, {
-                method: "PUT",
-                body: { status: novoStatus }
-            });
-
-            const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
-            if (user && user.id && user.funcao) {
-                try {
-                    await apiFetch(`/panes/${PANE_ID}/responsaveis`, {
-                        method: "POST",
-                        body: { usuario_id: user.id, papel: user.funcao }
-                    });
-                } catch (ignorar) { }
-            }
-
-            showToast(`Status atualizado para: ${novoStatus}`, "info");
-            carregarDetalhe();
-        } catch (e) { }
-    }
-
-    const modalC = document.getElementById("modal-concluir");
-    function openConcluirModal() { modalC.style.display = "flex"; }
-    function closeConcluirModal() { modalC.style.display = "none"; }
-
-    async function enviarConclusao(e) {
-        e.preventDefault();
-        const obs = document.getElementById("obsConclusao").value;
-        try {
-            await apiFetch(`/panes/${PANE_ID}/concluir`, {
-                method: "POST",
-                body: { observacao_conclusao: obs }
-            });
-
-            showToast("Pane finalizada e assinada.", "success");
-            closeConcluirModal();
-            carregarDetalhe();
-        } catch (e) { }
-    }
-
-    const modalD = document.getElementById("modal-delegar");
-    let usuariosParaDelegar = [];
-    async function openDelegarModal() {
-        modalD.style.display = "flex";
-        const select = document.getElementById("mantenedorSelect");
-        select.innerHTML = '<option value="">Carregando...</option>';
-        try {
-            const usuarios = await apiFetch("/auth/usuarios");
-            usuariosParaDelegar = usuarios;
-            const possiveis = usuarios.filter(u => u.funcao === "MANTENEDOR" || u.funcao === "ENCARREGADO");
-            select.innerHTML = '<option value="">-- Selecione o Servidor --</option>';
-            possiveis.forEach(u => {
-                const opt = document.createElement("option");
-                opt.value = u.id;
-                opt.innerText = `${u.posto} ${u.nome} (${u.especialidade})`;
-                select.appendChild(opt);
-            });
-        } catch (e) {
-            select.innerHTML = '<option value="">Falha ao carregar servidores.</option>';
-        }
-    }
-    function closeDelegarModal() { modalD.style.display = "none"; }
-
-    async function enviarDelegacao(e) {
-        e.preventDefault();
-        const mantId = document.getElementById("mantenedorSelect").value;
-        if (!mantId) return;
-
-        const usuarioSelecionado = usuariosParaDelegar.find(u => u.id === mantId);
-        const papelAtribuir = usuarioSelecionado ? usuarioSelecionado.funcao : "MANTENEDOR";
-
-        try {
-            await apiFetch(`/panes/${PANE_ID}/responsaveis`, {
-                method: "POST",
-                body: { usuario_id: mantId, papel: papelAtribuir }
-            });
-            showToast("Pane delegada com sucesso.", "success");
-            closeDelegarModal();
-        } catch (e) { }
-    }
-
-    const modalEdit = document.getElementById("modal-editar");
-    function openEditarModal() {
-        document.getElementById("editSistema").value = document.getElementById("det-sistema").innerText;
-        document.getElementById("editDescricao").value = document.getElementById("det-descricao").innerText;
-        modalEdit.style.display = "flex";
-    }
-    function closeEditarModal() { modalEdit.style.display = "none"; }
-
-    async function salvarEdicao(e) {
-        e.preventDefault();
-        const sistema = document.getElementById("editSistema").value;
-        const descricao = document.getElementById("editDescricao").value;
-
-        try {
-            await apiFetch(`/panes/${PANE_ID}`, {
-                method: "PUT",
-                body: { sistema_subsistema: sistema, descricao: descricao }
-            });
-            showToast("Dados atualizados com sucesso.", "success");
-            closeEditarModal();
-            carregarDetalhe();
-        } catch (e) { }
-    }
-
-    async function carregarAnexos() {
-        try {
-            const anexos = await apiFetch(`/panes/${PANE_ID}/anexos`);
-            const lista = document.getElementById("lista-anexos");
-            lista.innerHTML = "";
-
-            if (anexos.length === 0) {
-                lista.innerHTML = `<p style="font-size: 0.85rem; color: var(--text-secondary); text-align: center;">Sem arquivos vinculados.</p>`;
-                return;
-            }
-
-            anexos.forEach(ax => {
-                const div = document.createElement("div");
-                div.style = "display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; background: var(--bg-primary); border-radius: var(--radius-md); font-size: 0.85rem; border: 1px solid var(--border-color);";
-
-                let btnExcluir = '';
-                if (ehGestorGlobal) {
-                    btnExcluir = `
-                        <button type="button" class="btn-icon" style="color: var(--status-error); width: 28px; height: 28px; background: transparent;" onclick="handleExcluirAnexo('${ax.id}')" title="Excluir Anexo">
-                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                        </button>
-                    `;
-                }
-
-                div.innerHTML = `
-                   <span style="font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;" title="Anexo_${ax.id}">
-                       📎 Anexo_${ax.id.substring(0, 4)}
-                   </span>
-                   <div style="display: flex; gap: 0.25rem; align-items: center;">
-                       <button type="button" class="badge" style="background: var(--bg-tertiary); color: var(--text-primary); cursor: pointer; border: none; font-size: 0.7rem;" onclick="abrirAnexo('${ax.id}')">VISUALIZAR</button>
-                       ${btnExcluir}
-                   </div>
-               `;
-                lista.appendChild(div);
-            });
-        } catch (e) { }
-    }
-
-    async function handleExcluirAnexo(anexoId) {
-        if (!confirm("Deseja realmente excluir este anexo?")) return;
-        try {
-            await apiFetch(`/panes/${PANE_ID}/anexos/${anexoId}`, { method: "DELETE" });
-            showToast("Anexo removido com sucesso.", "success");
-            carregarAnexos();
-        } catch (e) {
-            console.error(e);
-            showToast("Erro ao excluir anexo.", "error");
-        }
-    }
-
-    const modalAnexo = document.getElementById("modal-anexo");
-    const anexoContent = document.getElementById("anexo-content");
-    let currentAnexoUrl = null;
-
-    function closeAnexoModal() {
-        modalAnexo.style.display = "none";
-        if (currentAnexoUrl) {
-            URL.revokeObjectURL(currentAnexoUrl);
-            currentAnexoUrl = null;
-        }
-        anexoContent.innerHTML = "";
-    }
-
-    async function abrirAnexo(anexoId) {
-        modalAnexo.style.display = "flex";
-        anexoContent.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">Carregando arquivo...</p>';
-
-        try {
-            const res = await fetch(`/panes/${PANE_ID}/anexos/${anexoId}/download`, {
-                credentials: "same-origin"
-            });
-
-            if (!res.ok) throw new Error("Falha ao carregar");
-
-            const blob = await res.blob();
-            currentAnexoUrl = URL.createObjectURL(blob);
-            const contentType = res.headers.get("Content-Type") || "";
-
-            if (contentType.startsWith("image/")) {
-                anexoContent.innerHTML = `<img src="${currentAnexoUrl}" style="max-width: 100%; max-height: 80vh; object-fit: contain; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">`;
-            } else if (contentType === "application/pdf") {
-                anexoContent.innerHTML = `<iframe src="${currentAnexoUrl}" style="width: 100%; height: 80vh; border: none;"></iframe>`;
-            } else {
-                anexoContent.innerHTML = `
-                    <div style="text-align: center; color: var(--text-primary);">
-                        <p style="margin-bottom: 1.5rem;">O arquivo não pode ser visualizado diretamente no navegador.</p>
-                        <a href="${currentAnexoUrl}" download="anexo" class="btn btn-primary">Baixar Arquivo</a>
-                    </div>
-                `;
-            }
-        } catch (e) {
-            console.error(e);
-            showToast("Falha ao abrir anexo.", "error");
-            closeAnexoModal();
-        }
-    }
-
-    async function handleUpload(e) {
-        e.preventDefault();
-        const input = document.getElementById("arquivoInput");
-        if (input.files.length === 0) return;
-
-        const formData = new FormData();
-        formData.append("arquivo", input.files[0]);
-
-        const btn = document.getElementById("btnUpload");
-        btn.disabled = true;
-
-        try {
-            const res = await fetch(`/panes/${PANE_ID}/anexos`, {
-                method: "POST",
-                body: formData,
-                credentials: "same-origin"
-            });
-
-            if (!res.ok) throw new Error("Falha no upload.");
-
-            showToast("Evidência anexada.", "success");
-            input.value = "";
-            carregarAnexos();
-        } catch (err) {
-            showToast(err.message, "error");
-        } finally {
-            btn.disabled = false;
-        }
-    }
-
-    document.addEventListener("DOMContentLoaded", carregarDetalhe);
 </script>
+<script src="/static/js/panes_detalhe.js"></script>
 {% endblock %}

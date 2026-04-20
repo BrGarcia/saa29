@@ -1,0 +1,99 @@
+async function loadDashboard() {
+    const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
+    const ehGestor = (user.funcao === 'ENCARREGADO' || user.funcao === 'ADMINISTRADOR');
+
+    try {
+        // 1. Fetch Panes List
+        const panes = await apiFetch("/panes/?limit=50");
+        
+        // Metricas
+        let abertas = 0, resolvidas = 0;
+        panes.forEach(p => {
+            if(p.status === 'ABERTA') abertas++;
+            else if(p.status === 'RESOLVIDA') resolvidas++;
+        });
+
+        document.getElementById("count-abertas").innerText = abertas;
+        document.getElementById("count-resolvidas").innerText = resolvidas;
+
+        // Renderizar na Dashboard APENAS panes ABERTAS
+        const recentPanesBody = document.getElementById("recent-panes-body");
+        if(recentPanesBody) {
+            recentPanesBody.innerHTML = "";
+
+            const activePanes = panes.filter(p => p.status === 'ABERTA');
+
+            if(activePanes.length === 0) {
+                recentPanesBody.innerHTML = `<tr><td colspan="6" style="padding: 1rem; text-align: center; color: var(--text-secondary);">Nenhuma pane pendente de resolução.</td></tr>`;
+            } else {
+                activePanes.forEach(pane => {
+                    let badgeClass = "badge-aberta";
+                    
+                    const dObj = new Date(pane.data_abertura);
+                    const shortDate = dObj.toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
+
+                    let responsavel = "--"; 
+                    if(pane.responsaveis && pane.responsaveis.length > 0) {
+                        responsavel = pane.responsaveis.map(r => 
+                            `<span class="badge" style="background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); font-family: monospace; font-size: 0.75rem;">${r.trigrama || "???"}</span>`
+                        ).join(" ");
+                    }
+
+                    const tr = document.createElement("tr");
+                    tr.style.borderBottom = "1px solid var(--border-color)";
+                    
+                    tr.innerHTML = `
+                        <td style="padding: 1rem 0.5rem; font-weight: 500;">${pane.aeronave ? pane.aeronave.matricula : pane.aeronave_id.substring(0,8)}</td>
+                        <td style="padding: 1rem 0.5rem; color: var(--text-secondary);">${shortDate}</td>
+                        <td style="padding: 1rem 0.5rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${pane.descricao}</td>
+                        <td style="padding: 1rem 0.5rem; color: var(--text-secondary);">${responsavel}</td>
+                        <td style="padding: 1rem 0.5rem;"><span class="badge ${badgeClass}">${pane.status.replace("_", " ")}</span></td>
+                        <td style="padding: 1rem 0.5rem; display: flex; gap: 0.5rem; align-items: center;">
+                            <a href="/panes/${pane.id}/detalhes" class="btn-icon" style="color: var(--primary-color); display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; border: none; padding: 0.25rem;" title="Visualizar">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                            </a>
+                            ${ehGestor ? `
+                                <a href="/panes/${pane.id}/detalhes?edit=true" class="btn-icon" style="color: var(--status-warning); display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; border: none; padding: 0.25rem;" title="Editar">
+                                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                </a>
+                                <button class="btn-icon btn-delete-dashboard" data-id="${pane.id}" style="color: var(--status-danger); display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; border: none; padding: 0.25rem;" title="Excluir">
+                                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                            ` : ''}
+                        </td>
+                    `;
+                    const btnDelete = tr.querySelector('.btn-delete-dashboard');
+                    if(btnDelete) btnDelete.onclick = () => softDeletePaneDashboard(pane.id);
+                    
+                    recentPanesBody.appendChild(tr);
+                });
+            }
+        }
+
+        // 2. Fetch Aeronaves para metrica
+        try {
+            const aeronavesCount = document.getElementById("count-aeronaves");
+            if (aeronavesCount) {
+                const aeronaves = await apiFetch("/aeronaves/?limit=100&incluir_inativas=true");
+                aeronavesCount.innerText = aeronaves.length;
+            }
+        } catch(e) { /* ignora contagem se falhar isoladamente */ }
+
+    } catch (e) {
+        console.error("Falha ao montar dashboard:", e);
+    }
+}
+
+async function softDeletePaneDashboard(id) {
+    if(!confirm("Atenção: A pane será inativada e constará na lixeira de Excluídas. Deseja prosseguir?")) return;
+    try {
+        await apiFetch(`/panes/${id}`, { method: 'DELETE' });
+        showToast("Pane removida com sucesso.", "success");
+        // Recarrega a página atual para atualizar o dashboard
+        setTimeout(() => window.location.reload(), 1500);
+    } catch(e) {
+        console.error("Falha ao excluir pane:", e);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", loadDashboard);

@@ -1,0 +1,133 @@
+let editingAeronaveId = null;
+
+async function loadFrota() {
+    const body = document.getElementById('frota-table-body');
+    const searchInput = document.getElementById('filter-text');
+    if(!body || !searchInput) return;
+    
+    const search = searchInput.value;
+
+    try {
+        const data = await apiFetch(`/aeronaves/?limit=100&incluir_inativas=true`);
+        body.innerHTML = '';
+        
+        const filtered = data.filter(d => d.matricula.includes(search));
+
+        if (filtered.length === 0) {
+            body.innerHTML = `<tr><td colspan="4" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Nenhuma aeronave encontrada.</td></tr>`;
+            return;
+        }
+
+        filtered.forEach(acft => {
+            const tr = document.createElement("tr");
+            tr.style.borderBottom = "1px solid var(--border-color)";
+            tr.innerHTML = `
+                <td style="padding: 1rem; font-weight: 600; font-size: 1.1rem; color: var(--primary-color)">${acft.matricula}</td>
+                <td style="padding: 1rem;">${acft.serial_number}</td>
+                <td style="padding: 1rem;"><span class="badge" style="background-color: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color)">${acft.modelo}</span> <span class="badge" style="margin-left: 0.5rem; background-color: ${acft.status === 'INATIVA' ? 'var(--status-danger)' : (acft.status === 'INDISPONIVEL' ? 'var(--status-warning)' : 'var(--status-ok)')}; color: #fff; border: 1px solid var(--border-color)">${acft.status}</span></td>
+                <td style="padding: 1rem; display: flex; gap: 0.5rem; align-items: center;">
+                    <button class="btn-icon btn-ver-panes" style="color: var(--primary-color); display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; border: none; padding: 0.25rem;" title="Ver Panes">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    </button>
+                    <button class="btn-icon btn-editar-aeronave" style="color: var(--status-warning); display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; border: none; padding: 0.25rem;" title="Editar Aeronave">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    </button>
+                    <button class="btn-icon btn-toggle-status" style="color: ${acft.status === 'INATIVA' ? 'var(--status-ok)' : 'var(--status-danger)'}; display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; border: none; padding: 0.25rem;" title="${acft.status === 'INATIVA' ? 'Reativar' : 'Desativar'} Aeronave">
+                        ${acft.status === 'INATIVA'
+                            ? `<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582M20 20v-5h-.581M5.168 15A7 7 0 0012 20a7 7 0 006.832-5M18.832 9A7 7 0 0012 4a7 7 0 00-6.832 5" /></svg>`
+                            : `<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-12.728 12.728M5.636 5.636l12.728 12.728" /></svg>`}
+                    </button>
+                </td>
+            `;
+            
+            tr.querySelector('.btn-ver-panes').onclick = () => verPanes(acft.id);
+            tr.querySelector('.btn-editar-aeronave').onclick = () => openEditarAeronave(acft);
+            tr.querySelector('.btn-toggle-status').onclick = () => alternarStatusAeronave(acft.id, acft.matricula, acft.status);
+            
+            body.appendChild(tr);
+        });
+    } catch (e) {
+        console.error(e);
+        if(body) body.innerHTML = `<tr><td colspan="4" style="padding: 2rem; text-align: center; color: var(--status-danger);">Falha ao acessar registros.</td></tr>`;
+    }
+}
+
+function openModalFrota() {
+    editingAeronaveId = null;
+    document.querySelector("#modal-aeronave h3").innerText = "Nova Aeronave";
+    document.getElementById("btnSalvarAcft").innerText = "Registrar";
+    document.getElementById("statusInput").value = "OPERACIONAL";
+    document.getElementById("statusInput").disabled = false;
+    document.getElementById("modal-aeronave").style.display = "flex";
+}
+
+function openEditarAeronave(acft) {
+    editingAeronaveId = acft.id;
+    document.querySelector("#modal-aeronave h3").innerText = "Editar Aeronave";
+    document.getElementById("btnSalvarAcft").innerText = "Salvar";
+    document.getElementById("matriculaInput").value = acft.matricula || "";
+    document.getElementById("snInput").value = acft.serial_number || "";
+    document.getElementById("statusInput").value = acft.status === "INDISPONIVEL" ? "INDISPONIVEL" : "OPERACIONAL";
+    document.getElementById("statusInput").disabled = acft.status === "INATIVA";
+    document.getElementById("modal-aeronave").style.display = "flex";
+}
+
+function closeModalFrota() {
+    editingAeronaveId = null;
+    document.getElementById("modal-aeronave").style.display = "none";
+    document.querySelector("#modal-aeronave h3").innerText = "Nova Aeronave";
+    document.getElementById("btnSalvarAcft").innerText = "Registrar";
+    document.getElementById("statusInput").disabled = false;
+    document.getElementById("formAeronave").reset();
+}
+
+async function criarAeronave(e) {
+    e.preventDefault();
+    const btn = document.getElementById("btnSalvarAcft");
+    btn.disabled = true;
+    
+    try {
+        await apiFetch(editingAeronaveId ? `/aeronaves/${editingAeronaveId}` : "/aeronaves/", {
+            method: editingAeronaveId ? "PUT" : "POST",
+            body: {
+                matricula: document.getElementById("matriculaInput").value,
+                serial_number: document.getElementById("snInput").value,
+                status: document.getElementById("statusInput").value
+            }
+        });
+        showToast(editingAeronaveId ? "Aeronave atualizada." : "Aeronave baseada no esquadrão!", "success");
+        closeModalFrota();
+        loadFrota();
+    } catch(err) {
+        showToast(err.message, "error");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function verPanes(aeronaveId) {
+    window.location.href = `/panes?aeronave_id=${aeronaveId}`;
+}
+
+async function alternarStatusAeronave(aeronaveId, matricula, statusAtual) {
+    const acao = statusAtual === "INATIVA" ? "reativar" : "desativar";
+    if (!confirm(`${acao.charAt(0).toUpperCase() + acao.slice(1)} aeronave ${matricula}?`)) return;
+    try {
+        const aeronave = await apiFetch(`/aeronaves/${aeronaveId}/toggle-status`, { method: "POST" });
+        showToast(
+            aeronave.status === "INATIVA" ? "Aeronave desativada." : "Aeronave reativada.",
+            "success"
+        );
+        loadFrota();
+    } catch (e) {}
+}
+
+window.openModalFrota = openModalFrota;
+window.closeModalFrota = closeModalFrota;
+window.loadFrota = loadFrota;
+
+document.addEventListener("DOMContentLoaded", () => {
+    loadFrota();
+    const form = document.getElementById('formAeronave');
+    if(form) form.addEventListener('submit', criarAeronave);
+});

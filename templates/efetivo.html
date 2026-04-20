@@ -4,17 +4,17 @@
 
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-    <!-- Filtragem Básica Placeholder -->
+    <!-- Filtragem Básica -->
     <div style="display: flex; gap: 1rem; flex: 1; max-width: 600px;">
         <input type="text" id="filter-user" class="form-input" placeholder="Buscar efetivo..." style="flex: 1;" onkeyup="loadEfetivo()">
-        <select id="filter-status-user" class="form-input" style="width: auto;" onchange="loadEfetivo(true)">
+        <select id="filter-status-user" class="form-input" style="width: auto;">
             <option value="ativos">ATIVOS</option>
             <option value="inativos">DESATIVADOS</option>
         </select>
     </div>
 
         <!-- Novo Membro (apenas ADMINISTRADOR) -->
-    <button class="btn btn-primary" id="btn-add-membro" onclick="openModalMembro()" style="display:none;">
+    <button class="btn btn-primary" id="btn-add-membro" style="display:none;">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-8 0v2M12 11a4 4 0 100-8 4 4 0 000 8zM20 8v6M23 11h-6"/></svg>
         Adicionar ao Sistema
     </button>
@@ -43,7 +43,7 @@
     <div class="card glass-panel" style="width: 100%; max-width: 450px; margin: 1rem;">
         <h3 style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">Cadastrar Militar</h3>
         
-        <form id="formMembro" onsubmit="criarMembro(event)">
+        <form id="formMembro">
             
             <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; margin-bottom: 1.25rem;">
                 <div>
@@ -104,7 +104,7 @@
 <div id="modal-editar-membro" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
     <div class="card glass-panel" style="width: 100%; max-width: 450px; margin: 1rem;">
         <h3 style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">Editar Militar</h3>
-        <form id="formEditarMembro" onsubmit="salvarEdicaoMembro(event)">
+        <form id="formEditarMembro">
             <input type="hidden" id="editMembroId">
             <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; margin-bottom: 1.25rem;">
                 <div>
@@ -150,186 +150,14 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/js/efetivo.js"></script>
 <script>
-    let usuariosCache = [];
-    let isAdmin = false;
-
-    async function loadEfetivo(forceRefresh = false) {
-        const filterStatus = document.getElementById('filter-status-user').value;
-        const incluirInativos = filterStatus === 'inativos';
-
-        if(usuariosCache.length === 0 || forceRefresh) {
-            try {
-                usuariosCache = await apiFetch(`/auth/usuarios?inativos=${incluirInativos}`);
-            } catch(e) {
-                console.error(e);
-            }
-        }
-        
-        const body = document.getElementById('efetivo-table-body');
-        const str = document.getElementById('filter-user').value.toLowerCase();
-        
-        const filtered = usuariosCache.filter(u => 
-            u.nome.toLowerCase().includes(str) || 
-            u.username.toLowerCase().includes(str)
-        );
-
-        body.innerHTML = '';
-        if(filtered.length === 0) {
-            body.innerHTML = `<tr><td colspan="5" style="padding: 2rem; text-align: center; color: var(--text-secondary);">Sem registros encontrados.</td></tr>`;
-            return;
-        }
-
-        const currentUser = JSON.parse(localStorage.getItem("saa29_user") || '{}');
-
-        filtered.forEach(u => {
-            let roleColor = "--text-secondary";
-            if(u.funcao === "ADMINISTRADOR") roleColor = "--status-danger";
-            else if(u.funcao === "ENCARREGADO") roleColor = "--status-warning";
-            else if(u.funcao === "MANTENEDOR") roleColor = "--primary-color";
-
-            const isSelf = u.id === currentUser.id;
-            let acoesHtml = '';
-            
-            if(isAdmin) {
-                if (u.ativo) {
-                    acoesHtml = `
-                    <td style="padding: 0.75rem; white-space: nowrap;">
-                        <button onclick='openEditarMembro(${JSON.stringify(u)})' class="btn-icon" title="Editar" style="color: var(--status-warning);">
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                        </button>
-                        ${!isSelf ? `
-                        <button onclick="excluirMembro('${u.id}', '${u.nome}')" class="btn-icon" title="Desativar" style="color: var(--status-danger);">
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                        </button>` : ''}
-                    </td>`;
-                } else {
-                    acoesHtml = `
-                    <td style="padding: 0.75rem; white-space: nowrap;">
-                        <button onclick="restaurarMembro('${u.id}', '${u.nome}')" class="btn-icon" title="Reativar" style="color: var(--status-ok);">
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                        </button>
-                    </td>`;
-                }
-            }
-
-            const tr = document.createElement("tr");
-            tr.style.borderBottom = "1px solid var(--border-color)";
-            if (!u.ativo) tr.style.opacity = "0.6";
-            
-            tr.innerHTML = `
-                <td style="padding: 1rem; font-weight: 500;">${escapeHtml(u.posto)} ${escapeHtml(u.nome)} ${u.trigrama ? `<span style="font-size:0.75rem; font-family:monospace; background:var(--bg-tertiary); padding:0.1rem 0.4rem; border-radius:4px; margin-left:0.25rem;">${escapeHtml(u.trigrama)}</span>` : ''}</td>
-                <td style="padding: 1rem; font-family: monospace;">${escapeHtml(u.username)}</td>
-                <td style="padding: 1rem;"><span style="color: var(${roleColor}); font-weight: 600; font-size: 0.85rem;">${escapeHtml(u.funcao)}</span></td>
-                <td style="padding: 1rem; color: var(--text-secondary);">${escapeHtml(u.ramal) || '-'}</td>
-                ${acoesHtml}
-            `;
-            body.appendChild(tr);
-        });
-    }
-
-    const modal = document.getElementById("modal-membro");
-    function openModalMembro() { modal.style.display = "flex"; }
-    function closeModalMembro() { modal.style.display = "none"; document.getElementById("formMembro").reset(); }
-
-    async function criarMembro(e) {
-        e.preventDefault();
-        const btn = document.getElementById("btnSalvarMembro");
-        btn.disabled = true;
-
-        const payload = {
-            nome: document.getElementById("nomeInput").value,
-            posto: document.getElementById("postoInput").value,
-            especialidade: document.getElementById("espInput").value || null,
-            funcao: document.getElementById("funcaoInput").value,
-            ramal: document.getElementById("ramalInput").value || null,
-            trigrama: document.getElementById("trigramaInput").value.toUpperCase() || null,
-            username: document.getElementById("nipInput").value,
-            password: document.getElementById("passInput").value
-        };
-
-        try {
-            await apiFetch("/auth/usuarios", {
-                method: "POST",
-                body: payload
-            });
-            showToast("Militar registrado com sucesso!", "success");
-            usuariosCache = []; // clear cache
-            closeModalMembro();
-            loadEfetivo();
-        } catch(e) {} finally {
-            btn.disabled = false;
-        }
-    }
-
     document.addEventListener("DOMContentLoaded", () => {
-        const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
-        isAdmin = (user.funcao || '').toUpperCase() === 'ADMINISTRADOR';
-        if(isAdmin) {
-            document.getElementById('btn-add-membro').style.display = 'inline-flex';
-            document.getElementById('th-acoes').style.display = 'table-cell';
-        }
-        loadEfetivo();
+        const btnAdd = document.getElementById('btn-add-membro');
+        if(btnAdd) btnAdd.onclick = openModalMembro;
+        
+        const filterStatus = document.getElementById('filter-status-user');
+        if(filterStatus) filterStatus.onchange = () => loadEfetivo(true);
     });
-
-    // ---- Modal Editar Membro ----
-    const modalEditar = document.getElementById("modal-editar-membro");
-
-    function openEditarMembro(u) {
-        document.getElementById('editMembroId').value = u.id;
-        document.getElementById('editPostoInput').value = u.posto || '';
-        document.getElementById('editNomeInput').value = u.nome || '';
-        document.getElementById('editTrigramaInput').value = u.trigrama || '';
-        document.getElementById('editEspInput').value = u.especialidade || '';
-        document.getElementById('editFuncaoInput').value = u.funcao || 'MANTENEDOR';
-        document.getElementById('editRamalInput').value = u.ramal || '';
-        modalEditar.style.display = 'flex';
-    }
-
-    function closeEditarMembro() {
-        modalEditar.style.display = 'none';
-    }
-
-    async function salvarEdicaoMembro(e) {
-        e.preventDefault();
-        const btn = document.getElementById('btnSalvarEdicao');
-        btn.disabled = true;
-        const id = document.getElementById('editMembroId').value;
-        const payload = {
-            nome:         document.getElementById('editNomeInput').value || undefined,
-            posto:        document.getElementById('editPostoInput').value || undefined,
-            especialidade:document.getElementById('editEspInput').value || null,
-            funcao:       document.getElementById('editFuncaoInput').value || undefined,
-            ramal:        document.getElementById('editRamalInput').value || null,
-            trigrama:     document.getElementById('editTrigramaInput').value.toUpperCase() || null,
-        };
-        try {
-            await apiFetch(`/auth/usuarios/${id}`, { method: 'PUT', body: payload });
-            showToast('Dados do militar atualizados!', 'success');
-            usuariosCache = [];
-            closeEditarMembro();
-            loadEfetivo();
-        } catch(e) {} finally {
-            btn.disabled = false;
-        }
-    }
-
-    async function excluirMembro(id, nome) {
-        if(!confirm(`Atenção: O militar "${nome}" será desativado do sistema. Ele não poderá mais logar, mas seu histórico de panes será preservado. Confirmar?`)) return;
-        try {
-            await apiFetch(`/auth/usuarios/${id}`, { method: 'DELETE' });
-            showToast(`${nome} desativado com sucesso.`, 'info');
-            loadEfetivo(true);
-        } catch(e) {}
-    }
-
-    async function restaurarMembro(id, nome) {
-        if(!confirm(`Deseja reativar o acesso de "${nome}" ao sistema?`)) return;
-        try {
-            await apiFetch(`/auth/usuarios/${id}/restaurar`, { method: 'POST' });
-            showToast(`${nome} reativado com sucesso!`, 'success');
-            loadEfetivo(true);
-        } catch(e) {}
-    }
 </script>
 {% endblock %}

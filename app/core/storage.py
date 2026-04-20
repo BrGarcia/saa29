@@ -42,7 +42,15 @@ class LocalStorageService(StorageService):
         self.upload_dir.mkdir(parents=True, exist_ok=True)
 
     async def upload(self, file_content: bytes, original_filename: str, content_type: str) -> str:
-        ext = os.path.splitext(original_filename)[1]
+        # Sanitizar nome de arquivo contra path traversal (Defesa em Profundidade)
+        if '..' in original_filename or '/' in original_filename or '\\' in original_filename:
+            raise ValueError("Tentativa de path traversal detectada no nome do arquivo.")
+            
+        ext = os.path.splitext(original_filename)[1].lower()
+        ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf', '.doc', '.docx']
+        if ext not in ALLOWED_EXTENSIONS:
+            raise ValueError(f"Extensão de arquivo não permitida: {ext}")
+            
         new_filename = f"{uuid.uuid4().hex}{ext}"
         file_path = self.upload_dir / new_filename
 
@@ -88,7 +96,15 @@ class R2StorageService(StorageService):
         return await loop.run_in_executor(None, lambda: func(*args, **kwargs))
 
     async def upload(self, file_content: bytes, original_filename: str, content_type: str) -> str:
-        ext = os.path.splitext(original_filename)[1]
+        # Sanitizar nome de arquivo contra path traversal
+        if '..' in original_filename or '/' in original_filename or '\\' in original_filename:
+            raise ValueError("Tentativa de path traversal detectada no nome do arquivo.")
+            
+        ext = os.path.splitext(original_filename)[1].lower()
+        ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf', '.doc', '.docx']
+        if ext not in ALLOWED_EXTENSIONS:
+            raise ValueError(f"Extensão de arquivo não permitida: {ext}")
+            
         key = f"anexos/{uuid.uuid4().hex}{ext}"
 
         def perform_upload():

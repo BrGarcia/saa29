@@ -34,8 +34,8 @@ def upgrade() -> None:
         sa.UniqueConstraint('jti')
     )
     with op.batch_alter_table('token_refresh', schema=None) as batch_op:
-        batch_op.create_index(batch_op.c.usuario_id, 'ix_token_refresh_usuario_id')
-        batch_op.create_index(batch_op.c.jti, 'ix_token_refresh_jti')
+        batch_op.create_index('ix_token_refresh_usuario_id', ['usuario_id'], unique=False)
+        batch_op.create_index('ix_token_refresh_jti', ['jti'], unique=True)
 
     # ### end Alembic commands ###
 

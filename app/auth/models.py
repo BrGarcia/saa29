@@ -82,6 +82,18 @@ class Usuario(Base):
         comment="Controle de exclusão lógica (soft delete)",
     )
 
+    # --- Segurança e Bloqueio ---
+    failed_login_attempts: Mapped[int] = mapped_column(
+        default=0,
+        nullable=False,
+        comment="Contador de tentativas de login falhas consecutivas",
+    )
+    locked_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Se preenchido, a conta está bloqueada até este horário",
+    )
+
     # --- Auditoria ---
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

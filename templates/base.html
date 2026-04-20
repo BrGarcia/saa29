@@ -7,6 +7,10 @@
     <title>SAA29 - Painel Tático</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/css/index.css">
+    
+    {% if request and request.state and request.state.csrf_token %}
+    <meta name="csrf-token" content='{{ request.state.csrf_token | safe }}'>
+    {% endif %}
 </head>
 
 <body>
@@ -87,24 +91,7 @@
         </main>
     </div>
 
-    <!-- Script de Inicialização da Autenticação -->
-    <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            const userJson = localStorage.getItem("saa29_user");
-            if (!userJson) {
-                window.location.href = "/login";
-            } else {
-                try {
-                    const user = JSON.parse(userJson);
-                    const funcao = user.funcao ? user.funcao.toUpperCase() : '';
-                    if (funcao === 'ADMINISTRADOR' || funcao === 'ENCARREGADO') {
-                        const adminNav = document.getElementById('admin-nav');
-                        if (adminNav) adminNav.style.display = 'flex';
-                    }
-                } catch (e) { }
-            }
-        });
-    </script>
+    <script src="/static/js/auth_check.js"></script>
 {% else %}
     <!-- Caso seja rota /login -->
     {% block login_content %}{% endblock %}

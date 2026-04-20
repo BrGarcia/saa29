@@ -20,23 +20,47 @@ async def autenticar_usuario(
     senha: str,
 ) -> Usuario | None:
     """
-    Valida as credenciais de login.
-
-    Args:
-        db: sessão de banco de dados.
-        username: nome de usuário fornecido.
-        senha: senha em texto plano fornecida.
-
-    Returns:
-        Objeto Usuario se as credenciais forem válidas e o usuário estiver ativo, None caso contrário.
+    Valida as credenciais de login com proteção contra brute force (Account Lockout).
     """
+    from datetime import datetime, timezone, timedelta
+    from fastapi import HTTPException, status
+
     usuario = await buscar_por_username(db, username)
     if not usuario:
         return None
     if not usuario.ativo:
         return None
+
+    # Verificar se a conta está bloqueada
+    agora = datetime.now(timezone.utc)
+    if usuario.locked_until and usuario.locked_until.tzinfo is None:
+        # Fallback para naive datetime se necessário, embora o ideal seja timezone-aware
+        usuario.locked_until = usuario.locked_until.replace(tzinfo=timezone.utc)
+
+    if usuario.locked_until and agora < usuario.locked_until:
+        minutos_restantes = int((usuario.locked_until - agora).total_seconds() / 60)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Conta temporariamente bloqueada após múltiplas tentativas falhas. Tente novamente em {max(1, minutos_restantes)} minutos."
+        )
+
+    # Validar senha
     if not verificar_senha(senha, usuario.senha_hash):
+        # Incrementar contador de falhas
+        usuario.failed_login_attempts += 1
+        
+        # Bloquear se atingir o limite (ex: 5 tentativas)
+        if usuario.failed_login_attempts >= 5:
+            usuario.locked_until = agora + timedelta(minutes=15)
+        
+        await db.commit()
         return None
+
+    # Sucesso: Resetar contador
+    usuario.failed_login_attempts = 0
+    usuario.locked_until = None
+    await db.commit()
+    
     return usuario
 
 

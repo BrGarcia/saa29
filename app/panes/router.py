@@ -183,7 +183,9 @@ async def upload_anexo(
     _: CurrentUser,
     arquivo: UploadFile = File(description="Imagem (jpg/png) ou documento"),
 ) -> schemas.AnexoOut:
-    """Faz upload de imagem ou documento vinculado à pane."""
+    from app.core.file_validators import validate_file_upload
+    await validate_file_upload(arquivo)
+    
     conteudo = await arquivo.read()
     filename = arquivo.filename or "unknown"
     content_type = arquivo.content_type or "application/octet-stream"

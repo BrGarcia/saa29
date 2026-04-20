@@ -36,15 +36,28 @@ function updateThemeIcon(theme) {
 }
 
 // 2. JWT Cookies Interceptor logic
-function clearAuth() {
-    try {
-        fetch("/auth/logout", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" } // Fetch via cookies auth automatically
-        }).catch(e => {});
-    } catch(e) {}
-    
+async function clearAuth() {
+    // 1. Limpeza Local imediata para garantir que a UI deslogue
     localStorage.removeItem("saa29_user");
+    
+    // 2. Tenta notificar o servidor (opcional para o cliente, mas bom para segurança)
+    try {
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const headers = { "Content-Type": "application/json" };
+        if (csrfMeta) {
+            headers["X-CSRF-Token"] = csrfMeta.getAttribute("content");
+        }
+
+        await fetch("/auth/logout", {
+            method: "POST",
+            headers: headers,
+            credentials: 'same-origin'
+        });
+    } catch(e) {
+        console.warn("Falha ao invalidar sessão no servidor:", e);
+    }
+    
+    // 3. Redireciona sempre, independente do sucesso da chamada acima
     window.location.href = "/login";
 }
 
@@ -56,6 +69,12 @@ async function apiFetch(endpoint, options = {}) {
         ...(options.headers || {})
     };
 
+    // Auto-inject CSRF Token
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) {
+        headers["X-CSRF-Token"] = csrfMeta.getAttribute("content");
+    }
+
     // Auto-inject JSON se aplicável
     if (options.body && !(options.body instanceof FormData) && typeof options.body === 'object') {
         options.body = JSON.stringify(options.body);
@@ -64,6 +83,14 @@ async function apiFetch(endpoint, options = {}) {
 
     try {
         const response = await fetch(endpoint, { ...options, headers });
+        
+        // Sincroniza o Token CSRF se o servidor enviar um novo no header
+        const newToken = response.headers.get("X-CSRF-Token");
+        if (newToken) {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            if (meta) meta.setAttribute("content", newToken);
+        }
+
         if (response.status === 401) {
             clearAuth();
             throw new Error("Sessão expirada.");

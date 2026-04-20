@@ -11,13 +11,15 @@ import app.aeronaves.models
 import app.equipamentos.models
 import app.panes.models
 
-from app.database import create_all_tables
+from app.database import create_all_tables, drop_all_tables
 from scripts.seed import seed
 from scripts.seed_equipamentos import seed as seed_equipamentos
 
 async def main():
-    print("🚀 Iniciando criação das tabelas no SQLite...")
+    print("🗑️ Resetando banco de dados (Drop all)...")
     try:
+        await drop_all_tables()
+        print("🚀 Iniciando criação das tabelas no SQLite...")
         await create_all_tables()
         print("✅ Tabelas criadas com sucesso!")
         

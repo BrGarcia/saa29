@@ -13,6 +13,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
 # Importar TODOS os modelos explicitamente para o SQLAlchemy Registry (SEC-02/COR-01)
 # ATENÇÃO: a ordem importa — equipamentos.models deve vir antes de aeronaves.models
 # pois Aeronave tem relationship("Instalacao") e o mapper precisa que Instalacao já esteja registrada.
@@ -29,6 +33,12 @@ from app.aeronaves.router import router as aeronaves_router
 from app.equipamentos.router import router as equipamentos_router
 from app.panes.router import router as panes_router
 from app.pages.router import router as pages_router
+from app.core.limiter import limiter
+
+
+# Configuração do Rate Limiting
+# Removido daqui e movido para app.core.limiter para evitar circularidade
+
 
 
 settings = get_settings()
@@ -163,8 +173,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Legacy XSS protection (newer: use CSP)
         response.headers["X-XSS-Protection"] = "1; mode=block"
         
-        # Content Security Policy (simples - permite inline styles/scripts apenas de mesma origem)
-        response.headers["Content-Security-Policy"] = "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
+        # Content Security Policy (Ajustada para permitir Google Fonts e inline scripts necessários)
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "script-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:;"
+        )
         
         # HSTS em produção (se usando HTTPS)
         settings = get_settings()
@@ -233,6 +249,10 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Configura o estado do limiter no app e o manipulador de exceção
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
     _register_middlewares(app)
     _register_routers(app)
     _mount_static(app)
@@ -249,6 +269,10 @@ def _register_middlewares(app: FastAPI) -> None:
     app.add_middleware(
         SecurityHeadersMiddleware
     )
+
+    # Add CSRF Middleware (Sprint 2.3)
+    from app.middleware.csrf import CSRFMiddleware
+    app.add_middleware(CSRFMiddleware)
 
     # Trusted Hosts (Ajuste para seu domínio real em produção) (AUD-07)
     # No Railway, o host muda dinamicamente. Se estiver como "*", permitimos todos.

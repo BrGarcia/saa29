@@ -40,3 +40,5 @@ aiosqlite>=0.21.0         # Driver SQLite async para testes in-memory
 
 boto3
 python-dotenv
+fastapi-csrf-protect==0.3.3
+slowapi
