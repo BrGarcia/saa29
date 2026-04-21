@@ -20,11 +20,11 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 # Forçar storage local durante os testes
 os.environ["STORAGE_BACKEND"] = "local"
 
-from app.main import app
-from app.database import Base
-from app.dependencies import get_db, get_current_user
-from app.auth.models import Usuario
-from app.auth.security import hash_senha, criar_token
+from app.bootstrap.main import app
+from app.bootstrap.database import Base
+from app.bootstrap.dependencies import get_db, get_current_user
+from app.modules.auth.models import Usuario
+from app.modules.auth.security import hash_senha, criar_token
 
 # --- Engine de testes (SQLite in-memory) ---
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
