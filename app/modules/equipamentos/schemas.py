@@ -6,7 +6,7 @@ Schemas Pydantic v2 para Modelos, Slots, Itens e Inventário.
 import uuid
 from datetime import datetime, date
 from pydantic import BaseModel, ConfigDict, Field
-from app.core.enums import StatusItem, StatusVencimento, OrigemControle
+from app.shared.core.enums import StatusItem, StatusVencimento, OrigemControle
 
 # ============================================================
 # ModeloEquipamento (Part Number)

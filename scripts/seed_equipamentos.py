@@ -6,16 +6,16 @@ import asyncio
 import uuid
 from datetime import date
 from sqlalchemy import select
-from app.database import get_session_factory
+from app.bootstrap.database import get_session_factory
 
 # Importar modelos para garantir registro no SQLAlchemy
-import app.auth.models
-import app.aeronaves.models
-import app.equipamentos.models
-import app.panes.models
+import app.modules.auth.models
+import app.modules.aeronaves.models
+import app.modules.equipamentos.models
+import app.modules.panes.models
 
-from app.aeronaves.models import Aeronave
-from app.equipamentos.models import ModeloEquipamento, SlotInventario, ItemEquipamento, Instalacao, StatusItem
+from app.modules.aeronaves.models import Aeronave
+from app.modules.equipamentos.models import ModeloEquipamento, SlotInventario, ItemEquipamento, Instalacao, StatusItem
 
 EQUIPAMENTOS_FICHA = [
     # CEI - COMPARTIMENTO ELETRÔNICO INFERIOR
@@ -76,7 +76,7 @@ async def seed():
             res_mod = await session.execute(select(ModeloEquipamento).where(ModeloEquipamento.part_number == data["pn"]))
             modelo = res_mod.scalar_one_or_none()
             if not modelo:
-                print(f"📦 Criando Modelo PN: {data['pn']} ({data['nome']})")
+                print(f"Criando Modelo PN: {data['pn']} ({data['nome']})")
                 modelo = ModeloEquipamento(id=uuid.uuid4(), part_number=data["pn"], nome_generico=data["nome"])
                 session.add(modelo)
                 await session.flush()
@@ -85,7 +85,7 @@ async def seed():
             res_slot = await session.execute(select(SlotInventario).where(SlotInventario.nome_posicao == data["posicao"]))
             slot = res_slot.scalar_one_or_none()
             if not slot:
-                print(f"📍 Criando Slot: {data['posicao']}")
+                print(f"Criando Slot: {data['posicao']}")
                 slot = SlotInventario(id=uuid.uuid4(), nome_posicao=data["posicao"], sistema=data["sistema"], modelo_id=modelo.id)
                 session.add(slot)
                 await session.flush()
@@ -100,7 +100,7 @@ async def seed():
             session.add(instalacao)
 
         await session.commit()
-        print("\n🚀 Seed estrutural concluído!")
+        print("\nSeed estrutural concluído!")
 
 if __name__ == "__main__":
     asyncio.run(seed())

@@ -11,7 +11,7 @@ from datetime import date, timedelta, datetime
 from httpx import AsyncClient
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.equipamentos.models import SlotInventario, Instalacao
+from app.modules.equipamentos.models import SlotInventario, Instalacao
 
 
 EQUIP_URL = "/equipamentos"
@@ -162,7 +162,7 @@ class TestInventarioFull:
         
         # 1. Setup (Atualizar usuário com trigrama para o teste)
         from sqlalchemy import update
-        from app.auth.models import Usuario
+        from app.modules.auth.models import Usuario
         await db.execute(update(Usuario).where(Usuario.id == user.id).values(trigrama="ABC"))
         await db.commit()
 

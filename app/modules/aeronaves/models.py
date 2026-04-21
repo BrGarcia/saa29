@@ -12,12 +12,12 @@ from typing import TYPE_CHECKING
 from sqlalchemy import String, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base
-from app.core.enums import StatusAeronave
+from app.bootstrap.database import Base
+from app.shared.core.enums import StatusAeronave
 
 if TYPE_CHECKING:
-    from app.equipamentos.models import Instalacao
-    from app.panes.models import Pane
+    from app.modules.equipamentos.models import Instalacao
+    from app.modules.panes.models import Pane
 
 
 class Aeronave(Base):

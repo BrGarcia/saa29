@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     # --- Banco de Dados ---
     # Padrão: SQLite para instalação local ou produção básica (monolito).
-    database_url: str = "sqlite+aiosqlite:///./saa29_local.db"
+    database_url: str = "sqlite+aiosqlite:///./var/db"
 
     # --- JWT ---
     jwt_algorithm: str = Field(
@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     )
 
     # --- Upload e Storage ---
-    upload_dir: str = "uploads"
+    upload_dir: str = "var/uploads"
     max_upload_size_mb: float = 0.5
     storage_backend: str = "local"  # local | r2
 

@@ -10,8 +10,8 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, File, UploadFile, Query, status
 from fastapi.responses import FileResponse, RedirectResponse
 
-from app.panes import schemas, service
-from app.dependencies import DBSession, CurrentUser, ensure_role
+from app.modules.panes import schemas, service
+from app.bootstrap.dependencies import DBSession, CurrentUser, ensure_role
 
 router = APIRouter()
 
@@ -183,7 +183,7 @@ async def upload_anexo(
     _: CurrentUser,
     arquivo: UploadFile = File(description="Imagem (jpg/png) ou documento"),
 ) -> schemas.AnexoOut:
-    from app.core.file_validators import validate_file_upload
+    from app.shared.core.file_validators import validate_file_upload
     await validate_file_upload(arquivo)
     
     conteudo = await arquivo.read()

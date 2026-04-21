@@ -7,18 +7,18 @@ import random
 import uuid
 from datetime import datetime, timedelta
 from sqlalchemy import select
-from app.database import get_session_factory
+from app.bootstrap.database import get_session_factory
 
 # Importar TODOS os módulos para resolver os nomes das classes em referências de string cruzadas
-import app.auth.models
-import app.aeronaves.models
-import app.equipamentos.models
-import app.panes.models
+import app.modules.auth.models
+import app.modules.aeronaves.models
+import app.modules.equipamentos.models
+import app.modules.panes.models
 
-from app.auth.models import Usuario
-from app.aeronaves.models import Aeronave
-from app.panes.models import Pane, PaneResponsavel
-from app.core.enums import StatusPane
+from app.modules.auth.models import Usuario
+from app.modules.aeronaves.models import Aeronave
+from app.modules.panes.models import Pane, PaneResponsavel
+from app.shared.core.enums import StatusPane
 
 SISTEMAS = [
     ("COM / VUHF", ["Rádio não transmite em 121.5 MHz", "Ruído excessivo na recepção", "Falha no autoteste do rádio 1", "Painel de áudio com mau contato"]),

@@ -7,12 +7,12 @@ import os
 sys.path.append(os.getcwd())
 
 from sqlalchemy import select
-from app.database import get_session_factory
-from app.auth.models import Usuario
+from app.bootstrap.database import get_session_factory
+from app.modules.auth.models import Usuario
 # Importa todos os modelos para registrar no SQLAlchemy
-import app.panes.models 
-import app.aeronaves.models
-import app.equipamentos.models
+import app.modules.panes.models 
+import app.modules.aeronaves.models
+import app.modules.equipamentos.models
 
 async def list_efetivo():
     print("📋 Lendo efetivo cadastrado no sistema...\n")

@@ -2,20 +2,20 @@
 import asyncio
 import os
 from dotenv import load_dotenv
-from app.database import get_session_factory
-from app.auth.security import hash_senha
+from app.bootstrap.database import get_session_factory
+from app.modules.auth.security import hash_senha
 from sqlalchemy import select
 
 # Carregar variáveis do .env
 load_dotenv()
 
 # Importar TODOS os modelos para o SQLAlchemy resolver relacionamentos
-import app.auth.models
-import app.aeronaves.models
-import app.equipamentos.models
-import app.panes.models
+import app.modules.auth.models
+import app.modules.aeronaves.models
+import app.modules.equipamentos.models
+import app.modules.panes.models
 
-from app.auth.models import Usuario
+from app.modules.auth.models import Usuario
 
 async def reset_admin():
     # DEFAULT_ADMIN_PASSWORD MUST be set for security

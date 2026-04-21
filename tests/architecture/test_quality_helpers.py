@@ -1,11 +1,11 @@
 import pytest
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.aeronaves.models import Aeronave
-from app.auth.models import Usuario
+from app.modules.aeronaves.models import Aeronave
+from app.modules.auth.models import Usuario
 
 # --- Módulos que serão criados/refatorados ---
-# from app.core import helpers # Planejado
+# from app.shared.core import helpers # Planejado
 
 @pytest.mark.asyncio
 async def test_helper_buscar_aeronave_por_matricula(db: AsyncSession):
@@ -13,7 +13,7 @@ async def test_helper_buscar_aeronave_por_matricula(db: AsyncSession):
     TESTE DE QUALIDADE: Valida se o novo helper de busca de aeronave funciona.
     (Deve falhar inicialmente por falta do helper)
     """
-    from app.core import helpers
+    from app.shared.core import helpers
     
     # Setup
     anv = Aeronave(id=uuid.uuid4(), matricula="5900", serial_number="SN5900", modelo="A-29")
@@ -31,16 +31,25 @@ async def test_ensure_default_aeronaves_bulk_efficiency(db: AsyncSession):
     TESTE DE PERFORMANCE: Valida se a inicialização da frota é eficiente.
     (Otimização de loop N queries -> 1 query)
     """
-    from app.main import _ensure_default_aeronaves, FROTA_PADRAO
+    from app.bootstrap.main import _ensure_default_aeronaves, FROTA_PADRAO
     from sqlalchemy import select, func
     
     # 1. Executar a inicialização
-    await _ensure_default_aeronaves()
+    # Patch get_session_factory to return a factory that produces our test session
+    from unittest.mock import patch, MagicMock
+    from app.bootstrap.database import get_session_factory
     
-    # 2. Verificar se os dados foram persistidos (usando a mesma factory)
-    from app.database import get_session_factory
-    async with get_session_factory()() as session:
-        result = await session.execute(select(func.count(Aeronave.id)).where(Aeronave.matricula.in_(FROTA_PADRAO)))
-        count = result.scalar()
-        assert count == len(FROTA_PADRAO)
+    with patch("app.bootstrap.database.get_session_factory") as mock_factory:
+        # Mocking the async session factory
+        mock_session = MagicMock()
+        # We need to mock the async context manager behavior
+        mock_factory.return_value.return_value.__aenter__.return_value = db
+        mock_factory.return_value.return_value.__aexit__.return_value = MagicMock()
+        
+        await _ensure_default_aeronaves()
+    
+    # 2. Verificar se os dados foram persistidos
+    result = await db.execute(select(func.count(Aeronave.id)).where(Aeronave.matricula.in_(FROTA_PADRAO)))
+    count = result.scalar()
+    assert count == len(FROTA_PADRAO)
 

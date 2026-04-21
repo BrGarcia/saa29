@@ -10,8 +10,8 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_session_factory
-from app.auth.models import Usuario
+from app.bootstrap.database import get_session_factory
+from app.modules.auth.models import Usuario
 
 # Esquema OAuth2 – endpoint de token em /auth/login
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -77,7 +77,7 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        from app.auth.security import decodificar_token
+        from app.modules.auth.security import decodificar_token
         payload = decodificar_token(token)
         username: str | None = payload.get("sub")
         jti: str | None = payload.get("jti")
@@ -86,7 +86,7 @@ async def get_current_user(
             
         # Verificar Blacklist no banco de dados
         from sqlalchemy import select
-        from app.auth.models import TokenBlacklist
+        from app.modules.auth.models import TokenBlacklist
         result = await db.execute(select(TokenBlacklist).where(TokenBlacklist.jti == jti))
         if result.scalar_one_or_none() is not None:
             raise credentials_exception
@@ -94,7 +94,7 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
 
-    from app.auth.service import buscar_por_username
+    from app.modules.auth.service import buscar_por_username
     usuario = await buscar_por_username(db, username)
     if usuario is None:
         raise credentials_exception

@@ -8,9 +8,9 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.auth import schemas, service
-from app.auth.security import criar_token, decodificar_token
-from app.dependencies import DBSession, CurrentUser, AdminRequired, EncarregadoRequired, oauth2_scheme
+from app.modules.auth import schemas, service
+from app.modules.auth.security import criar_token, decodificar_token
+from app.bootstrap.dependencies import DBSession, CurrentUser, AdminRequired, EncarregadoRequired, oauth2_scheme
 
 router = APIRouter()
 
@@ -20,9 +20,9 @@ router = APIRouter()
 # ------------------------------------------------------------------ #
 
 from fastapi import Response, Request
-from app.dependencies import get_token_from_request
+from app.bootstrap.dependencies import get_token_from_request
 
-from app.core.limiter import limiter
+from app.shared.core.limiter import limiter
 
 @router.post(
     "/login",
@@ -54,8 +54,8 @@ async def login(
     access_token = criar_token(dados={"sub": usuario.username})
     
     # Criar refresh token (7 dias)
-    from app.auth.security import criar_refresh_token
-    from app.auth.models import TokenRefresh
+    from app.modules.auth.security import criar_refresh_token
+    from app.modules.auth.models import TokenRefresh
     from datetime import datetime, timezone, timedelta
     
     refresh_token_str, jti = criar_refresh_token(usuario.id)
@@ -105,8 +105,8 @@ async def refresh_access_token(
         4. Gerar novo access token
         5. Opcionalmente gerar novo refresh token (rotate)
     """
-    from app.auth.security import decodificar_token, criar_refresh_token
-    from app.auth.models import TokenRefresh
+    from app.modules.auth.security import decodificar_token, criar_refresh_token
+    from app.modules.auth.models import TokenRefresh
     from datetime import datetime, timezone, timedelta
     from sqlalchemy import select
     
@@ -141,7 +141,7 @@ async def refresh_access_token(
             )
         
         # Buscar usuário
-        from app.auth.models import Usuario
+        from app.modules.auth.models import Usuario
         import uuid
         try:
             val_usuario_id = uuid.UUID(usuario_id)
@@ -217,7 +217,7 @@ async def logout(
         exp = payload.get("exp")
         if jti and exp:
             from datetime import datetime, timezone
-            from app.auth.models import TokenBlacklist
+            from app.modules.auth.models import TokenBlacklist
             db.add(TokenBlacklist(
                 jti=jti,
                 expira_em=datetime.fromtimestamp(exp, tz=timezone.utc)

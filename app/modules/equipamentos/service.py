@@ -4,17 +4,17 @@ Camada de serviço para gestão de equipamentos seguindo a arquitetura PN vs Slo
 """
 
 import uuid
-import app.aeronaves.models
+import app.modules.aeronaves.models
 from datetime import date
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import select, and_, or_, desc, union_all, String, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.aeronaves.models import Aeronave
-from app.auth.models import Usuario
-from app.core import exceptions as domain_exc
-from app.equipamentos.models import (
+from app.modules.aeronaves.models import Aeronave
+from app.modules.auth.models import Usuario
+from app.shared.core import exceptions as domain_exc
+from app.modules.equipamentos.models import (
     ModeloEquipamento,
     SlotInventario,
     TipoControle,
@@ -23,7 +23,7 @@ from app.equipamentos.models import (
     Instalacao,
     ControleVencimento,
 )
-from app.equipamentos.schemas import (
+from app.modules.equipamentos.schemas import (
     ModeloEquipamentoCreate,
     SlotInventarioCreate,
     ItemEquipamentoCreate,
@@ -32,7 +32,7 @@ from app.equipamentos.schemas import (
     AjusteInventarioCreate,
     AjusteInventarioResponse,
 )
-from app.core.enums import OrigemControle, StatusVencimento, StatusItem
+from app.shared.core.enums import OrigemControle, StatusVencimento, StatusItem
 
 
 # ============================================================
@@ -127,7 +127,7 @@ async def listar_inventario_aeronave(
     nome: str | None = None,
 ) -> list[InventarioItemOut]:
     """Retorna a situação de TODOS os slots da aeronave."""
-    from app.aeronaves.service import buscar_aeronave
+    from app.modules.aeronaves.service import buscar_aeronave
     aeronave_atual = await buscar_aeronave(db, aeronave_id)
     if not aeronave_atual:
         raise domain_exc.EntidadeNaoEncontradaError("Aeronave não encontrada.")
@@ -464,8 +464,8 @@ async def registrar_execucao(db: AsyncSession, vencimento_id: uuid.UUID, data_ex
 
 async def listar_historico_recente(db: AsyncSession, limit: int = 15, offset: int = 0) -> list[dict]:
     """Retorna as últimas movimentações (instalações e remoções) de inventário."""
-    from app.aeronaves.models import Aeronave
-    from app.auth.models import Usuario
+    from app.modules.aeronaves.models import Aeronave
+    from app.modules.auth.models import Usuario
 
     # Eventos de Instalação (baseados em created_at)
     stmt_ins = (

@@ -71,8 +71,8 @@ class TestLogin:
         QUANDO enviar username e senha corretos via form-data
         ENTÃO retornar token JWT e status 200.
         """
-        from app.auth.models import Usuario
-        from app.auth.security import hash_senha
+        from app.modules.auth.models import Usuario
+        from app.modules.auth.security import hash_senha
         
         # Criar usuário direto no banco para testar o login
         usuario = Usuario(
@@ -105,8 +105,8 @@ class TestLogin:
         QUANDO enviar username 'JOAO.SILVA' ou 'Joao.Silva'
         ENTÃO retornar token JWT e status 200.
         """
-        from app.auth.models import Usuario
-        from app.auth.security import hash_senha
+        from app.modules.auth.models import Usuario
+        from app.modules.auth.security import hash_senha
         
         unique_username = f"user_{uuid.uuid4().hex[:6]}"
         usuario = Usuario(
@@ -148,8 +148,8 @@ class TestLogin:
         QUANDO enviar senha incorreta
         ENTÃO retornar 401 Unauthorized.
         """
-        from app.auth.models import Usuario
-        from app.auth.security import hash_senha
+        from app.modules.auth.models import Usuario
+        from app.modules.auth.security import hash_senha
 
         unique_username = f"user_{uuid.uuid4().hex[:6]}"
         usuario = Usuario(

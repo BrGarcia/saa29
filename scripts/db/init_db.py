@@ -7,21 +7,21 @@ Seguro para rodar tanto em Dev quanto em Produção.
 import asyncio
 import os
 from dotenv import load_dotenv
-from app.database import get_session_factory
-from app.auth.security import hash_senha
+from app.bootstrap.database import get_session_factory
+from app.modules.auth.security import hash_senha
 from sqlalchemy import select
 
 # Carregar variáveis do .env
 load_dotenv()
 
 # Importar TODOS os modelos para o SQLAlchemy Registry (SEC-02/COR-01)
-import app.auth.models
-import app.aeronaves.models
-import app.equipamentos.models
-import app.panes.models
+import app.modules.auth.models
+import app.modules.aeronaves.models
+import app.modules.equipamentos.models
+import app.modules.panes.models
 
-from app.auth.models import Usuario
-from app.aeronaves.models import Aeronave
+from app.modules.auth.models import Usuario
+from app.modules.aeronaves.models import Aeronave
 
 FROTA_PADRAO = [
     "5902", "5905", "5906", "5912", "5914", "5915", "5916", "5919", "5937", "5941", "5945",

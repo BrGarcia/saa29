@@ -18,12 +18,12 @@ from sqlalchemy import select, or_, func, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.panes.models import Pane, Anexo, PaneResponsavel
-from app.aeronaves.models import Aeronave # Importar aqui para evitar InvalidRequestError
-from app.panes.schemas import PaneCreate, PaneUpdate, FiltroPane, AdicionarResponsavel
-from app.core.enums import StatusPane
-from app.config import get_settings
-from app.core.storage import get_storage_service
+from app.modules.panes.models import Pane, Anexo, PaneResponsavel
+from app.modules.aeronaves.models import Aeronave # Importar aqui para evitar InvalidRequestError
+from app.modules.panes.schemas import PaneCreate, PaneUpdate, FiltroPane, AdicionarResponsavel
+from app.shared.core.enums import StatusPane
+from app.bootstrap.config import get_settings
+from app.shared.core.storage import get_storage_service
 
 
 def _get_year_func(column):
@@ -92,7 +92,7 @@ async def criar_pane(
         Objeto Pane recém-criado.
     """
     # Validar existência da aeronave
-    from app.aeronaves.service import buscar_aeronave
+    from app.modules.aeronaves.service import buscar_aeronave
     aeronave = await buscar_aeronave(db, dados.aeronave_id)
     if not aeronave:
         raise ValueError("Aeronave não encontrada.")
@@ -115,7 +115,7 @@ async def criar_pane(
     await db.flush()
 
     if dados.mantenedor_responsavel_id:
-        from app.auth.service import buscar_por_id
+        from app.modules.auth.service import buscar_por_id
         usuario_responsavel = await buscar_por_id(db, dados.mantenedor_responsavel_id)
         if not usuario_responsavel:
             raise ValueError("Mantenedor responsável não encontrado.")
@@ -191,7 +191,7 @@ async def listar_panes(
             query = query.where(Pane.aeronave_id == filtros.aeronave_id)
 
         if filtros.texto:
-            from app.aeronaves.models import Aeronave
+            from app.modules.aeronaves.models import Aeronave
             texto_like = f"%{_escape_like(filtros.texto.lower())}%"
             query = query.outerjoin(Aeronave, Pane.aeronave_id == Aeronave.id).where(
                 or_(
@@ -393,7 +393,7 @@ async def concluir_pane(
     ja_responsavel = any(r.usuario_id == concluido_por_id for r in pane.responsaveis)
     
     if not ja_responsavel:
-        from app.auth.service import buscar_por_id
+        from app.modules.auth.service import buscar_por_id
         usuario = await buscar_por_id(db, concluido_por_id)
         if usuario:
             resp = PaneResponsavel(
@@ -498,7 +498,7 @@ async def upload_anexo(
         )
 
     # Determinar tipo do anexo
-    from app.core.enums import TipoAnexo
+    from app.shared.core.enums import TipoAnexo
     tipo_anexo = TipoAnexo.IMAGEM if extensao in {".jpg", ".jpeg", ".png"} else TipoAnexo.DOCUMENTO
 
     # Gerar nome único e salvar arquivo através do StorageService

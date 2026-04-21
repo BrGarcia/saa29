@@ -8,10 +8,10 @@ import uuid
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.models import Usuario
-from app.auth.schemas import UsuarioCreate, UsuarioUpdate
-from app.auth.security import hash_senha, verificar_senha
-from app.core import helpers
+from app.modules.auth.models import Usuario
+from app.modules.auth.schemas import UsuarioCreate, UsuarioUpdate
+from app.modules.auth.security import hash_senha, verificar_senha
+from app.shared.core import helpers
 
 
 async def autenticar_usuario(

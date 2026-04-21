@@ -8,7 +8,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.core.enums import StatusAeronave
+from app.shared.core.enums import StatusAeronave
 
 
 class AeronaveCreate(BaseModel):

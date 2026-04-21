@@ -8,7 +8,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.core.enums import TipoPapel
+from app.shared.core.enums import TipoPapel
 
 
 # ============================================================

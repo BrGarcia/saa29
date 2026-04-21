@@ -5,8 +5,8 @@ Funções utilitárias e helpers de busca para reduzir duplicação de código (
 import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.auth.models import Usuario
-from app.aeronaves.models import Aeronave
+from app.modules.auth.models import Usuario
+from app.modules.aeronaves.models import Aeronave
 
 async def buscar_aeronave_por_matricula(db: AsyncSession, matricula: str) -> Aeronave | None:
     """Busca uma aeronave pela matrícula."""

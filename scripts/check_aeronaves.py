@@ -1,8 +1,8 @@
 import asyncio
 from sqlalchemy import select
-from app.database import get_session_factory
-import app.aeronaves.models
-from app.aeronaves.models import Aeronave
+from app.bootstrap.database import get_session_factory
+import app.modules.aeronaves.models
+from app.modules.aeronaves.models import Aeronave
 
 async def check_aeronaves():
     AsyncSessionLocal = get_session_factory()

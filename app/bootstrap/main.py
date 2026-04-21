@@ -20,20 +20,20 @@ from slowapi.errors import RateLimitExceeded
 # Importar TODOS os modelos explicitamente para o SQLAlchemy Registry (SEC-02/COR-01)
 # ATENÇÃO: a ordem importa — equipamentos.models deve vir antes de aeronaves.models
 # pois Aeronave tem relationship("Instalacao") e o mapper precisa que Instalacao já esteja registrada.
-import app.auth.models
-import app.equipamentos.models
-import app.aeronaves.models
-import app.panes.models
+import app.modules.auth.models
+import app.modules.equipamentos.models
+import app.modules.aeronaves.models
+import app.modules.panes.models
 
-from app.config import get_settings
+from app.bootstrap.config import get_settings
 
 # Importação dos routers (serão registrados no create_app)
-from app.auth.router import router as auth_router
-from app.aeronaves.router import router as aeronaves_router
-from app.equipamentos.router import router as equipamentos_router
-from app.panes.router import router as panes_router
-from app.pages.router import router as pages_router
-from app.core.limiter import limiter
+from app.modules.auth.router import router as auth_router
+from app.modules.aeronaves.router import router as aeronaves_router
+from app.modules.equipamentos.router import router as equipamentos_router
+from app.modules.panes.router import router as panes_router
+from app.web.pages.router import router as pages_router
+from app.shared.core.limiter import limiter
 
 
 # Configuração do Rate Limiting
@@ -54,8 +54,8 @@ async def _ensure_default_aeronaves() -> None:
     Otimizado para realizar apenas uma query de verificação inicial.
     """
     from sqlalchemy import select
-    from app.aeronaves.models import Aeronave
-    from app.database import get_session_factory
+    from app.modules.aeronaves.models import Aeronave
+    from app.bootstrap.database import get_session_factory
 
     async with get_session_factory()() as session:
         try:
@@ -69,7 +69,7 @@ async def _ensure_default_aeronaves() -> None:
             faltantes = [m for m in FROTA_PADRAO if m not in existentes]
             
             if faltantes:
-                print(f"➕ Adicionando {len(faltantes)} aeronaves à frota padrão...")
+                print(f"Adicionando {len(faltantes)} aeronaves à frota padrão...")
                 for matricula in faltantes:
                     session.add(
                         Aeronave(
@@ -80,7 +80,7 @@ async def _ensure_default_aeronaves() -> None:
                     )
                 await session.commit()
         except Exception as e:
-            print(f"❌ Erro ao inicializar frota: {e}")
+            print(f"Erro ao inicializar frota: {e}")
             await session.rollback()
             raise
 
@@ -197,7 +197,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     - startup: inicializar conexões, registrar listener de backup, criar uploads/
     - shutdown: backup final (se houver dados não salvos) + fechar conexões
     """
-    from app.config import get_settings
+    from app.bootstrap.config import get_settings
     current_settings = get_settings()
 
     # Startup: criar diretório de uploads se não existir
@@ -221,7 +221,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         _run_r2_backup()
 
     # Fechar engine de banco de dados
-    from app.database import _engine
+    from app.bootstrap.database import _engine
     if _engine is not None:
         await _engine.dispose()
 
@@ -234,7 +234,7 @@ def create_app() -> FastAPI:
     Retorna:
         FastAPI: instância configurada e pronta para uso.
     """
-    from app.config import get_settings
+    from app.bootstrap.config import get_settings
     current_settings = get_settings()
 
     app = FastAPI(
@@ -262,7 +262,7 @@ def create_app() -> FastAPI:
 
 def _register_middlewares(app: FastAPI) -> None:
     """Registra os middlewares globais da aplicação."""
-    from app.config import get_settings
+    from app.bootstrap.config import get_settings
     current_settings = get_settings()
 
     # Add Security Headers Middleware (Sprint 2.2)
@@ -271,7 +271,7 @@ def _register_middlewares(app: FastAPI) -> None:
     )
 
     # Add CSRF Middleware (Sprint 2.3)
-    from app.middleware.csrf import CSRFMiddleware
+    from app.shared.middleware.csrf import CSRFMiddleware
     app.add_middleware(CSRFMiddleware)
 
     # Trusted Hosts (Ajuste para seu domínio real em produção) (AUD-07)
@@ -325,7 +325,7 @@ def _mount_static(app: FastAPI) -> None:
     """
     # Cria pasta static caso não exista (para os CSS/JS)
     os.makedirs("static", exist_ok=True)
-    app.mount("/static", StaticFiles(directory="static"), name="static")
+    app.mount("/static", StaticFiles(directory="app/web/static"), name="static")
 
 
 # Instância da aplicação (usada pelo uvicorn: app.main:app)

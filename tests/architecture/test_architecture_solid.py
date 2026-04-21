@@ -2,7 +2,7 @@ import pytest
 import uuid
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core import exceptions as domain_exc
+from app.shared.core import exceptions as domain_exc
 
 @pytest.mark.asyncio
 async def test_domain_exception_handling_manual(db: AsyncSession):

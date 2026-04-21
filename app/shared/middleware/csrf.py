@@ -4,7 +4,7 @@ from fastapi_csrf_protect import CsrfProtect
 from fastapi_csrf_protect.exceptions import CsrfProtectError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from app.config import get_settings
+from app.bootstrap.config import get_settings
 
 class CsrfSettings(BaseModel):
     secret_key: str = get_settings().app_secret_key

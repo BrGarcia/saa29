@@ -7,8 +7,8 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.equipamentos import schemas, service
-from app.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin
+from app.modules.equipamentos import schemas, service
+from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin
 
 router = APIRouter()
 
@@ -78,7 +78,7 @@ async def buscar_equipamento(
     # Nota: No service.py atual só existe buscar_modelo_por_pn. 
     # Vou assumir que precisamos de um buscar_modelo genérico ou usar ModeloEquipamento diretamente se simples.
     # Por enquanto, mantendo a estrutura mas corrigindo o schema.
-    from app.equipamentos.models import ModeloEquipamento
+    from app.modules.equipamentos.models import ModeloEquipamento
     from sqlalchemy import select
     result = await db.execute(select(ModeloEquipamento).where(ModeloEquipamento.id == equipamento_id))
     equipamento = result.scalar_one_or_none()
@@ -123,7 +123,7 @@ async def associar_controle(
     summary="Listar todos os slots configurados",
 )
 async def listar_slots(db: DBSession, _: CurrentUser):
-    from app.equipamentos.models import SlotInventario
+    from app.modules.equipamentos.models import SlotInventario
     from sqlalchemy import select
     result = await db.execute(select(SlotInventario))
     return [schemas.SlotInventarioOut.model_validate(s) for s in result.scalars().all()]

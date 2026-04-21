@@ -8,9 +8,9 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.core.enums import StatusPane, TipoPapel, TipoAnexo
-from app.aeronaves.schemas import AeronaveListItem
-from app.auth.schemas import UsuarioOut
+from app.shared.core.enums import StatusPane, TipoPapel, TipoAnexo
+from app.modules.aeronaves.schemas import AeronaveListItem
+from app.modules.auth.schemas import UsuarioOut
 
 
 # ============================================================

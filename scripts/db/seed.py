@@ -6,21 +6,21 @@ Executar: python -m scripts.seed
 import asyncio
 import os
 from dotenv import load_dotenv
-from app.database import get_session_factory
-from app.auth.security import hash_senha
+from app.bootstrap.database import get_session_factory
+from app.modules.auth.security import hash_senha
 from sqlalchemy import select
 
 # Carregar variáveis do .env explicitamente
 load_dotenv()
 
 # Importar TODOS os módulos para resolver os nomes das classes em referências de string cruzadas (avoid InvalidRequestError)
-import app.auth.models
-import app.aeronaves.models
-import app.equipamentos.models
-import app.panes.models
+import app.modules.auth.models
+import app.modules.aeronaves.models
+import app.modules.equipamentos.models
+import app.modules.panes.models
 
-from app.auth.models import Usuario
-from app.aeronaves.models import Aeronave
+from app.modules.auth.models import Usuario
+from app.modules.aeronaves.models import Aeronave
 
 FROTA_PADRAO = [
     "5902", "5905", "5906", "5912", "5914", "5915", "5916", "5919", "5937", "5941", "5945",
@@ -57,13 +57,13 @@ async def seed():
                 res_old = await session.execute(select(Usuario).where(Usuario.username == "admin"))
                 old_admin = res_old.scalar_one_or_none()
                 if old_admin:
-                    print(f"🔄 Atualizando admin antigo para {admin_user}...")
+                    print(f"Atualizando admin antigo para {admin_user}...")
                     old_admin.username = admin_user
                     old_admin.senha_hash = hash_senha(admin_pass)
                     admin = old_admin
             
             if not admin:
-                print(f"➕ Criando usuário {admin_user}...")
+                print(f"Criando usuário {admin_user}...")
                 admin = Usuario(
                     nome="Administrador",
                     posto="-",
@@ -75,11 +75,11 @@ async def seed():
                 )
                 session.add(admin)
             
-            print(f"✅ Usuário {admin_user} configurado.")
+            print(f"Usuário {admin_user} configurado.")
         else:
-            print(f"ℹ️ Usuário {admin_user} já existe. Atualizando senha...")
+            print(f"Usuário {admin_user} já existe. Atualizando senha...")
             admin.senha_hash = hash_senha(admin_pass)
-            print("✅ Senha atualizada.")
+            print("Senha atualizada.")
 
         aeronaves_dados = [
             {"matricula": matricula, "serial_number": f"SN-{matricula}"}
@@ -95,10 +95,10 @@ async def seed():
                     modelo="A-29"
                 )
                 session.add(aeronave)
-                print(f"✅ Aeronave {dados['matricula']} adicionada.")
+                print(f"Aeronave {dados['matricula']} adicionada.")
 
         await session.commit()
-        print(f"🎉 Seed completo!")
+        print(f"Seed completo!")
 
 if __name__ == "__main__":
     asyncio.run(seed())

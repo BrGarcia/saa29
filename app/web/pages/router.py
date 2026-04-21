@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 router = APIRouter(tags=["Frontend"])
 
 # Diretório base dos templates (raiz do repositório)
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory="app/web/templates")
 
 
 @router.get("/", include_in_schema=False)

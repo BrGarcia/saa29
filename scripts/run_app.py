@@ -13,12 +13,12 @@ if __name__ == "__main__":
     
     # Força SQLite se estivermos em desenvolvimento e o usuário não setou DATABASE_URL
     if "DATABASE_URL" not in os.environ:
-        os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./saa29_local.db"
+        os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./var/db"
     
-    print(f"🚀 Iniciando SAA29 com DATABASE_URL: {os.environ.get('DATABASE_URL')}")
+    print(f"Iniciando SAA29 com DATABASE_URL: {os.environ.get('DATABASE_URL')}")
     
     uvicorn.run(
-        "app.main:app",
+        "app.bootstrap.main:app",
         host="127.0.0.1",
         port=8000,
         reload=False

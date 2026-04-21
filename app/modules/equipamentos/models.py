@@ -17,11 +17,11 @@ from typing import TYPE_CHECKING
 from sqlalchemy import String, DateTime, Date, Integer, ForeignKey, func, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base
-from app.core.enums import StatusItem, StatusVencimento, OrigemControle
+from app.bootstrap.database import Base
+from app.shared.core.enums import StatusItem, StatusVencimento, OrigemControle
 
 if TYPE_CHECKING:
-    from app.aeronaves.models import Aeronave
+    from app.modules.aeronaves.models import Aeronave
 
 
 class ModeloEquipamento(Base):

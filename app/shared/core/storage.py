@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from typing import Optional
 from pathlib import Path
 
-from app.config import get_settings
+from app.bootstrap.config import get_settings
 
 
 class StorageService(ABC):

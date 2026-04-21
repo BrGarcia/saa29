@@ -4,15 +4,15 @@ Migração de dados para a v1.0: Converte panes 'EM_PESQUISA' para 'ABERTA'.
 """
 import asyncio
 from sqlalchemy import update
-from app.database import get_session_factory
+from app.bootstrap.database import get_session_factory
 
 # Importar TODOS os módulos para resolver os nomes das classes em referências de string cruzadas
-import app.auth.models
-import app.aeronaves.models
-import app.equipamentos.models
-import app.panes.models
+import app.modules.auth.models
+import app.modules.aeronaves.models
+import app.modules.equipamentos.models
+import app.modules.panes.models
 
-from app.panes.models import Pane
+from app.modules.panes.models import Pane
 
 async def migrate_status():
     AsyncSessionLocal = get_session_factory()

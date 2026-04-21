@@ -7,8 +7,8 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.aeronaves import schemas, service
-from app.dependencies import AdminRequired, CurrentUser, DBSession, EncarregadoOuAdmin
+from app.modules.aeronaves import schemas, service
+from app.bootstrap.dependencies import AdminRequired, CurrentUser, DBSession, EncarregadoOuAdmin
 
 router = APIRouter()
 

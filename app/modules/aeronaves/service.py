@@ -7,10 +7,10 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.aeronaves.models import Aeronave
-from app.aeronaves.schemas import AeronaveCreate, AeronaveUpdate
-from app.core.enums import StatusAeronave
-from app.core import helpers
+from app.modules.aeronaves.models import Aeronave
+from app.modules.aeronaves.schemas import AeronaveCreate, AeronaveUpdate
+from app.shared.core.enums import StatusAeronave
+from app.shared.core import helpers
 
 
 async def buscar_aeronave(

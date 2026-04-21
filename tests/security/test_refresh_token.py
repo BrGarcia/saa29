@@ -10,8 +10,8 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.models import TokenRefresh, Usuario
-from app.auth.security import decodificar_token, hash_senha
+from app.modules.auth.models import TokenRefresh, Usuario
+from app.modules.auth.security import decodificar_token, hash_senha
 
 
 CSRF_HEADER = "X-CSRF-Token"
