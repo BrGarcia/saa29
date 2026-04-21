@@ -9,12 +9,16 @@ Estratégia (Método Akita – Dia 3):
     - Fixtures de dados e autenticação reutilizáveis
 """
 
+import os
 import uuid
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
+# Forçar storage local durante os testes
+os.environ["STORAGE_BACKEND"] = "local"
 
 from app.main import app
 from app.database import Base
@@ -75,6 +79,10 @@ async def client(db: AsyncSession) -> AsyncClient:
         yield db
 
     app.dependency_overrides[get_db] = override_get_db
+    
+    # Desativar rate limiting durante os testes
+    if hasattr(app.state, "limiter"):
+        app.state.limiter.enabled = False
 
     async with AsyncClient(
         transport=ASGITransport(app=app),
