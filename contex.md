@@ -6,30 +6,26 @@
 @hist:on,scope=decisions,fmt=yyyymmdd
 @fmt:kv,list[],no_text
 
-sys:{name:SAA29,type:web_mng,stack:[fastapi,sqlalchemy,pydantic,alembic,jinja2,docker]}
+sys:{name:SAA29,type:web_mng,stack:[fastapi,sqlalchemy,pydantic,alembic,jinja2,docker,magic,slowapi]}
 
-goals:[gestao_panes,obs_internas_manutencao,remocao_anexos_gestor,deploy_railway_docker]
+goals:[gestao_panes,obs_internas_manutencao,remocao_anexos_gestor,deploy_railway_docker,seguranca_hardened]
 
-arch:{be:fastapi,fe:vanilla_js,db:sqlite,pat:service_layer}
+arch:{be:fastapi,fe:vanilla_js,db:sqlite,pat:service_layer,sec:[csrf_sync,csp_rigid,rate_limit,magic_bytes]}
 
-data:{entities:[Pane,Anexo,PaneResponsavel,Usuario,Aeronave,Equipamento,ItemEquipamento,Instalacao,ControleVencimento]}
+data:{entities:[Pane,Anexo,PaneResponsavel,Usuario,Aeronave,Equipamento,ItemEquipamento,Instalacao,ControleVencimento,TokenRefresh,TokenBlacklist]}
 
-rules:[RN-03_edit_aberta_only,RN-04_auto_conclusao,RN-05_desc_default,soft_delete,delete_anexo_gestor_only]
+rules:[RN-03_edit_aberta_only,RN-04_auto_conclusao,RN-05_desc_default,soft_delete,delete_anexo_gestor_only,sec-01_csrf_required,sec-02_refresh_rotation]
 
-state:{phase:estavel_local,focus:vencimentos_equipamentos}
+state:{phase:producao_local,focus:testes_seguranca_regressao}
 
 decisions:[
-  {id:FIELD_COMENTARIOS,ts:20260414,d:adicionado_campo_comentarios_independente_status},
-  {id:ADMIN_SEED_ENV,ts:20260414,d:admin_credentials_moved_to_env_and_username_updated},
-  {id:DELETE_ANEXO,ts:20260414,d:implementado_remocao_anexo_restrita_gestores},
-  {id:DOCKER_START_SCRIPT,ts:20260414,d:criado_start_sh_para_migracoes_e_seed_no_boot},
-  {id:FIX_MODEL_IMPORT_ORDER,ts:20260416,d:equipamentos_models_deve_preceder_aeronaves_models_no_import_do_main},
-  {id:FIX_SQLALCHEMY_CAST,ts:20260416,d:func_Integer_substituido_por_Integer_importado_no_cast_do_year_func},
-  {id:UPDATE_ADMIN_CREDENTIALS,ts:20260416,d:senha_admin_atualizada_para_BisKP76pg3IU_nos_scripts_e_docs},
-  {id:TEST_ACFT_5916,ts:20260419,d:aeronave_5916_definida_como_oficial_para_testes_e_docs_substituindo_5900},
-  {id:INSTALACAO_TRACE,ts:20260419,d:adicionado_created_at_em_Instalacao_para_rastreabilidade_precisa_de_trocas_no_mesmo_dia},
-  {id:AUDIT_INVENTARIO,ts:20260419,d:adicionado_usuario_id_em_Instalacao_para_auditoria_por_trigrama},
-  {id:UI_CONSOLIDADA,ts:20260419,d:tabela_inventario_unificada_com_coluna_Loc_removendo_divisores_de_secao}
+  {id:CSRF_HANDSHAKE_FIX,ts:20260420,d:token_bruto_no_header_e_assinado_no_cookie_conforme_fastapi-csrf-protect},
+  {id:CSRF_AJAX_SYNC,ts:20260420,d:sincronizacao_dinamica_csrf_via_header_X-CSRF-Token_em_todas_respostas_api},
+  {id:CSP_GOOGLE_FONTS,ts:20260420,d:ajuste_csp_para_permitir_google_fonts_e_scripts_inline_legados},
+  {id:SEC_HARDENING,ts:20260420,d:implementado_rate_limiting_e_account_lockout_pos_5_tentativas},
+  {id:REFRESH_TOKEN_FIX,ts:20260420,d:conversao_explicita_usuario_id_para_uuid_no_endpoint_refresh},
+  {id:TEST_STABILIZATION,ts:20260420,d:bypass_csrf_em_testes_via_header_X-Skip-CSRF_para_isolar_logica_de_negocio},
+  {id:UI_FIX_LISTENERS,ts:20260420,d:restaurado_event_listeners_js_pos_limpeza_de_scripts_inline}
 ]
 
 open:[]
@@ -37,14 +33,9 @@ open:[]
 todo:[exportacao_inventario_pdf,validacao_vencimentos_ui,gestao_de_estoque_bancada]
 
 hist:[
-  {id:ADD_COMENTARIOS,ts:20260414,d:implementado_box_comentarios_detalhe_pane_backend_frontend},
-  {id:UPDATE_ADMIN_LOGIN,ts:20260414,d:atualizado_login_senha_admin_via_seed_e_env},
-  {id:FEAT_DELETE_ANEXO,ts:20260414,d:adicionado_icone_excluir_anexo_e_endpoint_delete},
-  {id:DEPLOY_PREP,ts:20260414,d:preparado_dockerfile_e_script_de_boot_para_railway},
-  {id:BUG_500_MAPPER,ts:20260416,d:corrigido_InvalidRequestError_Instalacao_not_found_por_ordem_de_import_errada_em_main_py},
-  {id:BUG_500_CAST,ts:20260416,d:corrigido_AttributeError_static_cache_key_por_uso_incorreto_de_func_Integer_em_panes_service},
-  {id:INVENTARIO_BE,ts:20260419,d:implementado_backend_inventario_consolidado_pn_vs_slot},
-  {id:FIX_INVENTARIO_TRACE,ts:20260419,d:corrigido_bug_rastreabilidade_Anv_Ant_usando_timestamp_de_criacao},
-  {id:FEAT_HIST_INVENTARIO,ts:20260419,d:dashboard_de_ultimas_alteracoes_com_trigrama_e_integridade_de_sessao},
-  {id:UI_REORG_NAV,ts:20260419,d:reordenacao_da_navbar_com_inventario_em_posicao_central}
+  {id:FIX_CSRF_LOGOUT,ts:20260420,d:resolvido_logout_automatico_em_post_ajuste_por_descompasso_de_assinatura},
+  {id:FEAT_SEC_Fase2,ts:20260420,d:implementado_protecao_csrf_global_com_excecao_login_logout},
+  {id:FEAT_SEC_Fase3,ts:20260420,d:hardening_de_headers_seguranca_e_validacao_tipo_real_arquivo_upload},
+  {id:FIX_INVENTARIO_UI,ts:20260420,d:corrigido_filtro_aeronave_e_sincronia_sn_na_interface},
+  {id:TESTS_SECURITY,ts:20260420,d:adicionados_testes_de_csrf_e_refresh_token_alcancando_91_casos_passando}
 ]

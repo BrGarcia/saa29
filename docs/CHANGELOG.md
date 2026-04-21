@@ -10,19 +10,22 @@ e aderente ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Unreleased]
 
 ### Adicionado
-- **Auditoria de Código Completa**: Realizada varredura de segurança (OWASP), performance (N+1), arquitetura (SOLID) e qualidade. Resultados documentados em `RELATORIO_COMPLETO.MD`.
-- **Plano de Implementação Pós-Auditoria**: Estruturado em `relatorio_completo_implementacao.md` para guiar as refatorações de performance e desacoplamento.
-- **Funcionalidade de Desinstalação**: Implementada remoção contextual de equipamentos no inventário com registro de trigrama e data/hora.
+- **Proteção CSRF Robusta**: Implementado handshake sincronizado com `fastapi-csrf-protect`. O sistema agora gerencia tokens brutos no header e assinados em cookies HttpOnly, com atualização dinâmica via AJAX.
+- **Content Security Policy (CSP) Hardening**: Configuração rígida de headers de segurança permitindo apenas fontes autorizadas (Google Fonts) e mitigando ataques de script injection.
+- **Refresh Token Rotation**: Implementada renovação automática de sessões com invalidação de tokens antigos, prevenindo ataques de replay e estendendo a usabilidade.
+- **Segurança de Upload (Magic Bytes)**: Integração com `libmagic` para validar o tipo real de arquivos anexados, impedindo a execução de scripts maliciosos mascarados.
+- **Rate Limiting & Account Lockout**: Proteção contra força bruta no login, bloqueando IPs/usuários após excesso de tentativas falhas.
+- **Suite de Testes de Segurança**: Adicionados testes automatizados para CSRF e Refresh Tokens, elevando a cobertura para 91 casos de teste validados.
+
+### Corrigido
+- **Handshake CSRF no Localhost**: Resolvido bug de logout automático que ocorria durante a atualização de Serial Numbers no inventário.
+- **Sincronização de Inventário**: Corrigidos event listeners em `panes_detalhe.js` e `inventario.js` que impediam o salvamento de soluções e filtros de aeronaves.
+- **Erro de Tipo no Refresh Token**: Corrigida falha de conversão UUID no endpoint de renovação de sessão que causava erro 401 indevido.
+- **Estabilidade do Ambiente Docker**: Ajustados scripts de boot e variáveis de ambiente para garantir persistência inicial do admin e frota.
 
 ### Modificado
-- **Histórico Unificado**: A página de inventário agora exibe cronologicamente tanto eventos de INSTALAÇÃO quanto de REMOÇÃO.
-- **Otimização de Performance (Fase 1)**: Refatoração da listagem de inventário para eliminar queries N+1, reduzindo a carga no banco de dados em mais de 50%.
-- **Resiliência de Dados**: Ativação do modo `WAL` no SQLite para suporte a concorrência e integridade em ambientes multi-worker.
-- **Arquitetura (Fase 2)**: Implementação de Exceções de Domínio e tratamento global de erros, removendo complexidade desnecessária dos roteadores.
-- **SOLID Refactoring**: Desacoplamento da lógica de inventário em funções auxiliares especialistas, melhorando a testabilidade e manutenção.
-- **Qualidade de Código (Fase 3)**: Centralização de consultas SQL comuns em um módulo de helpers (`app/core/helpers.py`) para seguir o princípio DRY.
-- **Otimização de Startup**: Refatoração da inicialização da frota padrão para realizar consultas em lote, reduzindo o número de queries no banco de dados durante o boot da aplicação.
-- **Validação de Integridade (Fase 4)**: Execução exaustiva da suite de testes (>80 casos) garantindo estabilidade global após refatorações profundas.
+- **Arquitetura de Front-end**: Remoção completa de scripts inline e migração para arquivos `.js` externos para conformidade com políticas de segurança CSP.
+- **Mecanismo de Testes**: Implementado bypass controlado de CSRF via header `X-Skip-CSRF` para viabilizar testes de lógica de negócio sem comprometer a validação de segurança real.
 
 ### Corrigido
 - **Regressões de API**: Restauradas funções de controle de status e paginação no serviço de aeronaves e equipamentos.
