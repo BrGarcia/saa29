@@ -9,6 +9,7 @@ import uuid
 from datetime import date
 from pathlib import Path
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
@@ -68,6 +69,69 @@ EQUIPAMENTOS_FICHA = [
     {"posicao": "BEACON", "nome": "BEACON", "pn": "8888-8888", "sistema": "CES"},
 ]
 
+async def garantir_catalogo_e_slots(
+    session: AsyncSession,
+    *,
+    create_sample_items: bool = False,
+    sample_aeronave_matricula: str = "5916",
+) -> None:
+    """
+    Garante catálogo base (PN + Slots) e, opcionalmente, cria itens físicos de amostra.
+    """
+    aeronave = None
+    if create_sample_items:
+        res_acft = await session.execute(select(Aeronave).where(Aeronave.matricula == sample_aeronave_matricula))
+        aeronave = res_acft.scalar_one_or_none()
+        if not aeronave:
+            aeronave = Aeronave(
+                id=uuid.uuid4(),
+                matricula=sample_aeronave_matricula,
+                serial_number=f"SN-{sample_aeronave_matricula}",
+                modelo="A-29",
+                status="OPERACIONAL",
+            )
+            session.add(aeronave)
+            await session.flush()
+
+    for data in EQUIPAMENTOS_FICHA:
+        res_mod = await session.execute(select(ModeloEquipamento).where(ModeloEquipamento.part_number == data["pn"]))
+        modelo = res_mod.scalar_one_or_none()
+        if not modelo:
+            print(f"Criando Modelo PN: {data['pn']} ({data['nome']})")
+            modelo = ModeloEquipamento(id=uuid.uuid4(), part_number=data["pn"], nome_generico=data["nome"])
+            session.add(modelo)
+            await session.flush()
+
+        res_slot = await session.execute(select(SlotInventario).where(SlotInventario.nome_posicao == data["posicao"]))
+        slot = res_slot.scalar_one_or_none()
+        if not slot:
+            print(f"Criando Slot: {data['posicao']}")
+            slot = SlotInventario(
+                id=uuid.uuid4(),
+                nome_posicao=data["posicao"],
+                sistema=data["sistema"],
+                modelo_id=modelo.id,
+            )
+            session.add(slot)
+            await session.flush()
+
+        if create_sample_items and aeronave is not None:
+            # Opcional: só cria itens/serial quando explicitamente solicitado.
+            sn = f"SN-{data['posicao']}-{str(uuid.uuid4())[:4].upper()}"
+            item = ItemEquipamento(id=uuid.uuid4(), modelo_id=modelo.id, numero_serie=sn, status=StatusItem.ATIVO)
+            session.add(item)
+            await session.flush()
+
+            instalacao = Instalacao(
+                id=uuid.uuid4(),
+                item_id=item.id,
+                aeronave_id=aeronave.id,
+                slot_id=slot.id,
+                data_instalacao=date.today(),
+            )
+            session.add(instalacao)
+
+
 async def seed():
     create_sample_items = os.getenv("CREATE_SAMPLE_ITEMS", "false").strip().lower() in {
         "1", "true", "yes", "on"
@@ -75,49 +139,7 @@ async def seed():
 
     AsyncSessionLocal = get_session_factory()
     async with AsyncSessionLocal() as session:
-        # 1. Garantir aeronave 5916
-        res_acft = await session.execute(select(Aeronave).where(Aeronave.matricula == "5916"))
-        aeronave = res_acft.scalar_one_or_none()
-        if not aeronave:
-            aeronave = Aeronave(id=uuid.uuid4(), matricula="5916", serial_number="SN-5916", modelo="A-29", status="OPERACIONAL")
-            session.add(aeronave)
-            await session.flush()
-
-        for data in EQUIPAMENTOS_FICHA:
-            # 2. Criar Modelo (PN) se não existe
-            res_mod = await session.execute(select(ModeloEquipamento).where(ModeloEquipamento.part_number == data["pn"]))
-            modelo = res_mod.scalar_one_or_none()
-            if not modelo:
-                print(f"Criando Modelo PN: {data['pn']} ({data['nome']})")
-                modelo = ModeloEquipamento(id=uuid.uuid4(), part_number=data["pn"], nome_generico=data["nome"])
-                session.add(modelo)
-                await session.flush()
-
-            # 3. Criar Slot (Posição) se não existe
-            res_slot = await session.execute(select(SlotInventario).where(SlotInventario.nome_posicao == data["posicao"]))
-            slot = res_slot.scalar_one_or_none()
-            if not slot:
-                print(f"Criando Slot: {data['posicao']}")
-                slot = SlotInventario(id=uuid.uuid4(), nome_posicao=data["posicao"], sistema=data["sistema"], modelo_id=modelo.id)
-                session.add(slot)
-                await session.flush()
-
-            if create_sample_items:
-                # Opcional: só cria itens/serial quando explicitamente solicitado.
-                sn = f"SN-{data['posicao']}-{str(uuid.uuid4())[:4].upper()}"
-                item = ItemEquipamento(id=uuid.uuid4(), modelo_id=modelo.id, numero_serie=sn, status=StatusItem.ATIVO)
-                session.add(item)
-                await session.flush()
-
-                instalacao = Instalacao(
-                    id=uuid.uuid4(),
-                    item_id=item.id,
-                    aeronave_id=aeronave.id,
-                    slot_id=slot.id,
-                    data_instalacao=date.today(),
-                )
-                session.add(instalacao)
-
+        await garantir_catalogo_e_slots(session, create_sample_items=create_sample_items)
         await session.commit()
         print("\nSeed estrutural concluído!")
 

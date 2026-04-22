@@ -17,6 +17,7 @@ if str(ROOT_DIR) not in sys.path:
 from app.bootstrap.database import get_session_factory
 from app.modules.auth.security import hash_senha
 from sqlalchemy import select
+from scripts.seed_equipamentos import garantir_catalogo_e_slots
 
 # Carregar variáveis do .env
 load_dotenv()
@@ -143,6 +144,9 @@ async def init_db():
                 )
                 session.add(aeronave)
                 print(f"✅ Aeronave {matricula} adicionada.")
+
+        # 3. Garantir catálogo base de equipamentos (sem serial/instalação)
+        await garantir_catalogo_e_slots(session, create_sample_items=False)
 
         await session.commit()
         print(f"🚀 Inicialização do Banco concluída!")
