@@ -3,6 +3,7 @@ scripts/seed_equipamentos.py
 Popula o banco com a nova estrutura: ModeloEquipamento (PN) e SlotInventario (Posição).
 """
 import asyncio
+import os
 import sys
 import uuid
 from datetime import date
@@ -68,6 +69,10 @@ EQUIPAMENTOS_FICHA = [
 ]
 
 async def seed():
+    create_sample_items = os.getenv("CREATE_SAMPLE_ITEMS", "false").strip().lower() in {
+        "1", "true", "yes", "on"
+    }
+
     AsyncSessionLocal = get_session_factory()
     async with AsyncSessionLocal() as session:
         # 1. Garantir aeronave 5916
@@ -97,14 +102,21 @@ async def seed():
                 session.add(slot)
                 await session.flush()
 
-            # 4. Instalar um item físico na 5916 para teste
-            sn = f"SN-{data['posicao']}-{str(uuid.uuid4())[:4].upper()}"
-            item = ItemEquipamento(id=uuid.uuid4(), modelo_id=modelo.id, numero_serie=sn, status=StatusItem.ATIVO)
-            session.add(item)
-            await session.flush()
+            if create_sample_items:
+                # Opcional: só cria itens/serial quando explicitamente solicitado.
+                sn = f"SN-{data['posicao']}-{str(uuid.uuid4())[:4].upper()}"
+                item = ItemEquipamento(id=uuid.uuid4(), modelo_id=modelo.id, numero_serie=sn, status=StatusItem.ATIVO)
+                session.add(item)
+                await session.flush()
 
-            instalacao = Instalacao(id=uuid.uuid4(), item_id=item.id, aeronave_id=aeronave.id, slot_id=slot.id, data_instalacao=date.today())
-            session.add(instalacao)
+                instalacao = Instalacao(
+                    id=uuid.uuid4(),
+                    item_id=item.id,
+                    aeronave_id=aeronave.id,
+                    slot_id=slot.id,
+                    data_instalacao=date.today(),
+                )
+                session.add(instalacao)
 
         await session.commit()
         print("\nSeed estrutural concluído!")

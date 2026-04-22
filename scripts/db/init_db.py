@@ -35,6 +35,13 @@ FROTA_PADRAO = [
     "5946", "5947", "5949", "5952", "5954", "5955", "5956", "5957", "5958", "5962",
 ]
 
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+    return raw_value.strip().lower() in {"1", "true", "yes", "on"}
+
 async def init_db():
     # DEFAULT_ADMIN_PASSWORD MUST be set for security
     admin_pass = os.getenv("DEFAULT_ADMIN_PASSWORD")
@@ -82,42 +89,48 @@ async def init_db():
         else:
             print(f"ℹ️ Usuário {admin_user} já existe.")
 
-        # 1.1 Garantir Usuários de Teste (Encarregado e Mantenedor)
-        usuarios_teste = [
-            {
-                "nome": "Encarregado Eletrônica",
-                "funcao": "ENCARREGADO",
-                "username": "encarregado",
-                "senha": "12345678",
-                "posto": "1S",
-                "especialidade": "BCO"
-            },
-            {
-                "nome": "Mantenedor Linha",
-                "funcao": "MANTENEDOR",
-                "username": "mantenedor",
-                "senha": "12345678",
-                "posto": "3S",
-                "especialidade": "BET"
-            }
-        ]
+        # 1.1 Usuários de teste só podem ser criados com flag explícita
+        app_env = os.getenv("APP_ENV", "production").strip().lower()
+        enable_test_users = _env_flag("ENABLE_TEST_USERS", default=False)
 
-        for u in usuarios_teste:
-            res_u = await session.execute(select(Usuario).where(Usuario.username == u["username"]))
-            if not res_u.scalar_one_or_none():
-                print(f"➕ Criando usuário de teste: {u['username']}...")
-                novo_u = Usuario(
-                    nome=u["nome"],
-                    posto=u["posto"],
-                    especialidade=u["especialidade"],
-                    funcao=u["funcao"],
-                    ramal="5678",
-                    username=u["username"],
-                    senha_hash=hash_senha(u["senha"]),
-                )
-                session.add(novo_u)
-            else:
-                print(f"ℹ️ Usuário {u['username']} já existe.")
+        if app_env != "production" and enable_test_users:
+            usuarios_teste = [
+                {
+                    "nome": "Encarregado Eletrônica",
+                    "funcao": "ENCARREGADO",
+                    "username": "encarregado",
+                    "senha": "12345678",
+                    "posto": "1S",
+                    "especialidade": "BCO"
+                },
+                {
+                    "nome": "Mantenedor Linha",
+                    "funcao": "MANTENEDOR",
+                    "username": "mantenedor",
+                    "senha": "12345678",
+                    "posto": "3S",
+                    "especialidade": "BET"
+                }
+            ]
+
+            for u in usuarios_teste:
+                res_u = await session.execute(select(Usuario).where(Usuario.username == u["username"]))
+                if not res_u.scalar_one_or_none():
+                    print(f"➕ Criando usuário de teste: {u['username']}...")
+                    novo_u = Usuario(
+                        nome=u["nome"],
+                        posto=u["posto"],
+                        especialidade=u["especialidade"],
+                        funcao=u["funcao"],
+                        ramal="5678",
+                        username=u["username"],
+                        senha_hash=hash_senha(u["senha"]),
+                    )
+                    session.add(novo_u)
+                else:
+                    print(f"ℹ️ Usuário {u['username']} já existe.")
+        else:
+            print("⏭️ Criação de usuários de teste desabilitada.")
 
         # 2. Garantir Frota Padrão
         for matricula in FROTA_PADRAO:

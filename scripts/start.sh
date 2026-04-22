@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+APP_ENV="${APP_ENV:-production}"
+ENABLE_DEV_SEEDS="${ENABLE_DEV_SEEDS:-false}"
+
 echo "🚀 Iniciando SAA29..."
 
 # Garantir que o diretório de uploads exista no volume
@@ -23,12 +26,14 @@ python -m alembic upgrade head
 echo "🔧 Inicializando banco de dados (Bootstrap)..."
 python -m scripts.db.init_db
 
-# 3. Popular dados de teste (Apenas se em desenvolvimento)
-if [ "$APP_ENV" == "development" ]; then
+# 3. Popular dados de teste apenas com flag explícita fora de produção
+if [ "$APP_ENV" != "production" ] && [ "$ENABLE_DEV_SEEDS" = "true" ]; then
     echo "🌱 Populando dados de teste (Seed)..."
     python -m scripts.db.seed
     python -m scripts.seed_equipamentos
     python -m scripts.seed_30_panes
+else
+    echo "⏭️ Seed de desenvolvimento desabilitada."
 fi
 
 # 4. Iniciar a aplicação
