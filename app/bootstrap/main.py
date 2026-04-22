@@ -136,7 +136,7 @@ def _run_r2_backup() -> None:
     import subprocess, sys
     try:
         result = subprocess.run(
-            [sys.executable, "scripts/r2_manager.py", "backup"],
+            [sys.executable, "scripts/maintenance/r2_manager.py", "backup"],
             capture_output=True, text=True, timeout=60
         )
         if result.returncode == 0:
