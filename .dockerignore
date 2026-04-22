@@ -1,0 +1,41 @@
+# Git and local configs
+.git
+.github
+.gitignore
+.dockerignore
+.env
+.env.example
+.env.backup
+.vscode
+.idea
+.pytest_cache
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Development/Testing files to exclude from production image
+tests/
+scripts/db/seed.py
+scripts/seed_equipamentos.py
+scripts/seed_30_panes.py
+pytest.ini
+
+# Local databases and logs
+*.db
+*.sqlite3
+*.log
+LOG/
+
+# Temporary and local data
+uploads/
+var/
+variaveis_railway.txt
+railway_local_variables.txt
