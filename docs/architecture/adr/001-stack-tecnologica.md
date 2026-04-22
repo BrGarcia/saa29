@@ -1,4 +1,4 @@
-# ADR-001: Escolha da Stack Tecnológica
+# ADR-001: Escolha da Stack Tecnologica
 
 **Data:** 2026-03-27  
 **Status:** Aceito  
@@ -8,49 +8,63 @@
 
 ## Contexto
 
-O SAA29 é um sistema web para gerenciamento de panes de manutenção aeronáutica do A-29, operado em ambiente militar. Os requisitos principais são: desempenho (resposta < 2s), segurança (autenticação), simplicidade operacional e banco de dados relacional com rastreabilidade.
+O SAA29 precisa entregar uma aplicacao web unica, com API JSON e paginas HTML, mantendo regras de negocio em uma camada de servico desacoplada do transporte HTTP.
 
-A equipe possui familiaridade com Python. O sistema precisa ser mantido por diferentes equipes ao longo do tempo.
+Os requisitos principais sao:
 
-## Decisão
+- desempenho previsivel;
+- rastreabilidade de dados;
+- autenticacao e autorizacao;
+- simplicidade operacional;
+- baixo atrito para testes e manutencao.
 
-Adotar **FastAPI + SQLAlchemy 2.x + SQLite (Local) / PostgreSQL 16 (Produção)** como stack principal.
+## Decisao
 
-| Camada | Escolha | Versão |
-|--------|---------|--------|
-| Framework Web | FastAPI | 0.115.x |
-| ORM | SQLAlchemy (async) | 2.0.x |
-| Banco de Dados | SQLite (Local) / PostgreSQL (Prod) | 3 / 16 |
-| Migrações | Alembic (Batch Mode) | 1.14.x |
-| Validação | Pydantic | v2 |
-| Auth | python-jose + passlib | latest |
-| Config | pydantic-settings | 2.x |
+Adotar **FastAPI + SQLAlchemy 2.x async + Pydantic v2** como stack principal, com **SQLite async por padrao** e configuracao de banco via `DATABASE_URL`.
+
+| Camada | Escolha |
+|--------|---------|
+| Framework Web | FastAPI |
+| ORM | SQLAlchemy 2.x async |
+| Validacao | Pydantic v2 |
+| Configuracao | pydantic-settings |
+| Banco padrao | SQLite + aiosqlite |
+| Migrações | Alembic |
+| Templates HTML | Jinja2 |
+| Auth | python-jose + passlib |
+| Limite de taxa | slowapi |
 
 ## Alternativas Consideradas
 
-| Alternativa | Prós | Contras |
-|-------------|------|---------|
-| Django + DRF | Maduro, admin embutido | Muito opinado, lento para APIs simples |
-| Flask + SQLAlchemy | Leve, flexível | Menos convenções, mais configuração manual |
-| FastAPI + Tortoise ORM | Async nativo | Menos maduro, comunidade menor |
-| FastAPI + SQLAlchemy (escolhido) | Async, tipagem, documentação automática | Curva de aprendizado ORM async |
+| Alternativa | Pro | Contra |
+|-------------|-----|--------|
+| Django + DRF | Ecossistema maduro | Mais opinativo para o formato atual do projeto |
+| Flask + extensoes | Leve | Exige mais montagem manual |
+| FastAPI + Tortoise | Async nativo | Menos aderencia ao conjunto atual de tipos e ORM |
+| FastAPI + SQLAlchemy 2.x | Tipagem, async e maturidade | Exige disciplina na separacao de camadas |
 
-## Consequências
+## Consequencias
 
 **Positivas:**
-- Documentação automática (Swagger/ReDoc) sem esforço
-- Validação de entrada com erros detalhados via Pydantic
-- Queries assíncronas para melhor throughput
-- Migrações versionadas com Alembic
-- SQLite permite execução local residindo em arquivo único, facilitando testes e deploy monousuário
+
+- rotas documentadas automaticamente;
+- validacao de entrada e saida com Pydantic;
+- camada de servico facil de testar;
+- modelo relacional com migrações versionadas;
+- suporte a UI server-side e API no mesmo codigo-base;
+- boa compatibilidade com testes usando banco isolado.
 
 **Negativas / Trade-offs:**
-- Curva de aprendizado maior para devs acostumados com Django síncrono
-- `async/await` em toda a camada de dados requer atenção
-- SQLite possui limitações em escritas paralelas (resolvido via WAL mode e single-writer pattern)
-- SQLite requer Alembic Batch Mode para migrações complexas
 
-## Referências
-- [FastAPI Docs](https://fastapi.tiangolo.com/)
-- [SQLAlchemy 2.0 Async](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html)
-- [00_SRS.md §4 – Requisitos Não Funcionais](../../../00_SRS.md)
+- a pilha async exige cuidado em toda a camada de persistencia;
+- o bootstrap precisa importar modelos explicitamente para registrar mapeamentos;
+- SQLite continua mais sensivel a concorrencia de escrita do que um banco relacional dedicado;
+- a manutencao de middleware e dependencias centralizadas exige disciplina de arquitetura.
+
+## Referencias
+
+- [`docs/architecture/overview.md`](../overview.md)
+- [`app/bootstrap/main.py`](../../../app/bootstrap/main.py)
+- [`app/bootstrap/database.py`](../../../app/bootstrap/database.py)
+- [`app/bootstrap/config.py`](../../../app/bootstrap/config.py)
+- [00_SRS.md](../../requirements/00_SRS.md)

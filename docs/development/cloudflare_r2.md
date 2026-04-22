@@ -1,85 +1,101 @@
-# Integração Cloudflare R2 Storage
+# Integracao Cloudflare R2
 
-Este documento descreve a arquitetura e o procedimento de configuração do **Cloudflare R2** no SAA29, utilizado para persistência do banco SQLite e armazenamento seguro de anexos.
+Este documento descreve o uso atual do Cloudflare R2 no SAA29.
 
-## 1. Objetivos
+## 1. O que o R2 cobre hoje
 
-- **Persistência do DB:** Garantir que o arquivo `saa29_local.db` sobreviva a novos deploys e reinicializações do container no Railway.
-- **Armazenamento de Arquivos:** Migrar o armazenamento de anexos da pasta local `/uploads` para um Bucket R2 (S3-Compatible).
-- **Escalabilidade e Custo:** Utilizar o plano gratuito do R2 (Free Tier: 10GB e 0 egress fee).
+- armazenamento opcional de anexos;
+- backup e restore do banco SQLite;
+- URLs pre-assinadas para download de arquivos.
 
-## 2. Configuração do Cloudflare
+## 2. Componentes Envolvidos
 
-### Bucket
-- **Nome:** `saa29-storage`
-- **Tipo:** Privado (sem acesso público)
+### `app/shared/core/storage.py`
 
-### API Token
-- **Tipo:** Account API Token
-- **Permissão:** `Object Read & Write`
-- **Escopo:** Bucket específico `saa29-storage`
+Implementa a abstracao de storage com duas opcoes:
 
-### Credenciais Necessárias
+- `LocalStorageService`
+- `R2StorageService`
 
-| Variável | Descrição |
-| :--- | :--- |
-| `R2_ACCOUNT_ID` | ID da conta Cloudflare |
-| `R2_ACCESS_KEY_ID` | Access Key gerada no painel R2 |
-| `R2_SECRET_ACCESS_KEY` | Secret Key gerada no painel R2 |
-| `R2_ENDPOINT` | `https://<account_id>.r2.cloudflarestorage.com` |
-| `R2_BUCKET_NAME` | `saa29-storage` |
-| `STORAGE_BACKEND` | `r2` (ou `local` para desenvolvimento sem R2) |
+### `scripts/maintenance/r2_manager.py`
 
-## 3. Arquitetura
+Gerencia backup e restore do banco SQLite com o bucket R2.
 
-### `app/core/storage.py`
-Implementa a abstração de storage com duas implementações:
-- **`LocalStorageService`:** Salva arquivos na pasta `uploads/` (desenvolvimento).
-- **`R2StorageService`:** Salva arquivos diretamente no Cloudflare R2 via `boto3` (produção). Utiliza pre-signed URLs com expiração de 60 minutos para acesso seguro.
+Comandos:
 
-### `scripts/r2_manager.py`
-Script de CLI para gerenciar o ciclo de vida do banco SQLite:
-- `python scripts/r2_manager.py backup` – Envia o arquivo `.db` atual para o R2.
-- `python scripts/r2_manager.py restore` – Baixa o último backup do R2 (executado automaticamente no boot do container).
+```bash
+python scripts/maintenance/r2_manager.py backup
+python scripts/maintenance/r2_manager.py restore
+```
 
-### `scripts/start.sh`
-Fluxo de inicialização do container em produção:
-1. Restaurar backup do DB do R2 (se `R2_BUCKET_NAME` estiver definido).
-2. Rodar migrações (`alembic upgrade head`).
-3. Rodar bootstrap (`scripts/init_db.py`).
-4. Iniciar o servidor Gunicorn.
+### `app/bootstrap/main.py`
 
-## 4. Configuração no Railway
+Quando `STORAGE_BACKEND=r2` e `R2_BUCKET_NAME` estao configurados, o bootstrap pode acionar o fluxo de backup orientado a eventos no shutdown.
 
-Adicionar as seguintes variáveis no painel **Variables** do Railway:
+## 3. Variaveis de Ambiente
 
-```text
+Configure no `.env`:
+
+```env
 STORAGE_BACKEND=r2
-R2_ACCOUNT_ID=<seu_account_id>
-R2_ACCESS_KEY_ID=<sua_access_key>
-R2_SECRET_ACCESS_KEY=<sua_secret_key>
-R2_ENDPOINT=https://<seu_account_id>.r2.cloudflarestorage.com
+R2_ACCOUNT_ID=<account_id>
+R2_ACCESS_KEY_ID=<access_key_id>
+R2_SECRET_ACCESS_KEY=<secret_access_key>
+R2_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
 R2_BUCKET_NAME=saa29-storage
 ```
 
-## 5. Segurança e Boas Práticas
+Observacoes:
 
-- **Bucket Privado:** O bucket R2 não tem acesso público. Todo acesso é mediado pelo backend.
-- **Pre-signed URLs:** Arquivos de panes (imagens/PDFs) são acessados via links que expiram em 60 minutos.
-- **Egress Free:** O Cloudflare não cobra transferência de saída, reduzindo custos operacionais.
-- **Credenciais:** Nunca versionar as chaves no Git. Usar `.env` local e variáveis de ambiente no Railway.
+- o nome usado no codigo e `R2_ENDPOINT`, nao `R2_ENDPOINT_URL`;
+- se `STORAGE_BACKEND=local`, o sistema salva arquivos na pasta definida em `UPLOAD_DIR`.
 
-## 6. Status de Implementação
+## 4. Comportamento do Storage
 
-- [x] Adicionar `boto3` ao `requirements.txt`.
-- [x] Atualizar `app/config.py` e `.env.example` com as variáveis R2.
-- [x] Criar `app/core/storage.py` com `LocalStorageService` e `R2StorageService`.
-- [x] Criar `scripts/r2_manager.py` com funções `backup_db` e `restore_db`.
-- [x] Integrar `r2_manager.py` no `scripts/start.sh`.
-- [x] Alterar `app/panes/service.py` para usar o `StorageService`.
-- [x] Implementar geração de pre-signed URLs.
-- [x] Criar bucket `saa29-storage` no Cloudflare.
-- [x] Gerar credenciais R2 (Account API Token com `Object Read & Write`).
-- [x] Validar conexão e backup local com `python scripts/r2_manager.py backup`.
-- [x] Configurar variáveis R2 no Railway.
-- [x] Deploy realizado com integração R2 ativa.
+### Local
+
+- grava arquivos em disco;
+- usa a pasta configurada em `UPLOAD_DIR`;
+- retorna caminho absoluto para o router ler o arquivo depois.
+
+### R2
+
+- grava objetos no bucket em `anexos/<uuid>.<ext>`;
+- gera URL pre-assinada valida por 60 minutos;
+- usa `boto3` em thread separada para nao bloquear o event loop.
+
+## 5. Regras de Arquivo
+
+O storage valida:
+
+- extensoes permitidas: `.jpg`, `.jpeg`, `.png`, `.pdf`, `.doc`, `.docx`;
+- nomes com `..`, `/` ou `\` sao rejeitados por seguranca.
+
+## 6. Backup do Banco
+
+O arquivo `scripts/maintenance/r2_manager.py` trabalha com o banco SQLite apontado por `DATABASE_URL`.
+
+Fluxo:
+
+1. `backup` envia o arquivo SQLite para `database/saa29_local.db` no bucket.
+2. `restore` baixa o mesmo objeto, se existir.
+
+Observacao:
+
+- esse fluxo e voltado para SQLite. Se voce migrar para PostgreSQL, nao use esse script como backup principal do banco.
+
+## 7. Uso Recomendado
+
+- desenvolvimento local: `STORAGE_BACKEND=local`;
+- ambiente com anexos remotos: `STORAGE_BACKEND=r2`;
+- banco SQLite em volume: combine R2 com persistencia local do arquivo do banco;
+- producao com Postgres: revise a estrategia de backup separadamente.
+
+## 8. Checklist de Implantacao
+
+- bucket privado criado;
+- credenciais R2 configuradas;
+- `STORAGE_BACKEND=r2` definido;
+- `UPLOAD_DIR` valido;
+- restore testado com um arquivo de banco existente;
+- upload e download de anexo validados na aplicacao.

@@ -1,24 +1,24 @@
-# Roadmap Resumido
+# roadmap_summary
 
-phase_current:
-- estabilizacao
-- ajustes de seguranca
-- regressao de testes
-- limpeza de codigo morto
+state_now:
+- track: v1_x_stabilization
+- docs_sync: done
+- current_system: auth_aeronaves_panes_inventory_active
 
-top_priorities:
-- logout correto no backend
-- consistencia de DATABASE_URL
-- fluxo transacional de uploads
-- migracao de auth para cookies HttpOnly + SameSite
-- remover imports, schemas e metodos mortos
+immediate_backlog:
+- logout_backend_client_alignment
+- database_url_consistency_cleanup
+- upload_flow_transactionality
+- cookie_only_auth_hardening
+- dead_code_and_unused_schema_cleanup
 
-next_levels:
-- v2: mobilidade e uso em campo
-- v3: dados e analytics
-- v4: conformidade legal
-- v5: ecossistema ampliado com IA e supply
+next_versions:
+- v1_2: data_export_and_search_improvements
+- v2_0: mobility_pwa_qr_offline_hangar
+- v3_0: analytics_mttr_mtbf_alerts_stock
+- v4_0: formal_docs_signature_tbo_inspections
+- v5_0: predictive_ai_supply_chain_readiness
 
 note:
-- este arquivo e um resumo operacional; o roadmap completo continua em docs/ROADMAP.md
-
+- detailed_source: docs/ROADMAP.md
+- if_task_relates_to_backlog_check_this_file_first

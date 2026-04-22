@@ -1,41 +1,64 @@
-# CTX
+# ctx
 
-@meta:purpose=ctx,opt=tokens,mode=machine
-@rules:no_narrative,no_dup,short_keys,state_first,delta_only
-@io:read=preload,write=reusable_only,rm=stale
-@hist:on,scope=decisions,fmt=yyyymmdd
-@fmt:kv,list[],no_text
+meta:
+- sync_date: 2026-04-22
+- mode: machine
+- format: kv_short
+- truth: official_docs_first
 
-sys:{name:SAA29,type:web_mng,stack:[fastapi,sqlalchemy,pydantic,alembic,jinja2,docker,magic,slowapi]}
+project:
+- name: SAA29
+- type: web_monolith_modular
+- domain: panes_aeronaves_inventario_a29
+- status: active_local_production_ready
 
-goals:[gestao_panes,obs_internas_manutencao,remocao_anexos_gestor,deploy_railway_docker,seguranca_hardened]
+stack:
+- backend: fastapi
+- orm: sqlalchemy_async
+- validation: pydantic_v2
+- migrations: alembic
+- db_default: sqlite_aiosqlite
+- db_optional: postgresql_asyncpg
+- frontend: jinja2_vanilla_js_css
+- storage: local_or_r2
 
-arch:{be:fastapi,fe:vanilla_js,db:sqlite,pat:service_layer,sec:[csrf_sync,csp_rigid,rate_limit,magic_bytes]}
+entrypoints:
+- app: app/bootstrap/main.py
+- run_local: scripts/run_app.py
+- db_init: scripts/db/init_db.py
+- db_seed: scripts/db/seed.py
 
-data:{entities:[Pane,Anexo,PaneResponsavel,Usuario,Aeronave,Equipamento,ItemEquipamento,Instalacao,ControleVencimento,TokenRefresh,TokenBlacklist]}
+domains:
+- auth: usuarios, token_blacklist, token_refresh
+- aeronaves: cadastro, status, toggle_status
+- panes: pane, anexo, responsavel, soft_delete, restore
+- equipamentos: modelo, slot, item, instalacao, vencimento, inventario
 
-rules:[RN-03_edit_aberta_only,RN-04_auto_conclusao,RN-05_desc_default,soft_delete,delete_anexo_gestor_only,sec-01_csrf_required,sec-02_refresh_rotation]
+auth_state:
+- access_token: jwt_hs256
+- refresh_token: persisted_rotated
+- transport: authorization_header_or_cookie_saa29_token
+- roles: ADMINISTRADOR, ENCARREGADO, MANTENEDOR
 
-state:{phase:producao_local,focus:testes_seguranca_regressao}
+core_rules:
+- RN-01: pane_requires_aeronave
+- RN-02: pane_default_status_ABERTA
+- RN-03: only_open_pane_can_be_edited
+- RN-04: conclude_sets_data_conclusao
+- RN-05: empty_desc_becomes_AGUARDANDO_EDICAO
+- RN-06: admin_or_encarregado_for_admin_writes
+- RN-07: mantenedor_only_self_assign
+- RN-12: controle_association_propagates_to_existing_items
 
-decisions:[
-  {id:CSRF_HANDSHAKE_FIX,ts:20260420,d:token_bruto_no_header_e_assinado_no_cookie_conforme_fastapi-csrf-protect},
-  {id:CSRF_AJAX_SYNC,ts:20260420,d:sincronizacao_dinamica_csrf_via_header_X-CSRF-Token_em_todas_respostas_api},
-  {id:CSP_GOOGLE_FONTS,ts:20260420,d:ajuste_csp_para_permitir_google_fonts_e_scripts_inline_legados},
-  {id:SEC_HARDENING,ts:20260420,d:implementado_rate_limiting_e_account_lockout_pos_5_tentativas},
-  {id:REFRESH_TOKEN_FIX,ts:20260420,d:conversao_explicita_usuario_id_para_uuid_no_endpoint_refresh},
-  {id:TEST_STABILIZATION,ts:20260420,d:bypass_csrf_em_testes_via_header_X-Skip-CSRF_para_isolar_logica_de_negocio},
-  {id:UI_FIX_LISTENERS,ts:20260420,d:restaurado_event_listeners_js_pos_limpeza_de_scripts_inline}
-]
+current_focus:
+- docs_synced: true
+- security_controls_active: true
+- inventory_module_active: true
+- test_suites_present: unit, security, architecture
 
-open:[]
-
-todo:[exportacao_inventario_pdf,validacao_vencimentos_ui,gestao_de_estoque_bancada]
-
-hist:[
-  {id:FIX_CSRF_LOGOUT,ts:20260420,d:resolvido_logout_automatico_em_post_ajuste_por_descompasso_de_assinatura},
-  {id:FEAT_SEC_Fase2,ts:20260420,d:implementado_protecao_csrf_global_com_excecao_login_logout},
-  {id:FEAT_SEC_Fase3,ts:20260420,d:hardening_de_headers_seguranca_e_validacao_tipo_real_arquivo_upload},
-  {id:FIX_INVENTARIO_UI,ts:20260420,d:corrigido_filtro_aeronave_e_sincronia_sn_na_interface},
-  {id:TESTS_SECURITY,ts:20260420,d:adicionados_testes_de_csrf_e_refresh_token_alcancando_91_casos_passando}
-]
+known_gaps_from_roadmap:
+- logout_frontend_backend_alignment
+- database_url_consistency
+- upload_transactionality
+- stronger_cookie_only_auth_migration
+- dead_code_cleanup

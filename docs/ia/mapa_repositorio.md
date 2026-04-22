@@ -1,39 +1,55 @@
-# Mapa do Repositorio
+# repo_map
 
 root:
-- app/: codigo principal
-- docs/: documentacao
-- migrations/: schema e historico do banco
-- scripts/: manutencao, seeds e utilitarios
-- static/: CSS e JS
-- templates/: paginas Jinja2
-- tests/: testes automatizados
-- uploads/: arquivos enviados em runtime
+- app/: source_code
+- data/: runtime_or_input_data
+- docs/: official_docs
+- migrations/: alembic_history
+- scripts/: ops_bootstrap_seed_maintenance
+- static/: legacy_static_root
+- templates/: legacy_template_root
+- tests/: automated_tests
+- uploads/: runtime_uploads
+- var/: runtime_storage
 
 app:
-- main.py: bootstrap da app
-- config.py: configuracao
-- database.py: conexao e sessao
-- dependencies.py: dependencias reutilizaveis
-- core/: regras comuns
-- middleware/: filtros transversais
-- auth/, panes/, aeronaves/, equipamentos/: dominios
-- pages/: rotas de paginas
+- bootstrap/: config,database,dependencies,create_app
+- modules/auth/: auth_users_jwt_refresh_blacklist
+- modules/aeronaves/: aircraft_crud_status
+- modules/panes/: pane_flow_attachments_responsaveis
+- modules/equipamentos/: models_slots_items_installations_vencimentos_inventory
+- shared/core/: enums,helpers,storage,validators,limiter,exceptions
+- shared/middleware/: csrf
+- web/pages/: html_routes
+- web/templates/: jinja_templates
+- web/static/: js_css_assets
+
+scripts:
+- db/init_db.py: bootstrap_admin_frota
+- db/seed.py: dev_seed_base
+- seed_equipamentos.py: seed_inventory_structure
+- seed_30_panes.py: sample_panes
+- run_app.py: local_run
+- maintenance/r2_manager.py: sqlite_backup_restore_r2
+- maintenance/reset_admin.py: admin_password_reset
+
+tests:
+- unit/: feature_and_api_behavior
+- security/: csrf_refresh
+- architecture/: architecture_and_perf_guards
 
 docs:
-- architecture/: desenho tecnico
-- development/: guia de uso e testes
-- security/: politica e orientacoes de seguranca
-- requirements/: requisitos e specs
-- archives/: material historico
-- fim/: PDFs de referencia pesada
+- architecture/: source_for_architecture
+- api/: source_for_endpoints
+- development/: source_for_setup_tests_ops
+- requirements/: source_for_srs_specs
+- ia/: summarized_machine_docs
 
-ignore_candidates:
+ignore_likely:
+- .venv/
+- __pycache__/
 - .pytest_cache/
 - .mypy_cache/
 - .ruff_cache/
-- __pycache__/
-- .venv/
-- logs gerados
-- banco local gerado
-
+- generated_db_files
+- runtime_logs

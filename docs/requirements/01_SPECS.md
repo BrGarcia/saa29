@@ -1,153 +1,259 @@
-# ALGORITHM_SPECS.md  
-**Especificação de Algoritmos – Sistema de Gestão de Panes (Eletrônica A-29)**
+# SPECS - SAA29
 
-## 1. Visão Geral
+Documento sincronizado com o codigo-fonte em 22/04/2026.
 
-Este documento descreve os fluxos lógicos e algoritmos principais do sistema, incluindo criação, atualização e conclusão de panes.
+Este documento descreve o comportamento esperado dos fluxos principais do sistema em formato de especificacao funcional.
 
----
+## 1. Autenticacao
 
-## 2. Fluxo de Autenticação
+### 1.1 Login
 
-### Algoritmo: Login
+Entrada:
 
-1. Receber username e senha
-2. Buscar usuário no banco
-3. Comparar senha com hash armazenado
-4. Se válido:
-   - Criar sessão autenticada
-   - Redirecionar para a página principal de panes
-5. Se inválido:
-   - Retornar erro
+- username
+- password
 
----
+Fluxo:
 
-## 3. Fluxo de Criação de Pane
+1. Receber credenciais.
+2. Buscar usuario por username.
+3. Validar status ativo e bloqueio temporario.
+4. Comparar senha com hash armazenado.
+5. Se valido, emitir access token JWT e refresh token.
+6. Persistir refresh token para rastreio e revogacao.
+7. Gravar o access token no cookie `saa29_token`.
 
-### Algoritmo: Nova Pane
+Saida:
 
-1. Usuário clica em "Nova Pane"
-2. Exibir matriz de icones 5x5 com aeronaves (59XX)
-3. Usuário seleciona aeronave
-4. Perguntar: deseja anexar imagem?
-   - Se SIM:
-     - Abrir upload
-     - Armazenar imagem
-   - Se NÃO:
-     - Continuar fluxo
-5. Exibir campo de descrição
-6. Se descrição vazia:
-   - Definir como "AGUARDANDO EDICAO"
-7. Criar registro:
-   - status = ABERTA
-   - data_abertura = NOW()
-   - criado_por = usuário logado
-8. Salvar no banco
-9. Redirecionar para a página de panes
+- `200` com tokens e dados do usuario.
+- `401` para credenciais invalidas.
+- `429` se a conta estiver temporariamente bloqueada.
 
----
+### 1.2 Refresh
 
-## 4. Fluxo de Visualização
+Entrada:
 
-### Algoritmo: Visualizar Pane
+- refresh token
 
-1. Usuário clica na pane
-2. Buscar dados completos
-3. Buscar anexos
-4. Exibir tela detalhada
+Fluxo:
 
----
+1. Receber refresh token.
+2. Validar assinatura e tipo.
+3. Confirmar existencia do `jti` no banco.
+4. Verificar se o token nao foi revogado.
+5. Gerar novo access token.
+6. Rotacionar o refresh token.
 
-## 5. Fluxo de Atualização
+Saida:
 
-### Algoritmo: Editar Pane
+- `200` com novos tokens.
+- `401` se token for invalido, expirado ou revogado.
 
-1. Usuário altera descrição
-2. Validar conteúdo
-3. Atualizar registro no banco
-4. Registrar timestamp
+### 1.3 Logout
 
----
+Fluxo:
 
-## 6. Fluxo de Upload de Imagem
+1. Obter token atual do header ou cookie.
+2. Decodificar JWT.
+3. Registrar `jti` em blacklist.
+4. Remover cookie `saa29_token`.
 
-### Algoritmo: Upload
+Saida:
 
-1. Receber arquivo
-2. Validar tipo (jpg, png)
-3. Validar tamanho
-4. Gerar nome único
-5. Armazenar (local ou cloud)
-6. Registrar no banco (tabela anexos)
+- `204` sem conteudo.
 
----
+## 2. Cadastro de Aeronave
 
-## 7. Fluxo de Conclusão de Pane
+Fluxo:
 
-### Algoritmo: Concluir Pane
+1. Receber dados de aeronave.
+2. Validar unicidade de serial e matricula.
+3. Salvar aeronave.
+4. Retornar aeronave persistida.
 
-1. Usuário clica em "Concluir"
-2. Verificar se já está resolvida
-3. Atualizar:
-   - status = RESOLVIDA
-   - data_conclusao = NOW()
-   - concluido_por = usuário logado
-4. Salvar alterações
-5. Atualizar a listagem operacional de panes
+Regras:
 
----
+- `status` padrao deve ser `OPERACIONAL`.
+- apenas `ADMINISTRADOR` pode criar.
 
-## 8. Regras de Status
+## 3. Registro de Pane
 
-Estados possíveis:
-- ABERTA
-- RESOLVIDA
+### 3.1 Criar pane
 
-### Transições permitidas:
-- ABERTA → RESOLVIDA
+Fluxo:
 
----
+1. Receber aeronave, descricao, sistema/subsistema e responsavel opcional.
+2. Validar existencia da aeronave.
+3. Se descricao estiver vazia, substituir por `AGUARDANDO EDICAO`.
+4. Criar pane com status `ABERTA`.
+5. Registrar `criado_por_id` e `data_abertura`.
+6. Se houver responsavel inicial valido, vincular na tabela de relacionamento.
 
-## 9. Algoritmo de Cores
+Saida:
 
-if status == "ABERTA":
-    cor = vermelho
+- `201` com pane criada.
+- `404` se a aeronave nao existir.
 
-if status == "RESOLVIDA":
-    cor = verde
+### 3.2 Editar pane
 
----
+Fluxo:
 
-## 10. Filtros
+1. Carregar pane.
+2. Verificar se a pane esta ativa e com status `ABERTA`.
+3. Permitir alteracao de descricao, sistema/subsistema, comentarios e status conforme regra.
+4. Persistir alteracoes.
 
-### Algoritmo: Filtrar Panes
+Saida:
 
-1. Receber parâmetros:
-   - texto
-   - status
-   - aeronave
-   - data
-2. Construir query dinâmica
-3. Executar busca
-4. Retornar lista filtrada
+- `200` com pane atualizada.
+- `409` se a transicao de status for invalida.
+- `404` se a pane nao existir.
 
----
+### 3.3 Concluir pane
 
-## 11. Validações Gerais
+Fluxo:
 
-- Campos obrigatórios devem ser verificados
-- Inputs sanitizados
-- Upload protegido contra arquivos maliciosos
+1. Receber observacao de conclusao.
+2. Validar pane ativa.
+3. Marcar status como `RESOLVIDA`.
+4. Preencher `data_conclusao`.
+5. Registrar `concluido_por_id`.
 
----
+Saida:
 
-## 12. Logs (Futuro)
+- `200` com pane resolvida.
+- `409` se a pane ja estiver resolvida.
 
-- Registrar ações:
-  - criação
-  - edição
-  - conclusão
-- Armazenar:
-  - usuário
-  - timestamp
-  - ação realizada
+### 3.4 Anexos
+
+Fluxo:
+
+1. Receber arquivo upload.
+2. Validar extensao e tipo MIME.
+3. Armazenar arquivo em storage local ou R2.
+4. Registrar caminho no banco.
+
+Saida:
+
+- `201` com anexo criado.
+- `422` se o arquivo nao for aceito.
+
+### 3.5 Responsaveis
+
+Fluxo:
+
+1. Receber usuario e papel.
+2. Validar permissao do usuario logado.
+3. Registrar responsavel na pane.
+
+Regra:
+
+- `MANTENEDOR` pode assumir apenas a propria responsabilidade.
+
+## 4. Inventario de Equipamentos
+
+### 4.1 Criar modelo
+
+Fluxo:
+
+1. Receber part number, nome generico e descricao.
+2. Validar unicidade do part number.
+3. Persistir modelo.
+
+### 4.2 Criar slot
+
+Fluxo:
+
+1. Receber nome da posicao, sistema e modelo vinculado.
+2. Validar modelo existente.
+3. Persistir slot.
+
+### 4.3 Criar item
+
+Fluxo:
+
+1. Receber modelo e numero de serie.
+2. Validar unicidade do SN para o PN.
+3. Persistir item.
+4. Buscar controles vinculados ao modelo.
+5. Criar controles de vencimento herdados para o item.
+
+### 4.4 Associar controle ao modelo
+
+Fluxo:
+
+1. Receber modelo e tipo de controle.
+2. Criar associacao.
+3. Propagar controle para todos os itens existentes do modelo.
+
+### 4.5 Instalar item
+
+Fluxo:
+
+1. Receber item, aeronave e data de instalacao.
+2. Encerrar instalacao ativa anterior do item, se existir.
+3. Criar nova instalacao.
+
+### 4.6 Remover item
+
+Fluxo:
+
+1. Receber instalacao e data de remocao.
+2. Marcar a instalacao como encerrada.
+3. Registrar usuario responsavel, se fornecido.
+
+### 4.7 Inventario atual
+
+Fluxo:
+
+1. Buscar slots da aeronave.
+2. Cruzar slot com instalacao ativa.
+3. Retornar item, serie, datas e identificacao da aeronave anterior, quando existir.
+
+### 4.8 Ajuste de inventario
+
+Fluxo:
+
+1. Receber aeronave, slot, numero de serie real e opcao de transferencia.
+2. Localizar slot e item correspondente.
+3. Se o item estiver em outra aeronave, exigir confirmacao para transferencia.
+4. Encerrar instalacao anterior e criar nova instalacao no slot alvo.
+
+## 5. Controles de Vencimento
+
+### 5.1 Registrar execucao
+
+Fluxo:
+
+1. Receber id do vencimento e data de execucao.
+2. Buscar controle e seu tipo.
+3. Atualizar data da ultima execucao.
+4. Calcular nova data de vencimento com base na periodicidade do tipo.
+5. Atualizar status para `OK`, `VENCENDO` ou `VENCIDO`.
+
+### 5.2 Regras de calculo
+
+- periodicidade em meses vem de `TipoControle`;
+- status `VENCENDO` pode ser usado quando faltar pouco tempo para o vencimento;
+- o vencimento e persistido, nao calculado apenas em consulta.
+
+## 6. Padroes de API
+
+- Todas as operacoes protegidas exigem JWT valido.
+- O sistema deve aceitar header `Authorization` e cookie `saa29_token`.
+- A camada HTTP deve converter erros de negocio em `400`, `401`, `403`, `404`, `409` ou `422` conforme o caso.
+- Listagens devem suportar filtros e paginação quando aplicavel.
+
+## 7. Validacoes Gerais
+
+- campos obrigatorios nao podem ser omitidos;
+- ids devem ser UUID validos;
+- strings devem respeitar tamanho maximo definido nos schemas;
+- uploads devem rejeitar extensoes nao permitidas;
+- status fora do enum devem ser rejeitados pelo schema.
+
+## 8. Observacoes de Implementacao
+
+- O fluxo de frontend ainda usa rotas HTML em `app/web/pages/router.py` e templates Jinja.
+- O sistema possui regras de seguranca adicionais como CSRF, Trusted Host e rate limiting.
+- O comportamento real das telas deve ser considerado validado pelos testes em `tests/unit` e `tests/security`.

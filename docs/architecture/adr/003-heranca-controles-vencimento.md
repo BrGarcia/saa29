@@ -1,4 +1,4 @@
-# ADR-003: Herança Automática de Controles de Vencimento
+# ADR-003: Heranca de Controles de Vencimento no Service Layer
 
 **Data:** 2026-03-27  
 **Status:** Aceito  
@@ -8,40 +8,49 @@
 
 ## Contexto
 
-O sistema precisa controlar vencimentos de manutenção por item físico (número de série). Cada tipo de equipamento (part number) define quais controles periódicos seus itens devem ter (TBV, RBA, CRI etc.).
+O SAA29 controla vencimentos de manutencao por item fisico. Cada PN pode exigir varios tipos de controle e cada item precisa refletir esses controles sem duplicar regras de negocio em consultas ou no banco.
 
-O desafio: como garantir que um novo item herde automaticamente os controles definidos para seu tipo de equipamento, e que um novo controle seja propagado para todos os itens existentes?
+O problema central e manter consistencia entre:
 
-## Decisão
+- o catalogo de equipamentos (`ModeloEquipamento`);
+- a associacao entre PN e controle (`EquipamentoControle`);
+- os controles efetivos por item (`ControleVencimento`).
 
-Implementar **herança automática bidirecional** via triggers de service:
+## Decisao
 
-1. **Ao criar `ItemEquipamento`** → buscar todos os `EquipamentoControle` do equipamento e criar um `ControleVencimento` (origem=`PADRAO`) para cada um.
+Implementar a heranca de controles **na camada de servico**, e nao por trigger de banco.
 
-2. **Ao criar `EquipamentoControle`** → buscar todos os `ItemEquipamento` existentes do equipamento e criar `ControleVencimento` faltantes.
+Fluxo atual:
 
-A restrição `UNIQUE(item_id, tipo_controle_id)` no banco garante idempotência.
+1. Ao criar `ItemEquipamento`, o service busca os `EquipamentoControle` do respectivo `ModeloEquipamento` e cria os `ControleVencimento` correspondentes com origem `PADRAO`.
+2. Ao associar um novo controle a um PN, o service propaga os registros faltantes para todos os itens existentes daquele modelo.
+3. A unicidade `UNIQUE(item_id, tipo_controle_id)` impede duplicacao de controle.
 
 ## Alternativas Consideradas
 
-| Alternativa | Prós | Contras |
-|-------------|------|---------|
-| Trigger no banco (PostgreSQL) | Automático, não depende da app | Lógica espalhada entre app e DB, difícil de testar |
-| Herança no service (escolhido) | Testável, visível, sem acoplamento ao DB | Depende da disciplina dos devs de sempre usar o service |
-| Calcular on-the-fly (sem tabela) | Sem dados derivados | Performance ruim em listagens, sem histórico |
+| Alternativa | Pro | Contra |
+|-------------|-----|--------|
+| Trigger no banco | Automatizacao total | Lgica espalhada entre banco e aplicacao |
+| Calculo on-the-fly | Nenhum dado derivado para manter | Piora listagens e perde historico persistido |
+| Service layer (escolhido) | Testavel e explicito | Depende do uso correto das funcoes de dominio |
 
-## Consequências
+## Consequencias
 
 **Positivas:**
-- Lógica testável via testes unitários Python
-- Auditoria: `origem` indica se o controle é herdado (`PADRAO`) ou específico (`ESPECIFICO`)
-- Sem acoplamento à engine de banco
+
+- a regra fica visivel no codigo Python;
+- os testes conseguem cobrir a propagacao;
+- o historico de vencimentos pode ser consultado diretamente;
+- o dominio de equipamentos permanece concentrado em `service.py`.
 
 **Negativas / Trade-offs:**
-- Se um item for criado diretamente no banco (bypass da app), não terá controles herdados
-- Propagação em massa pode ser lenta para equipamentos com muitos itens (otimizar com `INSERT ... SELECT` em Fase 4)
 
-## Referências
-- [03_MODEL_DB.md §5 – Algoritmos de Herança](../../../03_MODEL_DB.md)
-- [`app/equipamentos/service.py` – `criar_item_com_heranca()`](../../../app/equipamentos/service.py)
-- [`app/equipamentos/service.py` – `propagar_controle_para_itens()`](../../../app/equipamentos/service.py)
+- bypass direto no banco pode criar itens sem controles herdados;
+- operacoes em massa podem ficar mais lentas do que um `INSERT ... SELECT` em trigger;
+- a consistencia depende de sempre usar as funcoes do service.
+
+## Referencias
+
+- [`app/modules/equipamentos/service.py`](../../../app/modules/equipamentos/service.py)
+- [`app/modules/equipamentos/models.py`](../../../app/modules/equipamentos/models.py)
+- [`docs/architecture/03_MODEL_DB.md`](../03_MODEL_DB.md)

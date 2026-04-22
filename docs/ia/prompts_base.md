@@ -1,20 +1,22 @@
-# Prompts Base
+# prompt_templates
 
-prompt_resumo_arquivo:
-> Leia o arquivo e resuma em 5 bullets max, focando em papel do arquivo, dependencias e riscos.
+prompt_project_context:
+> Use docs/ia first for low-token context. If any conflict exists, prefer docs/README.md, docs/architecture/, docs/api/, docs/development/, docs/requirements/ and docs/SECURITY.md.
 
-prompt_mapa_pasta:
-> Analise a pasta e diga: o que e codigo, o que e documento, o que e artefato local e o que pode ser movido.
+prompt_file_summary:
+> Summarize the file in max 5 lines using keys: role, inputs, outputs, deps, risks.
 
-prompt_refatoracao_estrutura:
-> Sugira uma reorganizacao de pastas sem alterar logica, priorizando separacao entre codigo, docs, testes e artefatos locais.
+prompt_module_scan:
+> For this module, return only: paths, entities, endpoints, rules, tests, risks.
 
-prompt_seguranca:
-> Liste riscos de seguranca visiveis na estrutura de arquivos e diga quais devem ficar fora do Git.
+prompt_api_change:
+> Compare the endpoint behavior against docs/api/referencia-api.md and return only mismatches, missing tests and required doc updates.
 
-prompt_ia_contexto:
-> Use apenas os resumos em docs/ia/ e a documentacao oficial referenciada. Nao invente arquivos nem fluxos.
+prompt_arch_review:
+> Check whether code still follows router->service->orm layering. Return only violations, with paths.
 
-prompt_checklist:
-> Gere uma checklist curta de proximos passos para desenvolvimento, testes e manutencao.
+prompt_security_review:
+> Check auth, csrf, uploads, token flow and env handling. Return only concrete risks and affected files.
 
+prompt_docs_sync:
+> Update docs/ia summaries after official docs are updated. Keep delta-only, machine-friendly, no prose.

@@ -1,91 +1,90 @@
-# Guia de Migração: SQLite para PostgreSQL
+# Migracao: SQLite para PostgreSQL
 
-Este documento descreve os passos necessários para migrar o SAA29 de SQLite para PostgreSQL, caso o sistema precise de maior concorrência, escalabilidade ou recursos avançados de banco de dados.
+Este guia descreve o que precisa mudar se voce quiser rodar o SAA29 com PostgreSQL em vez de SQLite.
 
-## 1. Dependências do Sistema
-O PostgreSQL exige drivers específicos para comunicação assíncrona (via SQLAlchemy) e síncrona (via scripts/Alembic).
+## 1. Status Atual
 
-No `requirements.txt`, adicione:
+Hoje o projeto roda com:
+
+- `DATABASE_URL` padrao apontando para SQLite;
+- `app/bootstrap/database.py` usando `create_async_engine`;
+- `app/bootstrap/config.py` lendo a URL do banco via `.env`.
+
+Ou seja, a aplicacao suporta um `DATABASE_URL` de Postgres, mas o ambiente precisa ter os drivers corretos instalados.
+
+## 2. Dependencias Necessarias
+
+Para PostgreSQL async, adicione no ambiente:
+
 ```text
-asyncpg==0.30.0          # Driver assíncrono para SQLAlchemy
-psycopg2-binary==2.9.10  # Driver síncrono para Alembic e scripts
+asyncpg
 ```
 
-No `Dockerfile`, adicione a biblioteca de cliente do Postgres:
-```dockerfile
-RUN apt-get update && apt-get install -y libpq-dev gcc ...
+Se voce usar scripts ou ferramentas sincronas externas, pode precisar de:
+
+```text
+psycopg2-binary
 ```
 
-## 2. Variáveis de Ambiente
-Altere a `DATABASE_URL` no seu arquivo `.env` ou no painel do Railway:
+## 3. Variavel de Ambiente
+
+No `.env`, use:
 
 ```env
-# Formato para SQLAlchemy 2.0+ com driver assíncrono
-DATABASE_URL=postgresql+asyncpg://usuario:senha@host:5432/nome_do_banco
+DATABASE_URL=postgresql+asyncpg://usuario:senha@host:5432/saa29
 ```
 
-## 3. Ajustes no Código
+Observacoes:
 
-### app/config.py
-Reintroduza o validador para garantir que a URL fornecida pelo Railway (que geralmente começa com `postgresql://`) seja convertida para o formato assíncrono exigido pelo SQLAlchemy (`postgresql+asyncpg://`):
+- o formato `postgresql://...` nao e suficiente para o driver async;
+- o projeto nao possui hoje um helper automatico para reescrever a URL;
+- a configuracao em `app/bootstrap/config.py` apenas consome o valor informado.
 
-```python
-@model_validator(mode="after")
-def fix_database_url(self) -> "Settings":
-    if self.database_url.startswith("postgresql://"):
-        self.database_url = self.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    return self
-```
+## 4. O Que Rever no Ambiente
 
-### app/database.py
-Para PostgreSQL, é recomendado configurar o pool de conexões (o SQLite não utiliza pool da mesma forma):
+### Banco e migracoes
 
-```python
-def get_engine() -> AsyncEngine:
-    ...
-    # Adicione parâmetros de pool para Postgres
-    _engine = create_async_engine(
-        settings.database_url,
-        pool_size=10,
-        max_overflow=20,
-        pool_pre_ping=True,
-    )
-    ...
-```
+1. Crie um banco vazio no PostgreSQL.
+2. Execute `python -m alembic upgrade head`.
+3. Valide se as tabelas foram criadas com os tipos nativos de Postgres.
 
-### app/panes/service.py
-A função de extração de ano no Postgres utiliza `EXTRACT`. Certifique-se de que a função `_get_year_func` suporte o dialeto `postgresql`:
+### Seed e bootstrap
 
-```python
-def _get_year_func(column):
-    # No Postgres o padrão é func.extract('year', column)
-    return func.extract("year", column)
-```
+- `python scripts/db/init_db.py`
+- `python scripts/db/seed.py`
 
-## 4. Migração de Dados (Opcional)
-Se você já tiver dados no SQLite e quiser levá-los para o Postgres, a ferramenta recomendada é o **[pgloader](https://pgloader.io/)**:
+Esses scripts continuam validos, desde que o banco configurado em `DATABASE_URL` seja acessivel.
 
-```bash
-pgloader ./saa29_local.db postgresql://usuario:senha@localhost/saa29
-```
+## 5. Pontos de Atenção
 
-## 5. Docker Compose
-Para rodar um banco Postgres localmente via Docker, adicione o serviço ao `docker-compose.yml`:
+### R2 e backup
 
-```yaml
-services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: saa29
-    volumes:
-      - pg_data:/var/lib/postgresql/data
+O fluxo de backup em `scripts/maintenance/r2_manager.py` e voltado para SQLite. Em PostgreSQL, esse script nao faz sentido como estrategia de persistencia do banco.
 
-volumes:
-  pg_data:
-```
+### Arquivos e anexos
 
-## 6. Considerações sobre UUIDs
-O SAA29 já utiliza `UUID` como chave primária. O PostgreSQL possui um tipo nativo `UUID`, enquanto o SQLite armazena como `CHAR(32)`. Ao migrar, o SQLAlchemy/Alembic tratará a conversão, mas certifique-se de rodar `alembic upgrade head` em um banco Postgres vazio para criar o schema com os tipos nativos corretos.
+O backend de arquivos continua independente do banco:
+
+- `app/shared/core/storage.py`
+- `STORAGE_BACKEND=local` ou `r2`
+
+### UUID
+
+Os modelos ja usam UUID. PostgreSQL lida bem com esse tipo nativamente, entao a migracao costuma ser tranquila nesse ponto.
+
+## 6. Docker
+
+Se voce quiser subir PostgreSQL via Docker, use um service `postgres:16` e aponte `DATABASE_URL` para o container.
+
+## 7. Checklist
+
+- instalar `asyncpg`;
+- configurar `DATABASE_URL` para `postgresql+asyncpg://...`;
+- rodar `alembic upgrade head`;
+- validar `scripts/db/init_db.py` e `scripts/db/seed.py`;
+- revisar qualquer automatizacao de backup SQLite;
+- executar `pytest tests -q`.
+
+## 8. Conclusao
+
+A migracao e viavel, mas nao e transparente enquanto o projeto mantiver scripts de backup SQLite e dependencias de ambiente ainda focadas em desenvolvimento local. Antes de usar em producao, revise o fluxo operacional inteiro.

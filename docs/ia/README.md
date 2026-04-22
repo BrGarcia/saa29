@@ -1,37 +1,32 @@
-# docs/ia
+# ia_docs_index
 
-obj: contexto rapido para IA
-src_of_truth: docs/architecture/, docs/development/, docs/security/, docs/requirements/
-rule: este diretorio resume; nao substitui a documentacao oficial
+meta:
+- purpose: low_token_machine_context
+- scope: summarized_mirror_of_official_docs
+- source_of_truth: docs/README.md, docs/architecture/, docs/api/, docs/development/, docs/requirements/, docs/SECURITY.md, docs/ROADMAP.md, docs/CHANGELOG.md
+- rule: if_conflict_use_official_docs
 
-## Ordem sugerida de leitura
+read_order:
+- 1: docs/ia/contex.md
+- 2: docs/ia/resumo_arquitetura.md
+- 3: docs/ia/resumo_desenvolvimento.md
+- 4: docs/ia/resumo_seguranca.md
+- 5: docs/ia/mapa_repositorio.md
+- 6: docs/ia/roadmap_resumido.md
+- 7: docs/ia/glossario.md
+- 8: docs/ia/prompts_base.md
 
-0. `docs/ia/contex.md` -> resumo geral do projeto
-1. `docs/ia/roadmap_resumido.md` -> o que precisa ser feito agora
-2. `docs/ia/resumo_arquitetura.md` -> stack, camadas e estrutura tecnica
-3. `docs/ia/resumo_seguranca.md` -> se a tarefa envolver seguranca, auth, csrf, uploads ou logs
-4. `docs/ia/resumo_desenvolvimento.md` -> se a tarefa envolver setup, testes, migrations ou fluxo local
-5. `docs/ia/mapa_repositorio.md` -> se precisar localizar arquivos e pastas
-6. `docs/ia/glossario.md` -> se houver termos ou siglas do dominio
-7. `docs/ia/prompts_base.md` -> se a IA precisar de instrucoes operacionais
+update_policy:
+- update_after: code_change, doc_change, api_change, security_change, roadmap_change
+- keep: short, deterministic, machine_friendly
+- avoid: narrative, duplicated_examples, stale_paths
 
-## Regra de atualizacao
-
-Ao finalizar uma implementacao, atualizar:
-- a documentacao oficial relacionada ao tema
-- `docs/ia/contex.md`
-- `docs/ia/roadmap_resumido.md`
-
-use:
-- ler antes de tarefas de analise, refatoracao, testes e organizacao
-- manter arquivos curtos e atualizados
-- evitar duplicar textos longos de outras docs
-
-contents:
-- resumo_arquitetura.md
-- resumo_desenvolvimento.md
-- resumo_seguranca.md
-- mapa_repositorio.md
-- glossario.md
-- prompts_base.md
-- roadmap_resumido.md
+files:
+- contex.md: project_state
+- resumo_arquitetura.md: architecture_state
+- resumo_desenvolvimento.md: dev_run_test_state
+- resumo_seguranca.md: security_controls_state
+- mapa_repositorio.md: path_map
+- roadmap_resumido.md: backlog_now_next
+- glossario.md: domain_terms
+- prompts_base.md: reusable_llm_prompts

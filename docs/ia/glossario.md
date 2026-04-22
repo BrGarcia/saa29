@@ -1,16 +1,20 @@
-# Glossario
+# glossary
 
-pane: ocorrencia ou registro principal tratado pelo sistema
-anexo: arquivo associado a um registro
-responsavel: usuario vinculado a uma pane
-aeronave: entidade de cadastro aeronautico do dominio
-equipamento: item ou conjunto gerenciado no sistema
-instalacao: relacao de equipamento com aeronave/posicao
-controle_vencimento: regra de acompanhamento de prazo
-token_refresh: token usado para renovar sessao
-token_blacklist: lista de revogacao de tokens
-csrf: protecao contra requisicoes forjadas
-csrf_cookie_header: fluxo de sincronizacao de token entre cookie e header
-magic_bytes: validacao de assinatura real do arquivo
-service_layer: camada que concentra regra de negocio
-router: camada de entrada HTTP
+pane: maintenance_issue_record
+anexo: file_attached_to_pane
+responsavel: user_linked_to_pane
+aeronave: aircraft_entity
+modelo_equipamento: equipment_catalog_part_number
+slot_inventario: physical_position_in_aircraft
+item_equipamento: physical_serialized_item
+instalacao: item_to_aircraft_slot_history_record
+tipo_controle: periodic_control_definition
+equipamento_controle: control_required_by_model
+controle_vencimento: effective_control_for_item
+token_blacklist: revoked_access_token_registry
+token_refresh: persisted_refresh_token
+csrf: forged_request_protection
+rbac: role_based_access_control
+service_layer: business_logic_layer
+soft_delete: logical_disable_without_physical_delete
+r2: cloudflare_s3_compatible_storage

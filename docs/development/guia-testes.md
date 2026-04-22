@@ -1,157 +1,139 @@
-# Guia de Testes – SAA29
+# Guia de Testes - SAA29
 
-## Filosofia
+Documento sincronizado com a suite atual em 22/04/2026.
 
-Seguimos **TDD (Test-Driven Development)** conforme o Método Akita:
+## 1. Filosofia
 
-```
-1. Escrever o teste (RED – falha esperada)
-2. Implementar o mínimo para passar (GREEN)
-3. Refatorar mantendo os testes verdes (REFACTOR)
-```
+O projeto usa uma abordagem de TDD e valida tres frentes principais:
 
-**Nunca** submeter código funcional sem o teste correspondente.
+- testes unitarios de rotas e servicos;
+- testes de seguranca;
+- testes de arquitetura e performance.
 
----
-
-## Executar Testes
+## 2. Executar Testes
 
 ```bash
-# Todos os testes
-pytest tests/ -v
+# Suite completa
+pytest tests -q
 
-# Um módulo específico
-pytest tests/test_panes.py -v
+# Suites por pasta
+pytest tests/unit -q
+pytest tests/security -q
+pytest tests/architecture -q
 
-# Uma classe específica
-pytest tests/test_panes.py::TestCriarPane -v
+# Arquivos especificos
+pytest tests/unit/test_auth.py -q
+pytest tests/unit/test_aeronaves.py -q
+pytest tests/unit/test_panes.py -q
+pytest tests/unit/test_equipamentos.py -q
+pytest tests/unit/test_inventario.py -q
 
-# Um teste específico
-pytest tests/test_panes.py::TestCriarPane::test_criar_pane_sucesso -v
-
-# Com cobertura
-pytest tests/ --cov=app --cov-report=term-missing
-pytest tests/ --cov=app --cov-report=html  # relatório em htmlcov/
-
-# Apenas testes rápidos (unit)
-pytest tests/ -m unit
-
-# Ignorar testes lentos
-pytest tests/ -m "not slow"
+# Cobertura
+pytest tests --cov=app --cov-report=term-missing
+pytest tests --cov=app --cov-report=html
 ```
 
----
+## 3. Estrutura da Suite
 
-## Infraestrutura de Testes (conftest.py)
+### `tests/unit`
 
-O `tests/conftest.py` fornece:
+Cobertura funcional dos modulos:
 
-| Fixture | Escopo | Descrição |
-|---------|--------|-----------|
-| `criar_tabelas` | `session` | Cria/derruba todas as tabelas (SQLite in-memory) |
-| `db` | `function` | Sessão com rollback automático após cada teste |
-| `client` | `function` | `AsyncClient` httpx com `get_db` sobrescrito |
-| `dados_usuario_valido` | `function` | Dict com dados mock de usuário |
-| `dados_aeronave_valida` | `function` | Dict com dados mock de aeronave |
-| `dados_pane_valida` | `function` | Dict com dados mock de pane |
-| `dados_equipamento_valido` | `function` | Dict com dados mock de equipamento |
+- `test_auth.py`
+- `test_aeronaves.py`
+- `test_panes.py`
+- `test_equipamentos.py`
+- `test_inventario.py`
+
+### `tests/security`
+
+Cobertura de seguranca:
+
+- `test_csrf.py`
+- `test_refresh_token.py`
+
+### `tests/architecture`
+
+Cobertura de arquitetura e verificacoes auxiliares:
+
+- `test_architecture_solid.py`
+- `test_performance_audit.py`
+- `test_quality_helpers.py`
+
+## 4. Infraestrutura de Testes
+
+O `tests/conftest.py` atual fornece:
+
+| Fixture | Descricao |
+|---------|-----------|
+| `criar_tabelas` | Cria e derruba o schema em SQLite in-memory |
+| `db` | Sessao async com rollback ao final de cada teste |
+| `client` | `AsyncClient` com `get_db` sobrescrito |
+| `usuario_no_banco` | Usuario persistido direto no banco |
+| `usuario_e_token` | Usuario autenticado com JWT e headers prontos |
+| `client_autenticado` | Client com `get_current_user` sobrescrito |
+| `usuario_mantenedor_e_token` | Usuario com papel de mantenedor |
+| `usuario_encarregado_e_token` | Usuario com papel de encarregado |
+| `dados_usuario_valido` | Payload base de usuario |
+| `dados_usuario_secundario` | Segundo usuario para duplicidade |
+| `dados_usuario_mantenedor` | Payload de mantenedor |
+| `dados_aeronave_valida` | Payload base de aeronave |
+| `dados_aeronave_secundaria` | Aeronave extra para testes |
+| `dados_equipamento_valido` | Payload base de equipamento |
+| `dados_tipo_controle_valido` | Payload de tipo de controle |
 
 ### Banco de testes
-- **SQLite in-memory** – sem necessidade de PostgreSQL rodando
-- Rollback automático após cada teste (sem contaminação de dados)
-- Rápido – adequado para CI
 
----
+- SQLite in-memory;
+- `STORAGE_BACKEND=local` forcado no setup de teste;
+- `X-Skip-CSRF: true` ja e adicionado pelo client de teste;
+- rate limiting e desativado durante a execucao dos testes.
 
-## Como Escrever um Teste
+## 5. Como Escrever um Teste
 
-### Estrutura Given / When / Then
+Estrutura recomendada:
 
 ```python
 @pytest.mark.asyncio
-async def test_criar_pane_sucesso(self, client: AsyncClient, dados_pane_valida: dict):
-    """
-    DADO um usuário autenticado e uma aeronave existente
-    QUANDO enviar POST /panes/ com dados válidos
-    ENTÃO retornar pane com status=ABERTA e HTTP 201
-    """
-    # GIVEN
-    # (fixtures já criam o estado necessário)
-    headers = {"Authorization": "Bearer <token_válido>"}
-    
-    # WHEN
-    response = await client.post("/panes/", json=dados_pane_valida, headers=headers)
-    
-    # THEN
-    assert response.status_code == 201
-    body = response.json()
-    assert body["status"] == "ABERTA"          # RN-02
-    assert body["data_conclusao"] is None
-    assert "id" in body
+async def test_criar_pane_sucesso(client, usuario_e_token, dados_aeronave_valida):
+    ...
 ```
 
-### Testando regras de negócio específicas
+### Padrão
 
-```python
-async def test_criar_pane_descricao_vazia_padrao(self, client, headers):
-    """RN-05: descrição vazia deve virar 'AGUARDANDO EDICAO'"""
-    payload = {**dados_pane_valida, "descricao": ""}
-    
-    response = await client.post("/panes/", json=payload, headers=headers)
-    
-    assert response.status_code == 201
-    assert response.json()["descricao"] == "AGUARDANDO EDICAO"
-```
+1. Prepare o estado com fixtures.
+2. Execute a chamada HTTP com o `AsyncClient`.
+3. Verifique status code e payload.
+4. Cubra a regra de negocio principal e o erro esperado.
 
----
+## 6. Casos que Merecem Cobertura
 
-## Casos a Sempre Testar
+| Cenario | Esperado |
+|---------|----------|
+| Happy path | `200` ou `201` |
+| Campo obrigatorio ausente | `422` |
+| Recurso inexistente | `404` |
+| Duplicidade | `409` |
+| Sem autenticacao | `401` |
+| Token invalido | `401` |
+| Permissao insuficiente | `403` |
+| Regra de negocio violada | `409` ou `400`, conforme o endpoint |
 
-Para cada endpoint, cubra:
+## 7. Padroes Ja Usados na Suite
 
-| Cenário | Exemplo |
-|---------|---------|
-| Happy path | Dados válidos → 201/200 |
-| Campo obrigatório faltando | Sem `matricula` → 422 |
-| Recurso não encontrado | ID inexistente → 404 |
-| Duplicata | username repetido → 409 |
-| Sem autenticação | Sem token → 401 |
-| Token inválido | Token adulterado → 401 |
-| Regra de negócio violada | Concluir pane já resolvida → 409 |
-| Edge case | Descrição vazia → padrão "AGUARDANDO EDICAO" |
+- As chamadas autenticadas usam `Authorization: Bearer <token>`.
+- Alguns testes reutilizam `usuario_e_token["headers"]`.
+- O modulo de panes e o de equipamentos exigem atencao especial em relacoes e permissao por papel.
 
----
+## 8. Meta de Qualidade
 
-## Mocks e Fixtures Adicionais
-
-Se precisar de um usuário autenticado em múltiplos testes, crie uma fixture:
-
-```python
-# tests/conftest.py (adicionar)
-@pytest_asyncio.fixture
-async def token_autenticado(client: AsyncClient, dados_usuario_valido: dict) -> str:
-    """Cria usuário e retorna token JWT para uso nos testes."""
-    # 1. Criar usuário
-    await client.post("/auth/usuarios", json=dados_usuario_valido)
-    # 2. Fazer login
-    response = await client.post("/auth/login", data={
-        "username": dados_usuario_valido["username"],
-        "password": dados_usuario_valido["password"],
-    })
-    return response.json()["access_token"]
-
-@pytest_asyncio.fixture
-def auth_headers(token_autenticado: str) -> dict:
-    return {"Authorization": f"Bearer {token_autenticado}"}
-```
-
----
-
-## Métricas de Qualidade
-
-| Métrica | Meta |
+| Metrica | Meta |
 |---------|------|
-| Cobertura total | ≥ 80% |
-| Cobertura por módulo | ≥ 75% |
-| Testes falhando | 0 em `main` |
-| Tempo total da suite | < 30 segundos |
+| Cobertura total | >= 80% |
+| Cobertura por modulo | >= 75% |
+| Falhas em `main` | 0 |
+| Tempo total | abaixo de 30s, se possivel |
+
+## 9. Observacao Final
+
+Se voce mudar `app/bootstrap/main.py`, dependencias de autenticacao ou os modelos de dominio, rode pelo menos `tests/unit`, `tests/security` e `tests/architecture` antes de considerar a mudanca pronta.

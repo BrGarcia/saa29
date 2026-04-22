@@ -1,4 +1,4 @@
-# ADR-002: Autenticação via JWT (Stateless)
+# ADR-002: Autenticacao via JWT com Refresh Token
 
 **Data:** 2026-03-27  
 **Status:** Aceito  
@@ -8,37 +8,58 @@
 
 ## Contexto
 
-O sistema requer autenticação de usuários (RF-01, RF-02) com acesso exclusivo após login válido. O sistema é acessado por múltiplos clientes (navegadores) em rede interna.
+O sistema exige autenticacao de usuarios com acesso restrito por perfil. O projeto precisa atender tanto requisicoes da API quanto navegacao no frontend, sem depender de sessoes server-side tradicionais.
 
-## Decisão
+Tambem ha necessidade de:
 
-Autenticação **stateless via JWT (JSON Web Token)** assinado com algoritmo **HS256**, armazenado no cliente (header `Authorization: Bearer <token>`).
+- expiracao curta para reduzir impacto de token comprometido;
+- logout efetivo;
+- rotacao de refresh token;
+- rastreabilidade de revogacao.
 
-- Biblioteca: `python-jose[cryptography]`
-- Senha: hash `bcrypt` via `passlib`
-- Expiração padrão: **8 horas** (configurável via `JWT_EXPIRE_MINUTES`)
+## Decisao
+
+Adotar **JWT (HS256)** para access token e **refresh token persistido em banco** para renovacao da sessao.
+
+Implementacao atual:
+
+- access token com expiracao curta definida por `JWT_EXPIRE_MINUTES`;
+- refresh token com validade de 7 dias;
+- `jti` para cada token;
+- blacklist para logout e revogacao;
+- refresh token rotacionado a cada uso;
+- cookie HttpOnly para o access token em login.
 
 ## Alternativas Consideradas
 
-| Alternativa | Prós | Contras |
-|-------------|------|---------|
-| Session-based (cookies) | Revogação imediata | Requer armazenamento server-side (Redis/DB) |
-| JWT stateless (escolhido) | Sem estado no servidor, escalável | Revogação exige blacklist |
-| OAuth2 externo | Delegação de identidade | Complexidade desnecessária para MVP interno |
+| Alternativa | Pro | Contra |
+|-------------|-----|--------|
+| Session server-side | Revogacao simples | Exige armazenamento central e estado no servidor |
+| JWT sem blacklist | Simples | Logout real nao fica garantido |
+| OAuth externo | Delegacao de identidade | Complexidade maior que a necessidade atual |
+| JWT + refresh token (escolhido) | Curto prazo para access token e renovacao controlada | Requer persistencia auxiliar para revogacao e rotacao |
 
-## Consequências
+## Consequencias
 
 **Positivas:**
-- Sem necessidade de armazenamento de sessão no servidor
-- Tokens carregam o payload do usuário (username, funcao)
-- Compatível com qualquer cliente (browser, mobile, API)
+
+- logout invalida a sessao de forma persistida;
+- refresh token permite renovar a sessao sem expor senhas novamente;
+- o frontend pode trabalhar com cookie HttpOnly e resposta JSON ao mesmo tempo;
+- a blacklist sobrevive a reinicios da aplicacao;
+- a separacao entre access e refresh reduz o tempo de exposicao do token principal.
 
 **Negativas / Trade-offs:**
-- Logout real requer implementação de blacklist (deferida para v2.0)
-- Token comprometido é válido até expirar (mitigado pela expiração curta)
-- `APP_SECRET_KEY` deve ser longa, aleatória e **nunca versionada**
 
-## Referências
-- [RFC 7519 – JSON Web Token](https://tools.ietf.org/html/rfc7519)
-- [`app/auth/security.py`](../../../app/auth/security.py)
-- [SECURITY.md](../../../SECURITY.md)
+- o sistema passa a manter duas estruturas persistidas para autenticacao;
+- rotacao de refresh token aumenta a complexidade do fluxo;
+- a seguranca depende de `APP_SECRET_KEY` forte e configurada corretamente;
+- `TokenRefresh.usuario_id` e armazenado como referencia logica, sem FK declarada no ORM.
+
+## Referencias
+
+- [`app/modules/auth/security.py`](../../../app/modules/auth/security.py)
+- [`app/modules/auth/router.py`](../../../app/modules/auth/router.py)
+- [`app/modules/auth/models.py`](../../../app/modules/auth/models.py)
+- [`docs/architecture/03_MODEL_DB.md`](../03_MODEL_DB.md)
+- [`docs/SECURITY.md`](../../SECURITY.md)

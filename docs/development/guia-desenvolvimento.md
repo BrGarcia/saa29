@@ -1,161 +1,157 @@
-# Guia de Desenvolvimento – SAA29
+# Guia de Desenvolvimento - SAA29
 
-## Ambiente de Desenvolvimento
+Documento sincronizado com o codigo-fonte em 22/04/2026.
+
+## 1. Ambiente de Desenvolvimento
 
 ### Requisitos
+
 - Python 3.12+
 - Git 2.x
-- SQLite (padrão dev/local) ou PostgreSQL 16+ (opcional para produção)
+- SQLite como banco padrao local
+- PostgreSQL 16+ apenas se voce for testar migracao manual
 
-### Setup rápido
+### Setup rapido
 
 ```bash
-# Clonar e configurar
-git clone https://github.com/BrGarcia/saa29.git
-cd saa29
+git clone <repo>
+cd SAA29
 python -m venv .venv
-# Ativar venv:
-# Windows: .venv\Scripts\activate
-# Linux/Mac: source .venv/bin/activate
+
+# Windows
+.venv\Scripts\activate
 
 pip install -r requirements.txt
-cp .env.example .env          # Editar .env se necessário
+copy .env.example .env
 
-# Migrações e inicialização de dados (Frota padrão)
-alembic upgrade head
+# Cria o schema no banco configurado em DATABASE_URL
+python -m alembic upgrade head
 
-# Iniciar servidor
-uvicorn app.main:app --reload --port 8000
+# Bootstrap inicial: admin e frota padrao
+python scripts/db/init_db.py
+
+# Seed de desenvolvimento
+python scripts/db/seed.py
+
+# Sementes auxiliares de dominio
+python scripts/seed_equipamentos.py
+python scripts/seed_30_panes.py
+
+# Executa a aplicacao
+python scripts/run_app.py
 ```
 
----
+## 2. Scripts Reais do Repositorio
 
-## Banco de Dados (SQLite)
+Os entry points atualmente usados no repositorio sao:
 
-O SAA29 utiliza **SQLite** + **aiosqlite** como stack padrão.
+- `scripts/run_app.py` para subir a aplicacao com Uvicorn.
+- `scripts/db/init_db.py` para bootstrap de admin e frota padrao.
+- `scripts/db/seed.py` para dados de desenvolvimento.
+- `scripts/seed_equipamentos.py` para catalogo, slots e itens de teste.
+- `scripts/seed_30_panes.py` para panes de exemplo.
+- `scripts/maintenance/r2_manager.py` para backup e restore do banco SQLite via R2.
+- `scripts/maintenance/reset_admin.py` para reset de senha do administrador.
 
-### Características implementadas:
-- **Integridade:** `PRAGMA foreign_keys=ON` ativado via listener.
-- **Performance:** `PRAGMA journal_mode=WAL` para reduzir bloqueios de leitura.
-- **Migrações:** Configurado com `render_as_batch=True` no Alembic.
+Observacao:
 
-### Manutenção Básica:
-- **Backup:** Basta copiar o arquivo `.db` (Ex: `cp saa29_local.db backup.db`).
-- **Inspeção:** Utilize `sqlite3 saa29_local.db` ou ferramentas como DBeaver/DB Browser for SQLite.
+- o arquivo `scripts/start.sh` ainda existe no repositorio, mas ha referencias legadas nele. Para desenvolvimento local, prefira os comandos acima.
 
----
+## 3. Banco de Dados
 
-## Estrutura de um Módulo
+### Padrao atual
 
-Cada domínio segue o padrão abaixo. **Não desviar desta estrutura.**
+- `DATABASE_URL=sqlite+aiosqlite:///./saa29_local.db`
+- `app/bootstrap/database.py` cria a engine async e habilita `PRAGMA foreign_keys=ON`, `journal_mode=WAL` e `synchronous=NORMAL` para SQLite.
+
+### Quando usar PostgreSQL
+
+- apenas para testes de migracao ou ambiente externo;
+- requer `asyncpg` instalado no ambiente;
+- exige que `DATABASE_URL` use o formato `postgresql+asyncpg://...`.
+
+### Manutencao basica
+
+- backup local: copie `saa29_local.db`;
+- inspeção: use `sqlite3 saa29_local.db` ou DBeaver/DB Browser for SQLite;
+- migracoes: sempre revise o arquivo gerado em `migrations/versions/` antes de aplicar.
+
+## 4. Estrutura de um modulo
 
 ```
-app/<modulo>/
-├── __init__.py      # Identificação do pacote
-├── models.py        # Entidades ORM (SQLAlchemy)
-├── schemas.py       # Validação Pydantic (entrada/saída)
-├── service.py       # Regras de negócio (testável, sem HTTP)
-└── router.py        # Endpoints FastAPI (sem lógica de negócio)
+app/modules/<modulo>/
+├── models.py
+├── schemas.py
+├── service.py
+└── router.py
 ```
 
-### Responsabilidades por arquivo
+Responsabilidades:
 
-| Arquivo | Faz | Não faz |
+| Arquivo | Faz | Nao faz |
 |---------|-----|---------|
-| `models.py` | Define tabelas e relacionamentos | Lógica de negócio |
+| `models.py` | Define entidades e relacoes ORM | Regras de negocio |
 | `schemas.py` | Valida e serializa dados | Acessa banco |
-| `service.py` | Implementa algoritmos e RNs | Conhece HTTP (status codes, headers) |
-| `router.py` | Recebe request, chama service, retorna response | Contém `if`s de negócio |
+| `service.py` | Aplica regras e orquestra casos de uso | Fala HTTP |
+| `router.py` | Recebe request e devolve response | Implementa regra de negocio |
 
----
+## 5. Fluxo Recomendado de Mudanca
 
-## Padrão de Implementação
+1. Ajuste `models.py` e `schemas.py`.
+2. Atualize o `service.py`.
+3. Ajuste o `router.py`.
+4. Gere migracao com Alembic.
+5. Rode a suite de testes.
+6. Atualize a documentacao em `docs/`.
 
-### Service
+## 6. Bootstrap e Variaveis de Ambiente
 
-```python
-async def criar_pane(
-    db: AsyncSession,
-    dados: PaneCreate,
-    criado_por_id: uuid.UUID,
-) -> Pane:
-    """
-    Abre uma nova pane no sistema.
-    """
-    aeronave = await db.get(Aeronave, dados.aeronave_id)
-    if not aeronave:
-        raise ValueError(f"Aeronave {dados.aeronave_id} não encontrada.")
-    
-    pane = Pane(
-        aeronave_id=dados.aeronave_id,
-        descricao=dados.descricao or "AGUARDANDO EDICAO",
-        status=StatusPane.ABERTA,
-        criado_por_id=criado_por_id,
-    )
-    db.add(pane)
-    await db.flush()
-    return pane
-```
+O projeto carrega configuracao por `app/bootstrap/config.py`.
 
----
+Variaveis relevantes do `.env.example`:
 
-## Inicialização e Dados
+- `DATABASE_URL`
+- `APP_ENV`
+- `APP_DEBUG`
+- `APP_SECRET_KEY`
+- `DEFAULT_ADMIN_USER`
+- `DEFAULT_ADMIN_PASSWORD`
+- `JWT_ALGORITHM`
+- `JWT_EXPIRE_MINUTES`
+- `UPLOAD_DIR`
+- `MAX_UPLOAD_SIZE_MB`
+- `STORAGE_BACKEND`
+- `R2_ACCOUNT_ID`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `R2_ENDPOINT`
+- `R2_BUCKET_NAME`
 
-O SAA29 possui dois fluxos distintos de carga de dados:
+Observacoes:
 
-### 1. Bootstrap (`scripts/init_db.py`)
-- **O que faz:** Garante a existência do usuário **Admin** e da **Frota Padrão** (20 aeronaves).
-- **Quando roda:** Sempre que o sistema inicia (via `start.sh`).
-- **Comportamento:** É idempotente (só cria se não existir). Seguro para Produção.
+- `APP_SECRET_KEY` e obrigatoria e nao pode ser fraca.
+- `DEFAULT_ADMIN_PASSWORD` e obrigatoria para bootstrap e seed.
+- `STORAGE_BACKEND` aceita `local` ou `r2`.
 
-### 2. Seed de Teste (`scripts/seed.py`)
-- **O que faz:** Popula o sistema com panes de exemplo, usuários fictícios e logs de teste.
-- **Quando roda:** Apenas se `APP_ENV=development`.
-- **Uso:** Exclusivo para desenvolvedores validarem a interface e filtros.
+## 7. Deploy Local e Railway
 
----
+### Local
 
-```bash
-# 1. Editar model em app/<modulo>/models.py
-# 2. Gerar migração (Batch mode automático para SQLite)
-alembic revision --autogenerate -m "nome_da_migracao"
+- Use SQLite com `DATABASE_URL=sqlite+aiosqlite:///./saa29_local.db`.
+- Para arquivos, deixe `STORAGE_BACKEND=local`.
 
-# 3. REVISAR o arquivo gerado em migrations/versions/
-# 4. Aplicar
-alembic upgrade head
-```
+### Railway
 
-> [!WARNING]
-> Para SQLite, o Alembic usa `batch_alter_table`. Verifique se o script gerado segue este padrão para evitar erros de "Table locked" ou falhas em `ALTER COLUMN`.
+- Se usar SQLite em volume, a base precisa ficar em um caminho persistente.
+- Se usar R2, configure `STORAGE_BACKEND=r2` e as credenciais do bucket.
+- Para PostgreSQL, use banco externo e instale `asyncpg` no ambiente.
 
----
+## 8. Gerar Chave Segura
 
-## Variáveis de Ambiente
-
-| Variável | Obrigatória | Descrição |
-|----------|-------------|-----------|
-| `DATABASE_URL` | ✅ | URL do banco (Ex: `sqlite+aiosqlite:///./saa29.db`) |
-| `APP_SECRET_KEY` | ✅ | Chave JWT (Não use a palavra "INSECURE" em produção) |
-| `ALLOWED_HOSTS` | ✅ | `*` ou lista separada por vírgula para domínios permitidos |
-| `ALLOWED_ORIGINS` | ✅ | `*` ou lista separada por vírgula para CORS |
-| `GUNICORN_WORKERS` | ❌ | Número de workers (Padrão: 2. Recomendado: 1 ou 2 para SQLite) |
-| `APP_ENV` | ❌ | `development` ou `production` |
-| `JWT_EXPIRE_MINUTES` | ❌ | Expiração do token em minutos (Padrão: 120) |
-| `UPLOAD_DIR` | ❌ | Diretório de uploads (Padrão: `uploads`) |
-
----
-
-## Deploy no Railway (SQLite)
-
-O SAA29 está pronto para o Railway utilizando SQLite.
-
-### Passos:
-1.  **Networking:** Configure a porta **8000** em *Settings -> Networking*.
-2.  **Variables:** Use o editor *Raw* e cole as variáveis do `.env`.
-3.  **Persistência:** Para manter os dados após deploys, crie um **Volume** e monte em `/app/data`. Ajuste a `DATABASE_URL` para `sqlite+aiosqlite:////app/data/saa29.db`.
-
-
-Gerar uma chave segura:
 ```bash
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
+
+## 9. Observacao Pratica
+
+O ponto de entrada da aplicacao e `app/bootstrap/main.py`, nao um `app/main.py` direto. Isso importa para comandos de deploy, testes e para qualquer wrapper de execucao local.

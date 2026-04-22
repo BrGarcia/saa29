@@ -1,26 +1,48 @@
-# Resumo de Seguranca
-
-critical:
-- .env nao deve ir para Git
-- uploads nao devem ficar misturados ao codigo
-- logs e bancos locais devem ficar fora da raiz operacional
-- dados sensiveis nao devem entrar em docs publicas
+# security_summary
 
 controls:
-- CSRF ativo em fluxos de formulario e api
-- rate limit e account lockout
-- tokens com rotacao de refresh
-- validacao de magic bytes para anexos
-- uso de cookies/headers conforme fluxo do frontend
+- jwt_access_token
+- persisted_refresh_token_with_rotation
+- token_blacklist_on_logout
+- csrf_middleware
+- rate_limit_login
+- account_lockout_after_failed_attempts
+- trusted_host
+- cors_restricted
+- security_headers_and_csp
+- upload_type_and_size_validation
+- local_or_r2_storage_abstraction
 
-reporting:
-- vulnerabilidades devem seguir docs/SECURITY.md
-- nao abrir issue publica para falhas de seguranca
+transport_rules:
+- api_auth: Authorization_Bearer_supported
+- web_auth: cookie_saa29_token_supported
+- token_read_order: header_then_cookie
+
+upload_rules:
+- allowed_ext: jpg,jpeg,png,pdf,doc,docx
+- block_path_traversal: true
+- validate_real_type: true
+
+sensitive_env:
+- APP_SECRET_KEY
+- DEFAULT_ADMIN_PASSWORD
+- R2_ACCESS_KEY_ID
+- R2_SECRET_ACCESS_KEY
+
+security_docs:
+- docs/SECURITY.md
+- docs/development/cloudflare_r2.md
+- docs/api/referencia-api.md
 
 files_of_interest:
-- app/auth/security.py
-- app/middleware/csrf.py
-- app/core/file_validators.py
-- app/core/storage.py
-- app/core/limiter.py
+- app/modules/auth/security.py
+- app/modules/auth/router.py
+- app/bootstrap/dependencies.py
+- app/shared/middleware/csrf.py
+- app/shared/core/file_validators.py
+- app/shared/core/storage.py
+- app/shared/core/limiter.py
 
+reporting:
+- do_not_open_public_issue_for_vuln
+- follow_docs_SECURITY_md
