@@ -11,13 +11,25 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
+SCRIPTS_DIR = ROOT_DIR / "scripts"
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+try:
+    from scripts.seed_equipamentos import garantir_catalogo_e_slots
+except (ImportError, ModuleNotFoundError):
+    try:
+        from seed_equipamentos import garantir_catalogo_e_slots
+    except (ImportError, ModuleNotFoundError):
+        # Caso especial para execução dentro de scripts/db/
+        sys.path.append(str(ROOT_DIR / "scripts"))
+        from seed_equipamentos import garantir_catalogo_e_slots
 
 from app.bootstrap.database import get_session_factory
 from app.modules.auth.security import hash_senha
 from sqlalchemy import select
-from scripts.seed_equipamentos import garantir_catalogo_e_slots
 
 # Carregar variáveis do .env
 load_dotenv()

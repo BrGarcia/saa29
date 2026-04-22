@@ -24,7 +24,6 @@ __pycache__/
 # Development/Testing files to exclude from production image
 tests/
 scripts/db/seed.py
-scripts/seed_equipamentos.py
 scripts/seed_30_panes.py
 pytest.ini
 
