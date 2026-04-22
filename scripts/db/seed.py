@@ -5,7 +5,14 @@ Executar: python -m scripts.seed
 """
 import asyncio
 import os
+import sys
+from pathlib import Path
 from dotenv import load_dotenv
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 from app.bootstrap.database import get_session_factory
 from app.modules.auth.security import hash_senha
 from sqlalchemy import select

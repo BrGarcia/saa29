@@ -3,9 +3,16 @@ scripts/seed_equipamentos.py
 Popula o banco com a nova estrutura: ModeloEquipamento (PN) e SlotInventario (Posição).
 """
 import asyncio
+import sys
 import uuid
 from datetime import date
+from pathlib import Path
 from sqlalchemy import select
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 from app.bootstrap.database import get_session_factory
 
 # Importar modelos para garantir registro no SQLAlchemy

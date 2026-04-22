@@ -21,14 +21,14 @@ python -m alembic upgrade head
 
 # 2. Inicialização básica (Sempre roda, só cria o que não existe)
 echo "🔧 Inicializando banco de dados (Bootstrap)..."
-python scripts/db/init_db.py
+python -m scripts.db.init_db
 
 # 3. Popular dados de teste (Apenas se em desenvolvimento)
 if [ "$APP_ENV" == "development" ]; then
     echo "🌱 Populando dados de teste (Seed)..."
-    python scripts/db/seed.py
-    python scripts/seed_equipamentos.py
-    python scripts/seed_30_panes.py
+    python -m scripts.db.seed
+    python -m scripts.seed_equipamentos
+    python -m scripts.seed_30_panes
 fi
 
 # 4. Iniciar a aplicação

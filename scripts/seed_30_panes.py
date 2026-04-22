@@ -4,9 +4,16 @@ Gera 30 panes aleatórias para teste de interface e filtros.
 """
 import asyncio
 import random
+import sys
 import uuid
 from datetime import datetime, timedelta
+from pathlib import Path
 from sqlalchemy import select
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 from app.bootstrap.database import get_session_factory
 
 # Importar TODOS os módulos para resolver os nomes das classes em referências de string cruzadas
