@@ -17,14 +17,14 @@ from alembic import context
 
 # --- Importar todos os models para que o Alembic detecte as tabelas ---
 # IMPORTANTE: Esta seção deve ser mantida atualizada com todos os módulos.
-from app.database import Base  # noqa: F401 – Base com metadata
-from app.config import get_settings
+from app.bootstrap.database import Base  # noqa: F401 – Base com metadata
+from app.bootstrap.config import get_settings
 
 # Módulos de models (garante que as tabelas estejam no metadata)
-import app.auth.models         # noqa: F401
-import app.aeronaves.models    # noqa: F401
-import app.equipamentos.models # noqa: F401
-import app.panes.models        # noqa: F401
+import app.modules.auth.models         # noqa: F401
+import app.modules.aeronaves.models    # noqa: F401
+import app.modules.equipamentos.models # noqa: F401
+import app.modules.panes.models        # noqa: F401
 
 # Objeto de metadata que o Alembic usará para detectar mudanças
 target_metadata = Base.metadata
