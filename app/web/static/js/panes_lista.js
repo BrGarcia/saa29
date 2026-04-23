@@ -266,10 +266,16 @@ async function handleCriarPane(e) {
         if(fileInput && fileInput.files.length > 0) {
             const formData = new FormData();
             formData.append("arquivo", fileInput.files[0]);
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute("content") : "";
+            
             const uploadResp = await fetch(`/panes/${pane.id}/anexos`, {
                 method: "POST",
                 body: formData,
-                credentials: "same-origin"
+                credentials: "same-origin",
+                headers: {
+                    "X-CSRF-Token": csrfToken
+                }
             });
             
             if (!uploadResp.ok) {
