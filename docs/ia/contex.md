@@ -12,6 +12,14 @@ project:
 - domain: panes_aeronaves_inventario_a29
 - status: active_local_production_ready
 
+operational_constraints:
+- active_database_in_use: true
+- fine_tuning_phase: true
+- preserve_current_database: mandatory
+- preserve_existing_panes: mandatory
+- before_any_db_schema_or_data_change: backup_original_database
+- avoid_reset_or_reseed_on_active_database: true
+
 stack:
 - backend: fastapi
 - orm: sqlalchemy_async
@@ -54,6 +62,7 @@ current_focus:
 - docs_synced: true
 - security_controls_active: true
 - inventory_module_active: true
+- preserve_existing_pane_data: mandatory
 - test_suites_present: unit, security, architecture
 
 known_gaps_from_roadmap:

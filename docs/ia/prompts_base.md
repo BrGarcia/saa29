@@ -20,3 +20,6 @@ prompt_security_review:
 
 prompt_docs_sync:
 > Update docs/ia summaries after official docs are updated. Keep delta-only, machine-friendly, no prose.
+
+prompt_db_safety:
+> Before any database change, assume the current database is in active use, preserve all existing pane records, create a backup of the original database first, and never reset or reseed the active database.

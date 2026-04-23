@@ -22,6 +22,16 @@ dev_rules:
 - keep_business_logic_in_service
 - update_docs_after_behavior_change
 - review_alembic_migration_before_apply
+- preserve_active_database
+- backup_original_db_before_schema_or_data_change
+- do_not_reset_or_reseed_active_db
+- prefer_testing_db_changes_on_copy_before_apply
+
+db_safety:
+- active_db_contains_registered_panes
+- current_db_must_not_be_recreated
+- seed_scripts_only_on_disposable_database
+- any_manual_db_change_requires_backup_of_original_file
 
 tests:
 - full: pytest tests -q

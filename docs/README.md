@@ -14,6 +14,13 @@ Sistema web monolitico e modular para:
 - operar inventario de equipamentos e controles de vencimento;
 - armazenar anexos localmente ou em Cloudflare R2.
 
+## Aviso Operacional
+
+- O banco de dados atual ja esta em uso e deve ser preservado.
+- Os dados das panes ja cadastradas fazem parte do ativo operacional do projeto e nao podem ser perdidos.
+- Qualquer alteracao de schema, migracao, ajuste manual ou script que modifique dados deve ser executado com extremo cuidado e sempre precedido por backup do banco original.
+- Scripts de seed, reset ou recriacao de base so devem ser usados em banco descartavel ou copia de trabalho, nunca na base ativa.
+
 ## Inicio Rapido
 
 ```bash
@@ -31,6 +38,10 @@ python -m alembic upgrade head
 python scripts/db/init_db.py
 python scripts/run_app.py
 ```
+
+Observacao:
+
+- Antes de qualquer manutencao no banco em uso, gere backup do arquivo original e valide a mudanca em uma copia quando houver risco de impactar os registros existentes.
 
 Documentacao interativa da API:
 

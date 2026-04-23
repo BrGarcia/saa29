@@ -64,6 +64,14 @@ Observacao:
 - `DATABASE_URL=sqlite+aiosqlite:///./saa29_local.db`
 - `app/bootstrap/database.py` cria a engine async e habilita `PRAGMA foreign_keys=ON`, `journal_mode=WAL` e `synchronous=NORMAL` para SQLite.
 
+### Regra operacional atual
+
+- O banco atual ja esta em uso e deve ser preservado.
+- As panes ja cadastradas precisam permanecer intactas durante a fase de ajuste fino.
+- Nao recrie, resete, trunque nem rode seed sobre a base ativa.
+- Qualquer mudanca de schema ou dados exige backup previo do banco original.
+- Quando houver risco, teste a mudanca primeiro em uma copia do banco.
+
 ### Quando usar PostgreSQL
 
 - apenas para testes de migracao ou ambiente externo;
@@ -75,6 +83,12 @@ Observacao:
 - backup local: copie `saa29_local.db`;
 - inspeção: use `sqlite3 saa29_local.db` ou DBeaver/DB Browser for SQLite;
 - migracoes: sempre revise o arquivo gerado em `migrations/versions/` antes de aplicar.
+
+### Cuidados obrigatorios na base ativa
+
+- Antes de aplicar migracao ou ajuste manual na base ativa, crie uma copia preservada do arquivo original.
+- `scripts/db/seed.py`, `scripts/seed_equipamentos.py` e `scripts/seed_30_panes.py` devem ser usados apenas em banco descartavel ou copia de trabalho.
+- Se a mudanca tocar dados existentes, valide primeiro em uma copia do banco e registre o plano de retorno.
 
 ## 4. Estrutura de um modulo
 

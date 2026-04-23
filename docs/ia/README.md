@@ -21,6 +21,12 @@ update_policy:
 - keep: short, deterministic, machine_friendly
 - avoid: narrative, duplicated_examples, stale_paths
 
+operational_rules:
+- preserve_active_database: mandatory
+- preserve_existing_pane_records: mandatory
+- before_db_schema_or_data_change: create_backup_of_original_db
+- never_assume: active_db_can_be_reset_recreated_or_reseeded
+
 files:
 - contex.md: project_state
 - resumo_arquitetura.md: architecture_state

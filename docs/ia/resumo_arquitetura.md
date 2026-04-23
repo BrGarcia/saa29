@@ -50,3 +50,6 @@ runtime_notes:
 - sqlite_uses_wal_and_foreign_keys
 - static_mounted_from_app/web/static
 - r2_backup_can_run_event_driven_when_enabled
+- active_database_is_operational_asset
+- schema_or_data_changes_require_original_backup
+- existing_pane_records_must_be_preserved
