@@ -335,20 +335,11 @@ async function handleUpload(e) {
     const btn = document.getElementById("btnUpload");
     btn.disabled = true;
 
-    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-    const csrfToken = csrfMeta ? csrfMeta.getAttribute("content") : "";
-
     try {
-        const res = await fetch(`/panes/${PANE_ID}/anexos`, {
+        await apiFetch(`/panes/${PANE_ID}/anexos`, {
             method: "POST",
-            body: formData,
-            credentials: "same-origin",
-            headers: {
-                "X-CSRF-Token": csrfToken
-            }
+            body: formData
         });
-
-        if (!res.ok) throw new Error("Falha no upload.");
 
         showToast("Evidência anexada.", "success");
         input.value = "";

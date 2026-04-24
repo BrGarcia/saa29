@@ -40,32 +40,43 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                     )
         
         # 2. Obtenção/Geração de Tokens
-        # Verificamos se já existe um cookie de CSRF válido
+        # Reemitimos o par CSRF apenas quando:
+        # - ainda não existe cookie;
+        # - a resposta precisa renderizar HTML completo (meta tag);
+        # - o frontend já enviou um token e espera sincronização de volta.
+        # Isso evita invalidar a meta tag atual ao abrir anexos/imagens/PDFs direto no navegador.
         csrf_cookie = request.cookies.get("fastapi-csrf-token")
-        
-        if csrf_cookie and request.method == "GET":
-            # Se já existe no GET, não rotacionamos para manter estabilidade no AJAX
-            # A biblioteca não expõe o raw_token facilmente do cookie assinado, 
-            # então geramos um novo apenas se necessário ou se o desenvolvedor preferir estabilidade.
-            # Para o MVP, se o cookie existe, vamos apenas extrair o que for necessário ou gerar um novo par.
-            pass
+        accept = request.headers.get("accept", "").lower()
+        sec_fetch_dest = request.headers.get("sec-fetch-dest", "").lower()
+        csrf_header = request.headers.get("X-CSRF-Token")
+        is_html_navigation = "text/html" in accept or sec_fetch_dest == "document"
+        should_issue_token = (
+            request.method != "GET"
+            or not csrf_cookie
+            or is_html_navigation
+            or bool(csrf_header)
+        )
 
-        # De acordo com a documentação, generate_csrf() retorna (csrf_token, signed_token)
-        # csrf_token -> Plain text (para o Header/Meta)
-        # signed_token -> Signed (para o Cookie)
-        token_pair = csrf_protect.generate_csrf()
-        raw_token, signed_token = token_pair if isinstance(token_pair, tuple) else (token_pair, token_pair)
-        
-        # 3. Disponibiliza o token BRUTO para o Template (contrato correto)
-        request.state.csrf_token = raw_token
-        
-        # 4. Processa a requisição
+        raw_token = None
+        signed_token = None
+        if should_issue_token:
+            # De acordo com a documentação, generate_csrf() retorna (csrf_token, signed_token)
+            # csrf_token -> Plain text (para o Header/Meta)
+            # signed_token -> Signed (para o Cookie)
+            token_pair = csrf_protect.generate_csrf()
+            raw_token, signed_token = (
+                token_pair if isinstance(token_pair, tuple) else (token_pair, token_pair)
+            )
+            request.state.csrf_token = raw_token
+
+        # 3. Processa a requisição
         response = await call_next(request)
-        
-        # 5. Seta o cookie com o token ASSINADO (contrato correto)
-        csrf_protect.set_csrf_cookie(signed_token, response)
-        
-        # 6. Sincroniza o token BRUTO no header para chamadas AJAX subsequentes
-        response.headers["X-CSRF-Token"] = raw_token
+
+        if should_issue_token and signed_token and raw_token:
+            # 4. Seta o cookie com o token ASSINADO (contrato correto)
+            csrf_protect.set_csrf_cookie(signed_token, response)
+
+            # 5. Sincroniza o token BRUTO no header para chamadas AJAX subsequentes
+            response.headers["X-CSRF-Token"] = raw_token
         
         return response

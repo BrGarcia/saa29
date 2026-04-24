@@ -266,25 +266,14 @@ async function handleCriarPane(e) {
         if(fileInput && fileInput.files.length > 0) {
             const formData = new FormData();
             formData.append("arquivo", fileInput.files[0]);
-            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-            const csrfToken = csrfMeta ? csrfMeta.getAttribute("content") : "";
-            
-            const uploadResp = await fetch(`/panes/${pane.id}/anexos`, {
+
+            try {
+                await apiFetch(`/panes/${pane.id}/anexos`, {
                 method: "POST",
-                body: formData,
-                credentials: "same-origin",
-                headers: {
-                    "X-CSRF-Token": csrfToken
-                }
-            });
-            
-            if (!uploadResp.ok) {
-                let errMsg = "Erro no envio";
-                try {
-                    const errData = await uploadResp.json();
-                    errMsg = errData.detail || errMsg;
-                } catch(e) {}
-                
+                body: formData
+                });
+            } catch (err) {
+                const errMsg = err?.message || "Erro no envio";
                 showToast(`Pane criada, mas o anexo falhou: ${errMsg}`, "warning");
                 closeNovaPaneModal();
                 loadPanes();
