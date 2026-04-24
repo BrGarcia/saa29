@@ -1,6 +1,6 @@
 # Modelo de Banco de Dados - SAA29
 
-Documento sincronizado com o codigo-fonte em 22/04/2026.
+Documento sincronizado com o codigo-fonte em 24/04/2026.
 Fontes da verdade:
 
 - `app/modules/auth/models.py`

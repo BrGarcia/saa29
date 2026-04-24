@@ -40,6 +40,21 @@ document.addEventListener("DOMContentLoaded", () => {
     
     const formReativar = document.getElementById('formReativarAeronave');
     if(formReativar) formReativar.addEventListener('submit', reativarAeronave);
+
+    const btnTiposControle = document.getElementById('btn-tipos-controle');
+    if(btnTiposControle) btnTiposControle.onclick = openModalTipoControle;
+
+    const formTipoControle = document.getElementById('formTipoControle');
+    if(formTipoControle) formTipoControle.addEventListener('submit', salvarTipoControle);
+
+    const btnEditarTipo = document.getElementById('btn-editar-tipo-controle');
+    if(btnEditarTipo) btnEditarTipo.onclick = openModalEditarTipo;
+
+    const formEditarTipo = document.getElementById('formEditarTipoControle');
+    if(formEditarTipo) formEditarTipo.addEventListener('submit', salvarEditarTipo);
+
+    const btnEquipamentoControle = document.getElementById('btn-equipamento-controle');
+    if(btnEquipamentoControle) btnEquipamentoControle.onclick = () => alert('Funcionalidade em desenvolvimento');
 });
 
 function openModalConfig() {
@@ -220,3 +235,124 @@ async function reativarAeronave(e) {
 
 window.openModalReativar = openModalReativar;
 window.closeModalReativar = closeModalReativar;
+
+// ==========================================
+// Módulo de Controles de Vencimento
+// ==========================================
+
+function openModalTipoControle() {
+    const modal = document.getElementById('modal-tipo-controle');
+    if(modal) modal.style.display = 'flex';
+}
+
+function closeModalTipoControle() {
+    const modal = document.getElementById('modal-tipo-controle');
+    if(modal) modal.style.display = 'none';
+    const form = document.getElementById('formTipoControle');
+    if(form) form.reset();
+}
+
+async function salvarTipoControle(e) {
+    e.preventDefault();
+    const btn = document.getElementById("btnSalvarTipoControle");
+    btn.disabled = true;
+
+    const nome = document.getElementById("codigoControleInput").value.trim().toUpperCase();
+    const descricao = document.getElementById("descControleInput").value.trim();
+
+    try {
+        await apiFetch("/equipamentos/tipos-controle", {
+            method: "POST",
+            body: {
+                nome: nome,
+                descricao: descricao
+            }
+        });
+        showToast("Tipo de controle cadastrado com sucesso!", "success");
+        closeModalTipoControle();
+    } catch(err) {
+        showToast(err.message || "Erro ao cadastrar tipo de controle.", "error");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+window.openModalTipoControle = openModalTipoControle;
+window.closeModalTipoControle = closeModalTipoControle;
+
+// ---- Editar Tipo de Controle ----
+
+let tiposControleCache = [];
+
+async function openModalEditarTipo() {
+    const modal = document.getElementById('modal-editar-tipo-controle');
+    modal.style.display = 'flex';
+    const select = document.getElementById('editarTipoSelect');
+    select.innerHTML = '<option value="" disabled selected>Carregando...</option>';
+    document.getElementById('editarCodigoInput').value = '';
+    document.getElementById('editarDescInput').value = '';
+
+    try {
+        tiposControleCache = await apiFetch('/equipamentos/tipos-controle');
+        if (tiposControleCache.length === 0) {
+            select.innerHTML = '<option value="" disabled selected>Nenhum tipo cadastrado</option>';
+        } else {
+            select.innerHTML = '<option value="" disabled selected>Selecione um tipo</option>';
+            tiposControleCache.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.text = `${t.nome}${t.descricao ? ' — ' + t.descricao : ''}`;
+                select.appendChild(opt);
+            });
+        }
+    } catch(e) {
+        select.innerHTML = '<option value="" disabled selected>Erro ao carregar</option>';
+    }
+
+    select.onchange = function() {
+        const tipo = tiposControleCache.find(t => t.id === this.value);
+        if(tipo) {
+            document.getElementById('editarCodigoInput').value = tipo.nome;
+            document.getElementById('editarDescInput').value = tipo.descricao || '';
+        }
+    };
+}
+
+function closeModalEditarTipo() {
+    const modal = document.getElementById('modal-editar-tipo-controle');
+    if(modal) modal.style.display = 'none';
+    const form = document.getElementById('formEditarTipoControle');
+    if(form) form.reset();
+}
+
+async function salvarEditarTipo(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSalvarEditarTipo');
+    const select = document.getElementById('editarTipoSelect');
+    const tipoId = select.value;
+
+    if(!tipoId) {
+        showToast('Selecione um tipo de controle.', 'error');
+        return;
+    }
+
+    btn.disabled = true;
+    const nome = document.getElementById('editarCodigoInput').value.trim().toUpperCase();
+    const descricao = document.getElementById('editarDescInput').value.trim();
+
+    try {
+        await apiFetch(`/equipamentos/tipos-controle/${tipoId}`, {
+            method: 'PUT',
+            body: { nome, descricao }
+        });
+        showToast('Tipo de controle atualizado com sucesso!', 'success');
+        closeModalEditarTipo();
+    } catch(err) {
+        showToast(err.message || 'Erro ao atualizar tipo de controle.', 'error');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+window.openModalEditarTipo = openModalEditarTipo;
+window.closeModalEditarTipo = closeModalEditarTipo;

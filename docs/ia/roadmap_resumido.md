@@ -6,7 +6,8 @@ state_now:
 - current_system: auth_aeronaves_panes_inventory_active
 
 immediate_backlog:
-- settings_page_implementation (equipamentos, vencimentos remaining)
+- settings_page_vencimentos_ui (equipamento_controles vinculo, controle_vencimentos registro)
+- settings_page_equipamentos_ui (catalogo PN, slots)
 - logout_backend_client_alignment
 - database_url_consistency_cleanup
 - cookie_only_auth_hardening

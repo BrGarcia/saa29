@@ -134,16 +134,20 @@ class AjusteInventarioResponse(BaseModel):
 # ============================================================
 
 class TipoControleCreate(BaseModel):
-    nome: str = Field(..., max_length=50)
+    """Catálogo de códigos de controle. Periodicidade definida em EquipamentoControle."""
+    nome: str = Field(..., max_length=10)
     descricao: str | None = None
-    periodicidade_meses: int = Field(..., gt=0)
+
+class TipoControleUpdate(BaseModel):
+    """Atualização de tipo de controle existente."""
+    nome: str | None = Field(default=None, max_length=10)
+    descricao: str | None = None
 
 class TipoControleOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     nome: str
     descricao: str | None
-    periodicidade_meses: int
     created_at: datetime
 
 class ControleVencimentoUpdate(BaseModel):

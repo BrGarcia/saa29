@@ -71,14 +71,14 @@ class SlotInventario(Base):
 
 class TipoControle(Base):
     """
-    Define um tipo de controle periódico de manutenção (TBV, RBA, CRI).
+    Catálogo de códigos de controle (TLV, CRI, DWL, RBA, TBO...).
+    A periodicidade é definida no vínculo com o modelo (EquipamentoControle).
     """
     __tablename__ = "tipos_controle"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    nome: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
+    nome: Mapped[str] = mapped_column(String(10), nullable=False, unique=True, index=True)
     descricao: Mapped[str | None] = mapped_column(String(300), nullable=True)
-    periodicidade_meses: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
 
     # --- Relacionamentos ---

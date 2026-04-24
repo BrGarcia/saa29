@@ -43,6 +43,24 @@ async def criar_tipo_controle(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
+@router.put(
+    "/tipos-controle/{tipo_id}",
+    response_model=schemas.TipoControleOut,
+    summary="Atualizar tipo de controle",
+)
+async def atualizar_tipo_controle(
+    tipo_id: uuid.UUID,
+    dados: schemas.TipoControleUpdate,
+    db: DBSession,
+    _: EncarregadoOuAdmin,
+):
+    try:
+        tipo = await service.atualizar_tipo_controle(db, tipo_id, dados)
+        return schemas.TipoControleOut.model_validate(tipo)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+
 # ---- Equipamentos (Tipos / Part Numbers) ----
 
 @router.get("/", response_model=list[schemas.ModeloEquipamentoOut], summary="Listar equipamentos")

@@ -65,6 +65,8 @@ current_focus:
 - security_controls_active: true
 - inventory_module_active: true
 - configuracoes_module_active: true
+- tipos_controle_crud_active: true
+- alembic_migration_213295655e96_applied: true
 - preserve_existing_pane_data: mandatory
 - test_suites_present: unit, security, architecture
 

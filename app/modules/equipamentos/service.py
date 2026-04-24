@@ -59,10 +59,39 @@ async def listar_modelos(db: AsyncSession) -> list[ModeloEquipamento]:
 # Tipos de Controle (Periodicidades)
 # ============================================================
 
+async def listar_tipos_controle(db: AsyncSession) -> list[TipoControle]:
+    """Lista todos os tipos de controle cadastrados."""
+    result = await db.execute(select(TipoControle).order_by(TipoControle.nome))
+    return list(result.scalars().all())
+
 async def criar_tipo_controle(db: AsyncSession, dados: TipoControleCreate) -> TipoControle:
-    tipo = TipoControle(**dados.model_dump())
+    # Verificar duplicidade
+    existing = await db.execute(select(TipoControle).where(TipoControle.nome == dados.nome.upper()))
+    if existing.scalar_one_or_none():
+        raise ValueError(f"Tipo de controle '{dados.nome}' já existe.")
+    tipo = TipoControle(nome=dados.nome.upper(), descricao=dados.descricao)
     db.add(tipo)
-    await db.flush()
+    await db.commit()
+    return tipo
+
+async def atualizar_tipo_controle(db: AsyncSession, tipo_id: uuid.UUID, dados) -> TipoControle:
+    """Atualiza um tipo de controle existente."""
+    result = await db.execute(select(TipoControle).where(TipoControle.id == tipo_id))
+    tipo = result.scalar_one_or_none()
+    if not tipo:
+        raise ValueError("Tipo de controle não encontrado.")
+    if dados.nome is not None:
+        novo_nome = dados.nome.strip().upper()
+        # Verificar duplicidade com outro registro
+        dup = await db.execute(
+            select(TipoControle).where(TipoControle.nome == novo_nome, TipoControle.id != tipo_id)
+        )
+        if dup.scalar_one_or_none():
+            raise ValueError(f"Já existe um tipo de controle com o código '{novo_nome}'.")
+        tipo.nome = novo_nome
+    if dados.descricao is not None:
+        tipo.descricao = dados.descricao
+    await db.commit()
     return tipo
 
 
