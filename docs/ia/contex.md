@@ -1,7 +1,7 @@
 # ctx
 
 meta:
-- sync_date: 2026-04-22
+- sync_date: 2026-04-24
 - mode: machine
 - format: kv_short
 - truth: official_docs_first
@@ -40,8 +40,8 @@ domains:
 - auth: usuarios, token_blacklist, token_refresh
 - aeronaves: cadastro, status, toggle_status
 - panes: pane, anexo, responsavel, soft_delete, restore
-- equipamentos: modelo, slot, item, instalacao, vencimento, inventario
-- configuracoes: admin_dashboard, gerenciamento_tabelas_apoio
+- equipamentos: modelo, slot, item, instalacao, vencimento, inventario, controle_periodicidade_por_par
+- configuracoes: admin_dashboard, gerenciamento_frota, administracao_efetivo
 
 auth_state:
 - access_token: jwt_hs256
@@ -58,11 +58,13 @@ core_rules:
 - RN-06: admin_or_encarregado_for_admin_writes
 - RN-07: mantenedor_only_self_assign
 - RN-12: controle_association_propagates_to_existing_items
+- RN-13: periodicidade_meses_defined_per_modelo_controle_pair_not_per_tipo_controle
 
 current_focus:
 - docs_synced: true
 - security_controls_active: true
 - inventory_module_active: true
+- configuracoes_module_active: true
 - preserve_existing_pane_data: mandatory
 - test_suites_present: unit, security, architecture
 

@@ -205,28 +205,46 @@ Observacao:
 **Tabela:** `tipos_controle`  
 **Arquivo:** `app/modules/equipamentos/models.py` -> classe `TipoControle`
 
+Funciona como **catalogo de codigos de controle** reutilizaveis. A periodicidade e definida no vinculo com o modelo (tabela `equipamento_controles`), pois o mesmo codigo (ex: `TLV`) pode ter valores diferentes por equipamento.
+
 | Coluna | Tipo | Restricoes | Descricao |
 | :--- | :--- | :--- | :--- |
 | `id` | UUID | PK, default `uuid4` | Identificador unico |
-| `nome` | String(50) | UNIQUE, NOT NULL, INDEX | Nome do controle |
+| `nome` | String(10) | UNIQUE, NOT NULL, INDEX | Codigo do controle (`CRI`, `TLV`, `DWL`, `RBA`, `TBO`...) |
 | `descricao` | String(300) | nullable | Texto auxiliar |
-| `periodicidade_meses` | int | NOT NULL | Periodicidade em meses |
 | `created_at` | DateTime tz | NOT NULL, default `now()` | Auditoria |
+
+Observacao:
+
+- A coluna `periodicidade_meses` foi removida desta tabela e migrada para `equipamento_controles`, pois itens diferentes podem ter o mesmo codigo de controle com periodicidades distintas.
 
 ### 5.4 EquipamentoControle
 
 **Tabela:** `equipamento_controles`  
 **Arquivo:** `app/modules/equipamentos/models.py` -> classe `EquipamentoControle`
 
+Tabela de juncao que vincula um modelo de equipamento (PN) a um tipo de controle, **com a periodicidade especifica desse par**.
+
 | Coluna | Tipo | Restricoes | Descricao |
 | :--- | :--- | :--- | :--- |
 | `id` | UUID | PK, default `uuid4` | Identificador unico |
 | `modelo_id` | UUID | FK -> `modelos_equipamento.id`, NOT NULL | PN |
 | `tipo_controle_id` | UUID | FK -> `tipos_controle.id`, NOT NULL | Controle exigido |
+| `periodicidade_meses` | int | NOT NULL | Periodicidade em meses para esse par modelo+controle |
 
 Restricao:
 
 - `UNIQUE(modelo_id, tipo_controle_id)` garante um controle por PN.
+
+Exemplos de dados:
+
+| Modelo (PN) | Controle | periodicidade_meses |
+| :--- | :--- | :--- |
+| ELT | CRI | 12 |
+| ELT | TLV | 60 |
+| VADR | TLV | 60 |
+| VADR | DWL | 1 |
+| VADR | RBA | 72 |
 
 ### 5.5 Itens de Equipamento
 

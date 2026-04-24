@@ -44,6 +44,7 @@ important_arch_decisions:
 - ADR-001: fastapi_sqlalchemy_pydantic_sqlite_default
 - ADR-002: jwt_plus_refresh_plus_blacklist
 - ADR-003: controle_inheritance_in_service_layer
+- ADR-004: periodicidade_meses_on_equipamento_controles_not_tipos_controle
 
 runtime_notes:
 - startup_ensures_default_fleet
