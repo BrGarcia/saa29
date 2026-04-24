@@ -82,12 +82,14 @@ class R2StorageService(StorageService):
             raise ValueError("Configurações do R2 ausentes ou incompletas.")
             
         self.bucket_name = settings.r2_bucket_name
+        from botocore.config import Config
         self.s3_client = boto3.client(
             "s3",
             endpoint_url=settings.r2_endpoint,
             aws_access_key_id=settings.r2_access_key_id,
             aws_secret_access_key=settings.r2_secret_access_key,
             region_name="us-east-1",  # R2 permite usar us-east-1 ou weur (padrão)
+            config=Config(signature_version='s3v4')
         )
 
     async def _run_in_executor(self, func, *args, **kwargs):
