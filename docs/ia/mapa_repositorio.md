@@ -20,9 +20,9 @@ app:
 - modules/equipamentos/: models_slots_items_installations_vencimentos_inventory
 - shared/core/: enums,helpers,storage,validators,limiter,exceptions
 - shared/middleware/: csrf
-- web/pages/: html_routes
-- web/templates/: jinja_templates
-- web/static/: js_css_assets
+- web/pages/: html_routes (incl. configuracoes)
+- web/templates/: jinja_templates (incl. configuracoes.html)
+- web/static/: js_css_assets (incl. configuracoes.js)
 
 scripts:
 - db/init_db.py: bootstrap_admin_frota

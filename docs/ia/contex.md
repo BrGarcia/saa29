@@ -41,6 +41,7 @@ domains:
 - aeronaves: cadastro, status, toggle_status
 - panes: pane, anexo, responsavel, soft_delete, restore
 - equipamentos: modelo, slot, item, instalacao, vencimento, inventario
+- configuracoes: admin_dashboard, gerenciamento_tabelas_apoio
 
 auth_state:
 - access_token: jwt_hs256
