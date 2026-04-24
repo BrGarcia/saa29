@@ -68,6 +68,5 @@ current_focus:
 known_gaps_from_roadmap:
 - logout_frontend_backend_alignment
 - database_url_consistency
-- upload_transactionality
 - stronger_cookie_only_auth_migration
 - dead_code_cleanup
