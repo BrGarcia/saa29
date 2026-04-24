@@ -60,3 +60,9 @@ async def inventario_page(request: Request):
     """Visualização do Inventário de Equipamentos por Aeronave"""
     return templates.TemplateResponse("inventario.html", {"request": request})
 
+
+@router.get("/configuracoes", response_class=HTMLResponse, include_in_schema=False)
+async def configuracoes_page(request: Request):
+    """Página de Configurações do Sistema"""
+    return templates.TemplateResponse("configuracoes.html", {"request": request})
+

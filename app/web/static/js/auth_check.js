@@ -9,6 +9,9 @@ document.addEventListener("DOMContentLoaded", () => {
             if (funcao === 'ADMINISTRADOR' || funcao === 'ENCARREGADO') {
                 const adminNav = document.getElementById('admin-nav');
                 if (adminNav) adminNav.style.display = 'flex';
+                
+                const settingsNav = document.getElementById('settings-nav');
+                if (settingsNav) settingsNav.style.display = 'flex';
             }
         } catch (e) { }
     }

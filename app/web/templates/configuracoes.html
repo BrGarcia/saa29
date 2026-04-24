@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block page_title %}Configurações do Sistema{% endblock %}
+
+{% block content %}
+<div style="display: flex; flex-direction: column; gap: 2rem;">
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+        
+        <!-- Painel Aeronaves -->
+        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(52, 152, 219, 0.1); color: var(--primary-color); display: flex; align-items: center; justify-content: center;">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                </div>
+                <h3 style="margin: 0; font-size: 1.25rem;">Aeronaves</h3>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0; flex-grow: 1;">
+                Gerenciamento da frota, adição de novas matrículas e controle de status operacional.
+            </p>
+            <button class="btn btn-primary" style="width: 100%;" onclick="alert('Funcionalidade em desenvolvimento')">
+                Gerenciar Aeronaves
+            </button>
+        </div>
+
+        <!-- Painel Equipamentos -->
+        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(155, 89, 182, 0.1); color: #9b59b6; display: flex; align-items: center; justify-content: center;">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                </div>
+                <h3 style="margin: 0; font-size: 1.25rem;">Equipamentos e PNs</h3>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0; flex-grow: 1;">
+                Cadastro do catálogo de Part Numbers e estrutura de slots para os sistemas das aeronaves.
+            </p>
+            <button class="btn btn-primary" style="width: 100%; background: #9b59b6; border-color: #9b59b6;" onclick="alert('Funcionalidade em desenvolvimento')">
+                Gerenciar Catálogo
+            </button>
+        </div>
+
+        <!-- Painel Vencimentos -->
+        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(230, 126, 34, 0.1); color: var(--status-warning); display: flex; align-items: center; justify-content: center;">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <h3 style="margin: 0; font-size: 1.25rem;">Controles de Vencimento</h3>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0; flex-grow: 1;">
+                Definição de regras de vencimento (calendário e horas) para equipamentos e itens controlados.
+            </p>
+            <button class="btn btn-primary" style="width: 100%; background: var(--status-warning); border-color: var(--status-warning); color: #fff;" onclick="alert('Funcionalidade em desenvolvimento')">
+                Gerenciar Regras
+            </button>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/configuracoes.js"></script>
+{% endblock %}
