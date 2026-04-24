@@ -264,7 +264,7 @@ async function carregarAnexos() {
            `;
             
             const btnAbrir = div.querySelector('.btn-abrir-anexo');
-            btnAbrir.onclick = () => abrirAnexo(ax.id);
+            btnAbrir.onclick = () => abrirAnexo(ax.id, ax.tipo);
             
             const btnExcluirTrigger = div.querySelector('.btn-excluir-anexo');
             if(btnExcluirTrigger) btnExcluirTrigger.onclick = () => handleExcluirAnexo(ax.id);
@@ -296,32 +296,24 @@ function closeAnexoModal() {
     document.getElementById("anexo-content").innerHTML = "";
 }
 
-async function abrirAnexo(anexoId) {
+async function abrirAnexo(anexoId, tipoAnexo) {
     const modalAnexo = document.getElementById("modal-anexo");
     const anexoContent = document.getElementById("anexo-content");
     modalAnexo.style.display = "flex";
     anexoContent.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">Carregando arquivo...</p>';
 
     try {
-        const res = await fetch(`/panes/${PANE_ID}/anexos/${anexoId}/download`, {
-            credentials: "same-origin"
-        });
+        const downloadUrl = `/panes/${PANE_ID}/anexos/${anexoId}/download`;
 
-        if (!res.ok) throw new Error("Falha ao carregar");
-
-        const blob = await res.blob();
-        window.currentAnexoUrl = URL.createObjectURL(blob);
-        const contentType = res.headers.get("Content-Type") || "";
-
-        if (contentType.startsWith("image/")) {
-            anexoContent.innerHTML = `<img src="${window.currentAnexoUrl}" style="max-width: 100%; max-height: 80vh; object-fit: contain; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">`;
-        } else if (contentType === "application/pdf") {
-            anexoContent.innerHTML = `<iframe src="${window.currentAnexoUrl}" style="width: 100%; height: 80vh; border: none;"></iframe>`;
+        if (tipoAnexo === "IMAGEM") {
+            anexoContent.innerHTML = `<img src="${downloadUrl}" style="max-width: 100%; max-height: 80vh; object-fit: contain; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">`;
+        } else if (tipoAnexo === "DOCUMENTO") {
+            anexoContent.innerHTML = `<iframe src="${downloadUrl}" style="width: 100%; height: 80vh; border: none;"></iframe>`;
         } else {
             anexoContent.innerHTML = `
                 <div style="text-align: center; color: var(--text-primary);">
                     <p style="margin-bottom: 1.5rem;">O arquivo não pode ser visualizado diretamente no navegador.</p>
-                    <a href="${window.currentAnexoUrl}" download="anexo" class="btn btn-primary">Baixar Arquivo</a>
+                    <a href="${downloadUrl}" download="anexo" class="btn btn-primary" target="_blank">Baixar Arquivo</a>
                 </div>
             `;
         }
