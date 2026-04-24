@@ -32,17 +32,13 @@ async function loadFrota() {
                     <button class="btn-icon btn-editar-aeronave" style="color: var(--status-warning); display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; border: none; padding: 0.25rem;" title="Editar Aeronave">
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                     </button>
-                    <button class="btn-icon btn-toggle-status" style="color: ${acft.status === 'INATIVA' ? 'var(--status-ok)' : 'var(--status-danger)'}; display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; border: none; padding: 0.25rem;" title="${acft.status === 'INATIVA' ? 'Reativar' : 'Desativar'} Aeronave">
-                        ${acft.status === 'INATIVA'
-                            ? `<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582M20 20v-5h-.581M5.168 15A7 7 0 0012 20a7 7 0 006.832-5M18.832 9A7 7 0 0012 4a7 7 0 00-6.832 5" /></svg>`
-                            : `<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-12.728 12.728M5.636 5.636l12.728 12.728" /></svg>`}
-                    </button>
+
                 </td>
             `;
             
             tr.querySelector('.btn-ver-panes').onclick = () => verPanes(acft.id);
             tr.querySelector('.btn-editar-aeronave').onclick = () => openEditarAeronave(acft);
-            tr.querySelector('.btn-toggle-status').onclick = () => alternarStatusAeronave(acft.id, acft.matricula, acft.status);
+
             
             body.appendChild(tr);
         });

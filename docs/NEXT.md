@@ -9,7 +9,7 @@
 | Fase | Status | Descrição |
 |------|--------|-----------|
 | ✅ Fundação e Backend | 100% | Core, Auth, Panes, Aeronaves, Equipamentos (API) |
-| ✅ Interface (UI/UX) | 90% | Login, Panes, Efetivo, Frota concluídos |
+| ✅ Interface (UI/UX) | 95% | Login, Panes, Efetivo, Frota, Configurações (parcial) |
 | ✅ Segurança | 100% | Auditoria resolvida (AUD-01 a AUD-22) |
 | ✅ Portabilidade | 100% | Suporte nativo a SQLite e PostgreSQL |
 | 🔲 Equipamentos (UI) | Pendente | Interface para gestão de controles e vencimentos |
@@ -52,4 +52,4 @@ uvicorn app.main:app --reload
 
 ---
 
-*Última atualização: 2026-04-19*
+*Última atualização: 2026-04-24*

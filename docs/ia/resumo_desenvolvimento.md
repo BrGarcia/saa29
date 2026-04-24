@@ -69,4 +69,3 @@ recent_implementations:
 - 2026-04-24: Implementado o módulo de Configurações (UI), centralizando a gestão de Frota (Cadastro, Desativação, Reativação de Aeronaves com validações pré-save) e Administração de Efetivo.
 - 2026-04-24: Ícone de Efetivo removido da navbar superior e migrado para dentro de Configurações. Modal de edição de aeronaves restaurado na página de Frota.
 - 2026-04-24: Redesign do modelo de controles de vencimento — periodicidade_meses migrada de tipos_controle para equipamento_controles (ADR-004), permitindo que o mesmo código de controle (ex TLV) tenha valores distintos por equipamento.
-
