@@ -173,13 +173,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Legacy XSS protection (newer: use CSP)
         response.headers["X-XSS-Protection"] = "1; mode=block"
         
-        # Content Security Policy (Ajustada para permitir Google Fonts e inline scripts necessários)
+        # Content Security Policy (Ajustada para permitir Google Fonts, R2 storage e inline scripts necessários)
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "script-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data:;"
+            "img-src 'self' data: https://*.r2.cloudflarestorage.com; "
+            "connect-src 'self' https://*.r2.cloudflarestorage.com; "
+            "frame-src 'self' https://*.r2.cloudflarestorage.com;"
         )
         
         # HSTS em produção (se usando HTTPS)
