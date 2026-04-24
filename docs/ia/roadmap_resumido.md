@@ -8,7 +8,6 @@ state_now:
 immediate_backlog:
 - logout_backend_client_alignment
 - database_url_consistency_cleanup
-- upload_flow_transactionality
 - cookie_only_auth_hardening
 - dead_code_and_unused_schema_cleanup
 

@@ -27,7 +27,7 @@ app:
 scripts:
 - db/init_db.py: bootstrap_admin_frota
 - db/seed.py: dev_seed_base
-- seed_equipamentos.py: seed_inventory_structure
+- seed_equipamentos.py: seed_inventory_structure_and_bootstrap_catalog
 - seed_30_panes.py: sample_panes
 - run_app.py: local_run
 - maintenance/r2_manager.py: sqlite_backup_restore_r2
