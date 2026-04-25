@@ -98,8 +98,8 @@ function criarCardAeronave(aeronave) {
     if (danger > 0) pillsHtml += `<span class="pill pill-danger">● ${danger} Vencido${danger > 1 ? 's' : ''}</span>`;
     if (warn > 0) pillsHtml += `<span class="pill pill-warn">● ${warn} A Vencer</span>`;
     if (incompleto > 0) pillsHtml += `<span class="pill pill-incompleta">● ${incompleto} Faltante${incompleto > 1 ? 's' : ''}</span>`;
-    if (prorrog > 0) pillsHtml += `<span class="pill pill-prorrogado">● ${prorrog} Prorrogado${prorrog > 1 ? 's' : ''}</span>`;
-    if (ok > 0 && danger === 0 && warn === 0 && prorrog === 0 && incompleto === 0) pillsHtml += `<span class="pill pill-ok">✓ Em Dia</span>`;
+    if (pendente > 0) pillsHtml += `<span class="pill pill-pendente">● ${pendente} Pendente${pendente > 1 ? 's' : ''}</span>`;
+    if (ok > 0 && danger === 0 && warn === 0 && prorrog === 0 && incompleto === 0 && pendente === 0) pillsHtml += `<span class="pill pill-ok">✓ Em Dia</span>`;
 
     // Header do card
     const header = document.createElement('div');
@@ -192,7 +192,8 @@ function atualizarContadores(aeronaves) {
                 else if (st === 'VENCIDO') danger++;
                 else if (st === 'PRORROGADO') prorrog++;
                 else if (st === 'FALTANTE') incompleto++;
-                else pendente++;
+                else if (st === 'PENDENTE') pendente++;
+                else pendente++; // Fallback
             });
         });
     });
@@ -230,6 +231,7 @@ function aplicarFiltros() {
                     if (filtroStatusAtual === 'danger') return st === 'VENCIDO';
                     if (filtroStatusAtual === 'prorrogado') return st === 'PRORROGADO';
                     if (filtroStatusAtual === 'incompleta') return st === 'FALTANTE';
+                    if (filtroStatusAtual === 'pendente') return st === 'PENDENTE';
                     return false;
                 })
             );

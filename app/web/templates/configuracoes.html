@@ -23,13 +23,9 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 5px;"><path d="M12 5v14m-7-7h14"/></svg>
                     Cadastrar Aeronave
                 </button>
-                <button class="btn btn-outline" id="btn-desativar-aeronave" style="width: 100%; border-color: var(--status-danger); color: var(--status-danger);">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 5px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-12.728 12.728M5.636 5.636l12.728 12.728" /></svg>
-                    Desativar Aeronave
-                </button>
-                <button class="btn btn-outline" id="btn-reativar-aeronave" style="width: 100%; border-color: var(--status-ok); color: var(--status-ok);">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 5px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582M20 20v-5h-.581M5.168 15A7 7 0 0012 20a7 7 0 006.832-5M18.832 9A7 7 0 0012 4a7 7 0 00-6.832 5" /></svg>
-                    Reativar Aeronave
+                <button class="btn btn-outline" id="btn-alterar-status-aeronave" style="width: 100%;">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 5px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                    Alterar Status
                 </button>
             </div>
         </div>
@@ -119,6 +115,8 @@
                 <select id="statusInput" class="form-input">
                     <option value="OPERACIONAL">OPERACIONAL</option>
                     <option value="INDISPONIVEL">INDISPONIVEL</option>
+                    <option value="INSPEÇÃO">INSPEÇÃO</option>
+                    <option value="ESTOCADA">ESTOCADA</option>
                 </select>
             </div>
 
@@ -130,49 +128,34 @@
     </div>
 </div>
 
-<!-- Modal para Desativar Aeronave -->
-<div id="modal-desativar-aeronave" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+<!-- Modal para Alterar Status de Aeronave (Estocar/Inativar/Reativar) -->
+<div id="modal-alterar-status-aeronave" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
     <div class="card glass-panel" style="width: 100%; max-width: 450px; margin: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
-            <h3 style="margin: 0; font-size: 1.25rem;">Desativar Aeronave</h3>
-            <button class="btn-icon" type="button" onclick="closeModalDesativar()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <h3 style="margin: 0; font-size: 1.25rem;">Alterar Status da Aeronave</h3>
+            <button class="btn-icon" type="button" onclick="closeModalStatus()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
 
-        <form id="formDesativarAeronave">
+        <form id="formAlterarStatusAeronave">
             <div class="form-group">
                 <label class="form-label">Selecione a Aeronave</label>
-                <select id="aeronaveDesativarSelect" class="form-input" required>
-                    <option value="" disabled selected>Carregando aeronaves ativas...</option>
+                <select id="aeronaveStatusSelect" class="form-input" required>
+                    <option value="" disabled selected>Carregando aeronaves...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Novo Status Operacional</label>
+                <select id="novoStatusInput" class="form-input" required>
+                    <option value="OPERACIONAL">OPERACIONAL (Disponível)</option>
+                    <option value="ESTOCADA">ESTOCADA (Preservação)</option>
+                    <option value="INATIVA">INATIVA (Retirada de Serviço)</option>
                 </select>
             </div>
 
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
-                <button type="button" class="btn btn-outline" onclick="closeModalDesativar()">Cancelar</button>
-                <button type="submit" class="btn btn-primary" id="btnConfirmarDesativar" style="background-color: var(--status-danger); border-color: var(--status-danger);">Desativar</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Modal para Reativar Aeronave -->
-<div id="modal-reativar-aeronave" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
-    <div class="card glass-panel" style="width: 100%; max-width: 450px; margin: 1rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
-            <h3 style="margin: 0; font-size: 1.25rem;">Reativar Aeronave</h3>
-            <button class="btn-icon" type="button" onclick="closeModalReativar()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
-        </div>
-
-        <form id="formReativarAeronave">
-            <div class="form-group">
-                <label class="form-label">Selecione a Aeronave</label>
-                <select id="aeronaveReativarSelect" class="form-input" required>
-                    <option value="" disabled selected>Carregando aeronaves inativas...</option>
-                </select>
-            </div>
-
-            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
-                <button type="button" class="btn btn-outline" onclick="closeModalReativar()">Cancelar</button>
-                <button type="submit" class="btn btn-primary" id="btnConfirmarReativar" style="background-color: var(--status-ok); border-color: var(--status-ok);">Reativar</button>
+                <button type="button" class="btn btn-outline" onclick="closeModalStatus()">Cancelar</button>
+                <button type="submit" class="btn btn-primary" id="btnConfirmarStatus">Alterar Status</button>
             </div>
         </form>
     </div>

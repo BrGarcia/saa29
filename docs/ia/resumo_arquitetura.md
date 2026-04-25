@@ -1,56 +1,39 @@
-# arch_summary
+# architecture_summary
 
-style:
-- pattern: layered_monolith
-- flow: router_to_service_to_orm_to_db
-- transport: html_pages_and_json_api
+style: modular_monolith
+philosophy: surgical_updates_preserve_data
 
-paths:
-- app_entry: app/bootstrap/main.py
-- config: app/bootstrap/config.py
-- db: app/bootstrap/database.py
-- deps: app/bootstrap/dependencies.py
+domain_layers:
+- models: sqlalchemy_2_0_mapped_types
+- schemas: pydantic_v2_strict
+- services: async_business_logic
+- routers: fastapi_rest_endpoints
+- templates: jinja2_vanilla_js
 
-layers:
-- web_html: app/web/pages, app/web/templates, app/web/static
-- api: app/modules/*/router.py
-- service: app/modules/*/service.py
-- model_schema: app/modules/*/models.py, app/modules/*/schemas.py
-- shared: app/shared/core, app/shared/middleware
+core_entities:
+- Auth: Usuario (RBAC)
+- Operational: Aeronave, Pane, Anexo, PaneResponsavel
+- Logistics: 
+    - ModeloEquipamento (PN)
+    - SlotInventario (Location in ACFT)
+    - ItemEquipamento (Physical SN)
+    - Instalacao (Link SN + Slot + ACFT)
+    - TipoControle (Code only: CRI, TLV)
+    - EquipamentoControle (Rules: PN + Control = Months)
+    - ControleVencimento (Instance tracking)
+    - ProrrogacaoVencimento (Engineering extensions)
 
-modules:
-- auth
-- aeronaves
-- panes
-- equipamentos
+key_relationships:
+- PN_to_Control: N:N via EquipamentoControle (defines periodicity)
+- Item_to_Control: 1:N via ControleVencimento (created on item creation)
+- Installation: Requires slot_id + item_id + aeronave_id (strict integrity)
 
-entities:
-- usuarios
-- token_blacklist
-- token_refresh
-- aeronaves
-- panes
-- anexos
-- pane_responsaveis
-- modelos_equipamento
-- slots_inventario
-- tipos_controle
-- equipamento_controles
-- itens_equipamento
-- instalacoes
-- controle_vencimentos
+critical_flows:
+- Item_Creation: Inherits controls from its PN (EquipamentoControle -> ControleVencimento)
+- Execution_Record: Calculates next date based on PN-specific rule and deactivates active extensions.
+- Inventory_Adjustment: Synchronizes physical state with digital slots.
 
-important_arch_decisions:
-- ADR-001: fastapi_sqlalchemy_pydantic_sqlite_default
-- ADR-002: jwt_plus_refresh_plus_blacklist
-- ADR-003: controle_inheritance_in_service_layer
-- ADR-004: periodicidade_meses_on_equipamento_controles_not_tipos_controle
-
-runtime_notes:
-- startup_ensures_default_fleet
-- sqlite_uses_wal_and_foreign_keys
-- static_mounted_from_app/web/static
-- r2_backup_can_run_event_driven_when_enabled
-- active_database_is_operational_asset
-- schema_or_data_changes_require_original_backup
-- existing_pane_records_must_be_preserved
+security_posture:
+- JWT_Rotation: Enabled
+- CSRF_Protection: Global middleware
+- Permissions: Encarregado/Admin for configuration, Mantenedor for operations.

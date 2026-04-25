@@ -471,3 +471,8 @@ table tbody tr:hover {
 .toast-success { background-color: var(--status-ok); }
 .toast-error { background-color: var(--status-danger); }
 .toast-warning { background-color: var(--status-warning); }
+
+.pill-pendente {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}

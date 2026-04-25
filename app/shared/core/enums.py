@@ -29,6 +29,7 @@ class StatusVencimento(str, enum.Enum):
     VENCENDO = "VENCENDO"   # próximo ao vencimento (threshold configurável)
     VENCIDO = "VENCIDO"
     FALTANTE = "FALTANTE"   # item desinstalado mas o controle é obrigatório
+    PENDENTE = "PENDENTE"   # item instalado mas sem registro de execução
 
 
 class OrigemControle(str, enum.Enum):

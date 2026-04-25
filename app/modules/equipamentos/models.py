@@ -177,7 +177,7 @@ class ControleVencimento(Base):
     tipo_controle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tipos_controle.id"), nullable=False)
     data_ultima_exec: Mapped[date | None] = mapped_column(Date, nullable=True)
     data_vencimento: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default=StatusVencimento.OK.value)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default=StatusVencimento.PENDENTE.value)
     origem: Mapped[str] = mapped_column(String(20), nullable=False, default=OrigemControle.PADRAO.value)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
 

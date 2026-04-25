@@ -29,17 +29,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById('formAeronave');
     if(form) form.addEventListener('submit', criarAeronave);
 
-    const btnDesativar = document.getElementById('btn-desativar-aeronave');
-    if(btnDesativar) btnDesativar.onclick = openModalDesativar;
+    const btnAlterarStatus = document.getElementById('btn-alterar-status-aeronave');
+    if(btnAlterarStatus) btnAlterarStatus.onclick = openModalStatus;
     
-    const formDesativar = document.getElementById('formDesativarAeronave');
-    if(formDesativar) formDesativar.addEventListener('submit', desativarAeronave);
-
-    const btnReativar = document.getElementById('btn-reativar-aeronave');
-    if(btnReativar) btnReativar.onclick = openModalReativar;
-    
-    const formReativar = document.getElementById('formReativarAeronave');
-    if(formReativar) formReativar.addEventListener('submit', reativarAeronave);
+    const formStatus = document.getElementById('formAlterarStatusAeronave');
+    if(formStatus) formStatus.addEventListener('submit', alterarStatusAeronave);
 
     const btnTiposControle = document.getElementById('btn-tipos-controle');
     if(btnTiposControle) btnTiposControle.onclick = openModalTipoControle;
@@ -119,86 +113,22 @@ async function criarAeronave(e) {
 window.openModalConfig = openModalConfig;
 window.closeModalConfig = closeModalConfig;
 
-async function openModalDesativar() {
-    document.getElementById("modal-desativar-aeronave").style.display = "flex";
-    const select = document.getElementById("aeronaveDesativarSelect");
-    select.innerHTML = '<option value="" disabled selected>Carregando...</option>';
-    
-    try {
-        const aeronaves = await apiFetch(`/aeronaves/?limit=1000`);
-        const ativas = aeronaves.filter(a => a.status !== "INATIVA");
-        
-        if (ativas.length === 0) {
-            select.innerHTML = '<option value="" disabled selected>Nenhuma aeronave ativa encontrada.</option>';
-        } else {
-            select.innerHTML = '<option value="" disabled selected>Selecione uma matrícula</option>';
-            ativas.forEach(a => {
-                const opt = document.createElement("option");
-                opt.value = a.id;
-                opt.text = `${a.matricula} (${a.status})`;
-                select.appendChild(opt);
-            });
-        }
-    } catch (e) {
-        select.innerHTML = '<option value="" disabled selected>Erro ao carregar aeronaves</option>';
-    }
-}
-
-function closeModalDesativar() {
-    document.getElementById("modal-desativar-aeronave").style.display = "none";
-    document.getElementById("formDesativarAeronave").reset();
-}
-
-async function desativarAeronave(e) {
-    e.preventDefault();
-    const btn = document.getElementById("btnConfirmarDesativar");
-    const select = document.getElementById("aeronaveDesativarSelect");
-    const aeronaveId = select.value;
-    
-    if (!aeronaveId) {
-        showToast("Selecione uma aeronave.", "error");
-        return;
-    }
-
-    const matricula = select.options[select.selectedIndex].text.split(' ')[0];
-    
-    if (!confirm(`Tem certeza que deseja desativar a aeronave ${matricula}?`)) {
-        return;
-    }
-    
-    btn.disabled = true;
-    
-    try {
-        await apiFetch(`/aeronaves/${aeronaveId}/toggle-status`, { method: "POST" });
-        showToast("Aeronave desativada com sucesso!", "success");
-        closeModalDesativar();
-    } catch(err) {
-        showToast(err.message || "Erro ao desativar aeronave.", "error");
-    } finally {
-        btn.disabled = false;
-    }
-}
-
-window.openModalDesativar = openModalDesativar;
-window.closeModalDesativar = closeModalDesativar;
-
-async function openModalReativar() {
-    document.getElementById("modal-reativar-aeronave").style.display = "flex";
-    const select = document.getElementById("aeronaveReativarSelect");
-    select.innerHTML = '<option value="" disabled selected>Carregando...</option>';
+async function openModalStatus() {
+    document.getElementById("modal-alterar-status-aeronave").style.display = "flex";
+    const select = document.getElementById("aeronaveStatusSelect");
+    select.innerHTML = '<option value="" disabled selected>Carregando aeronaves...</option>';
     
     try {
         const aeronaves = await apiFetch(`/aeronaves/?limit=1000&incluir_inativas=true`);
-        const inativas = aeronaves.filter(a => a.status === "INATIVA");
         
-        if (inativas.length === 0) {
-            select.innerHTML = '<option value="" disabled selected>Nenhuma aeronave inativa encontrada.</option>';
+        if (aeronaves.length === 0) {
+            select.innerHTML = '<option value="" disabled selected>Nenhuma aeronave encontrada.</option>';
         } else {
             select.innerHTML = '<option value="" disabled selected>Selecione uma matrícula</option>';
-            inativas.forEach(a => {
+            aeronaves.sort((a,b) => a.matricula.localeCompare(b.matricula)).forEach(a => {
                 const opt = document.createElement("option");
                 opt.value = a.id;
-                opt.text = `${a.matricula} (${a.status})`;
+                opt.text = `${a.matricula} (Status: ${a.status})`;
                 select.appendChild(opt);
             });
         }
@@ -207,15 +137,16 @@ async function openModalReativar() {
     }
 }
 
-function closeModalReativar() {
-    document.getElementById("modal-reativar-aeronave").style.display = "none";
-    document.getElementById("formReativarAeronave").reset();
+function closeModalStatus() {
+    document.getElementById("modal-alterar-status-aeronave").style.display = "none";
+    document.getElementById("formAlterarStatusAeronave").reset();
 }
 
-async function reativarAeronave(e) {
+async function alterarStatusAeronave(e) {
     e.preventDefault();
-    const btn = document.getElementById("btnConfirmarReativar");
-    const select = document.getElementById("aeronaveReativarSelect");
+    const btn = document.getElementById("btnConfirmarStatus");
+    const select = document.getElementById("aeronaveStatusSelect");
+    const novoStatus = document.getElementById("novoStatusInput").value;
     const aeronaveId = select.value;
     
     if (!aeronaveId) {
@@ -225,25 +156,32 @@ async function reativarAeronave(e) {
 
     const matricula = select.options[select.selectedIndex].text.split(' ')[0];
     
-    if (!confirm(`Tem certeza que deseja reativar a aeronave ${matricula}?`)) {
+    if (!confirm(`Deseja alterar o status da aeronave ${matricula} para ${novoStatus}?`)) {
         return;
     }
     
     btn.disabled = true;
     
     try {
-        await apiFetch(`/aeronaves/${aeronaveId}/toggle-status`, { method: "POST" });
-        showToast("Aeronave reativada com sucesso!", "success");
-        closeModalReativar();
+        // Usamos PUT para atualizar o status diretamente
+        // Nota: O endpoint PUT /aeronaves/{id} aceita o campo 'status'
+        await apiFetch(`/aeronaves/${aeronaveId}`, { 
+            method: "PUT",
+            body: {
+                status: novoStatus
+            }
+        });
+        showToast(`Status da aeronave ${matricula} alterado para ${novoStatus}!`, "success");
+        closeModalStatus();
     } catch(err) {
-        showToast(err.message || "Erro ao reativar aeronave.", "error");
+        showToast(err.message || "Erro ao alterar status.", "error");
     } finally {
         btn.disabled = false;
     }
 }
 
-window.openModalReativar = openModalReativar;
-window.closeModalReativar = closeModalReativar;
+window.openModalStatus = openModalStatus;
+window.closeModalStatus = closeModalStatus;
 
 // ==========================================
 // Módulo de Controles de Vencimento

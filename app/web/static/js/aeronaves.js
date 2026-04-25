@@ -25,8 +25,7 @@ async function loadFrota() {
                 <td style="padding: 1rem; font-weight: 600; font-size: 1.1rem; color: var(--primary-color)">${acft.matricula}</td>
                 <td style="padding: 1rem;">${acft.serial_number}</td>
                 <td style="padding: 1rem;">
-                    <span class="badge" style="background-color: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color)">${acft.modelo}</span> 
-                    <span class="badge ${mapStatusAcftBadge(acft.status)}" style="margin-left: 0.5rem; border: 1px solid rgba(255,255,255,0.1)">${acft.status}</span>
+                    <span class="badge ${mapStatusAcftBadge(acft.status)}" style="border: 1px solid rgba(255,255,255,0.1)">${acft.status}</span>
                 </td>
                 <td style="padding: 1rem; display: flex; gap: 0.5rem; align-items: center;">
                     <button class="btn-icon btn-ver-panes" style="color: var(--primary-color); display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; border: none; padding: 0.25rem;" title="Ver Panes">

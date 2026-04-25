@@ -138,7 +138,7 @@ async def criar_item_com_heranca(db: AsyncSession, dados: ItemEquipamentoCreate)
             id=uuid.uuid4(),
             item_id=item.id,
             tipo_controle_id=ctrl.tipo_controle_id,
-            status=StatusVencimento.OK.value
+            status=StatusVencimento.PENDENTE.value
         )
         db.add(vencimento)
 
@@ -481,7 +481,7 @@ async def associar_controle_a_equipamento(
                 id=uuid.uuid4(),
                 item_id=item.id,
                 tipo_controle_id=tipo_controle_id,
-                status=StatusVencimento.OK.value
+                status=StatusVencimento.PENDENTE.value
             )
             db.add(venc)
 
@@ -554,7 +554,9 @@ async def registrar_execucao(db: AsyncSession, vencimento_id: uuid.UUID, data_ex
 
     # Atualizar Status
     hoje = date.today()
-    if vencimento.data_vencimento < hoje: 
+    if not vencimento.data_ultima_exec:
+        vencimento.status = StatusVencimento.PENDENTE.value
+    elif vencimento.data_vencimento < hoje: 
         vencimento.status = StatusVencimento.VENCIDO.value
     elif (vencimento.data_vencimento - hoje).days <= 30: 
         vencimento.status = StatusVencimento.VENCENDO.value
@@ -758,6 +760,7 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
         has_missing = False
         has_vencido = False
         has_vencendo = False
+        has_pendente = False
 
         for modelo in modelos:
             inst = acft_inst.get(modelo.id)
@@ -797,6 +800,7 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
                 if status_final == "VENCIDO": has_vencido = True
                 elif status_final == "FALTANTE": has_missing = True
                 elif status_final == "VENCENDO": has_vencendo = True
+                elif status_final == "PENDENTE": has_pendente = True
 
                 controles_out.append({
                     "vencimento_id": str(venc.id) if venc else None,
@@ -819,6 +823,7 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
         # Determinar status_vencimento consolidado da aeronave
         if has_vencido: status_venc = "VENCIDO"
         elif has_missing: status_venc = "INCOMPLETA"
+        elif has_pendente: status_venc = "PENDENTE"
         elif has_vencendo: status_venc = "VENCENDO"
         else: status_venc = "OK"
 
