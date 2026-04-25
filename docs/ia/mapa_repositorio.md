@@ -17,12 +17,13 @@ app:
 - modules/auth/: auth_users_jwt_refresh_blacklist
 - modules/aeronaves/: aircraft_crud_status
 - modules/panes/: pane_flow_attachments_responsaveis
-- modules/equipamentos/: models_slots_items_installations_vencimentos_inventory
+- modules/equipamentos/: models_slots_items_installations_vencimentos_inventory_controles
 - shared/core/: enums,helpers,storage,validators,limiter,exceptions
 - shared/middleware/: csrf
-- web/pages/: html_routes (incl. configuracoes)
-- web/templates/: jinja_templates (incl. configuracoes.html)
-- web/static/: js_css_assets (incl. configuracoes.js)
+- web/pages/router.py: html_routes (panes,frota,inventario,vencimentos,configuracoes,efetivo)
+- web/templates/: jinja_templates (base,panes,aeronaves,inventario,vencimentos,configuracoes,efetivo)
+- web/static/js/: configuracoes.js,vencimentos.js,inventario.js,panes.js,app.js,auth_check.js
+- web/static/css/: index.css (design_system_tokens_and_components)
 
 scripts:
 - db/init_db.py: bootstrap_admin_frota

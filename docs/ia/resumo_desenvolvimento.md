@@ -26,6 +26,7 @@ dev_rules:
 - backup_original_db_before_schema_or_data_change
 - do_not_reset_or_reseed_active_db
 - prefer_testing_db_changes_on_copy_before_apply
+- docker_auto_build_on_requirements_change: sempre que requirements.txt mudar, executar docker-compose up -d --build
 
 db_safety:
 - active_db_contains_registered_panes
@@ -71,3 +72,11 @@ recent_implementations:
 - 2026-04-24: Redesign do modelo de controles de vencimento — periodicidade_meses migrada de tipos_controle para equipamento_controles (ADR-004), permitindo que o mesmo código de controle (ex TLV) tenha valores distintos por equipamento.
 - 2026-04-24: Migração Alembic aplicada (213295655e96) — remoção da coluna periodicidade_meses da tabela tipos_controle e redução do campo nome para String(10).
 - 2026-04-24: Implementado CRUD de Tipos de Controle na UI de Configurações — botões Cadastrar Tipo e Editar Tipo com modais dinâmicos e endpoints POST/PUT /equipamentos/tipos-controle.
+- 2026-04-25: Implementada funcionalidade de Auto-Update no Docker — scripts/start.sh agora executa pip install no startup para garantir que dependências novas sejam instaladas automaticamente ao ligar o container.
+- 2026-04-25: Adicionada regra mandatória de build imediato (`docker-compose up -d --build`) após qualquer alteração no requirements.txt para garantir prontidão do ambiente.
+- 2026-04-25: Implementado o Gerenciamento de Catálogo (Part Numbers) na UI de Configurações, incluindo listagem, cadastro com validação de unicidade e armazenamento em caixa alta (uppercase).
+- 2026-04-25: Criado módulo de Controle de Vencimentos — ícone de calendário adicionado à navbar entre Inventário e Frota, visível para Encarregado/Administrador.
+- 2026-04-25: Implementada página /vencimentos com tabela matricial dinâmica (Frota × TipoEquipamento × Controle), seguindo o padrão do planilhão operacional real (EGIR/ELT/VADR/V-UHF2 como colunas).
+- 2026-04-25: Backend otimizado para a visão matricial — endpoint GET /equipamentos/vencimentos/matriz monta a estrutura completa em 4 queries fixas (sem N+1). Colunas determinadas por ModeloEquipamento com EquipamentoControle cadastrados.
+- 2026-04-25: Adicionados schemas Pydantic MatrizVencimentosOut, AeronaveMatrizOut, SlotMatrizOut, VencimentoCelulaOut para serialização da matriz.
+- 2026-04-25: Adicionada rota de frontend /vencimentos e template vencimentos.html com tabela centralizada, código de cores por status (OK/VENCENDO/VENCIDO), sticky column de matrícula e modal de registro de execução por clique na célula.

@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block page_title %}Controle de Vencimentos{% endblock %}
+
+{% block content %}
+<div style="display: flex; flex-direction: column; gap: 1.5rem;">
+
+    <!-- Filtro / Cabeçalho da Página -->
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <p style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">
+                Visão matricial dos vencimentos de manutenção por aeronave e equipamento.
+            </p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <!-- Legenda de Status -->
+            <div style="display: flex; gap: 1rem; font-size: 0.8rem; align-items: center;">
+                <span style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--status-ok); display: inline-block;"></span> OK
+                </span>
+                <span style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--status-warning); display: inline-block;"></span> A Vencer
+                </span>
+                <span style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--status-danger); display: inline-block;"></span> Vencido
+                </span>
+                <span style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--border-color); display: inline-block;"></span> Não Executado
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela Matricial -->
+    <div style="width: 100%; overflow-x: auto; display: flex; justify-content: center;">
+        <div class="card glass-panel" style="padding: 0; overflow: hidden; width: fit-content;">
+            <div id="vencimentos-loading" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
+                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="animation: spin 1s linear infinite; margin-bottom: 0.75rem; display: block; margin-left: auto; margin-right: auto;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582M20 20v-5h-.581M5.168 15A7 7 0 0012 20a7 7 0 006.832-5M18.832 9A7 7 0 0012 4a7 7 0 00-6.832 5"></path></svg>
+                Carregando dados da frota...
+            </div>
+            <div id="vencimentos-table-container" style="display: none;">
+                <table id="tabela-vencimentos" style="border-collapse: collapse; font-size: 0.82rem; white-space: nowrap;">
+                    <thead id="tabela-head">
+                        <!-- Preenchido via JS -->
+                    </thead>
+                    <tbody id="tabela-body">
+                        <!-- Preenchido via JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="vencimentos-empty" style="padding: 3rem; text-align: center; color: var(--text-secondary); display: none;">
+                Nenhum dado de vencimento configurado. Acesse <a href="/configuracoes" style="color: var(--primary-color);">Configurações</a> para definir regras de vencimento.
+            </div>
+            <div id="vencimentos-error" style="padding: 3rem; text-align: center; color: var(--status-danger); display: none;">
+                Erro ao carregar dados. Tente recarregar a página.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Registro de Execução -->
+<div id="modal-executar-controle" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card glass-panel" style="width: 100%; max-width: 420px; margin: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+            <h3 style="margin: 0; font-size: 1.1rem;">Registrar Execução</h3>
+            <button class="btn-icon" type="button" onclick="closeModalExecutar()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <form id="formExecutarControle">
+            <input type="hidden" id="exec-vencimento-id">
+            <div style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(0,0,0,0.05); border-radius: var(--radius-md);">
+                <p style="margin: 0 0 0.25rem 0; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase;">Aeronave / Equipamento / Controle</p>
+                <p style="margin: 0; font-weight: 600; font-size: 0.95rem;" id="exec-info-label">--</p>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Data de Execução *</label>
+                <input type="date" id="exec-data-input" class="form-input" required>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-outline" onclick="closeModalExecutar()">Cancelar</button>
+                <button type="submit" class="btn btn-primary" id="btnConfirmarExec">Confirmar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Estilos da tabela matricial */
+#tabela-vencimentos th {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-weight: 600;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border-color);
+    text-align: center;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#tabela-vencimentos th.col-matricula {
+    left: 0;
+    z-index: 20;
+    min-width: 80px;
+}
+
+#tabela-vencimentos td {
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 0.6rem;
+    vertical-align: middle;
+    text-align: center;
+}
+
+#tabela-vencimentos td.col-matricula {
+    font-weight: 700;
+    color: var(--primary-color);
+    text-align: left;
+    position: sticky;
+    left: 0;
+    background: var(--bg-secondary);
+    z-index: 5;
+    font-size: 0.9rem;
+}
+
+#tabela-vencimentos tbody tr:hover td {
+    background: var(--bg-tertiary) !important;
+}
+
+#tabela-vencimentos tbody tr:hover td.col-matricula {
+    background: var(--bg-tertiary) !important;
+}
+
+/* Célula de SN */
+.cell-sn {
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    min-width: 65px;
+}
+
+/* Célula de data de vencimento */
+.cell-venc {
+    min-width: 80px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    border-radius: 4px;
+}
+
+.cell-venc:hover {
+    opacity: 0.8;
+    outline: 2px solid var(--primary-color);
+}
+
+.cell-venc.status-ok {
+    background: var(--status-ok-bg);
+    color: var(--status-ok);
+}
+
+.cell-venc.status-vencendo {
+    background: var(--status-warning-bg);
+    color: var(--status-warning);
+}
+
+.cell-venc.status-vencido {
+    background: var(--status-danger-bg);
+    color: var(--status-danger);
+}
+
+.cell-venc.status-pendente {
+    background: transparent;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* Cabeçalho do grupo de sistema */
+th.group-header {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0;
+    border-bottom: 2px solid var(--primary-color);
+}
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/vencimentos.js"></script>
+{% endblock %}

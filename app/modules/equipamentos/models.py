@@ -103,6 +103,7 @@ class EquipamentoControle(Base):
     tipo_controle_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("tipos_controle.id", ondelete="CASCADE"), nullable=False
     )
+    periodicidade_meses: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # --- Relacionamentos ---
     modelo: Mapped["ModeloEquipamento"] = relationship(back_populates="controles_template")

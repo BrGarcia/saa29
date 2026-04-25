@@ -109,28 +109,62 @@ async def buscar_equipamento(
     return schemas.ModeloEquipamentoOut.model_validate(equipamento)
 
 
+@router.get(
+    "/controles/regras",
+    response_model=list[schemas.EquipamentoControleOut],
+    summary="Listar todas as regras de periodicidade por equipamento",
+)
+async def listar_regras_periodicidade(db: DBSession, _: CurrentUser):
+    regras = await service.listar_equipamento_controles(db)
+    out = []
+    for r in regras:
+        item = schemas.EquipamentoControleOut.model_validate(r)
+        item.pn = r.modelo.part_number
+        item.tipo_nome = r.tipo_controle.nome
+        out.append(item)
+    return out
+
+
 @router.post(
-    "/{equipamento_id}/controles/{tipo_controle_id}",
+    "/controles/regras",
+    response_model=schemas.EquipamentoControleOut,
     status_code=status.HTTP_201_CREATED,
-    summary="Associar tipo de controle a equipamento",
+    summary="Associar tipo de controle a equipamento com periodicidade",
 )
 async def associar_controle(
-    equipamento_id: uuid.UUID,
-    tipo_controle_id: uuid.UUID,
+    dados: schemas.EquipamentoControleCreate,
     db: DBSession,
     _: EncarregadoOuAdmin,
 ):
     """
-    Associa um TipoControle ao Equipamento e propaga
-    automaticamente para todos os itens existentes.
+    Associa um TipoControle ao Equipamento (PN) com uma periodicidade específica
+    e propaga automaticamente para todos os itens existentes.
     """
     try:
-        await service.associar_controle_a_equipamento(
-            db, equipamento_id, tipo_controle_id
+        assoc = await service.associar_controle_a_equipamento(
+            db, dados.modelo_id, dados.tipo_controle_id, dados.periodicidade_meses
         )
-        return {"detail": "Controle associado com sucesso."}
+        await db.commit()
+        # Recarregar para trazer PN e Nome do Controle (ou preencher manualmente)
+        # Por simplicidade, vou apenas retornar o ID e os dados enviados
+        return schemas.EquipamentoControleOut.model_validate(assoc)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+
+@router.delete(
+    "/controles/regras/{modelo_id}/{tipo_controle_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remover regra de periodicidade",
+)
+async def remover_regra(
+    modelo_id: uuid.UUID,
+    tipo_controle_id: uuid.UUID,
+    db: DBSession,
+    _: EncarregadoOuAdmin,
+):
+    await service.remover_controle_de_equipamento(db, modelo_id, tipo_controle_id)
+    return None
 
 
 # ---- Slots de Inventário (Posições na ANV) ----
@@ -264,6 +298,19 @@ async def registrar_execucao(
         db, vencimento_id, dados.data_ultima_exec
     )
     return schemas.ControleVencimentoOut.model_validate(vencimento)
+
+
+@router.get(
+    "/vencimentos/matriz",
+    summary="Visão matricial de vencimentos (Frota x Slot x Controle)",
+)
+async def matriz_vencimentos(db: DBSession, _: CurrentUser):
+    """
+    Retorna a estrutura completa para a tabela matricial de vencimentos.
+    Formato: { cabecalho: {sistema: [controles]}, aeronaves: [...] }
+    """
+    return await service.montar_matriz_vencimentos(db)
+
 
 # ---- Inventário ----
 

@@ -41,7 +41,17 @@ from app.shared.core.enums import OrigemControle, StatusVencimento, StatusItem
 
 async def criar_modelo(db: AsyncSession, dados: ModeloEquipamentoCreate) -> ModeloEquipamento:
     """Cadastra um novo Part Number no catálogo."""
-    modelo = ModeloEquipamento(**dados.model_dump())
+    part_number = dados.part_number.strip().upper()
+    # Verificar duplicidade
+    existing = await buscar_modelo_por_pn(db, part_number)
+    if existing:
+        raise ValueError(f"O Part Number '{part_number}' já está cadastrado.")
+    
+    modelo = ModeloEquipamento(
+        part_number=part_number,
+        nome_generico=dados.nome_generico,
+        descricao=dados.descricao
+    )
     db.add(modelo)
     await db.flush()
     return modelo
@@ -125,7 +135,7 @@ async def criar_item_com_heranca(db: AsyncSession, dados: ItemEquipamentoCreate)
         vencimento = ControleVencimento(
             id=uuid.uuid4(),
             item_id=item.id,
-            tipo_controle_id=ctrl.tipo_id,
+            tipo_controle_id=ctrl.tipo_controle_id,
             status=StatusVencimento.OK.value
         )
         db.add(vencimento)
@@ -426,9 +436,9 @@ async def instalar_item(
 
 
 async def associar_controle_a_equipamento(
-    db: AsyncSession, modelo_id: uuid.UUID, tipo_controle_id: uuid.UUID
+    db: AsyncSession, modelo_id: uuid.UUID, tipo_controle_id: uuid.UUID, periodicidade: int
 ) -> EquipamentoControle:
-    """Vincula um tipo de controle (ex: TBV) a um modelo (ex: MDP)."""
+    """Vincula um tipo de controle (ex: TBV) a um modelo (ex: MDP) com uma periodicidade."""
     # 1. Verificar se já existe
     res = await db.execute(
         select(EquipamentoControle).where(
@@ -436,10 +446,19 @@ async def associar_controle_a_equipamento(
             EquipamentoControle.tipo_controle_id == tipo_controle_id
         )
     )
-    if res.scalar_one_or_none():
-        raise ValueError("Este controle já está associado ao equipamento.")
+    existing = res.scalar_one_or_none()
+    if existing:
+        # Se já existe, apenas atualiza a periodicidade
+        existing.periodicidade_meses = periodicidade
+        await db.flush()
+        return existing
 
-    assoc = EquipamentoControle(id=uuid.uuid4(), modelo_id=modelo_id, tipo_controle_id=tipo_controle_id)
+    assoc = EquipamentoControle(
+        id=uuid.uuid4(), 
+        modelo_id=modelo_id, 
+        tipo_controle_id=tipo_controle_id,
+        periodicidade_meses=periodicidade
+    )
     db.add(assoc)
     await db.flush()
 
@@ -466,26 +485,66 @@ async def associar_controle_a_equipamento(
     await db.flush()
     return assoc
 
+async def listar_equipamento_controles(db: AsyncSession) -> list[EquipamentoControle]:
+    """Lista todas as regras PN + Controle + Periodicidade."""
+    result = await db.execute(
+        select(EquipamentoControle)
+        .options(
+            selectinload(EquipamentoControle.modelo),
+            selectinload(EquipamentoControle.tipo_controle)
+        )
+    )
+    return list(result.scalars().all())
+
+async def remover_controle_de_equipamento(
+    db: AsyncSession, modelo_id: uuid.UUID, tipo_controle_id: uuid.UUID
+) -> None:
+    """Remove o vínculo de um controle com um equipamento."""
+    result = await db.execute(
+        select(EquipamentoControle).where(
+            EquipamentoControle.modelo_id == modelo_id,
+            EquipamentoControle.tipo_controle_id == tipo_controle_id
+        )
+    )
+    assoc = result.scalar_one_or_none()
+    if assoc:
+        await db.delete(assoc)
+        await db.commit()
 
 async def registrar_execucao(db: AsyncSession, vencimento_id: uuid.UUID, data_exec: date) -> ControleVencimento:
     """Registra que um controle foi executado e calcula o próximo vencimento."""
     result = await db.execute(
         select(ControleVencimento)
         .where(ControleVencimento.id == vencimento_id)
-        .options(selectinload(ControleVencimento.tipo_controle))
+        .options(selectinload(ControleVencimento.item))
     )
     vencimento = result.scalar_one_or_none()
-    if not vencimento: raise domain_exc.EntidadeNaoEncontradaError("Vencimento não encontrado.")
+    if not vencimento: 
+        raise domain_exc.EntidadeNaoEncontradaError("Vencimento não encontrado.")
 
-    periodicidade = vencimento.tipo_controle.periodicidade_meses
+    # 1. Buscar a regra de periodicidade no EquipamentoControle
+    res_regra = await db.execute(
+        select(EquipamentoControle).where(
+            EquipamentoControle.modelo_id == vencimento.item.modelo_id,
+            EquipamentoControle.tipo_controle_id == vencimento.tipo_controle_id
+        )
+    )
+    regra = res_regra.scalar_one_or_none()
+    
+    # Periodicidade padrão de 12 meses caso não exista regra (fallback de segurança)
+    periodicidade = regra.periodicidade_meses if regra else 12
+    
     vencimento.data_ultima_exec = data_exec
     vencimento.data_vencimento = data_exec + relativedelta(months=periodicidade)
 
-    # Atualizar Status (Lógica simplificada para o MVP)
+    # Atualizar Status
     hoje = date.today()
-    if vencimento.data_vencimento < hoje: vencimento.status = StatusVencimento.VENCIDO.value
-    elif (vencimento.data_vencimento - hoje).days <= 30: vencimento.status = StatusVencimento.VENCENDO.value
-    else: vencimento.status = StatusVencimento.OK.value
+    if vencimento.data_vencimento < hoje: 
+        vencimento.status = StatusVencimento.VENCIDO.value
+    elif (vencimento.data_vencimento - hoje).days <= 30: 
+        vencimento.status = StatusVencimento.VENCENDO.value
+    else: 
+        vencimento.status = StatusVencimento.OK.value
 
     await db.flush()
     return vencimento
@@ -576,32 +635,143 @@ async def remover_item(db: AsyncSession, instalacao_id: uuid.UUID, data_remocao:
     await db.commit()
     return instalacao
 
+async def listar_itens(db: AsyncSession, modelo_id: uuid.UUID | None = None) -> list[ItemEquipamento]:
+    """Lista itens físicos (Serial Numbers)."""
+    stmt = select(ItemEquipamento).options(selectinload(ItemEquipamento.modelo))
+    if modelo_id:
+        stmt = stmt.where(ItemEquipamento.modelo_id == modelo_id)
+    result = await db.execute(stmt.order_by(ItemEquipamento.numero_serie))
+    return list(result.scalars().all())
 
-# ============================================================
-# Legado / Manutenção (Controles)
-# ============================================================
-
-async def registrar_execucao(db: AsyncSession, vencimento_id: uuid.UUID, data_exec: date) -> ControleVencimento:
+async def listar_vencimentos_por_item(db: AsyncSession, item_id: uuid.UUID) -> list[ControleVencimento]:
+    """Lista todos os controles de vencimento de um item específico."""
     result = await db.execute(
         select(ControleVencimento)
-        .where(ControleVencimento.id == vencimento_id)
+        .where(ControleVencimento.item_id == item_id)
         .options(selectinload(ControleVencimento.tipo_controle))
     )
-    vencimento = result.scalar_one_or_none()
-    if not vencimento: raise domain_exc.EntidadeNaoEncontradaError("Vencimento não encontrado.")
-
-    periodicidade = vencimento.tipo_controle.periodicidade_meses
-    vencimento.data_ultima_exec = data_exec
-    vencimento.data_vencimento = data_exec + relativedelta(months=periodicidade)
-
-    hoje = date.today()
-    if vencimento.data_vencimento < hoje: vencimento.status = StatusVencimento.VENCIDO.value
-    elif (vencimento.data_vencimento - hoje).days <= 30: vencimento.status = StatusVencimento.VENCENDO.value
-    else: vencimento.status = StatusVencimento.OK.value
-
-    await db.flush()
-    return vencimento
-
-async def listar_modelos(db: AsyncSession) -> list[ModeloEquipamento]:
-    result = await db.execute(select(ModeloEquipamento).order_by(ModeloEquipamento.part_number))
     return list(result.scalars().all())
+
+
+async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
+    """
+    Monta a visão matricial de vencimentos (Frota x TipoEquipamento x Controle).
+
+    As COLUNAS são determinadas pelos ModeloEquipamento que possuem EquipamentoControle
+    cadastrados (ex: EGIR, ELT, VADR), NÃO pela localização/slot.
+
+    Para cada aeronave, busca qual S/N desse modelo está instalado e exibe
+    o S/N + as datas de cada controle de vencimento.
+    """
+    # 1. Buscar todos os modelos que possuem regras de controle cadastradas
+    #    (apenas esses viram colunas na matriz)
+    res_modelos = await db.execute(
+        select(ModeloEquipamento)
+        .join(EquipamentoControle, EquipamentoControle.modelo_id == ModeloEquipamento.id)
+        .options(
+            selectinload(ModeloEquipamento.controles_template)
+            .selectinload(EquipamentoControle.tipo_controle)
+        )
+        .order_by(ModeloEquipamento.nome_generico)
+        .distinct()
+    )
+    modelos = list(res_modelos.scalars().unique().all())
+
+    if not modelos:
+        return {"cabecalho": {}, "aeronaves": []}
+
+    # Construir cabeçalho: nome_generico -> [tipo_controle_nome, ...]
+    # ex: {"EGIR": ["TBO"], "ELT": ["CRI", "TBV"], "VADR": ["TBV", "RBA"]}
+    cabecalho: dict[str, list[str]] = {}
+    modelo_map: dict[uuid.UUID, ModeloEquipamento] = {}
+    for modelo in modelos:
+        nome = modelo.nome_generico
+        cabecalho[nome] = [ctrl.tipo_controle.nome for ctrl in modelo.controles_template]
+        modelo_map[modelo.id] = modelo
+
+    # 2. Buscar todas as aeronaves ativas
+    res_acft = await db.execute(
+        select(Aeronave)
+        .where(Aeronave.status != "INATIVA")
+        .order_by(Aeronave.matricula)
+    )
+    aeronaves = res_acft.scalars().all()
+
+    if not aeronaves:
+        return {"cabecalho": cabecalho, "aeronaves": []}
+
+    # 3. Carregar instalações ativas com item (SN) + slot (modelo_id) + vencimentos (bulk)
+    aeronave_ids = [a.id for a in aeronaves]
+    res_inst = await db.execute(
+        select(Instalacao)
+        .options(
+            selectinload(Instalacao.slot),   # para obter modelo_id do slot
+            selectinload(Instalacao.item)
+            .selectinload(ItemEquipamento.controles_vencimento)
+            .selectinload(ControleVencimento.tipo_controle),
+        )
+        .where(
+            Instalacao.aeronave_id.in_(aeronave_ids),
+            Instalacao.data_remocao.is_(None),
+        )
+    )
+    instalacoes = res_inst.scalars().all()
+
+    # Indexar: aeronave_id -> {modelo_id -> Instalacao}
+    # (para cada aeronave, qual instalação ativa existe por tipo de modelo)
+    inst_map: dict[uuid.UUID, dict[uuid.UUID, Instalacao]] = {}
+    for inst in instalacoes:
+        slot_modelo_id = inst.slot.modelo_id
+        if slot_modelo_id not in modelo_map:
+            continue  # modelo sem controles, ignorar
+        if inst.aeronave_id not in inst_map:
+            inst_map[inst.aeronave_id] = {}
+        # Se já existe outro item desse modelo na mesma aeronave (ex: 2 ELTs),
+        # mantemos a entrada existente (primeiro encontrado).
+        # Futuramente pode ser expandido para múltiplas linhas.
+        if slot_modelo_id not in inst_map[inst.aeronave_id]:
+            inst_map[inst.aeronave_id][slot_modelo_id] = inst
+
+    # 4. Montar a resposta
+    aeronaves_out = []
+    for aeronave in aeronaves:
+        acft_inst = inst_map.get(aeronave.id, {})
+        slots_out = []
+
+        for modelo in modelos:
+            inst = acft_inst.get(modelo.id)
+            item = inst.item if inst else None
+
+            # Indexar vencimentos do item por nome do tipo de controle
+            venc_map: dict[str, ControleVencimento] = {}
+            if item:
+                for venc in item.controles_vencimento:
+                    venc_map[venc.tipo_controle.nome] = venc
+
+            # Montar as células de controle para este equipamento/modelo
+            controles_out = []
+            for ctrl in modelo.controles_template:
+                tipo_nome = ctrl.tipo_controle.nome
+                venc = venc_map.get(tipo_nome)
+                controles_out.append({
+                    "vencimento_id": str(venc.id) if venc else None,
+                    "tipo_controle_nome": tipo_nome,
+                    "data_ultima_exec": venc.data_ultima_exec.isoformat() if venc and venc.data_ultima_exec else None,
+                    "data_vencimento": venc.data_vencimento.isoformat() if venc and venc.data_vencimento else None,
+                    "status": venc.status if venc else None,
+                })
+
+            slots_out.append({
+                "sistema": modelo.nome_generico,          # Ex: "EGIR", "ELT"
+                "part_number": modelo.part_number,
+                "numero_serie": item.numero_serie if item else None,
+                "controles": controles_out,
+            })
+
+        aeronaves_out.append({
+            "aeronave_id": str(aeronave.id),
+            "matricula": aeronave.matricula,
+            "slots": slots_out,
+        })
+
+    return {"cabecalho": cabecalho, "aeronaves": aeronaves_out}

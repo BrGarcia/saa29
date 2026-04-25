@@ -398,6 +398,18 @@ table tbody tr:hover {
   background-color: var(--status-ok-bg);
   color: var(--status-ok);
 }
+.badge-ok {
+  background-color: var(--status-ok-bg);
+  color: var(--status-ok);
+}
+.badge-warning {
+  background-color: var(--status-warning-bg);
+  color: var(--status-warning);
+}
+.badge-danger {
+  background-color: var(--status-danger-bg);
+  color: var(--status-danger);
+}
 
 /* Header Top */
 .top-header {

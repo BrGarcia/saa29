@@ -54,7 +54,16 @@ document.addEventListener("DOMContentLoaded", () => {
     if(formEditarTipo) formEditarTipo.addEventListener('submit', salvarEditarTipo);
 
     const btnEquipamentoControle = document.getElementById('btn-equipamento-controle');
-    if(btnEquipamentoControle) btnEquipamentoControle.onclick = () => alert('Funcionalidade em desenvolvimento');
+    if(btnEquipamentoControle) btnEquipamentoControle.onclick = openModalRegras;
+
+    const formNovaRegra = document.getElementById('formNovaRegra');
+    if(formNovaRegra) formNovaRegra.addEventListener('submit', salvarNovaRegra);
+
+    const btnCatalogo = document.getElementById('btn-gerenciar-catalogo');
+    if(btnCatalogo) btnCatalogo.onclick = openModalCatalogo;
+
+    const formPN = document.getElementById('formNovoPN');
+    if(formPN) formPN.addEventListener('submit', salvarNovoModelo);
 });
 
 function openModalConfig() {
@@ -356,3 +365,199 @@ async function salvarEditarTipo(e) {
 
 window.openModalEditarTipo = openModalEditarTipo;
 window.closeModalEditarTipo = closeModalEditarTipo;
+
+// ---- Regras por Equipamento (Vencimentos) ----
+
+async function openModalRegras() {
+    const modal = document.getElementById('modal-regras-equipamento');
+    modal.style.display = 'flex';
+    await carregarOptionsRegras();
+    await carregarListaRegras();
+}
+
+function closeModalRegras() {
+    const modal = document.getElementById('modal-regras-equipamento');
+    if(modal) modal.style.display = 'none';
+    const form = document.getElementById('formNovaRegra');
+    if(form) form.reset();
+}
+
+async function carregarOptionsRegras() {
+    const selectEquip = document.getElementById('regraEquipamentoSelect');
+    const selectTipo = document.getElementById('regraTipoSelect');
+    
+    selectEquip.innerHTML = '<option value="">Carregando...</option>';
+    selectTipo.innerHTML = '<option value="">Carregando...</option>';
+
+    try {
+        const [equipamentos, tipos] = await Promise.all([
+            apiFetch('/equipamentos/'),
+            apiFetch('/equipamentos/tipos-controle')
+        ]);
+
+        selectEquip.innerHTML = '<option value="">Selecione o PN...</option>';
+        equipamentos.forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.id;
+            opt.text = `${e.part_number} — ${e.nome_generico}`;
+            selectEquip.appendChild(opt);
+        });
+
+        selectTipo.innerHTML = '<option value="">Selecione o Controle...</option>';
+        tipos.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.text = t.nome;
+            selectTipo.appendChild(opt);
+        });
+    } catch(e) {
+        showToast("Erro ao carregar opções para regras.", "error");
+    }
+}
+
+async function carregarListaRegras() {
+    const tbody = document.getElementById('lista-regras-body');
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem;">Carregando regras...</td></tr>';
+
+    try {
+        const regras = await apiFetch('/equipamentos/controles/regras');
+        tbody.innerHTML = '';
+        
+        if(regras.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem; color: var(--text-secondary);">Nenhuma regra configurada.</td></tr>';
+            return;
+        }
+
+        regras.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border-color)';
+            tr.innerHTML = `
+                <td style="padding: 0.75rem;">${r.pn || '---'}</td>
+                <td style="padding: 0.75rem; text-align: center;"><strong>${r.tipo_nome || '---'}</strong></td>
+                <td style="padding: 0.75rem; text-align: center;">${r.periodicidade_meses} meses</td>
+                <td style="padding: 0.75rem; text-align: right;">
+                    <button class="btn-icon" style="color: var(--status-danger);" onclick="removerRegra('${r.modelo_id}', '${r.tipo_controle_id}')">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem; color: var(--status-danger);">Erro ao carregar lista.</td></tr>';
+    }
+}
+
+async function salvarNovaRegra(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+
+    const modelo_id = document.getElementById('regraEquipamentoSelect').value;
+    const tipo_controle_id = document.getElementById('regraTipoSelect').value;
+    const periodicidade_meses = parseInt(document.getElementById('regraMesesInput').value);
+
+    try {
+        await apiFetch('/equipamentos/controles/regras', {
+            method: 'POST',
+            body: { modelo_id, tipo_controle_id, periodicidade_meses }
+        });
+        showToast("Regra cadastrada/atualizada com sucesso!", "success");
+        await carregarListaRegras();
+    } catch(err) {
+        showToast(err.message || "Erro ao salvar regra.", "error");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function removerRegra(modeloId, tipoId) {
+    if(!confirm("Tem certeza que deseja remover esta regra de periodicidade?")) return;
+
+    try {
+        await apiFetch(`/equipamentos/controles/regras/${modeloId}/${tipoId}`, {
+            method: 'DELETE'
+        });
+        showToast("Regra removida com sucesso!", "success");
+        await carregarListaRegras();
+    } catch(err) {
+        showToast(err.message || "Erro ao remover regra.", "error");
+    }
+}
+
+window.openModalRegras = openModalRegras;
+window.closeModalRegras = closeModalRegras;
+window.removerRegra = removerRegra;
+
+// ==========================================
+// Módulo de Catálogo (Part Numbers)
+// ==========================================
+
+async function openModalCatalogo() {
+    const modal = document.getElementById('modal-catalogo');
+    modal.style.display = 'flex';
+    await carregarListaCatalogo();
+}
+
+function closeModalCatalogo() {
+    const modal = document.getElementById('modal-catalogo');
+    if(modal) modal.style.display = 'none';
+    const form = document.getElementById('formNovoPN');
+    if(form) form.reset();
+}
+
+async function carregarListaCatalogo() {
+    const tbody = document.getElementById('lista-catalogo-body');
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 1rem;">Carregando catálogo...</td></tr>';
+
+    try {
+        const modelos = await apiFetch('/equipamentos/');
+        tbody.innerHTML = '';
+        
+        if(modelos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 1rem; color: var(--text-secondary);">Nenhum equipamento cadastrado.</td></tr>';
+            return;
+        }
+
+        modelos.forEach(m => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border-color)';
+            tr.innerHTML = `
+                <td style="padding: 0.75rem;"><strong>${m.part_number}</strong></td>
+                <td style="padding: 0.75rem;">${m.nome_generico}</td>
+                <td style="padding: 0.75rem; color: var(--text-secondary); font-size: 0.85rem;">${m.descricao || '---'}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 1rem; color: var(--status-danger);">Erro ao carregar catálogo.</td></tr>';
+    }
+}
+
+async function salvarNovoModelo(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSalvarPN');
+    btn.disabled = true;
+
+    const part_number = document.getElementById('pnInput').value.trim().toUpperCase();
+    const nome_generico = document.getElementById('nomePnInput').value.trim();
+    const descricao = document.getElementById('descPnInput').value.trim();
+
+    try {
+        await apiFetch('/equipamentos/', {
+            method: 'POST',
+            body: { part_number, nome_generico, descricao }
+        });
+        showToast("Part Number cadastrado com sucesso!", "success");
+        document.getElementById('formNovoPN').reset();
+        await carregarListaCatalogo();
+    } catch(err) {
+        showToast(err.message || "Erro ao cadastrar PN.", "error");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+window.openModalCatalogo = openModalCatalogo;
+window.closeModalCatalogo = closeModalCatalogo;
+window.salvarNovoModelo = salvarNovoModelo;

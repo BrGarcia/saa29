@@ -12,6 +12,10 @@ if [ -n "$UPLOAD_DIR" ]; then
     mkdir -p "$UPLOAD_DIR"
 fi
 
+# 0. Instalação automática de dependências (Garante que novos pacotes no requirements.txt sejam instalados)
+echo "📦 Verificando/Instalando dependências (Auto-update)..."
+pip install --no-cache-dir -r requirements.txt
+
 # 0. Restaurar backup do R2 (se configurado)
 if [ -n "$R2_BUCKET_NAME" ]; then
     echo "🔄 Restaurando banco de dados do Cloudflare R2..."
