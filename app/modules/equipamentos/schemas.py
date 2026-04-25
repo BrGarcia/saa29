@@ -64,6 +64,7 @@ class ItemEquipamentoOut(BaseModel):
 
 class InstalacaoCreate(BaseModel):
     aeronave_id: uuid.UUID
+    slot_id: uuid.UUID
     data_instalacao: date = Field(default_factory=date.today)
 
 class InstalacaoRemocao(BaseModel):
@@ -196,7 +197,10 @@ class VencimentoCelulaOut(BaseModel):
     tipo_controle_nome: str
     data_ultima_exec: date | None = None
     data_vencimento: date | None = None
-    status: str | None = None  # OK, VENCENDO, VENCIDO
+    status: str | None = None  # OK, VENCENDO, VENCIDO, PRORROGADO
+    prorrogado: bool = False
+    data_nova_vencimento: date | None = None
+    numero_documento_prorrogacao: str | None = None
 
 class SlotMatrizOut(BaseModel):
     """Um slot/sistema da aeronave com o SN instalado e seus controles."""
@@ -211,6 +215,8 @@ class AeronaveMatrizOut(BaseModel):
     """Uma linha da matriz: dados de uma aeronave e todos os seus slots."""
     aeronave_id: uuid.UUID
     matricula: str
+    status_aeronave: str
+    status_vencimento: str  # OK, VENCENDO, VENCIDO, INCOMPLETA
     slots: list[SlotMatrizOut] = []
 
 class MatrizVencimentosOut(BaseModel):
@@ -218,3 +224,29 @@ class MatrizVencimentosOut(BaseModel):
     # Colunas de cabeçalho: sistema -> lista de tipos de controle (nomes)
     cabecalho: dict[str, list[str]]   # Ex: {"EGIR": ["TBO"], "ELT": ["CRI","TBV"]}
     aeronaves: list[AeronaveMatrizOut]
+
+
+# ============================================================
+# Prorrogação de Vencimentos
+# ============================================================
+
+class ProrrogacaoVencimentoCreate(BaseModel):
+    numero_documento: str
+    data_concessao: date
+    dias_adicionais: int
+    motivo: str | None = None
+    observacao: str | None = None
+
+class ProrrogacaoVencimentoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    controle_id: uuid.UUID
+    numero_documento: str
+    data_concessao: date
+    data_nova_vencimento: date
+    dias_adicionais: int
+    motivo: str | None
+    observacao: str | None
+    registrado_por_id: uuid.UUID | None
+    ativo: bool
+    created_at: datetime

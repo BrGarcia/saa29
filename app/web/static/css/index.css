@@ -21,6 +21,10 @@
   --status-warning-bg: #fef3c7;
   --status-danger: #ef4444;
   --status-danger-bg: #fee2e2;
+  --status-prorrogado: #8b5cf6;
+  --status-prorrogado-bg: #ede9fe;
+  --status-incompleta: #64748b;
+  --status-incompleta-bg: #f1f5f9;
 
   --glass-bg: rgba(255, 255, 255, 0.7);
   --glass-border: rgba(255, 255, 255, 0.4);
@@ -50,6 +54,8 @@
   --status-ok-bg: rgba(16, 185, 129, 0.15);
   --status-warning-bg: rgba(245, 158, 11, 0.15);
   --status-danger-bg: rgba(239, 68, 68, 0.15);
+  --status-prorrogado-bg: rgba(139, 92, 246, 0.15);
+  --status-incompleta-bg: rgba(100, 116, 139, 0.15);
 
   --glass-bg: rgba(30, 41, 59, 0.7);
   --glass-border: rgba(255, 255, 255, 0.1);
@@ -397,6 +403,22 @@ table tbody tr:hover {
 .badge-resolvida {
   background-color: var(--status-ok-bg);
   color: var(--status-ok);
+}
+.badge-prorrogado {
+  background-color: var(--status-prorrogado-bg);
+  color: var(--status-prorrogado);
+}
+.badge-incompleta {
+  background-color: var(--status-incompleta-bg);
+  color: var(--status-incompleta);
+}
+.badge-inspecao {
+  background-color: var(--primary-color);
+  color: #fff;
+}
+.badge-estocada {
+  background-color: var(--text-secondary);
+  color: #fff;
 }
 .badge-ok {
   background-color: var(--status-ok-bg);

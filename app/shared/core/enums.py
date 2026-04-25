@@ -28,6 +28,7 @@ class StatusVencimento(str, enum.Enum):
     OK = "OK"
     VENCENDO = "VENCENDO"   # próximo ao vencimento (threshold configurável)
     VENCIDO = "VENCIDO"
+    FALTANTE = "FALTANTE"   # item desinstalado mas o controle é obrigatório
 
 
 class OrigemControle(str, enum.Enum):
@@ -56,6 +57,8 @@ class StatusAeronave(str, enum.Enum):
     """Status operacional de uma aeronave."""
     OPERACIONAL = "OPERACIONAL"
     INDISPONIVEL = "INDISPONIVEL"
+    INSPECAO = "INSPEÇÃO"
+    ESTOCADA = "ESTOCADA"
     INATIVA = "INATIVA"
 
 

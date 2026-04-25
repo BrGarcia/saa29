@@ -32,10 +32,12 @@ AERONAVES_URL = "/aeronaves/"
 # ------------------------------------------------------------------ #
 
 async def criar_aeronave(client: AsyncClient, headers: dict, dados: dict) -> dict:
-    """Helper: cria uma aeronave e retorna o body JSON."""
-    resp = await client.post(AERONAVES_URL, json=dados, headers=headers)
+    """Helper: cria uma aeronave com matrícula única e retorna o body JSON."""
+    dados_copy = dados.copy()
+    dados_copy["matricula"] = f"ANV-{uuid.uuid4().hex[:8].upper()}"
+    resp = await client.post(AERONAVES_URL, json=dados_copy, headers=headers)
     if resp.status_code != 201:
-        pytest.skip(f"Endpoint de aeronaves não implementado (status {resp.status_code})")
+        pytest.skip(f"Erro ao criar aeronave no helper (status {resp.status_code})")
     return resp.json()
 
 

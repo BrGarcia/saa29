@@ -259,7 +259,7 @@ async def instalar_item(
     _: EncarregadoOuAdmin,
 ):
     instalacao = await service.instalar_item(
-        db, item_id, dados.aeronave_id, dados.data_instalacao
+        db, item_id, dados.aeronave_id, dados.slot_id, dados.data_instalacao
     )
     return schemas.InstalacaoOut.model_validate(instalacao)
 
@@ -298,6 +298,34 @@ async def registrar_execucao(
         db, vencimento_id, dados.data_ultima_exec
     )
     return schemas.ControleVencimentoOut.model_validate(vencimento)
+
+
+@router.post(
+    "/vencimentos/{vencimento_id}/prorrogar",
+    response_model=schemas.ProrrogacaoVencimentoOut,
+    summary="Conceder prorrogação de prazo (Engenharia)",
+)
+async def prorrogar_prazo(
+    vencimento_id: uuid.UUID,
+    dados: schemas.ProrrogacaoVencimentoCreate,
+    db: DBSession,
+    user: CurrentUser,
+):
+    prorrogacao = await service.prorrogar_vencimento(db, vencimento_id, dados, user.id)
+    return schemas.ProrrogacaoVencimentoOut.model_validate(prorrogacao)
+
+
+@router.delete(
+    "/vencimentos/{vencimento_id}/prorrogar",
+    summary="Cancelar prorrogação ativa",
+)
+async def cancelar_prorrogacao(
+    vencimento_id: uuid.UUID,
+    db: DBSession,
+    _: EncarregadoOuAdmin,
+):
+    sucesso = await service.cancelar_prorrogacao(db, vencimento_id)
+    return {"success": sucesso}
 
 
 @router.get(

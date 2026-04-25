@@ -79,4 +79,5 @@ recent_implementations:
 - 2026-04-25: Implementada página /vencimentos com tabela matricial dinâmica (Frota × TipoEquipamento × Controle), seguindo o padrão do planilhão operacional real (EGIR/ELT/VADR/V-UHF2 como colunas).
 - 2026-04-25: Backend otimizado para a visão matricial — endpoint GET /equipamentos/vencimentos/matriz monta a estrutura completa em 4 queries fixas (sem N+1). Colunas determinadas por ModeloEquipamento com EquipamentoControle cadastrados.
 - 2026-04-25: Adicionados schemas Pydantic MatrizVencimentosOut, AeronaveMatrizOut, SlotMatrizOut, VencimentoCelulaOut para serialização da matriz.
-- 2026-04-25: Adicionada rota de frontend /vencimentos e template vencimentos.html com tabela centralizada, código de cores por status (OK/VENCENDO/VENCIDO), sticky column de matrícula e modal de registro de execução por clique na célula.
+- 2026-04-25: Refatorada UI da página /vencimentos para utilizar layout em cards por aeronave ao invés de tabela matricial.
+- 2026-04-25: Iniciada implementação da funcionalidade de Prorrogação de Vencimento (Extensão de Prazo) para equipamentos.

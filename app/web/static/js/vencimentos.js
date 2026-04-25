@@ -1,217 +1,258 @@
 /**
- * vencimentos.js — Visão Matricial de Vencimentos da Frota
- * 
- * Estrutura da tabela (seguindo o padrão do modelo real):
- * 
- *  Matrícula | EGIR              | ELT                   | V/UHF2      | VADR
- *            | SN  | TBO         | SN  | CRI   | TBV     | SN  | TBV   | SN  | TBV | RBA
- *  5902      | 110 | 29/03/2023  | 115 | 04/04 | 27/11   | ... | ...   | ... | ... | ...
+ * vencimentos.js — Controle de Vencimentos da Frota
+ * Layout moderno: cards por aeronave com chips de equipamento.
  */
+
+let matrizGlobal = null;
+let filtroStatusAtual = 'todos';
 
 document.addEventListener("DOMContentLoaded", async () => {
     await carregarMatriz();
 
+    document.getElementById('filtro-vencimentos').addEventListener('input', (e) => {
+        aplicarFiltros();
+    });
+
     const formExec = document.getElementById('formExecutarControle');
     if (formExec) formExec.addEventListener('submit', salvarExecucao);
+
+    const formProrrog = document.getElementById('formProrrogarVencimento');
+    if (formProrrog) formProrrog.addEventListener('submit', salvarProrrogacao);
 });
 
-let matrizGlobal = null;
+// ─────────────────────────────────────────────
+// Carregamento de Dados
+// ─────────────────────────────────────────────
 
 async function carregarMatriz() {
-    const loading = document.getElementById('vencimentos-loading');
-    const container = document.getElementById('vencimentos-table-container');
-    const empty = document.getElementById('vencimentos-empty');
-    const error = document.getElementById('vencimentos-error');
-
+    const grid = document.getElementById('vencimentos-grid');
     try {
         const dados = await apiFetch('/equipamentos/vencimentos/matriz');
         matrizGlobal = dados;
 
         if (!dados.aeronaves || dados.aeronaves.length === 0) {
-            loading.style.display = 'none';
-            empty.style.display = 'block';
+            grid.innerHTML = `
+                <div class="card glass-panel" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
+                    Nenhum dado de vencimento configurado.
+                    Acesse <a href="/configuracoes" style="color: var(--primary-color);">Configurações</a>
+                    para cadastrar equipamentos e regras de controle.
+                </div>`;
             return;
         }
 
-        renderizarMatriz(dados);
-
-        loading.style.display = 'none';
-        container.style.display = 'block';
+        // Mostrar contadores
+        document.getElementById('summary-cards').style.display = 'grid';
+        atualizarContadores(dados.aeronaves);
+        renderizarGrid(dados.aeronaves);
 
     } catch (err) {
-        console.error('Erro ao carregar matriz:', err);
-        loading.style.display = 'none';
-        error.style.display = 'block';
-        error.innerText = `Erro ao carregar dados: ${err.message}`;
+        console.error(err);
+        grid.innerHTML = `<div class="card glass-panel" style="padding: 2rem; text-align: center; color: var(--status-danger);">
+            Erro ao carregar dados: ${err.message}
+        </div>`;
     }
 }
 
-function renderizarMatriz(dados) {
-    const { cabecalho, aeronaves } = dados;
+// ─────────────────────────────────────────────
+// Renderização
+// ─────────────────────────────────────────────
 
-    // Sistemas na ordem recebida (mantém a ordem do backend)
-    const sistemas = Object.keys(cabecalho);
+function renderizarGrid(aeronaves) {
+    const grid = document.getElementById('vencimentos-grid');
+    grid.innerHTML = '';
 
-    if (sistemas.length === 0) return;
+    if (aeronaves.length === 0) {
+        grid.innerHTML = `<div class="card" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
+            Nenhuma aeronave encontrada com os filtros aplicados.
+        </div>`;
+        return;
+    }
 
-    renderizarCabecalho(sistemas, cabecalho, aeronaves);
-    renderizarLinhas(sistemas, cabecalho, aeronaves);
+    aeronaves.forEach(aeronave => {
+        const card = criarCardAeronave(aeronave);
+        grid.appendChild(card);
+    });
 }
 
-function renderizarCabecalho(sistemas, cabecalho, aeronaves) {
-    const thead = document.getElementById('tabela-head');
-    thead.innerHTML = '';
+function criarCardAeronave(aeronave) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'acft-card';
+    wrapper.dataset.matricula = aeronave.matricula;
 
-    // LINHA 1: Matrícula + grupos de sistema (com colspan)
-    const tr1 = document.createElement('tr');
+    // Calcular totais de status para esta aeronave
+    let ok = 0, warn = 0, danger = 0, pendente = 0, prorrog = 0, incompleto = 0;
+    aeronave.slots.forEach(slot => {
+        slot.controles.forEach(ctrl => {
+            const s = (ctrl.status || '').toUpperCase();
+            if (s === 'OK') ok++;
+            else if (s === 'VENCENDO') warn++;
+            else if (s === 'VENCIDO') danger++;
+            else if (s === 'PRORROGADO') prorrog++;
+            else if (s === 'FALTANTE') incompleto++;
+            else pendente++;
+        });
+    });
 
-    // Célula "Matrícula" com rowspan=2
-    const thMatricula = document.createElement('th');
-    thMatricula.rowSpan = 2;
-    thMatricula.className = 'col-matricula';
-    thMatricula.innerText = 'Matrícula';
-    thMatricula.style.verticalAlign = 'middle';
-    tr1.appendChild(thMatricula);
+    // Pills de resumo da aeronave
+    let pillsHtml = '';
+    if (danger > 0) pillsHtml += `<span class="pill pill-danger">● ${danger} Vencido${danger > 1 ? 's' : ''}</span>`;
+    if (warn > 0) pillsHtml += `<span class="pill pill-warn">● ${warn} A Vencer</span>`;
+    if (incompleto > 0) pillsHtml += `<span class="pill pill-incompleta">● ${incompleto} Faltante${incompleto > 1 ? 's' : ''}</span>`;
+    if (prorrog > 0) pillsHtml += `<span class="pill pill-prorrogado">● ${prorrog} Prorrogado${prorrog > 1 ? 's' : ''}</span>`;
+    if (ok > 0 && danger === 0 && warn === 0 && prorrog === 0 && incompleto === 0) pillsHtml += `<span class="pill pill-ok">✓ Em Dia</span>`;
 
-    for (const sistema of sistemas) {
-        const controles = cabecalho[sistema];
-        // Cada grupo tem: 1 col SN + N cols de controle
-        const colspan = 1 + controles.length;
+    // Header do card
+    const header = document.createElement('div');
+    header.className = 'acft-card-header';
+    header.innerHTML = `
+        <span class="acft-matricula">${aeronave.matricula}</span>
+        <div class="acft-status-pills">${pillsHtml || '<span style="font-size:0.8rem;color:var(--text-secondary);">Sem controles</span>'}</div>
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--text-secondary); transition: transform 0.2s;" class="chevron"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+    `;
 
-        const th = document.createElement('th');
-        th.colSpan = colspan;
-        th.className = 'group-header';
-        th.innerText = sistema;
-        // Estilo de separação entre grupos
-        th.style.borderLeft = '2px solid var(--primary-color)';
-        tr1.appendChild(th);
-    }
-    thead.appendChild(tr1);
+    // Body com chips de equipamentos
+    const body = document.createElement('div');
+    body.className = 'acft-card-body';
 
-    // LINHA 2: "SN" + nome de cada controle para cada sistema
-    const tr2 = document.createElement('tr');
+    aeronave.slots.forEach(slot => {
+        const chip = criarChipEquipamento(slot, aeronave);
+        body.appendChild(chip);
+    });
 
-    for (const sistema of sistemas) {
-        const controles = cabecalho[sistema];
+    // Toggle collapse — inicia recolhido
+    body.style.display = 'none';
+    header.querySelector('.chevron').style.transform = 'rotate(-90deg)';
 
-        // Col SN
-        const thSn = document.createElement('th');
-        thSn.innerText = 'S/N';
-        thSn.style.borderLeft = '2px solid var(--primary-color)';
-        thSn.style.minWidth = '65px';
-        tr2.appendChild(thSn);
+    header.addEventListener('click', () => {
+        const isOpen = body.style.display !== 'none';
+        body.style.display = isOpen ? 'none' : 'flex';
+        header.querySelector('.chevron').style.transform = isOpen ? 'rotate(-90deg)' : '';
+    });
 
-        // Cols de controle
-        for (const c of controles) {
-            const thC = document.createElement('th');
-            thC.innerText = c;
-            thC.style.minWidth = '85px';
-            tr2.appendChild(thC);
+    wrapper.appendChild(header);
+    wrapper.appendChild(body);
+    return wrapper;
+}
+
+function criarChipEquipamento(slot, aeronave) {
+    const chip = document.createElement('div');
+    chip.className = 'equip-chip';
+
+    const snClass = slot.numero_serie ? '' : 'empty';
+    const snText = slot.numero_serie || '— vazio —';
+
+    let controlesHtml = '';
+    slot.controles.forEach(ctrl => {
+        const statusCls = mapStatusCls(ctrl.status);
+        const dataVenc = (ctrl.status === 'PRORROGADO') ? ctrl.data_nova_vencimento : ctrl.data_vencimento;
+        const dataText = dataVenc ? formatarData(dataVenc) : (ctrl.status === 'FALTANTE' ? 'NÃO INSTALADO' : '---');
+        const vencId = ctrl.vencimento_id || '';
+        const infoLabel = `${aeronave.matricula} / ${slot.sistema} / ${ctrl.tipo_controle_nome}`;
+
+        const isProrrogado = ctrl.status === 'PRORROGADO';
+        const isFaltante = ctrl.status === 'FALTANTE';
+
+        let titleText = isProrrogado 
+            ? `PRORROGADO (Engenharia) Doc: ${ctrl.numero_documento_prorrogacao || 'N/A'}\nNova Data: ${dataText}\nVenc. Original: ${formatarData(ctrl.data_vencimento)}`
+            : (ctrl.data_vencimento ? 'Vence: ' + formatarData(ctrl.data_vencimento) : 'Sem execução registrada');
+        
+        if (isFaltante) titleText = "EQUIPAMENTO NÃO INSTALADO NO SLOT";
+
+        controlesHtml += `
+            <div class="ctrl-row ${statusCls}" 
+                 title="${titleText}"
+                 ${vencId && slot.numero_serie ? `onclick="openModalExecutar('${vencId}', '${infoLabel}', ${isProrrogado}, '${ctrl.data_nova_vencimento}', '${ctrl.numero_documento_prorrogacao || ''}')"` : ''}>
+                <span class="ctrl-nome">${ctrl.tipo_controle_nome}${isProrrogado ? '*' : ''}</span>
+                <span class="ctrl-data">${dataText}</span>
+            </div>
+        `;
+    });
+
+    chip.innerHTML = `
+        <div class="equip-chip-name">${slot.sistema}</div>
+        <div class="equip-chip-sn ${snClass}">${snText}</div>
+        <div class="equip-chip-controls">${controlesHtml}</div>
+    `;
+
+    return chip;
+}
+
+// ─────────────────────────────────────────────
+// Contadores e Filtros
+// ─────────────────────────────────────────────
+
+function atualizarContadores(aeronaves) {
+    let ok = 0, warn = 0, danger = 0, pendente = 0, prorrog = 0, incompleto = 0;
+    aeronaves.forEach(a => {
+        a.slots.forEach(s => {
+            s.controles.forEach(c => {
+                const st = (c.status || '').toUpperCase();
+                if (st === 'OK') ok++;
+                else if (st === 'VENCENDO') warn++;
+                else if (st === 'VENCIDO') danger++;
+                else if (st === 'PRORROGADO') prorrog++;
+                else if (st === 'FALTANTE') incompleto++;
+                else pendente++;
+            });
+        });
+    });
+    document.getElementById('cnt-ok').innerText = ok;
+    document.getElementById('cnt-warn').innerText = warn;
+    document.getElementById('cnt-danger').innerText = danger;
+    document.getElementById('cnt-pendente').innerText = pendente;
+    document.getElementById('cnt-prorrogado').innerText = prorrog;
+    document.getElementById('cnt-incompleta').innerText = incompleto;
+}
+
+function filtrarStatus(tipo) {
+    filtroStatusAtual = tipo;
+    aplicarFiltros();
+}
+
+function aplicarFiltros() {
+    if (!matrizGlobal) return;
+
+    const termo = document.getElementById('filtro-vencimentos').value.toLowerCase();
+
+    let aeronaves = matrizGlobal.aeronaves.filter(a => {
+        // Filtro por texto
+        if (termo) {
+            const matchMatricula = a.matricula.toLowerCase().includes(termo);
+            const matchSlot = a.slots.some(s => s.sistema.toLowerCase().includes(termo));
+            if (!matchMatricula && !matchSlot) return false;
         }
-    }
-    thead.appendChild(tr2);
+        // Filtro por status
+        if (filtroStatusAtual !== 'todos') {
+            const temProblema = a.slots.some(s =>
+                s.controles.some(c => {
+                    const st = (c.status || '').toUpperCase();
+                    if (filtroStatusAtual === 'warn') return st === 'VENCENDO';
+                    if (filtroStatusAtual === 'danger') return st === 'VENCIDO';
+                    if (filtroStatusAtual === 'prorrogado') return st === 'PRORROGADO';
+                    if (filtroStatusAtual === 'incompleta') return st === 'FALTANTE';
+                    return false;
+                })
+            );
+            if (!temProblema) return false;
+        }
+        return true;
+    });
+
+    renderizarGrid(aeronaves);
 }
 
-function renderizarLinhas(sistemas, cabecalho, aeronaves) {
-    const tbody = document.getElementById('tabela-body');
-    tbody.innerHTML = '';
+// ─────────────────────────────────────────────
+// Utilitários
+// ─────────────────────────────────────────────
 
-    // Indexar slots de cada aeronave por sistema
-    for (const aeronave of aeronaves) {
-        const tr = document.createElement('tr');
-
-        // Col matrícula
-        const tdMat = document.createElement('td');
-        tdMat.className = 'col-matricula';
-        tdMat.innerText = aeronave.matricula;
-        tr.appendChild(tdMat);
-
-        // Agrupar slots por sistema
-        const slotsPorSistema = {};
-        for (const slot of aeronave.slots) {
-            if (!slotsPorSistema[slot.sistema]) slotsPorSistema[slot.sistema] = [];
-            slotsPorSistema[slot.sistema].push(slot);
-        }
-
-        for (const sistema of sistemas) {
-            const controles = cabecalho[sistema];
-            const slotsDoSistema = slotsPorSistema[sistema] || [];
-
-            if (slotsDoSistema.length === 0) {
-                // Sem slot configurado para este sistema: células vazias
-                const tdSn = document.createElement('td');
-                tdSn.style.borderLeft = '2px solid var(--primary-color)';
-                tr.appendChild(tdSn);
-                for (let i = 0; i < controles.length; i++) {
-                    tr.appendChild(document.createElement('td'));
-                }
-                continue;
-            }
-
-            // Por enquanto usamos o primeiro slot do sistema (ex: EGIR1)
-            // Futuramente, se houver EGIR1 e EGIR2, poderão ser linhas separadas
-            const slot = slotsDoSistema[0];
-
-            // Col SN instalado
-            const tdSn = document.createElement('td');
-            tdSn.className = 'cell-sn';
-            tdSn.style.borderLeft = '2px solid var(--primary-color)';
-            tdSn.innerText = slot.numero_serie || '—';
-            if (!slot.numero_serie) tdSn.style.color = 'var(--text-secondary)';
-            tr.appendChild(tdSn);
-
-            // Indexar controles do slot por nome
-            const ctrlMap = {};
-            for (const c of slot.controles) ctrlMap[c.tipo_controle_nome] = c;
-
-            // Cols de cada tipo de controle
-            for (const tipoNome of controles) {
-                const ctrl = ctrlMap[tipoNome];
-                const td = document.createElement('td');
-                td.className = 'cell-venc';
-
-                if (!slot.numero_serie) {
-                    // Slot vazio: sem dados
-                    td.innerText = '—';
-                    td.classList.add('status-pendente');
-                } else if (!ctrl || !ctrl.data_vencimento) {
-                    // Item instalado mas sem execução registrada
-                    td.innerText = 'Pendente';
-                    td.classList.add('status-pendente');
-                    if (ctrl && ctrl.vencimento_id) {
-                        td.title = 'Clique para registrar execução';
-                        td.onclick = () => openModalExecutar(
-                            ctrl.vencimento_id,
-                            `${aeronave.matricula} — ${slot.nome_posicao} — ${tipoNome}`
-                        );
-                    }
-                } else {
-                    const statusCls = mapStatus(ctrl.status);
-                    td.classList.add(statusCls);
-                    td.innerText = formatarData(ctrl.data_vencimento);
-                    td.title = `Última exec: ${ctrl.data_ultima_exec ? formatarData(ctrl.data_ultima_exec) : '---'} — Clique para atualizar`;
-                    if (ctrl.vencimento_id) {
-                        td.onclick = () => openModalExecutar(
-                            ctrl.vencimento_id,
-                            `${aeronave.matricula} — ${slot.nome_posicao} — ${tipoNome}`
-                        );
-                    }
-                }
-
-                tr.appendChild(td);
-            }
-        }
-
-        tbody.appendChild(tr);
-    }
-}
-
-function mapStatus(status) {
+function mapStatusCls(status) {
     if (!status) return 'status-pendente';
     switch (status.toUpperCase()) {
         case 'OK': return 'status-ok';
         case 'VENCENDO': return 'status-vencendo';
         case 'VENCIDO': return 'status-vencido';
+        case 'PRORROGADO': return 'status-prorrogado';
+        case 'FALTANTE': return 'status-incompleta';
         default: return 'status-pendente';
     }
 }
@@ -222,10 +263,24 @@ function formatarData(dataStr) {
     return `${d}/${m}/${y}`;
 }
 
-function openModalExecutar(vencimentoId, info) {
+// ─────────────────────────────────────────────
+// Modal de Execução
+// ─────────────────────────────────────────────
+
+function openModalExecutar(vencimentoId, info, prorrogado = false, dataNova = '', doc = '') {
     document.getElementById('exec-vencimento-id').value = vencimentoId;
     document.getElementById('exec-info-label').innerText = info;
     document.getElementById('exec-data-input').value = new Date().toISOString().split('T')[0];
+    
+    // Alerta de Prorrogação
+    const alert = document.getElementById('exec-prorrog-alert');
+    if (prorrogado) {
+        document.getElementById('exec-prorrog-desc').innerText = `Até ${formatarData(dataNova)} (Doc: ${doc || 'N/A'})`;
+        alert.style.display = 'block';
+    } else {
+        alert.style.display = 'none';
+    }
+
     document.getElementById('modal-executar-controle').style.display = 'flex';
 }
 
@@ -240,10 +295,7 @@ async function salvarExecucao(e) {
     const data = document.getElementById('exec-data-input').value;
     const btn = document.getElementById('btnConfirmarExec');
 
-    if (!id) {
-        showToast('Nenhum controle selecionado.', 'error');
-        return;
-    }
+    if (!id) { showToast('Nenhum controle selecionado.', 'error'); return; }
 
     btn.disabled = true;
     try {
@@ -263,3 +315,77 @@ async function salvarExecucao(e) {
 
 window.openModalExecutar = openModalExecutar;
 window.closeModalExecutar = closeModalExecutar;
+window.openModalProrrogarFromExec = openModalProrrogarFromExec;
+window.closeModalProrrogar = closeModalProrrogar;
+window.cancelarProrrogacao = cancelarProrrogacao;
+window.filtrarStatus = filtrarStatus;
+
+
+// ─────────────────────────────────────────────
+// Modal de Prorrogação
+// ─────────────────────────────────────────────
+
+function openModalProrrogarFromExec() {
+    const vencId = document.getElementById('exec-vencimento-id').value;
+    const info = document.getElementById('exec-info-label').innerText;
+    
+    closeModalExecutar();
+    
+    document.getElementById('prorrog-vencimento-id').value = vencId;
+    document.getElementById('prorrog-info-label').innerText = info;
+    document.getElementById('prorrog-data-input').value = new Date().toISOString().split('T')[0];
+    document.getElementById('modal-prorrogacao-vencimento').style.display = 'flex';
+}
+
+function closeModalProrrogar() {
+    document.getElementById('modal-prorrogacao-vencimento').style.display = 'none';
+    document.getElementById('formProrrogarVencimento').reset();
+}
+
+async function salvarProrrogacao(e) {
+    e.preventDefault();
+    const id = document.getElementById('prorrog-vencimento-id').value;
+    const doc = document.getElementById('prorrog-doc-input').value;
+    const data = document.getElementById('prorrog-data-input').value;
+    const dias = document.getElementById('prorrog-dias-input').value;
+    const motivo = document.getElementById('prorrog-motivo-input').value;
+    const btn = document.getElementById('btnConfirmarProrrog');
+
+    btn.disabled = true;
+    try {
+        await apiFetch(`/equipamentos/vencimentos/${id}/prorrogar`, {
+            method: 'POST',
+            body: {
+                numero_documento: doc,
+                data_concessao: data,
+                dias_adicionais: parseInt(dias),
+                motivo: motivo
+            }
+        });
+        showToast('Prorrogação concedida com sucesso!', 'success');
+        closeModalProrrogar();
+        await carregarMatriz();
+    } catch (err) {
+        showToast(err.message || 'Erro ao registrar prorrogação.', 'error');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function cancelarProrrogacao() {
+    const id = document.getElementById('exec-vencimento-id').value;
+    if (!id) return;
+    
+    if (!confirm('Deseja realmente CANCELAR a prorrogação deste item? O status voltará ao real imediatamente.')) return;
+    
+    try {
+        await apiFetch(`/equipamentos/vencimentos/${id}/prorrogar`, {
+            method: 'DELETE'
+        });
+        showToast('Prorrogação cancelada.', 'success');
+        closeModalExecutar();
+        await carregarMatriz();
+    } catch (err) {
+        showToast(err.message || 'Erro ao cancelar prorrogação.', 'error');
+    }
+}

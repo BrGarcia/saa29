@@ -10,9 +10,10 @@ completed_backlog:
 - settings_page_equipamentos_ui: DONE (catalogo PN via modal em configuracoes, criar_modelo com uppercase e unicidade)
 - settings_tipos_controle_crud: DONE (cadastrar e editar tipos de controle via UI)
 - settings_regras_pn_controle: DONE (vincular PN a tipo de controle com periodicidade)
+- vencimentos_registrar_execucao_backend: DONE (endpoint PATCH /vencimentos/{id}/executar no service)
 
 immediate_backlog:
-- vencimentos_registrar_execucao_backend: endpoint PATCH /vencimentos/{id}/executar a implementar em service
+- vencimentos_prorrogacao: implementar modelo, CRUD e UI para Prorrogação de Vencimento (Engenharia)
 - settings_slots_ui: gerenciar slots via UI de configuracoes (hoje via seed)
 - logout_backend_client_alignment
 - cookie_only_auth_hardening

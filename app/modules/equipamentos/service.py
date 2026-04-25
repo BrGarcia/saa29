@@ -22,12 +22,14 @@ from app.modules.equipamentos.models import (
     ItemEquipamento,
     Instalacao,
     ControleVencimento,
+    ProrrogacaoVencimento,
 )
 from app.modules.equipamentos.schemas import (
     ModeloEquipamentoCreate,
     SlotInventarioCreate,
     ItemEquipamentoCreate,
     TipoControleCreate,
+    ProrrogacaoVencimentoCreate,
     InventarioItemOut,
     AjusteInventarioCreate,
     AjusteInventarioResponse,
@@ -412,7 +414,7 @@ async def _efetivar_troca_no_slot(
 
 
 async def instalar_item(
-    db: AsyncSession, item_id: uuid.UUID, aeronave_id: uuid.UUID, data_instalacao: date
+    db: AsyncSession, item_id: uuid.UUID, aeronave_id: uuid.UUID, slot_id: uuid.UUID, data_instalacao: date
 ) -> Instalacao:
     """Instala um item em uma aeronave."""
     # Encerrar instalação anterior do item (se houver)
@@ -427,6 +429,7 @@ async def instalar_item(
         id=uuid.uuid4(),
         item_id=item_id,
         aeronave_id=aeronave_id,
+        slot_id=slot_id,
         data_instalacao=data_instalacao,
         created_at=func.now()
     )
@@ -536,6 +539,18 @@ async def registrar_execucao(db: AsyncSession, vencimento_id: uuid.UUID, data_ex
     
     vencimento.data_ultima_exec = data_exec
     vencimento.data_vencimento = data_exec + relativedelta(months=periodicidade)
+
+    # 2. Desativar qualquer prorrogação ativa para este controle, já que foi executado
+    await db.execute(
+        ProrrogacaoVencimento.__table__.update()
+        .where(
+            and_(
+                ProrrogacaoVencimento.controle_id == vencimento_id,
+                ProrrogacaoVencimento.ativo == True
+            )
+        )
+        .values(ativo=False)
+    )
 
     # Atualizar Status
     hoje = date.today()
@@ -707,8 +722,10 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
         .options(
             selectinload(Instalacao.slot),   # para obter modelo_id do slot
             selectinload(Instalacao.item)
-            .selectinload(ItemEquipamento.controles_vencimento)
-            .selectinload(ControleVencimento.tipo_controle),
+            .selectinload(ItemEquipamento.controles_vencimento).options(
+                selectinload(ControleVencimento.tipo_controle),
+                selectinload(ControleVencimento.prorrogacoes)
+            ),
         )
         .where(
             Instalacao.aeronave_id.in_(aeronave_ids),
@@ -737,6 +754,10 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
     for aeronave in aeronaves:
         acft_inst = inst_map.get(aeronave.id, {})
         slots_out = []
+        
+        has_missing = False
+        has_vencido = False
+        has_vencendo = False
 
         for modelo in modelos:
             inst = acft_inst.get(modelo.id)
@@ -753,12 +774,39 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
             for ctrl in modelo.controles_template:
                 tipo_nome = ctrl.tipo_controle.nome
                 venc = venc_map.get(tipo_nome)
+                
+                status_final = venc.status if venc else ("FALTANTE" if not item else None)
+                prorrogado = False
+                data_nova = None
+                doc_prorrogacao = None
+
+                if venc:
+                    prorrogacao_ativa = next((p for p in venc.prorrogacoes if p.ativo), None)
+                    if prorrogacao_ativa:
+                        prorrogado = True
+                        data_nova = prorrogacao_ativa.data_nova_vencimento
+                        doc_prorrogacao = prorrogacao_ativa.numero_documento
+                        
+                        # Se passou da data prorrogada, volta a ser VENCIDO
+                        if date.today() > data_nova:
+                            status_final = "VENCIDO"
+                        else:
+                            status_final = "PRORROGADO"
+                
+                # Acumular status para a aeronave
+                if status_final == "VENCIDO": has_vencido = True
+                elif status_final == "FALTANTE": has_missing = True
+                elif status_final == "VENCENDO": has_vencendo = True
+
                 controles_out.append({
                     "vencimento_id": str(venc.id) if venc else None,
                     "tipo_controle_nome": tipo_nome,
                     "data_ultima_exec": venc.data_ultima_exec.isoformat() if venc and venc.data_ultima_exec else None,
                     "data_vencimento": venc.data_vencimento.isoformat() if venc and venc.data_vencimento else None,
-                    "status": venc.status if venc else None,
+                    "status": status_final,
+                    "prorrogado": prorrogado,
+                    "data_nova_vencimento": data_nova.isoformat() if data_nova else None,
+                    "numero_documento_prorrogacao": doc_prorrogacao,
                 })
 
             slots_out.append({
@@ -768,10 +816,89 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
                 "controles": controles_out,
             })
 
+        # Determinar status_vencimento consolidado da aeronave
+        if has_vencido: status_venc = "VENCIDO"
+        elif has_missing: status_venc = "INCOMPLETA"
+        elif has_vencendo: status_venc = "VENCENDO"
+        else: status_venc = "OK"
+
         aeronaves_out.append({
             "aeronave_id": str(aeronave.id),
             "matricula": aeronave.matricula,
+            "status_aeronave": aeronave.status,
+            "status_vencimento": status_venc,
             "slots": slots_out,
         })
 
     return {"cabecalho": cabecalho, "aeronaves": aeronaves_out}
+
+
+async def prorrogar_vencimento(
+    db: AsyncSession, 
+    vencimento_id: uuid.UUID, 
+    dados_prorrogacao: ProrrogacaoVencimentoCreate,
+    usuario_id: uuid.UUID | None = None
+) -> ProrrogacaoVencimento:
+    """
+    Registra uma prorrogação de prazo para um controle de vencimento.
+    Desativa prorrogações ativas anteriores para o mesmo controle.
+    """
+    # Verifica se o controle existe
+    vencimento = await db.get(ControleVencimento, vencimento_id)
+    if not vencimento:
+        raise domain_exc.NotFoundError(detail="Vencimento não encontrado.")
+        
+    # Desativar prorrogações anteriores ativas
+    await db.execute(
+        ProrrogacaoVencimento.__table__.update()
+        .where(
+            and_(
+                ProrrogacaoVencimento.controle_id == vencimento_id,
+                ProrrogacaoVencimento.ativo == True
+            )
+        )
+        .values(ativo=False)
+    )
+    
+    # Criar nova prorrogação
+    nova_prorrogacao = ProrrogacaoVencimento(
+        controle_id=vencimento_id,
+        numero_documento=dados_prorrogacao.numero_documento,
+        data_concessao=dados_prorrogacao.data_concessao,
+        data_nova_vencimento=vencimento.data_vencimento + relativedelta(days=dados_prorrogacao.dias_adicionais) if vencimento.data_vencimento else dados_prorrogacao.data_concessao + relativedelta(days=dados_prorrogacao.dias_adicionais),
+        dias_adicionais=dados_prorrogacao.dias_adicionais,
+        motivo=dados_prorrogacao.motivo,
+        observacao=dados_prorrogacao.observacao,
+        registrado_por_id=usuario_id,
+        ativo=True
+    )
+    
+    # Se a data de vencimento base não existia (o que seria estranho para prorrogar),
+    # data_nova_vencimento foi baseada na concessao
+    # O status agora passa a ser tratado dinamicamente no frontend ou na resposta da matriz
+    # mas mantemos o status real como estava, ou podemos atualizar se desejado.
+    # O conceito é não tocar no data_vencimento nem no status raiz (ou podemos deixá-lo VENCIDO).
+    
+    db.add(nova_prorrogacao)
+    await db.commit()
+    await db.refresh(nova_prorrogacao)
+    return nova_prorrogacao
+
+
+async def cancelar_prorrogacao(db: AsyncSession, vencimento_id: uuid.UUID) -> bool:
+    """
+    Cancela (desativa) a prorrogação ativa de um controle de vencimento.
+    """
+    result = await db.execute(
+        ProrrogacaoVencimento.__table__.update()
+        .where(
+            and_(
+                ProrrogacaoVencimento.controle_id == vencimento_id,
+                ProrrogacaoVencimento.ativo == True
+            )
+        )
+        .values(ativo=False)
+    )
+    await db.commit()
+    return result.rowcount > 0
+

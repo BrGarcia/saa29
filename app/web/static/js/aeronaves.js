@@ -24,7 +24,10 @@ async function loadFrota() {
             tr.innerHTML = `
                 <td style="padding: 1rem; font-weight: 600; font-size: 1.1rem; color: var(--primary-color)">${acft.matricula}</td>
                 <td style="padding: 1rem;">${acft.serial_number}</td>
-                <td style="padding: 1rem;"><span class="badge" style="background-color: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color)">${acft.modelo}</span> <span class="badge" style="margin-left: 0.5rem; background-color: ${acft.status === 'INATIVA' ? 'var(--status-danger)' : (acft.status === 'INDISPONIVEL' ? 'var(--status-warning)' : 'var(--status-ok)')}; color: #fff; border: 1px solid var(--border-color)">${acft.status}</span></td>
+                <td style="padding: 1rem;">
+                    <span class="badge" style="background-color: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color)">${acft.modelo}</span> 
+                    <span class="badge ${mapStatusAcftBadge(acft.status)}" style="margin-left: 0.5rem; border: 1px solid rgba(255,255,255,0.1)">${acft.status}</span>
+                </td>
                 <td style="padding: 1rem; display: flex; gap: 0.5rem; align-items: center;">
                     <button class="btn-icon btn-ver-panes" style="color: var(--primary-color); display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; border: none; padding: 0.25rem;" title="Ver Panes">
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
@@ -63,7 +66,7 @@ function openEditarAeronave(acft) {
     document.getElementById("btnSalvarAcft").innerText = "Salvar";
     document.getElementById("matriculaInput").value = acft.matricula || "";
     document.getElementById("snInput").value = acft.serial_number || "";
-    document.getElementById("statusInput").value = acft.status === "INDISPONIVEL" ? "INDISPONIVEL" : "OPERACIONAL";
+    document.getElementById("statusInput").value = acft.status || "OPERACIONAL";
     document.getElementById("statusInput").disabled = acft.status === "INATIVA";
     document.getElementById("modal-aeronave").style.display = "flex";
 }
@@ -116,6 +119,18 @@ async function alternarStatusAeronave(aeronaveId, matricula, statusAtual) {
         );
         loadFrota();
     } catch (e) {}
+}
+
+function mapStatusAcftBadge(status) {
+    if (!status) return '';
+    switch (status.toUpperCase()) {
+        case 'OPERACIONAL': return 'badge-resolvida'; // Verde
+        case 'INDISPONIVEL': return 'badge-pesquisa'; // Amarelo/Laranja
+        case 'INSPEÇÃO': return 'badge-inspecao';    // Azul
+        case 'ESTOCADA': return 'badge-estocada'; // Cinza
+        case 'INATIVA': return 'badge-aberta';       // Vermelho
+        default: return '';
+    }
 }
 
 window.openModalFrota = openModalFrota;

@@ -3,57 +3,271 @@
 {% block page_title %}Controle de Vencimentos{% endblock %}
 
 {% block content %}
+<style>
+/* ---- Layout Geral ---- */
+#vencimentos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1rem;
+    align-items: start;
+}
+
+/* ---- Card de Aeronave ---- */
+.acft-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+}
+.acft-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.acft-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 0.85rem 1.25rem;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    user-select: none;
+}
+
+.acft-matricula {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    letter-spacing: 1px;
+    min-width: 55px;
+}
+
+.acft-status-pills {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.acft-card-body {
+    display: flex;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+/* ---- Chip de Equipamento ---- */
+.equip-chip {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    min-width: 130px;
+    max-width: 160px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.equip-chip:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.equip-chip-name {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+}
+
+.equip-chip-sn {
+    font-family: monospace;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.35rem;
+    margin-top: 0.1rem;
+}
+
+.equip-chip-sn.empty {
+    color: var(--text-secondary);
+    font-style: italic;
+    font-weight: 400;
+}
+
+.equip-chip-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.ctrl-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+.ctrl-row:hover { opacity: 0.8; }
+
+.ctrl-row.status-ok {
+    background: var(--status-ok-bg);
+    color: var(--status-ok);
+}
+.ctrl-row.status-vencendo {
+    background: var(--status-warning-bg);
+    color: var(--status-warning);
+}
+.ctrl-row.status-vencido {
+    background: var(--status-danger-bg);
+    color: var(--status-danger);
+}
+.ctrl-row.status-pendente {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+.ctrl-row.status-prorrogado {
+    background: var(--status-prorrogado-bg);
+    color: var(--status-prorrogado);
+}
+.ctrl-row.status-incompleta {
+    background: var(--status-incompleta-bg);
+    color: var(--status-incompleta);
+    border: 1px dashed var(--status-incompleta);
+}
+
+.ctrl-nome {
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+.ctrl-data {
+    font-size: 0.7rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* ---- Pill de resumo por aeronave ---- */
+.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+.pill-ok { background: var(--status-ok-bg); color: var(--status-ok); }
+.pill-warn { background: var(--status-warning-bg); color: var(--status-warning); }
+.pill-danger { background: var(--status-danger-bg); color: var(--status-danger); }
+.pill-prorrogado { background: var(--status-prorrogado-bg); color: var(--status-prorrogado); }
+.pill-incompleta { background: var(--status-incompleta-bg); color: var(--status-incompleta); border: 1px solid var(--status-incompleta); }
+
+/* ---- Estado Vazio ---- */
+.estado-vazio {
+    padding: 3rem;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+/* Spinner */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
+
 <div style="display: flex; flex-direction: column; gap: 1.5rem;">
 
-    <!-- Filtro / Cabeçalho da Página -->
-    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-        <div>
-            <p style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">
-                Visão matricial dos vencimentos de manutenção por aeronave e equipamento.
-            </p>
+    <!-- Contadores de resumo -->
+    <div id="summary-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; display: none;">
+        <div class="card glass-panel" style="display: flex; align-items: center; gap: 1rem; border-left: 3px solid var(--status-ok); padding: 1rem 1.25rem;">
+            <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--status-ok-bg); color: var(--status-ok); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">OK</div>
+                <div style="font-size: 1.5rem; font-weight: 700;" id="cnt-ok">--</div>
+            </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 0.75rem;">
-            <!-- Legenda de Status -->
-            <div style="display: flex; gap: 1rem; font-size: 0.8rem; align-items: center;">
-                <span style="display: flex; align-items: center; gap: 0.4rem;">
-                    <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--status-ok); display: inline-block;"></span> OK
-                </span>
-                <span style="display: flex; align-items: center; gap: 0.4rem;">
-                    <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--status-warning); display: inline-block;"></span> A Vencer
-                </span>
-                <span style="display: flex; align-items: center; gap: 0.4rem;">
-                    <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--status-danger); display: inline-block;"></span> Vencido
-                </span>
-                <span style="display: flex; align-items: center; gap: 0.4rem;">
-                    <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--border-color); display: inline-block;"></span> Não Executado
-                </span>
+        <div class="card glass-panel" style="display: flex; align-items: center; gap: 1rem; border-left: 3px solid var(--status-warning); padding: 1rem 1.25rem;">
+            <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--status-warning-bg); color: var(--status-warning); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">A Vencer</div>
+                <div style="font-size: 1.5rem; font-weight: 700;" id="cnt-warn">--</div>
+            </div>
+        </div>
+        <div class="card glass-panel" style="display: flex; align-items: center; gap: 1rem; border-left: 3px solid var(--status-danger); padding: 1rem 1.25rem;">
+            <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--status-danger-bg); color: var(--status-danger); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            </div>
+            <div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Vencidos</div>
+                <div style="font-size: 1.5rem; font-weight: 700;" id="cnt-danger">--</div>
+            </div>
+        </div>
+        <div class="card glass-panel" style="display: flex; align-items: center; gap: 1rem; border-left: 3px solid var(--status-prorrogado); padding: 1rem 1.25rem;">
+            <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--status-prorrogado-bg); color: var(--status-prorrogado); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Prorrogados</div>
+                <div style="font-size: 1.5rem; font-weight: 700;" id="cnt-prorrogado">--</div>
+            </div>
+        </div>
+        <div class="card glass-panel" style="display: flex; align-items: center; gap: 1rem; border-left: 3px solid var(--status-incompleta); padding: 1rem 1.25rem;">
+            <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--status-incompleta-bg); color: var(--status-incompleta); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+            </div>
+            <div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Incompletas</div>
+                <div style="font-size: 1.5rem; font-weight: 700;" id="cnt-incompleta">--</div>
+            </div>
+        </div>
+        <div class="card glass-panel" style="display: flex; align-items: center; gap: 1rem; border-left: 3px solid var(--border-color); padding: 1rem 1.25rem;">
+            <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--bg-tertiary); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Sem Execução</div>
+                <div style="font-size: 1.5rem; font-weight: 700;" id="cnt-pendente">--</div>
             </div>
         </div>
     </div>
 
-    <!-- Tabela Matricial -->
-    <div style="width: 100%; overflow-x: auto; display: flex; justify-content: center;">
-        <div class="card glass-panel" style="padding: 0; overflow: hidden; width: fit-content;">
-            <div id="vencimentos-loading" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
-                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="animation: spin 1s linear infinite; margin-bottom: 0.75rem; display: block; margin-left: auto; margin-right: auto;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582M20 20v-5h-.581M5.168 15A7 7 0 0012 20a7 7 0 006.832-5M18.832 9A7 7 0 0012 4a7 7 0 00-6.832 5"></path></svg>
-                Carregando dados da frota...
-            </div>
-            <div id="vencimentos-table-container" style="display: none;">
-                <table id="tabela-vencimentos" style="border-collapse: collapse; font-size: 0.82rem; white-space: nowrap;">
-                    <thead id="tabela-head">
-                        <!-- Preenchido via JS -->
-                    </thead>
-                    <tbody id="tabela-body">
-                        <!-- Preenchido via JS -->
-                    </tbody>
-                </table>
-            </div>
-            <div id="vencimentos-empty" style="padding: 3rem; text-align: center; color: var(--text-secondary); display: none;">
-                Nenhum dado de vencimento configurado. Acesse <a href="/configuracoes" style="color: var(--primary-color);">Configurações</a> para definir regras de vencimento.
-            </div>
-            <div id="vencimentos-error" style="padding: 3rem; text-align: center; color: var(--status-danger); display: none;">
-                Erro ao carregar dados. Tente recarregar a página.
-            </div>
+    <!-- Filtro -->
+    <div style="display: flex; align-items: center; gap: 1rem;">
+        <div style="position: relative; flex: 1; max-width: 340px;">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); pointer-events: none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input type="text" id="filtro-vencimentos" class="form-input" placeholder="Filtrar aeronave ou equipamento..." style="padding-left: 40px;">
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-outline" id="btn-filtro-todos" onclick="filtrarStatus('todos')" style="font-size: 0.8rem; padding: 0.5rem 0.9rem;">Todos</button>
+            <button class="btn btn-outline" id="btn-filtro-warn" onclick="filtrarStatus('warn')" style="font-size: 0.8rem; padding: 0.5rem 0.9rem; border-color: var(--status-warning); color: var(--status-warning);">A Vencer</button>
+            <button class="btn btn-outline" id="btn-filtro-danger" onclick="filtrarStatus('danger')" style="font-size: 0.8rem; padding: 0.5rem 0.9rem; border-color: var(--status-danger); color: var(--status-danger);">Vencidos</button>
+            <button class="btn btn-outline" id="btn-filtro-prorrogado" onclick="filtrarStatus('prorrogado')" style="font-size: 0.8rem; padding: 0.5rem 0.9rem; border-color: var(--status-prorrogado); color: var(--status-prorrogado);">Prorrogados</button>
+            <button class="btn btn-outline" id="btn-filtro-incompleta" onclick="filtrarStatus('incompleta')" style="font-size: 0.8rem; padding: 0.5rem 0.9rem; border-color: var(--status-incompleta); color: var(--status-incompleta);">Incompletas</button>
+        </div>
+    </div>
+
+    <!-- Grid de Aeronaves -->
+    <div id="vencimentos-grid">
+        <div style="padding: 3rem; text-align: center; color: var(--text-secondary);">
+            <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="animation: spin 1s linear infinite; display: block; margin: 0 auto 0.75rem;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582M20 20v-5h-.581M5.168 15A7 7 0 0012 20a7 7 0 006.832-5M18.832 9A7 7 0 0012 4a7 7 0 00-6.832 5"></path></svg>
+            Carregando dados da frota...
         </div>
     </div>
 </div>
@@ -67,137 +281,87 @@
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
         </div>
-
         <form id="formExecutarControle">
             <input type="hidden" id="exec-vencimento-id">
             <div style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(0,0,0,0.05); border-radius: var(--radius-md);">
-                <p style="margin: 0 0 0.25rem 0; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase;">Aeronave / Equipamento / Controle</p>
-                <p style="margin: 0; font-weight: 600; font-size: 0.95rem;" id="exec-info-label">--</p>
+                <p style="margin: 0 0 0.25rem 0; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Aeronave / Equipamento / Controle</p>
+                <p style="margin: 0; font-weight: 600;" id="exec-info-label">--</p>
             </div>
-
             <div class="form-group">
                 <label class="form-label">Data de Execução *</label>
                 <input type="date" id="exec-data-input" class="form-input" required>
             </div>
-
-            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
-                <button type="button" class="btn btn-outline" onclick="closeModalExecutar()">Cancelar</button>
-                <button type="submit" class="btn btn-primary" id="btnConfirmarExec">Confirmar</button>
+            <div id="exec-prorrog-alert" style="display: none; margin-top: 1rem; padding: 0.75rem; background: var(--status-prorrogado-bg); border: 1px solid var(--status-prorrogado); border-radius: var(--radius-md); font-size: 0.8rem; color: var(--status-prorrogado);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
+                    <div>
+                        <div style="font-weight: 700; margin-bottom: 0.25rem;">Prorrogação Ativa</div>
+                        <div id="exec-prorrog-desc">Até 10/12/2024 (Doc: DIR-001)</div>
+                    </div>
+                    <button type="button" class="btn btn-icon" title="Cancelar Prorrogação" onclick="cancelarProrrogacao()" style="color: var(--status-danger); padding: 0;">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: space-between; align-items: center; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-outline" style="border-color: var(--status-prorrogado); color: var(--status-prorrogado);" onclick="openModalProrrogarFromExec()">Prorrogar (Engenharia)</button>
+                <div style="display: flex; gap: 1rem;">
+                    <button type="button" class="btn btn-outline" onclick="closeModalExecutar()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btnConfirmarExec">Confirmar</button>
+                </div>
             </div>
         </form>
     </div>
 </div>
 
-<style>
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
+<!-- Modal para Prorrogação de Vencimento (Engenharia) -->
+<div id="modal-prorrogacao-vencimento" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1100; align-items: center; justify-content: center;">
+    <div class="card glass-panel" style="width: 100%; max-width: 460px; margin: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem; color: var(--status-prorrogado);">
+                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <h3 style="margin: 0; font-size: 1.1rem;">Prorrogação de Vencimento</h3>
+            </div>
+            <button class="btn-icon" type="button" onclick="closeModalProrrogar()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <form id="formProrrogarVencimento">
+            <input type="hidden" id="prorrog-vencimento-id">
+            
+            <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--status-prorrogado-bg); border-radius: var(--radius-md); border: 1px solid var(--status-prorrogado);">
+                <p style="margin: 0 0 0.25rem 0; font-size: 0.75rem; color: var(--status-prorrogado); text-transform: uppercase; font-weight: 700;">Item / Controle</p>
+                <p style="margin: 0; font-weight: 600; color: var(--text-primary);" id="prorrog-info-label">--</p>
+            </div>
 
-/* Estilos da tabela matricial */
-#tabela-vencimentos th {
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-    font-weight: 600;
-    padding: 0.6rem 0.75rem;
-    border: 1px solid var(--border-color);
-    text-align: center;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-}
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Nº Documento *</label>
+                    <input type="text" id="prorrog-doc-input" class="form-input" placeholder="Ex: DIR-001/24" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Data Concessão *</label>
+                    <input type="date" id="prorrog-data-input" class="form-input" required>
+                </div>
+            </div>
 
-#tabela-vencimentos th.col-matricula {
-    left: 0;
-    z-index: 20;
-    min-width: 80px;
-}
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label">Dias Adicionais *</label>
+                <input type="number" id="prorrog-dias-input" class="form-input" min="1" max="365" placeholder="Qtd dias" required>
+                <small style="color: var(--text-secondary); font-size: 0.75rem;">A nova data será calculada a partir do vencimento original.</small>
+            </div>
 
-#tabela-vencimentos td {
-    border: 1px solid var(--border-color);
-    padding: 0.5rem 0.6rem;
-    vertical-align: middle;
-    text-align: center;
-}
+            <div class="form-group">
+                <label class="form-label">Motivo / Justificativa</label>
+                <textarea id="prorrog-motivo-input" class="form-input" rows="3" placeholder="Descreva brevemente o motivo da prorrogação..."></textarea>
+            </div>
 
-#tabela-vencimentos td.col-matricula {
-    font-weight: 700;
-    color: var(--primary-color);
-    text-align: left;
-    position: sticky;
-    left: 0;
-    background: var(--bg-secondary);
-    z-index: 5;
-    font-size: 0.9rem;
-}
-
-#tabela-vencimentos tbody tr:hover td {
-    background: var(--bg-tertiary) !important;
-}
-
-#tabela-vencimentos tbody tr:hover td.col-matricula {
-    background: var(--bg-tertiary) !important;
-}
-
-/* Célula de SN */
-.cell-sn {
-    font-family: monospace;
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    font-weight: 500;
-    min-width: 65px;
-}
-
-/* Célula de data de vencimento */
-.cell-venc {
-    min-width: 80px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: opacity 0.2s;
-    border-radius: 4px;
-}
-
-.cell-venc:hover {
-    opacity: 0.8;
-    outline: 2px solid var(--primary-color);
-}
-
-.cell-venc.status-ok {
-    background: var(--status-ok-bg);
-    color: var(--status-ok);
-}
-
-.cell-venc.status-vencendo {
-    background: var(--status-warning-bg);
-    color: var(--status-warning);
-}
-
-.cell-venc.status-vencido {
-    background: var(--status-danger-bg);
-    color: var(--status-danger);
-}
-
-.cell-venc.status-pendente {
-    background: transparent;
-    color: var(--text-secondary);
-    font-style: italic;
-}
-
-/* Cabeçalho do grupo de sistema */
-th.group-header {
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    font-size: 0.85rem;
-    font-weight: 700;
-    text-transform: none;
-    letter-spacing: 0;
-    border-bottom: 2px solid var(--primary-color);
-}
-</style>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-outline" onclick="closeModalProrrogar()">Cancelar</button>
+                <button type="submit" class="btn btn-primary" id="btnConfirmarProrrog" style="background-color: var(--status-prorrogado); border-color: var(--status-prorrogado);">Conceder Prorrogação</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 {% endblock %}
 

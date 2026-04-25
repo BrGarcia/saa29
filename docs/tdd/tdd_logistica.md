@@ -27,19 +27,35 @@ Documentação de testes para a gestão de materiais, rastreabilidade física e 
 | CT-L08 | Criar Regra por PN | Vincular PN a Controle com Meses. | ✅ |
 | CT-L09 | Propagação de Regra | Criar ControleVencimento para itens existentes. | ✅ |
 | CT-L10 | Registrar Execução | Calcular próxima data baseada na regra do PN. | ✅ |
+| CT-L11 | Prorrogar Vencimento | Adicionar dias extras via documento da Engenharia. | ✅ |
+| CT-L12 | Cancelar Prorrogação | Desativar extensão de prazo ativa. | ✅ |
+| CT-L13 | Execução vs Prorrogação | Registrar execução deve desativar prorrogação ativa. | ✅ |
+| CT-L14 | Matriz de Vencimentos | Gerar visão Frota x Equipamento x Controle. | ✅ |
 
 ---
 
-## 2. Falhas Identificadas (Bugs Encontrados via TDD)
+## 2. Falhas Corrigidas e Dívida Técnica
 
-As falhas abaixo foram detectadas pela suite de testes e requerem correção no código-fonte:
+### 2.1 Correção de Integridade em Instalações (IntegrityError)
+- **Falha anterior:** `NOT NULL constraint failed: instalacoes.slot_id`.
+- **Causa:** O endpoint `/itens/{item_id}/instalar` e o service correspondente não lidavam com o `slot_id`, que é obrigatório na arquitetura V2 (Vinculação Física x Slot).
+- **Ações Realizadas:**
+    1.  **Schema:** Atualizado `InstalacaoCreate` para incluir `slot_id` como campo obrigatório.
+    2.  **Service:** Refatorado `instalar_item` para aceitar e persistir o `slot_id`.
+    3.  **Router:** Ajustado o endpoint `POST /itens/{item_id}/instalar` para repassar o `slot_id` ao serviço.
+    4.  **Testes:** Atualizado `tests/unit/test_equipamentos.py` para criar slots dinâmicos e fornecer IDs válidos nos testes de instalação/remoção.
+- **Status:** ✅ Corrigido, validado e integrado.
 
-### 2.1 Erro de Integridade em Instalações (IntegrityError)
-- **Falha:** `NOT NULL constraint failed: instalacoes.slot_id`.
-- **Causa:** O endpoint legacy `/itens/{item_id}/instalar` não envia o `slot_id` (que é obrigatório na arquitetura V2).
-- **Ação:** Manter este teste como falha até que o endpoint seja atualizado ou substituído pelo "Ajuste de Inventário".
+### 2.2 Resolução de Conflitos de Unicidade (409 Conflict)
+- **Falha:** Erros intermitentes ao criar aeronaves e PNs devido ao reuso de Serial Numbers e Matrículas entre testes (persistência de `db.commit()` no service).
+- **Ação:** Implementado uso de prefixos e sufixos UUID nos helpers de teste (`criar_aeronave_helper`, `criar_equipamento_helper`) para garantir unicidade absoluta em cada execução.
+- **Status:** ✅ Resolvido.
 
-### 2.2 Persistência de Dados em Testes Unitários
-- **Falha:** O uso de `db.commit()` nos serviços do `service.py` impede o rollback total no SQLite em memória.
-- **Impacto:** Testes que usam a mesma aeronave ou PN podem entrar em conflito se rodados em sequência.
-- **Ação:** Refatorar serviços para usar `flush()` em vez de `commit()`, delegando o commit para a camada de Router.
+---
+
+## 3. Ambiente e Dependências
+
+### 3.1 Validação de Arquivos (libmagic)
+- **Falha:** `ImportError` em testes de upload no módulo de Panes.
+- **Solução:** Instalado `python-magic-bin` no ambiente Windows.
+- **Status:** ✅ Ambiente configurado e testes passando.

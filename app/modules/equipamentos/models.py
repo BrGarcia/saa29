@@ -184,3 +184,27 @@ class ControleVencimento(Base):
     # --- Relacionamentos ---
     item: Mapped["ItemEquipamento"] = relationship(back_populates="controles_vencimento")
     tipo_controle: Mapped["TipoControle"] = relationship(back_populates="vencimentos")
+    prorrogacoes: Mapped[list["ProrrogacaoVencimento"]] = relationship(back_populates="controle", cascade="all, delete-orphan")
+
+
+class ProrrogacaoVencimento(Base):
+    """
+    Registro de prorrogação (extensão de prazo) de um vencimento pela Engenharia.
+    """
+    __tablename__ = "prorrogacoes_vencimento"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    controle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("controle_vencimentos.id"), nullable=False, index=True)
+    numero_documento: Mapped[str] = mapped_column(String(50), nullable=False)
+    data_concessao: Mapped[date] = mapped_column(Date, nullable=False)
+    data_nova_vencimento: Mapped[date] = mapped_column(Date, nullable=False)
+    dias_adicionais: Mapped[int] = mapped_column(Integer, nullable=False)
+    motivo: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    observacao: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    registrado_por_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
+    ativo: Mapped[bool] = mapped_column(default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+
+    # --- Relacionamentos ---
+    controle: Mapped["ControleVencimento"] = relationship(back_populates="prorrogacoes")
+    registrado_por: Mapped["Usuario"] = relationship() # type: ignore
