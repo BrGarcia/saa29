@@ -1,30 +1,11 @@
 """
-scripts/seed_equipamentos.py
-Popula o banco com a nova estrutura: ModeloEquipamento (PN) e SlotInventario (Posição).
+scripts/seed/seed_equipamentos.py
+Popula o catálogo base: ModeloEquipamento (PN) e SlotInventario (Posição).
 """
-import asyncio
-import os
-import sys
 import uuid
-from datetime import date
-from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-ROOT_DIR = Path(__file__).resolve().parents[2]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
-
-from app.bootstrap.database import get_session_factory
-
-# Importar modelos para garantir registro no SQLAlchemy
-import app.modules.auth.models
-import app.modules.aeronaves.models
-import app.modules.equipamentos.models
-import app.modules.panes.models
-
-from app.modules.aeronaves.models import Aeronave
-from app.modules.equipamentos.models import ModeloEquipamento, SlotInventario, ItemEquipamento, Instalacao, StatusItem
+from app.modules.equipamentos.models import ModeloEquipamento, SlotInventario
 
 EQUIPAMENTOS_FICHA = [
     # CEI - COMPARTIMENTO ELETRÔNICO INFERIOR
@@ -69,43 +50,22 @@ EQUIPAMENTOS_FICHA = [
     {"posicao": "BEACON", "nome": "BEACON", "pn": "8888-8888", "sistema": "CES"},
 ]
 
-async def garantir_catalogo_e_slots(
-    session: AsyncSession,
-    *,
-    create_sample_items: bool = False,
-    sample_aeronave_matricula: str = "5916",
-) -> None:
-    """
-    Garante catálogo base (PN + Slots) e, opcionalmente, cria itens físicos de amostra.
-    """
-    aeronave = None
-    if create_sample_items:
-        res_acft = await session.execute(select(Aeronave).where(Aeronave.matricula == sample_aeronave_matricula))
-        aeronave = res_acft.scalar_one_or_none()
-        if not aeronave:
-            aeronave = Aeronave(
-                id=uuid.uuid4(),
-                matricula=sample_aeronave_matricula,
-                serial_number=f"SN-{sample_aeronave_matricula}",
-                modelo="A-29",
-                status="OPERACIONAL",
-            )
-            session.add(aeronave)
-            await session.flush()
-
+async def run(session: AsyncSession):
+    print(f"🚀 [Equipamentos] Garantindo catálogo de {len(EQUIPAMENTOS_FICHA)} PNs e Slots...")
+    
     for data in EQUIPAMENTOS_FICHA:
+        # Modelo (PN)
         res_mod = await session.execute(select(ModeloEquipamento).where(ModeloEquipamento.part_number == data["pn"]))
         modelo = res_mod.scalar_one_or_none()
         if not modelo:
-            print(f"Criando Modelo PN: {data['pn']} ({data['nome']})")
             modelo = ModeloEquipamento(id=uuid.uuid4(), part_number=data["pn"], nome_generico=data["nome"])
             session.add(modelo)
             await session.flush()
 
+        # Slot
         res_slot = await session.execute(select(SlotInventario).where(SlotInventario.nome_posicao == data["posicao"]))
         slot = res_slot.scalar_one_or_none()
         if not slot:
-            print(f"Criando Slot: {data['posicao']}")
             slot = SlotInventario(
                 id=uuid.uuid4(),
                 nome_posicao=data["posicao"],
@@ -114,34 +74,5 @@ async def garantir_catalogo_e_slots(
             )
             session.add(slot)
             await session.flush()
-
-        if create_sample_items and aeronave is not None:
-            # Opcional: só cria itens/serial quando explicitamente solicitado.
-            sn = f"SN-{data['posicao']}-{str(uuid.uuid4())[:4].upper()}"
-            item = ItemEquipamento(id=uuid.uuid4(), modelo_id=modelo.id, numero_serie=sn, status=StatusItem.ATIVO)
-            session.add(item)
-            await session.flush()
-
-            instalacao = Instalacao(
-                id=uuid.uuid4(),
-                item_id=item.id,
-                aeronave_id=aeronave.id,
-                slot_id=slot.id,
-                data_instalacao=date.today(),
-            )
-            session.add(instalacao)
-
-
-async def seed():
-    create_sample_items = os.getenv("CREATE_SAMPLE_ITEMS", "false").strip().lower() in {
-        "1", "true", "yes", "on"
-    }
-
-    AsyncSessionLocal = get_session_factory()
-    async with AsyncSessionLocal() as session:
-        await garantir_catalogo_e_slots(session, create_sample_items=create_sample_items)
-        await session.commit()
-        print("\nSeed estrutural concluído!")
-
-if __name__ == "__main__":
-    asyncio.run(seed())
+    
+    await session.flush()

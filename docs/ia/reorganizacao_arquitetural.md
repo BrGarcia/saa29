@@ -56,3 +56,28 @@
 ## implementation_notes
 - cross_module: Use IDs for relationships; avoid deep object joins between Equipamentos and Vencimentos in services.
 - migration: Incremental move of models from 'equipamentos' to 'vencimentos'.
+
+## execution_roadmap
+
+### Phase 1: Vencimentos Extraction (Critical)
+1. **Bootstrap Module**: Create `app/modules/vencimentos/` with `__init__.py`.
+2. **Model Migration**: 
+   - Move `TipoControle`, `EquipamentoControle`, `ControleVencimento`, `ProrrogacaoVencimento` from `equipamentos.models` to `vencimentos.models`.
+   - Update `Base` metadata imports to ensure Alembic detects the move (if needed).
+3. **Logic Migration**:
+   - Move `calcular_vencimentos` and related date utility functions to `vencimentos.service`.
+   - Ensure `vencimentos.service` can access `ItemEquipamento` via ID to avoid circular imports.
+4. **API Refactor**:
+   - Create `vencimentos.router`.
+   - Migrate endpoints: `GET /matriz`, `POST /prorrogacao`, etc.
+5. **Cross-Module Cleanup**: Update all `import app.modules.equipamentos.models` to `vencimentos.models` where applicable.
+
+### Phase 2: Efetivo Foundation
+1. **Bootstrap Module**: Create `app/modules/efetivo/`.
+2. **New Model**: Implement `Indisponibilidade` (FK to `Usuario`).
+3. **Auth Bridge**: Update `AuthService.garantir_usuarios_essenciais` to optionally initialize availability data in dev.
+
+### Phase 3: Global Routing & Standardization
+1. **Router Registration**: Update `app/main.py` to include new routers.
+2. **Seed Synchronization**: Update `scripts/seed/seed_v2.py` and `init_db.py` to use the new module structure.
+3. **Test Validation**: Run `pytest` and fix any broken import/mock.
