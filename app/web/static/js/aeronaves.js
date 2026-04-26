@@ -54,7 +54,7 @@ function openModalFrota() {
     editingAeronaveId = null;
     document.querySelector("#modal-aeronave h3").innerText = "Nova Aeronave";
     document.getElementById("btnSalvarAcft").innerText = "Registrar";
-    document.getElementById("statusInput").value = "OPERACIONAL";
+    document.getElementById("statusInput").value = "DISPONIVEL";
     document.getElementById("statusInput").disabled = false;
     document.getElementById("modal-aeronave").style.display = "flex";
 }
@@ -65,7 +65,7 @@ function openEditarAeronave(acft) {
     document.getElementById("btnSalvarAcft").innerText = "Salvar";
     document.getElementById("matriculaInput").value = acft.matricula || "";
     document.getElementById("snInput").value = acft.serial_number || "";
-    document.getElementById("statusInput").value = acft.status || "OPERACIONAL";
+    document.getElementById("statusInput").value = acft.status || "DISPONIVEL";
     document.getElementById("statusInput").disabled = acft.status === "INATIVA";
     document.getElementById("modal-aeronave").style.display = "flex";
 }
@@ -123,7 +123,7 @@ async function alternarStatusAeronave(aeronaveId, matricula, statusAtual) {
 function mapStatusAcftBadge(status) {
     if (!status) return '';
     switch (status.toUpperCase()) {
-        case 'OPERACIONAL': return 'badge-resolvida'; // Verde
+        case 'DISPONIVEL': return 'badge-resolvida'; // Verde
         case 'INDISPONIVEL': return 'badge-pesquisa'; // Amarelo/Laranja
         case 'INSPEÇÃO': return 'badge-inspecao';    // Azul
         case 'ESTOCADA': return 'badge-estocada'; // Cinza

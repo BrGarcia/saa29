@@ -17,7 +17,7 @@ class AeronaveCreate(BaseModel):
     serial_number: str = Field(..., max_length=50)
     matricula: str = Field(..., max_length=20, examples=["5916"])
     modelo: str = Field(default="A-29", max_length=50)
-    status: StatusAeronave = StatusAeronave.OPERACIONAL
+    status: StatusAeronave = StatusAeronave.DISPONIVEL
 
 
 class AeronaveUpdate(BaseModel):

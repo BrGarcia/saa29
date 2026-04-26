@@ -249,7 +249,8 @@ async def garantir_usuarios_essenciais(db: AsyncSession) -> None:
         ]
         for user, role, nome, posto in usuarios_teste:
             res = await db.execute(select(Usuario).where(Usuario.username == user))
-            if not res.scalar_one_or_none():
+            u = res.scalar_one_or_none()
+            if not u:
                 print(f"AuthService: Criando usuário de teste ({user})...")
                 u = Usuario(
                     nome=nome,
@@ -261,5 +262,21 @@ async def garantir_usuarios_essenciais(db: AsyncSession) -> None:
                     senha_hash=hash_senha("123"),
                 )
                 db.add(u)
+                await db.flush()
+                
+                # Opcionalmente, inicializar indisponibilidade para o mantenedor em dev
+                if user == "mantenedor":
+                    from app.modules.efetivo.models import Indisponibilidade
+                    from app.shared.core.enums import TipoIndisponibilidade
+                    from datetime import date, timedelta
+                    print(f"AuthService: Adicionando indisponibilidade de teste para {user}.")
+                    indisp = Indisponibilidade(
+                        usuario_id=u.id,
+                        tipo=TipoIndisponibilidade.FERIAS.value,
+                        data_inicio=date.today() + timedelta(days=1),
+                        data_fim=date.today() + timedelta(days=15),
+                        observacao="Férias programadas (Seed Automático)"
+                    )
+                    db.add(indisp)
     
     await db.flush()

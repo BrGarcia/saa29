@@ -5,7 +5,8 @@ Configura Tipos de Controle e Periodicidades (Regras de Negócio).
 import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.modules.equipamentos.models import TipoControle, EquipamentoControle, ModeloEquipamento
+from app.modules.vencimentos.models import TipoControle, EquipamentoControle
+from app.modules.equipamentos.models import ModeloEquipamento
 
 TIPOS = {
     "CRI": "Controle de Revisão de Itens",

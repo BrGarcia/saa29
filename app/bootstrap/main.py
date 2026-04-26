@@ -22,15 +22,19 @@ from slowapi.errors import RateLimitExceeded
 # pois Aeronave tem relationship("Instalacao") e o mapper precisa que Instalacao já esteja registrada.
 import app.modules.auth.models
 import app.modules.equipamentos.models
+import app.modules.vencimentos.models
 import app.modules.aeronaves.models
 import app.modules.panes.models
+import app.modules.efetivo.models
 
 from app.bootstrap.config import get_settings
 
 # Importação dos routers (serão registrados no create_app)
 from app.modules.auth.router import router as auth_router
+from app.modules.efetivo.router import router as efetivo_router
 from app.modules.aeronaves.router import router as aeronaves_router
 from app.modules.equipamentos.router import router as equipamentos_router
+from app.modules.vencimentos.router import router as vencimentos_router
 from app.modules.panes.router import router as panes_router
 from app.web.pages.router import router as pages_router
 from app.shared.core.limiter import limiter
@@ -173,7 +177,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Legacy XSS protection (newer: use CSP)
         response.headers["X-XSS-Protection"] = "1; mode=block"
         
-        # Content Security Policy (Ajustada para permitir Google Fonts, R2 storage e inline scripts necessários)
+        # Content Security Policy (Ajustada para permitir Google Fonts, R2 storage e banner styles)
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
@@ -313,8 +317,10 @@ def _register_middlewares(app: FastAPI) -> None:
 def _register_routers(app: FastAPI) -> None:
     """Registra todos os routers de domínio na aplicação."""
     app.include_router(auth_router,         prefix="/auth",         tags=["Autenticação"])
+    app.include_router(efetivo_router,      prefix="/efetivo",      tags=["Efetivo"])
     app.include_router(aeronaves_router,    prefix="/aeronaves",    tags=["Aeronaves"])
     app.include_router(equipamentos_router, prefix="/equipamentos", tags=["Equipamentos"])
+    app.include_router(vencimentos_router,  prefix="/vencimentos",  tags=["Vencimentos"])
     app.include_router(panes_router,        prefix="/panes",        tags=["Panes"])
     
     # Frontend Pages (sem prefixo de API explícito - Root)

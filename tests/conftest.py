@@ -144,7 +144,7 @@ def dados_aeronave_valida() -> dict:
         "serial_number": "SN-0001",
         "matricula": "5916",
         "modelo": "A-29",
-        "status": "OPERACIONAL",
+        "status": "DISPONIVEL",
     }
 
 
@@ -154,7 +154,7 @@ def dados_aeronave_secundaria() -> dict:
         "serial_number": "SN-0002",
         "matricula": "5901",
         "modelo": "A-29",
-        "status": "OPERACIONAL",
+        "status": "DISPONIVEL",
     }
 
 

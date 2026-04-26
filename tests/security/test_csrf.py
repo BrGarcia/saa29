@@ -21,7 +21,7 @@ def _nova_aeronave_payload() -> dict:
         "serial_number": f"SN-CSRF-{sufixo}",
         "matricula": f"CS-{sufixo}",
         "modelo": "A-29",
-        "status": "OPERACIONAL",
+        "status": "DISPONIVEL",
     }
 
 

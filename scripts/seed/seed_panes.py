@@ -11,7 +11,7 @@ from app.modules.aeronaves.models import Aeronave
 from app.modules.auth.models import Usuario
 from app.modules.panes.models import Pane
 
-SISTEMAS = ["COM", "NAV", "ENG", "HUD", "ELEC", "ARM"]
+SISTEMAS = ["COM", "NAV", "PA", "DVR", "ENG", "HUD", "ELEC", "ARM"]
 DESCRICOES = [
     "Falha na comunicação UHF", "Divergência no GPS", "Vazamento hidráulico trem de pouso",
     "HUD piscando intermitente", "Luz de gerador acesa", "Falha no disparo do casulo"

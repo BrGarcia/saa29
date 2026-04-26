@@ -68,8 +68,8 @@ class Aeronave(Base):
     status: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
-        default=StatusAeronave.OPERACIONAL.value,
-        comment="Status operacional: OPERACIONAL | MANUTENCAO | INATIVA",
+        default=StatusAeronave.DISPONIVEL.value,
+        comment="Status operacional: DISPONIVEL | INDISPONIVEL | INSPEÇÃO | ESTOCADA | INATIVA",
     )
 
     # --- Auditoria ---

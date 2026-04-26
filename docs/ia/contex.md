@@ -1,18 +1,18 @@
 # ctx
 
 meta:
-- sync_date: 2026-04-25
+- sync_date: 2026-04-26
 - mode: machine
 - format: kv_short
 - truth: official_docs_first
 
 project:
 - name: SAA29
-- type: web_monolith_modular
+- type: web_monolith_modular_ddd
 - domain: panes_aeronaves_inventario_a29
-- status: active_local_production_ready
+- status: architecture_stabilized_ddd_active
 - test_status: 100_percent_pass (93 tests)
-- db_state: clean_reset_seed_v2_active
+- db_state: clean_reset_seed_standardized_active
 
 operational_constraints:
 - active_database_in_use: true
@@ -20,7 +20,7 @@ operational_constraints:
 - preserve_current_database: mandatory
 - preserve_existing_panes: mandatory
 - before_any_db_schema_or_data_change: backup_original_database
-- avoid_reset_or_reseed_on_active_database: false (Clean reset with seed_v2 is currently the preferred dev path)
+- avoid_reset_or_reseed_on_active_database: false (Standardized seed.py is the preferred dev path)
 
 stack:
 - backend: fastapi
@@ -36,14 +36,16 @@ entrypoints:
 - app: app/bootstrap/main.py
 - run_local: scripts/run_app.py
 - db_init: scripts/db/init_db.py
-- db_seed: scripts/db/seed_v2.py (Current Standard)
+- db_seed: scripts/seed/seed.py (Single Entry Point)
 
 domains:
 - auth: usuarios, token_blacklist, token_refresh
-- aeronaves: cadastro, status (OPERACIONAL, ESTOCADA, INATIVA, INSPEÇÃO), toggle_status
+- efetivo: indisponibilidades, ferias, ausencias (Modulo Ativo)
+- aeronaves: cadastro, status (DISPONIVEL, INDISPONIVEL, ESTOCADA, INATIVA, INSPEÇÃO), toggle_status
 - panes: pane, anexo, responsavel, soft_delete, restore
-- equipamentos: modelo, slot, item, instalacao, vencimento (OK, VENCENDO, VENCIDO, PENDENTE, FALTANTE, PRORROGADO), inventario, periodicidade_pn, matriz_vencimentos, prorrogacoes
-- configuracoes: admin_dashboard, gerenciamento_frota (Alterar Status), administracao_efetivo, regras_vencimento
+- equipamentos: modelo (PN), slot, item (SN), instalacao, inventario
+- vencimentos: tipo_controle, periodicidade_pn, matriz_vencimentos, prorrogacoes (OK, VENCENDO, VENCIDO, PRORROGADO)
+- configuracoes: admin_dashboard, gerenciamento_frota, administracao_efetivo, regras_vencimento
 
 auth_state:
 - access_token: jwt_hs256
@@ -64,14 +66,13 @@ core_rules:
 - RN-14: execucao_desativa_prorrogacao_ativa
 
 current_focus:
-- docs_synced: true
+- docs_synced: true (IA and Architecture folders aligned)
 - security_controls_active: true
 - inventory_module_active: true
 - configuracoes_module_active: true
 - matriz_vencimentos_active: true
-- prorrogacao_vencimentos_active: true
-- status_aeronave_multi_v4_active: true (Operacional, Estocada, Inativa, Inspeção)
-- status_vencimento_pendente_active: true (Itens sem execução = Cinza)
+- ddd_modularization_completed: true (Vencimentos and Efetivo extracted)
+- status_standardization_completed: true (DISPONIVEL vs OPERACIONAL)
 - alembic_migrations_up_to_date: true
 - test_suites_passing: 100_percent (unit, security, architecture)
 
@@ -79,4 +80,3 @@ known_gaps_from_roadmap:
 - logout_frontend_backend_alignment
 - database_url_consistency
 - stronger_cookie_only_auth_migration
-- dead_code_cleanup

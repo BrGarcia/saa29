@@ -15,9 +15,11 @@ root:
 app:
 - bootstrap/: config,database,dependencies,create_app
 - modules/auth/: auth_users_jwt_refresh_blacklist
+- modules/efetivo/: availability_absences_scales
 - modules/aeronaves/: aircraft_crud_status
 - modules/panes/: pane_flow_attachments_responsaveis
-- modules/equipamentos/: models_slots_items_installations_vencimentos_inventory_controles
+- modules/equipamentos/: catalog_slots_physical_items_inventory
+- modules/vencimentos/: temporal_intelligence_maintenance_rules_extensions
 - shared/core/: enums,helpers,storage,validators,limiter,exceptions
 - shared/middleware/: csrf
 - web/pages/router.py: html_routes (panes,frota,inventario,vencimentos,configuracoes,efetivo)

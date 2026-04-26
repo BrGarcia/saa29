@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function carregarMatriz() {
     const grid = document.getElementById('vencimentos-grid');
     try {
-        const dados = await apiFetch('/equipamentos/vencimentos/matriz');
+        const dados = await apiFetch('/vencimentos/matriz');
         matrizGlobal = dados;
 
         if (!dados.aeronaves || dados.aeronaves.length === 0) {
@@ -301,7 +301,7 @@ async function salvarExecucao(e) {
 
     btn.disabled = true;
     try {
-        await apiFetch(`/equipamentos/vencimentos/${id}/executar`, {
+        await apiFetch(`/vencimentos/${id}/executar`, {
             method: 'PATCH',
             body: { data_ultima_exec: data }
         });
@@ -355,7 +355,7 @@ async function salvarProrrogacao(e) {
 
     btn.disabled = true;
     try {
-        await apiFetch(`/equipamentos/vencimentos/${id}/prorrogar`, {
+        await apiFetch(`/vencimentos/${id}/prorrogar`, {
             method: 'POST',
             body: {
                 numero_documento: doc,
@@ -381,7 +381,7 @@ async function cancelarProrrogacao() {
     if (!confirm('Deseja realmente CANCELAR a prorrogação deste item? O status voltará ao real imediatamente.')) return;
     
     try {
-        await apiFetch(`/equipamentos/vencimentos/${id}/prorrogar`, {
+        await apiFetch(`/vencimentos/${id}/prorrogar`, {
             method: 'DELETE'
         });
         showToast('Prorrogação cancelada.', 'success');

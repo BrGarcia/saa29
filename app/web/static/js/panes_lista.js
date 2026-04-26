@@ -103,7 +103,7 @@ async function openSelecaoAeronaveModal() {
         
         gridAeronaves.innerHTML = '';
         frotaAtiva.forEach(f => {
-            const isOperacional = f.status === 'OPERACIONAL';
+            const isOperacional = f.status === 'DISPONIVEL';
             const colorVar = isOperacional ? 'var(--status-ok)' : 'var(--status-warning)';
             const bgVar = isOperacional ? 'rgba(46, 204, 113, 0.1)' : 'rgba(243, 156, 18, 0.1)';
 

@@ -7,7 +7,8 @@ from datetime import date, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.aeronaves.models import Aeronave
-from app.modules.equipamentos.models import SlotInventario, ItemEquipamento, Instalacao, ControleVencimento, TipoControle
+from app.modules.equipamentos.models import SlotInventario, ItemEquipamento, Instalacao
+from app.modules.vencimentos.models import ControleVencimento, TipoControle
 from app.shared.core.enums import StatusItem, StatusVencimento
 
 async def run(session: AsyncSession):
@@ -62,7 +63,7 @@ async def run(session: AsyncSession):
                     id=uuid.uuid4(),
                     item_id=item.id,
                     tipo_controle_id=tipo_cri.id,
-                    status=StatusVencimento.PENDENTE.value,
+                    status=StatusVencimento.OK.value,
                     origem="PADRAO"
                 )
                 session.add(venc)

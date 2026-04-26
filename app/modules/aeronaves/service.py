@@ -46,7 +46,7 @@ async def alternar_status_aeronave(
         raise ValueError("Aeronave não encontrada.")
     
     if aeronave.status == StatusAeronave.INATIVA.value:
-        aeronave.status = StatusAeronave.OPERACIONAL.value
+        aeronave.status = StatusAeronave.DISPONIVEL.value
     else:
         aeronave.status = StatusAeronave.INATIVA.value
         
@@ -128,5 +128,5 @@ async def reativar_aeronave(
     aeronave = await buscar_aeronave(db, aeronave_id)
     if not aeronave:
         raise ValueError("Aeronave não encontrada.")
-    aeronave.status = StatusAeronave.OPERACIONAL.value
+    aeronave.status = StatusAeronave.DISPONIVEL.value
     await db.flush()

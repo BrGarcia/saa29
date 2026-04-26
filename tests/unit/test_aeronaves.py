@@ -123,7 +123,7 @@ class TestCriarAeronave:
         body = response.json()
         assert "id" in body
         assert body["matricula"] == dados_aeronave_valida["matricula"]
-        assert body["status"] == "OPERACIONAL"
+        assert body["status"] == "DISPONIVEL"
 
     @pytest.mark.asyncio
     async def test_criar_aeronave_matricula_duplicada(
@@ -264,7 +264,7 @@ class TestEndpointsAdicionais:
         await client.post(f"{AERONAVES_URL}{aid}/toggle-status", headers=headers)
         response = await client.post(f"{AERONAVES_URL}{aid}/toggle-status", headers=headers)
         assert response.status_code == 200
-        assert response.json()["status"] == "OPERACIONAL"
+        assert response.json()["status"] == "DISPONIVEL"
 
     @pytest.mark.asyncio
     async def test_aeronave_indisponivel_permanece_na_listagem(

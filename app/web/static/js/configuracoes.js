@@ -63,7 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
 function openModalConfig() {
     document.querySelector("#modal-aeronave h3").innerText = "Nova Aeronave";
     document.getElementById("btnSalvarAcft").innerText = "Registrar";
-    document.getElementById("statusInput").value = "OPERACIONAL";
+    document.getElementById("statusInput").value = "DISPONIVEL";
     document.getElementById("statusInput").disabled = false;
     document.getElementById("modal-aeronave").style.display = "flex";
 }
@@ -208,7 +208,7 @@ async function salvarTipoControle(e) {
     const descricao = document.getElementById("descControleInput").value.trim();
 
     try {
-        await apiFetch("/equipamentos/tipos-controle", {
+        await apiFetch("/vencimentos/tipos-controle", {
             method: "POST",
             body: {
                 nome: nome,
@@ -240,7 +240,7 @@ async function openModalEditarTipo() {
     document.getElementById('editarDescInput').value = '';
 
     try {
-        tiposControleCache = await apiFetch('/equipamentos/tipos-controle');
+        tiposControleCache = await apiFetch('/vencimentos/tipos-controle');
         if (tiposControleCache.length === 0) {
             select.innerHTML = '<option value="" disabled selected>Nenhum tipo cadastrado</option>';
         } else {
@@ -288,7 +288,7 @@ async function salvarEditarTipo(e) {
     const descricao = document.getElementById('editarDescInput').value.trim();
 
     try {
-        await apiFetch(`/equipamentos/tipos-controle/${tipoId}`, {
+        await apiFetch(`/vencimentos/tipos-controle/${tipoId}`, {
             method: 'PUT',
             body: { nome, descricao }
         });
@@ -330,7 +330,7 @@ async function carregarOptionsRegras() {
     try {
         const [equipamentos, tipos] = await Promise.all([
             apiFetch('/equipamentos/'),
-            apiFetch('/equipamentos/tipos-controle')
+            apiFetch('/vencimentos/tipos-controle')
         ]);
 
         selectEquip.innerHTML = '<option value="">Selecione o PN...</option>';

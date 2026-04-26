@@ -12,12 +12,14 @@ domain_layers:
 
 core_entities:
 - Auth: Usuario (RBAC)
+- Efetivo: Indisponibilidade (Absences, Vacations, Scales)
 - Operational: Aeronave, Pane, Anexo, PaneResponsavel
-- Logistics: 
+- Logistics (Equipamentos): 
     - ModeloEquipamento (PN)
     - SlotInventario (Location in ACFT)
     - ItemEquipamento (Physical SN)
     - Instalacao (Link SN + Slot + ACFT)
+- Maintenance (Vencimentos):
     - TipoControle (Code only: CRI, TLV)
     - EquipamentoControle (Rules: PN + Control = Months)
     - ControleVencimento (Instance tracking)

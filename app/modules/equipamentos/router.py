@@ -1,6 +1,6 @@
 """
 app/equipamentos/router.py
-Endpoints de gestão de equipamentos, itens e controle de vencimentos.
+Endpoints de gestão de equipamentos, itens e inventário.
 """
 
 import uuid
@@ -11,54 +11,6 @@ from app.modules.equipamentos import schemas, service
 from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin
 
 router = APIRouter()
-
-
-# ---- Tipos de Controle ----
-
-@router.get(
-    "/tipos-controle",
-    response_model=list[schemas.TipoControleOut],
-    summary="Listar tipos de controle",
-)
-async def listar_tipos_controle(db: DBSession, _: CurrentUser):
-    tipos = await service.listar_tipos_controle(db)
-    return [schemas.TipoControleOut.model_validate(t) for t in tipos]
-
-
-@router.post(
-    "/tipos-controle",
-    response_model=schemas.TipoControleOut,
-    status_code=status.HTTP_201_CREATED,
-    summary="Criar tipo de controle",
-)
-async def criar_tipo_controle(
-    dados: schemas.TipoControleCreate,
-    db: DBSession,
-    _: EncarregadoOuAdmin,
-):
-    try:
-        tipo = await service.criar_tipo_controle(db, dados)
-        return schemas.TipoControleOut.model_validate(tipo)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-
-
-@router.put(
-    "/tipos-controle/{tipo_id}",
-    response_model=schemas.TipoControleOut,
-    summary="Atualizar tipo de controle",
-)
-async def atualizar_tipo_controle(
-    tipo_id: uuid.UUID,
-    dados: schemas.TipoControleUpdate,
-    db: DBSession,
-    _: EncarregadoOuAdmin,
-):
-    try:
-        tipo = await service.atualizar_tipo_controle(db, tipo_id, dados)
-        return schemas.TipoControleOut.model_validate(tipo)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 # ---- Equipamentos (Tipos / Part Numbers) ----
@@ -93,9 +45,6 @@ async def buscar_equipamento(
     db: DBSession,
     _: CurrentUser,
 ):
-    # Nota: No service.py atual só existe buscar_modelo_por_pn. 
-    # Vou assumir que precisamos de um buscar_modelo genérico ou usar ModeloEquipamento diretamente se simples.
-    # Por enquanto, mantendo a estrutura mas corrigindo o schema.
     from app.modules.equipamentos.models import ModeloEquipamento
     from sqlalchemy import select
     result = await db.execute(select(ModeloEquipamento).where(ModeloEquipamento.id == equipamento_id))
@@ -107,64 +56,6 @@ async def buscar_equipamento(
             detail="Equipamento não encontrado.",
         )
     return schemas.ModeloEquipamentoOut.model_validate(equipamento)
-
-
-@router.get(
-    "/controles/regras",
-    response_model=list[schemas.EquipamentoControleOut],
-    summary="Listar todas as regras de periodicidade por equipamento",
-)
-async def listar_regras_periodicidade(db: DBSession, _: CurrentUser):
-    regras = await service.listar_equipamento_controles(db)
-    out = []
-    for r in regras:
-        item = schemas.EquipamentoControleOut.model_validate(r)
-        item.pn = r.modelo.part_number
-        item.tipo_nome = r.tipo_controle.nome
-        out.append(item)
-    return out
-
-
-@router.post(
-    "/controles/regras",
-    response_model=schemas.EquipamentoControleOut,
-    status_code=status.HTTP_201_CREATED,
-    summary="Associar tipo de controle a equipamento com periodicidade",
-)
-async def associar_controle(
-    dados: schemas.EquipamentoControleCreate,
-    db: DBSession,
-    _: EncarregadoOuAdmin,
-):
-    """
-    Associa um TipoControle ao Equipamento (PN) com uma periodicidade específica
-    e propaga automaticamente para todos os itens existentes.
-    """
-    try:
-        assoc = await service.associar_controle_a_equipamento(
-            db, dados.modelo_id, dados.tipo_controle_id, dados.periodicidade_meses
-        )
-        await db.commit()
-        # Recarregar para trazer PN e Nome do Controle (ou preencher manualmente)
-        # Por simplicidade, vou apenas retornar o ID e os dados enviados
-        return schemas.EquipamentoControleOut.model_validate(assoc)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-
-
-@router.delete(
-    "/controles/regras/{modelo_id}/{tipo_controle_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Remover regra de periodicidade",
-)
-async def remover_regra(
-    modelo_id: uuid.UUID,
-    tipo_controle_id: uuid.UUID,
-    db: DBSession,
-    _: EncarregadoOuAdmin,
-):
-    await service.remover_controle_de_equipamento(db, modelo_id, tipo_controle_id)
-    return None
 
 
 # ---- Slots de Inventário (Posições na ANV) ----
@@ -230,20 +121,6 @@ async def criar_item(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
-@router.get(
-    "/itens/{item_id}/controles",
-    response_model=list[schemas.ControleVencimentoOut],
-    summary="Listar controles de um item",
-)
-async def listar_controles_item(
-    item_id: uuid.UUID,
-    db: DBSession,
-    _: CurrentUser,
-):
-    vencimentos = await service.listar_vencimentos_por_item(db, item_id)
-    return [schemas.ControleVencimentoOut.model_validate(v) for v in vencimentos]
-
-
 # ---- Instalações ----
 
 @router.post(
@@ -279,65 +156,6 @@ async def remover_item(
         db, instalacao_id, dados.data_remocao, usuario_id=current_user.id
     )
     return schemas.InstalacaoOut.model_validate(instalacao)
-
-
-# ---- Controles de Vencimento ----
-
-@router.patch(
-    "/vencimentos/{vencimento_id}/executar",
-    response_model=schemas.ControleVencimentoOut,
-    summary="Registrar execução de controle de vencimento",
-)
-async def registrar_execucao(
-    vencimento_id: uuid.UUID,
-    dados: schemas.ControleVencimentoUpdate,
-    db: DBSession,
-    _: EncarregadoOuAdmin,
-):
-    vencimento = await service.registrar_execucao(
-        db, vencimento_id, dados.data_ultima_exec
-    )
-    return schemas.ControleVencimentoOut.model_validate(vencimento)
-
-
-@router.post(
-    "/vencimentos/{vencimento_id}/prorrogar",
-    response_model=schemas.ProrrogacaoVencimentoOut,
-    summary="Conceder prorrogação de prazo (Engenharia)",
-)
-async def prorrogar_prazo(
-    vencimento_id: uuid.UUID,
-    dados: schemas.ProrrogacaoVencimentoCreate,
-    db: DBSession,
-    user: CurrentUser,
-):
-    prorrogacao = await service.prorrogar_vencimento(db, vencimento_id, dados, user.id)
-    return schemas.ProrrogacaoVencimentoOut.model_validate(prorrogacao)
-
-
-@router.delete(
-    "/vencimentos/{vencimento_id}/prorrogar",
-    summary="Cancelar prorrogação ativa",
-)
-async def cancelar_prorrogacao(
-    vencimento_id: uuid.UUID,
-    db: DBSession,
-    _: EncarregadoOuAdmin,
-):
-    sucesso = await service.cancelar_prorrogacao(db, vencimento_id)
-    return {"success": sucesso}
-
-
-@router.get(
-    "/vencimentos/matriz",
-    summary="Visão matricial de vencimentos (Frota x Slot x Controle)",
-)
-async def matriz_vencimentos(db: DBSession, _: CurrentUser):
-    """
-    Retorna a estrutura completa para a tabela matricial de vencimentos.
-    Formato: { cabecalho: {sistema: [controles]}, aeronaves: [...] }
-    """
-    return await service.montar_matriz_vencimentos(db)
 
 
 # ---- Inventário ----
@@ -389,4 +207,3 @@ async def ajustar_inventario(
     Lida com transferências e criação de novos itens.
     """
     return await service.ajustar_inventario_item(db, dados)
-

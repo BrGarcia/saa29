@@ -11,8 +11,8 @@ from httpx import AsyncClient
 
 EQUIP_URL = "/equipamentos"
 ITENS_URL = "/equipamentos/itens/"
-TIPOS_URL = "/equipamentos/tipos-controle"
-REGRAS_URL = "/equipamentos/controles/regras"
+TIPOS_URL = "/vencimentos/tipos-controle"
+REGRAS_URL = "/vencimentos/regras"
 AERONAVES_URL = "/aeronaves/"
 
 
@@ -138,11 +138,13 @@ class TestHerancaControles:
         tc1 = await criar_tipo_controle_helper(client, headers, dados_tipo_controle_valido)
         tc2 = await criar_tipo_controle_helper(client, headers, dados_tipo_controle_valido)
 
-        await client.post(REGRAS_URL, json={"modelo_id": equip['id'], "tipo_controle_id": tc1['id'], "periodicidade_meses": 12}, headers=headers)
-        await client.post(REGRAS_URL, json={"modelo_id": equip['id'], "tipo_controle_id": tc2['id'], "periodicidade_meses": 24}, headers=headers)
+        r1 = await client.post(REGRAS_URL, json={"modelo_id": equip['id'], "tipo_controle_id": tc1['id'], "periodicidade_meses": 12}, headers=headers)
+        assert r1.status_code == 201, r1.text
+        r2 = await client.post(REGRAS_URL, json={"modelo_id": equip['id'], "tipo_controle_id": tc2['id'], "periodicidade_meses": 24}, headers=headers)
+        assert r2.status_code == 201, r2.text
 
         item = await criar_item_helper(client, headers, equip["id"])
-        resp = await client.get(f"{EQUIP_URL}/itens/{item['id']}/controles", headers=headers)
+        resp = await client.get(f"/vencimentos/itens/{item['id']}", headers=headers)
         assert len(resp.json()) == 2
 
     @pytest.mark.asyncio
@@ -155,7 +157,7 @@ class TestHerancaControles:
         headers = usuario_e_token["headers"]
         equip = await criar_equipamento_helper(client, headers, dados_equipamento_valido)
         item = await criar_item_helper(client, headers, equip["id"])
-        resp = await client.get(f"{EQUIP_URL}/itens/{item['id']}/controles", headers=headers)
+        resp = await client.get(f"/vencimentos/itens/{item['id']}", headers=headers)
         assert len(resp.json()) == 0
 
 
@@ -180,7 +182,7 @@ class TestPropagacaoControle:
         tc = await criar_tipo_controle_helper(client, headers, dados_tipo_controle_valido)
         await client.post(REGRAS_URL, json={"modelo_id": equip['id'], "tipo_controle_id": tc['id'], "periodicidade_meses": 6}, headers=headers)
 
-        resp = await client.get(f"{EQUIP_URL}/itens/{item['id']}/controles", headers=headers)
+        resp = await client.get(f"/vencimentos/itens/{item['id']}", headers=headers)
         assert any(c["tipo_controle_id"] == tc["id"] for c in resp.json())
 
 
@@ -205,11 +207,11 @@ class TestVencimentos:
         await client.post(REGRAS_URL, json={"modelo_id": equip['id'], "tipo_controle_id": tc['id'], "periodicidade_meses": 12}, headers=headers)
         item = await criar_item_helper(client, headers, equip["id"])
 
-        controles = (await client.get(f"{EQUIP_URL}/itens/{item['id']}/controles", headers=headers)).json()
+        controles = (await client.get(f"/vencimentos/itens/{item['id']}", headers=headers)).json()
         cid = controles[0]["id"]
         
         data_exec = "2026-01-01"
-        response = await client.patch(f"{EQUIP_URL}/vencimentos/{cid}/executar", json={"data_ultima_exec": data_exec}, headers=headers)
+        response = await client.patch(f"/vencimentos/{cid}/executar", json={"data_ultima_exec": data_exec}, headers=headers)
         assert response.status_code == 200
         assert response.json()["data_vencimento"] == "2027-01-01"
 
@@ -301,9 +303,9 @@ class TestProrrogacoes:
         item = await criar_item_helper(client, headers, equip["id"])
         
         # Registrar execução inicial para ter uma data de vencimento base
-        controles = (await client.get(f"{EQUIP_URL}/itens/{item['id']}/controles", headers=headers)).json()
+        controles = (await client.get(f"/vencimentos/itens/{item['id']}", headers=headers)).json()
         cid = controles[0]["id"]
-        await client.patch(f"{EQUIP_URL}/vencimentos/{cid}/executar", json={"data_ultima_exec": "2026-01-01"}, headers=headers)
+        await client.patch(f"/vencimentos/{cid}/executar", json={"data_ultima_exec": "2026-01-01"}, headers=headers)
         
         # Prorrogar (CT-L11)
         payload = {
@@ -312,7 +314,7 @@ class TestProrrogacoes:
             "dias_adicionais": 30,
             "motivo": "Atraso no suprimento"
         }
-        response = await client.post(f"{EQUIP_URL}/vencimentos/{cid}/prorrogar", json=payload, headers=headers)
+        response = await client.post(f"/vencimentos/{cid}/prorrogar", json=payload, headers=headers)
         assert response.status_code == 200
         assert response.json()["ativo"] is True
         assert response.json()["dias_adicionais"] == 30
@@ -330,16 +332,16 @@ class TestProrrogacoes:
         tc = await criar_tipo_controle_helper(client, headers, dados_tipo_controle_valido)
         await client.post(REGRAS_URL, json={"modelo_id": equip['id'], "tipo_controle_id": tc['id'], "periodicidade_meses": 12}, headers=headers)
         item = await criar_item_helper(client, headers, equip["id"])
-        controles = (await client.get(f"{EQUIP_URL}/itens/{item['id']}/controles", headers=headers)).json()
+        controles = (await client.get(f"/vencimentos/itens/{item['id']}", headers=headers)).json()
         cid = controles[0]["id"]
 
         # Prorrogar
-        await client.post(f"{EQUIP_URL}/vencimentos/{cid}/prorrogar", json={
+        await client.post(f"/vencimentos/{cid}/prorrogar", json={
             "numero_documento": "DOC-123", "data_concessao": "2026-04-25", "dias_adicionais": 15
         }, headers=headers)
 
         # Cancelar (CT-L12)
-        response = await client.delete(f"{EQUIP_URL}/vencimentos/{cid}/prorrogar", headers=headers)
+        response = await client.delete(f"/vencimentos/{cid}/prorrogar", headers=headers)
         assert response.status_code == 200
         assert response.json()["success"] is True
 
@@ -356,21 +358,21 @@ class TestProrrogacoes:
         tc = await criar_tipo_controle_helper(client, headers, dados_tipo_controle_valido)
         await client.post(REGRAS_URL, json={"modelo_id": equip['id'], "tipo_controle_id": tc['id'], "periodicidade_meses": 12}, headers=headers)
         item = await criar_item_helper(client, headers, equip["id"])
-        controles = (await client.get(f"{EQUIP_URL}/itens/{item['id']}/controles", headers=headers)).json()
+        controles = (await client.get(f"/vencimentos/itens/{item['id']}", headers=headers)).json()
         cid = controles[0]["id"]
 
         # 1. Criar prorrogação
-        await client.post(f"{EQUIP_URL}/vencimentos/{cid}/prorrogar", json={
+        await client.post(f"/vencimentos/{cid}/prorrogar", json={
             "numero_documento": "EXT-001", "data_concessao": "2026-04-25", "dias_adicionais": 30
         }, headers=headers)
 
         # 2. Registrar execução (CT-L13)
-        await client.patch(f"{EQUIP_URL}/vencimentos/{cid}/executar", json={"data_ultima_exec": "2026-04-25"}, headers=headers)
+        await client.patch(f"/vencimentos/{cid}/executar", json={"data_ultima_exec": "2026-04-25"}, headers=headers)
 
         # 3. Verificar se a prorrogação foi desativada no banco (via endpoint se existisse, ou verificando se o cancelamento retorna false)
         # Como não temos GET individual de prorrogação, vamos assumir que o fluxo de registrar_execucao chamou a desativação.
         # Podemos verificar na matriz se o status não é mais PRORROGADO.
-        matriz = (await client.get(f"{EQUIP_URL}/vencimentos/matriz", headers=headers)).json()
+        matriz = (await client.get(f"/vencimentos/matriz", headers=headers)).json()
         # Localizar a célula correta na matriz e ver que prorrogado é false
         for acft in matriz["aeronaves"]:
             for slot in acft["slots"]:
@@ -392,9 +394,11 @@ class TestMatrizVencimentos:
         usuario_e_token: dict,
     ):
         headers = usuario_e_token["headers"]
-        response = await client.get(f"{EQUIP_URL}/vencimentos/matriz", headers=headers)
+        response = await client.get(f"/vencimentos/matriz", headers=headers)
         assert response.status_code == 200
         data = response.json()
         assert "cabecalho" in data
+        assert "aeronaves" in data
+        assert isinstance(data["aeronaves"], list)
         assert "aeronaves" in data
         assert isinstance(data["aeronaves"], list)

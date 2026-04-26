@@ -4,10 +4,8 @@ Camada de serviço para gestão de equipamentos seguindo a arquitetura PN vs Slo
 """
 
 import uuid
-import app.modules.aeronaves.models
 from datetime import date
-from dateutil.relativedelta import relativedelta
-from sqlalchemy import select, and_, or_, desc, union_all, String, func
+from sqlalchemy import select, or_, desc, union_all, String, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,24 +15,23 @@ from app.shared.core import exceptions as domain_exc
 from app.modules.equipamentos.models import (
     ModeloEquipamento,
     SlotInventario,
-    TipoControle,
-    EquipamentoControle,
     ItemEquipamento,
     Instalacao,
+)
+# Importar os modelos de vencimento do novo módulo
+from app.modules.vencimentos.models import (
+    EquipamentoControle,
     ControleVencimento,
-    ProrrogacaoVencimento,
 )
 from app.modules.equipamentos.schemas import (
     ModeloEquipamentoCreate,
     SlotInventarioCreate,
     ItemEquipamentoCreate,
-    TipoControleCreate,
-    ProrrogacaoVencimentoCreate,
     InventarioItemOut,
     AjusteInventarioCreate,
     AjusteInventarioResponse,
 )
-from app.shared.core.enums import OrigemControle, StatusVencimento, StatusItem
+from app.shared.core.enums import StatusItem, StatusVencimento
 
 
 # ============================================================
@@ -44,7 +41,6 @@ from app.shared.core.enums import OrigemControle, StatusVencimento, StatusItem
 async def criar_modelo(db: AsyncSession, dados: ModeloEquipamentoCreate) -> ModeloEquipamento:
     """Cadastra um novo Part Number no catálogo."""
     part_number = dados.part_number.strip().upper()
-    # Verificar duplicidade
     existing = await buscar_modelo_por_pn(db, part_number)
     if existing:
         raise ValueError(f"O Part Number '{part_number}' já está cadastrado.")
@@ -65,46 +61,6 @@ async def buscar_modelo_por_pn(db: AsyncSession, pn: str) -> ModeloEquipamento |
 async def listar_modelos(db: AsyncSession) -> list[ModeloEquipamento]:
     result = await db.execute(select(ModeloEquipamento).order_by(ModeloEquipamento.part_number))
     return list(result.scalars().all())
-
-
-# ============================================================
-# Tipos de Controle (Periodicidades)
-# ============================================================
-
-async def listar_tipos_controle(db: AsyncSession) -> list[TipoControle]:
-    """Lista todos os tipos de controle cadastrados."""
-    result = await db.execute(select(TipoControle).order_by(TipoControle.nome))
-    return list(result.scalars().all())
-
-async def criar_tipo_controle(db: AsyncSession, dados: TipoControleCreate) -> TipoControle:
-    # Verificar duplicidade
-    existing = await db.execute(select(TipoControle).where(TipoControle.nome == dados.nome.upper()))
-    if existing.scalar_one_or_none():
-        raise ValueError(f"Tipo de controle '{dados.nome}' já existe.")
-    tipo = TipoControle(nome=dados.nome.upper(), descricao=dados.descricao)
-    db.add(tipo)
-    await db.commit()
-    return tipo
-
-async def atualizar_tipo_controle(db: AsyncSession, tipo_id: uuid.UUID, dados) -> TipoControle:
-    """Atualiza um tipo de controle existente."""
-    result = await db.execute(select(TipoControle).where(TipoControle.id == tipo_id))
-    tipo = result.scalar_one_or_none()
-    if not tipo:
-        raise ValueError("Tipo de controle não encontrado.")
-    if dados.nome is not None:
-        novo_nome = dados.nome.strip().upper()
-        # Verificar duplicidade com outro registro
-        dup = await db.execute(
-            select(TipoControle).where(TipoControle.nome == novo_nome, TipoControle.id != tipo_id)
-        )
-        if dup.scalar_one_or_none():
-            raise ValueError(f"Já existe um tipo de controle com o código '{novo_nome}'.")
-        tipo.nome = novo_nome
-    if dados.descricao is not None:
-        tipo.descricao = dados.descricao
-    await db.commit()
-    return tipo
 
 
 # ============================================================
@@ -138,12 +94,20 @@ async def criar_item_com_heranca(db: AsyncSession, dados: ItemEquipamentoCreate)
             id=uuid.uuid4(),
             item_id=item.id,
             tipo_controle_id=ctrl.tipo_controle_id,
-            status=StatusVencimento.PENDENTE.value
+            status=StatusVencimento.VENCIDO.value
         )
         db.add(vencimento)
 
     await db.flush()
     return item
+
+async def listar_itens(db: AsyncSession, modelo_id: uuid.UUID | None = None) -> list[ItemEquipamento]:
+    """Lista itens físicos (Serial Numbers)."""
+    stmt = select(ItemEquipamento).options(selectinload(ItemEquipamento.modelo))
+    if modelo_id:
+        stmt = stmt.where(ItemEquipamento.modelo_id == modelo_id)
+    result = await db.execute(stmt.order_by(ItemEquipamento.numero_serie))
+    return list(result.scalars().all())
 
 
 # ============================================================
@@ -159,7 +123,7 @@ async def criar_slot(db: AsyncSession, dados: SlotInventarioCreate) -> SlotInven
 
 
 # ============================================================
-# Inventário de Aeronave
+# Inventário de Aeronave e Instalações
 # ============================================================
 
 async def listar_inventario_aeronave(
@@ -173,10 +137,8 @@ async def listar_inventario_aeronave(
     if not aeronave_atual:
         raise domain_exc.EntidadeNaoEncontradaError("Aeronave não encontrada.")
 
-    # 1. Buscar todos os slots (posições) configurados
     stmt_slots = select(SlotInventario).options(selectinload(SlotInventario.modelo))
     if nome:
-        # Filtra pelo nome da posição (ex: MDP) ou nome genérico do equipamento
         stmt_slots = stmt_slots.join(ModeloEquipamento).where(
             or_(
                 SlotInventario.nome_posicao.ilike(f"%{nome}%"),
@@ -188,7 +150,6 @@ async def listar_inventario_aeronave(
         res_slots = await db.execute(stmt_slots)
         slots = res_slots.scalars().all()
 
-        # 2. OTIMIZAÇÃO: Buscar todas as instalações ativas da aeronave de uma vez
         stmt_todas_inst = (
             select(Instalacao, ItemEquipamento, Usuario.trigrama)
             .join(ItemEquipamento, Instalacao.item_id == ItemEquipamento.id)
@@ -202,11 +163,9 @@ async def listar_inventario_aeronave(
         inst_list = res_inst.all()
         inst_map = {row[0].slot_id: row for row in inst_list}
 
-        # 3. OTIMIZAÇÃO: Buscar Aeronave Anterior para todos os itens de uma vez
         item_ids = [row[1].id for row in inst_list]
         ant_map = {}
         if item_ids:
-            # Busca a última instalação (removida) para cada item em aeronaves diferentes da atual
             subq = (
                 select(
                     Instalacao.item_id,
@@ -231,7 +190,6 @@ async def listar_inventario_aeronave(
         inventario: list[InventarioItemOut] = []
 
         for slot in slots:
-            # Recuperar do mapa em memória em vez de fazer nova query
             row = inst_map.get(slot.id)
 
             instalacao, item, user_trigrama = row if row else (None, None, None)
@@ -239,8 +197,6 @@ async def listar_inventario_aeronave(
             data_rastreio = instalacao.created_at if instalacao else None
 
             if not instalacao:
-                # Se slot vazio, buscar a última remoção para mostrar quem desinstalou
-                # (Esta query ainda é pontual por slot vazio, mas agora apenas para slots vazios)
                 stmt_last_rem = (
                     select(Instalacao, Usuario.trigrama)
                     .outerjoin(Usuario, Instalacao.usuario_id == Usuario.id)
@@ -278,7 +234,6 @@ async def listar_inventario_aeronave(
                 )
             )
 
-        # Ordenar por sistema e posição
         inventario.sort(key=lambda x: (x.sistema or "ZZZ", x.nome_posicao))
         return inventario
 
@@ -295,7 +250,6 @@ async def ajustar_inventario_item(
 ) -> AjusteInventarioResponse:
     """
     Sincroniza o S/N REAL com um SLOT de uma aeronave.
-    Garante unicidade de SN por PN e gerencia transferências.
     """
     aeronave_id = dados.aeronave_id
     slot_id = dados.slot_id or dados.equipamento_id
@@ -304,25 +258,20 @@ async def ajustar_inventario_item(
         
     sn_real = dados.numero_serie_real.strip().upper()
 
-    # 1. Obter Slot e Validar Existência
     slot = await _obter_slot_com_modelo(db, slot_id)
     if not slot:
         return AjusteInventarioResponse(sucesso=False, mensagem="Slot de inventário não encontrado.")
 
-    # 2. Verificar se o S/N já está no lugar certo
     inst_atual = await _obter_instalacao_ativa_no_slot(db, aeronave_id, slot_id)
     if inst_atual and inst_atual.item.numero_serie == sn_real:
         return AjusteInventarioResponse(sucesso=True, mensagem="S/N já está sincronizado.")
 
-    # 3. Obter ou Criar o Item Físico
     item_real = await _obter_ou_criar_item_por_pn(db, slot.modelo_id, sn_real)
 
-    # 4. Validar e Resolver Conflitos de Instalação (Transferência entre ACFTs)
     conflito_resp = await _validar_e_resolver_conflitos(db, item_real, dados)
     if conflito_resp:
         return conflito_resp
 
-    # 5. Efetivar a Troca (Remover antigo e Instalar novo)
     await _efetivar_troca_no_slot(db, inst_atual, item_real, dados)
     
     try:
@@ -372,7 +321,6 @@ async def _obter_ou_criar_item_por_pn(db: AsyncSession, modelo_id: uuid.UUID, sn
 async def _validar_e_resolver_conflitos(
     db: AsyncSession, item: ItemEquipamento, dados: AjusteInventarioCreate
 ) -> AjusteInventarioResponse | None:
-    """Verifica se o item está instalado em outro lugar e gerencia a transferência."""
     res = await db.execute(
         select(Instalacao).where(Instalacao.item_id == item.id, Instalacao.data_remocao.is_(None))
     )
@@ -396,7 +344,6 @@ async def _validar_e_resolver_conflitos(
 async def _efetivar_troca_no_slot(
     db: AsyncSession, inst_atual: Instalacao | None, item_novo: ItemEquipamento, dados: AjusteInventarioCreate
 ):
-    """Realiza a remoção do item antigo e a instalação do novo no slot."""
     hoje = date.today()
     if inst_atual:
         inst_atual.data_remocao = hoje
@@ -416,8 +363,6 @@ async def _efetivar_troca_no_slot(
 async def instalar_item(
     db: AsyncSession, item_id: uuid.UUID, aeronave_id: uuid.UUID, slot_id: uuid.UUID, data_instalacao: date
 ) -> Instalacao:
-    """Instala um item em uma aeronave."""
-    # Encerrar instalação anterior do item (se houver)
     stmt_old = select(Instalacao).where(Instalacao.item_id == item_id, Instalacao.data_remocao.is_(None))
     res_old = await db.execute(stmt_old)
     old_inst = res_old.scalar_one_or_none()
@@ -437,142 +382,24 @@ async def instalar_item(
     await db.commit()
     return instalacao
 
-
-async def associar_controle_a_equipamento(
-    db: AsyncSession, modelo_id: uuid.UUID, tipo_controle_id: uuid.UUID, periodicidade: int
-) -> EquipamentoControle:
-    """Vincula um tipo de controle (ex: TBV) a um modelo (ex: MDP) com uma periodicidade."""
-    # 1. Verificar se já existe
-    res = await db.execute(
-        select(EquipamentoControle).where(
-            EquipamentoControle.modelo_id == modelo_id,
-            EquipamentoControle.tipo_controle_id == tipo_controle_id
-        )
-    )
-    existing = res.scalar_one_or_none()
-    if existing:
-        # Se já existe, apenas atualiza a periodicidade
-        existing.periodicidade_meses = periodicidade
-        await db.flush()
-        return existing
-
-    assoc = EquipamentoControle(
-        id=uuid.uuid4(), 
-        modelo_id=modelo_id, 
-        tipo_controle_id=tipo_controle_id,
-        periodicidade_meses=periodicidade
-    )
-    db.add(assoc)
-    await db.flush()
-
-    # 2. Propagar para itens existentes (criar ControleVencimento se não houver)
-    res_itens = await db.execute(select(ItemEquipamento).where(ItemEquipamento.modelo_id == modelo_id))
-    itens = res_itens.scalars().all()
-
-    for item in itens:
-        res_venc = await db.execute(
-            select(ControleVencimento).where(
-                ControleVencimento.item_id == item.id,
-                ControleVencimento.tipo_controle_id == tipo_controle_id
-            )
-        )
-        if not res_venc.scalar_one_or_none():
-            venc = ControleVencimento(
-                id=uuid.uuid4(),
-                item_id=item.id,
-                tipo_controle_id=tipo_controle_id,
-                status=StatusVencimento.PENDENTE.value
-            )
-            db.add(venc)
-
-    await db.flush()
-    return assoc
-
-async def listar_equipamento_controles(db: AsyncSession) -> list[EquipamentoControle]:
-    """Lista todas as regras PN + Controle + Periodicidade."""
-    result = await db.execute(
-        select(EquipamentoControle)
-        .options(
-            selectinload(EquipamentoControle.modelo),
-            selectinload(EquipamentoControle.tipo_controle)
-        )
-    )
-    return list(result.scalars().all())
-
-async def remover_controle_de_equipamento(
-    db: AsyncSession, modelo_id: uuid.UUID, tipo_controle_id: uuid.UUID
-) -> None:
-    """Remove o vínculo de um controle com um equipamento."""
-    result = await db.execute(
-        select(EquipamentoControle).where(
-            EquipamentoControle.modelo_id == modelo_id,
-            EquipamentoControle.tipo_controle_id == tipo_controle_id
-        )
-    )
-    assoc = result.scalar_one_or_none()
-    if assoc:
-        await db.delete(assoc)
-        await db.commit()
-
-async def registrar_execucao(db: AsyncSession, vencimento_id: uuid.UUID, data_exec: date) -> ControleVencimento:
-    """Registra que um controle foi executado e calcula o próximo vencimento."""
-    result = await db.execute(
-        select(ControleVencimento)
-        .where(ControleVencimento.id == vencimento_id)
-        .options(selectinload(ControleVencimento.item))
-    )
-    vencimento = result.scalar_one_or_none()
-    if not vencimento: 
-        raise domain_exc.EntidadeNaoEncontradaError("Vencimento não encontrado.")
-
-    # 1. Buscar a regra de periodicidade no EquipamentoControle
-    res_regra = await db.execute(
-        select(EquipamentoControle).where(
-            EquipamentoControle.modelo_id == vencimento.item.modelo_id,
-            EquipamentoControle.tipo_controle_id == vencimento.tipo_controle_id
-        )
-    )
-    regra = res_regra.scalar_one_or_none()
+async def remover_item(db: AsyncSession, instalacao_id: uuid.UUID, data_remocao: date, usuario_id: uuid.UUID | None = None) -> Instalacao:
+    result = await db.execute(select(Instalacao).where(Instalacao.id == instalacao_id))
+    instalacao = result.scalar_one_or_none()
+    if not instalacao:
+        raise domain_exc.EntidadeNaoEncontradaError("Instalação não encontrada.")
     
-    # Periodicidade padrão de 12 meses caso não exista regra (fallback de segurança)
-    periodicidade = regra.periodicidade_meses if regra else 12
-    
-    vencimento.data_ultima_exec = data_exec
-    vencimento.data_vencimento = data_exec + relativedelta(months=periodicidade)
-
-    # 2. Desativar qualquer prorrogação ativa para este controle, já que foi executado
-    await db.execute(
-        ProrrogacaoVencimento.__table__.update()
-        .where(
-            and_(
-                ProrrogacaoVencimento.controle_id == vencimento_id,
-                ProrrogacaoVencimento.ativo == True
-            )
-        )
-        .values(ativo=False)
-    )
-
-    # Atualizar Status
-    hoje = date.today()
-    if not vencimento.data_ultima_exec:
-        vencimento.status = StatusVencimento.PENDENTE.value
-    elif vencimento.data_vencimento < hoje: 
-        vencimento.status = StatusVencimento.VENCIDO.value
-    elif (vencimento.data_vencimento - hoje).days <= 30: 
-        vencimento.status = StatusVencimento.VENCENDO.value
-    else: 
-        vencimento.status = StatusVencimento.OK.value
-
-    await db.flush()
-    return vencimento
-
+    instalacao.data_remocao = data_remocao
+    instalacao.updated_at = func.now()
+    if usuario_id:
+        instalacao.usuario_id = usuario_id
+        
+    await db.commit()
+    return instalacao
 
 async def listar_historico_recente(db: AsyncSession, limit: int = 15, offset: int = 0) -> list[dict]:
-    """Retorna as últimas movimentações (instalações e remoções) de inventário."""
     from app.modules.aeronaves.models import Aeronave
     from app.modules.auth.models import Usuario
 
-    # Eventos de Instalação (baseados em created_at)
     stmt_ins = (
         select(
             Instalacao.id.label("id"),
@@ -589,7 +416,6 @@ async def listar_historico_recente(db: AsyncSession, limit: int = 15, offset: in
         .outerjoin(Usuario, Instalacao.usuario_id == Usuario.id)
     )
 
-    # Eventos de Remoção (baseados em updated_at onde data_remocao existe)
     stmt_rem = (
         select(
             Instalacao.id.label("id"),
@@ -607,9 +433,7 @@ async def listar_historico_recente(db: AsyncSession, limit: int = 15, offset: in
         .where(Instalacao.data_remocao.is_not(None), Instalacao.updated_at.is_not(None))
     )
     
-    # Combinar e ordenar
     query_union = union_all(stmt_ins, stmt_rem).alias("historico_union")
-    # Nota: alias.c.coluna é o padrão SQLAlchemy para colunas em subqueries/unions
     stmt_final = select(
         query_union.c.id,
         query_union.c.event_at,
@@ -626,7 +450,7 @@ async def listar_historico_recente(db: AsyncSession, limit: int = 15, offset: in
     return [
         {
             "id": r.id,
-            "created_at": r.event_at, # Usando event_at para o campo created_at do schema
+            "created_at": r.event_at,
             "item_sn": r.item_sn,
             "aeronave_matricula": r.aeronave_matricula,
             "slot_nome": r.slot_nome,
@@ -635,275 +459,4 @@ async def listar_historico_recente(db: AsyncSession, limit: int = 15, offset: in
         }
         for r in rows
     ]
-
-
-async def remover_item(db: AsyncSession, instalacao_id: uuid.UUID, data_remocao: date, usuario_id: uuid.UUID | None = None) -> Instalacao:
-    """Marca uma instalação como removida."""
-    result = await db.execute(select(Instalacao).where(Instalacao.id == instalacao_id))
-    instalacao = result.scalar_one_or_none()
-    if not instalacao:
-        raise domain_exc.EntidadeNaoEncontradaError("Instalação não encontrada.")
-    
-    instalacao.data_remocao = data_remocao
-    instalacao.updated_at = func.now()
-    if usuario_id:
-        instalacao.usuario_id = usuario_id
-        
-    await db.commit()
-    return instalacao
-
-async def listar_itens(db: AsyncSession, modelo_id: uuid.UUID | None = None) -> list[ItemEquipamento]:
-    """Lista itens físicos (Serial Numbers)."""
-    stmt = select(ItemEquipamento).options(selectinload(ItemEquipamento.modelo))
-    if modelo_id:
-        stmt = stmt.where(ItemEquipamento.modelo_id == modelo_id)
-    result = await db.execute(stmt.order_by(ItemEquipamento.numero_serie))
-    return list(result.scalars().all())
-
-async def listar_vencimentos_por_item(db: AsyncSession, item_id: uuid.UUID) -> list[ControleVencimento]:
-    """Lista todos os controles de vencimento de um item específico."""
-    result = await db.execute(
-        select(ControleVencimento)
-        .where(ControleVencimento.item_id == item_id)
-        .options(selectinload(ControleVencimento.tipo_controle))
-    )
-    return list(result.scalars().all())
-
-
-async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
-    """
-    Monta a visão matricial de vencimentos (Frota x TipoEquipamento x Controle).
-
-    As COLUNAS são determinadas pelos ModeloEquipamento que possuem EquipamentoControle
-    cadastrados (ex: EGIR, ELT, VADR), NÃO pela localização/slot.
-
-    Para cada aeronave, busca qual S/N desse modelo está instalado e exibe
-    o S/N + as datas de cada controle de vencimento.
-    """
-    # 1. Buscar todos os modelos que possuem regras de controle cadastradas
-    #    (apenas esses viram colunas na matriz)
-    res_modelos = await db.execute(
-        select(ModeloEquipamento)
-        .join(EquipamentoControle, EquipamentoControle.modelo_id == ModeloEquipamento.id)
-        .options(
-            selectinload(ModeloEquipamento.controles_template)
-            .selectinload(EquipamentoControle.tipo_controle)
-        )
-        .order_by(ModeloEquipamento.nome_generico)
-        .distinct()
-    )
-    modelos = list(res_modelos.scalars().unique().all())
-
-    if not modelos:
-        return {"cabecalho": {}, "aeronaves": []}
-
-    # Construir cabeçalho: nome_generico -> [tipo_controle_nome, ...]
-    # ex: {"EGIR": ["TBO"], "ELT": ["CRI", "TBV"], "VADR": ["TBV", "RBA"]}
-    cabecalho: dict[str, list[str]] = {}
-    modelo_map: dict[uuid.UUID, ModeloEquipamento] = {}
-    for modelo in modelos:
-        nome = modelo.nome_generico
-        cabecalho[nome] = [ctrl.tipo_controle.nome for ctrl in modelo.controles_template]
-        modelo_map[modelo.id] = modelo
-
-    # 2. Buscar todas as aeronaves ativas
-    res_acft = await db.execute(
-        select(Aeronave)
-        .where(Aeronave.status != "INATIVA")
-        .order_by(Aeronave.matricula)
-    )
-    aeronaves = res_acft.scalars().all()
-
-    if not aeronaves:
-        return {"cabecalho": cabecalho, "aeronaves": []}
-
-    # 3. Carregar instalações ativas com item (SN) + slot (modelo_id) + vencimentos (bulk)
-    aeronave_ids = [a.id for a in aeronaves]
-    res_inst = await db.execute(
-        select(Instalacao)
-        .options(
-            selectinload(Instalacao.slot),   # para obter modelo_id do slot
-            selectinload(Instalacao.item)
-            .selectinload(ItemEquipamento.controles_vencimento).options(
-                selectinload(ControleVencimento.tipo_controle),
-                selectinload(ControleVencimento.prorrogacoes)
-            ),
-        )
-        .where(
-            Instalacao.aeronave_id.in_(aeronave_ids),
-            Instalacao.data_remocao.is_(None),
-        )
-    )
-    instalacoes = res_inst.scalars().all()
-
-    # Indexar: aeronave_id -> {modelo_id -> Instalacao}
-    # (para cada aeronave, qual instalação ativa existe por tipo de modelo)
-    inst_map: dict[uuid.UUID, dict[uuid.UUID, Instalacao]] = {}
-    for inst in instalacoes:
-        slot_modelo_id = inst.slot.modelo_id
-        if slot_modelo_id not in modelo_map:
-            continue  # modelo sem controles, ignorar
-        if inst.aeronave_id not in inst_map:
-            inst_map[inst.aeronave_id] = {}
-        # Se já existe outro item desse modelo na mesma aeronave (ex: 2 ELTs),
-        # mantemos a entrada existente (primeiro encontrado).
-        # Futuramente pode ser expandido para múltiplas linhas.
-        if slot_modelo_id not in inst_map[inst.aeronave_id]:
-            inst_map[inst.aeronave_id][slot_modelo_id] = inst
-
-    # 4. Montar a resposta
-    aeronaves_out = []
-    for aeronave in aeronaves:
-        acft_inst = inst_map.get(aeronave.id, {})
-        slots_out = []
-        
-        has_missing = False
-        has_vencido = False
-        has_vencendo = False
-        has_pendente = False
-
-        for modelo in modelos:
-            inst = acft_inst.get(modelo.id)
-            item = inst.item if inst else None
-
-            # Indexar vencimentos do item por nome do tipo de controle
-            venc_map: dict[str, ControleVencimento] = {}
-            if item:
-                for venc in item.controles_vencimento:
-                    venc_map[venc.tipo_controle.nome] = venc
-
-            # Montar as células de controle para este equipamento/modelo
-            controles_out = []
-            for ctrl in modelo.controles_template:
-                tipo_nome = ctrl.tipo_controle.nome
-                venc = venc_map.get(tipo_nome)
-                
-                status_final = venc.status if venc else ("FALTANTE" if not item else None)
-                prorrogado = False
-                data_nova = None
-                doc_prorrogacao = None
-
-                if venc:
-                    prorrogacao_ativa = next((p for p in venc.prorrogacoes if p.ativo), None)
-                    if prorrogacao_ativa:
-                        prorrogado = True
-                        data_nova = prorrogacao_ativa.data_nova_vencimento
-                        doc_prorrogacao = prorrogacao_ativa.numero_documento
-                        
-                        # Se passou da data prorrogada, volta a ser VENCIDO
-                        if date.today() > data_nova:
-                            status_final = "VENCIDO"
-                        else:
-                            status_final = "PRORROGADO"
-                
-                # Acumular status para a aeronave
-                if status_final == "VENCIDO": has_vencido = True
-                elif status_final == "FALTANTE": has_missing = True
-                elif status_final == "VENCENDO": has_vencendo = True
-                elif status_final == "PENDENTE": has_pendente = True
-
-                controles_out.append({
-                    "vencimento_id": str(venc.id) if venc else None,
-                    "tipo_controle_nome": tipo_nome,
-                    "data_ultima_exec": venc.data_ultima_exec.isoformat() if venc and venc.data_ultima_exec else None,
-                    "data_vencimento": venc.data_vencimento.isoformat() if venc and venc.data_vencimento else None,
-                    "status": status_final,
-                    "prorrogado": prorrogado,
-                    "data_nova_vencimento": data_nova.isoformat() if data_nova else None,
-                    "numero_documento_prorrogacao": doc_prorrogacao,
-                })
-
-            slots_out.append({
-                "sistema": modelo.nome_generico,          # Ex: "EGIR", "ELT"
-                "part_number": modelo.part_number,
-                "numero_serie": item.numero_serie if item else None,
-                "controles": controles_out,
-            })
-
-        # Determinar status_vencimento consolidado da aeronave
-        if has_vencido: status_venc = "VENCIDO"
-        elif has_missing: status_venc = "INCOMPLETA"
-        elif has_pendente: status_venc = "PENDENTE"
-        elif has_vencendo: status_venc = "VENCENDO"
-        else: status_venc = "OK"
-
-        aeronaves_out.append({
-            "aeronave_id": str(aeronave.id),
-            "matricula": aeronave.matricula,
-            "status_aeronave": aeronave.status,
-            "status_vencimento": status_venc,
-            "slots": slots_out,
-        })
-
-    return {"cabecalho": cabecalho, "aeronaves": aeronaves_out}
-
-
-async def prorrogar_vencimento(
-    db: AsyncSession, 
-    vencimento_id: uuid.UUID, 
-    dados_prorrogacao: ProrrogacaoVencimentoCreate,
-    usuario_id: uuid.UUID | None = None
-) -> ProrrogacaoVencimento:
-    """
-    Registra uma prorrogação de prazo para um controle de vencimento.
-    Desativa prorrogações ativas anteriores para o mesmo controle.
-    """
-    # Verifica se o controle existe
-    vencimento = await db.get(ControleVencimento, vencimento_id)
-    if not vencimento:
-        raise domain_exc.NotFoundError(detail="Vencimento não encontrado.")
-        
-    # Desativar prorrogações anteriores ativas
-    await db.execute(
-        ProrrogacaoVencimento.__table__.update()
-        .where(
-            and_(
-                ProrrogacaoVencimento.controle_id == vencimento_id,
-                ProrrogacaoVencimento.ativo == True
-            )
-        )
-        .values(ativo=False)
-    )
-    
-    # Criar nova prorrogação
-    nova_prorrogacao = ProrrogacaoVencimento(
-        controle_id=vencimento_id,
-        numero_documento=dados_prorrogacao.numero_documento,
-        data_concessao=dados_prorrogacao.data_concessao,
-        data_nova_vencimento=vencimento.data_vencimento + relativedelta(days=dados_prorrogacao.dias_adicionais) if vencimento.data_vencimento else dados_prorrogacao.data_concessao + relativedelta(days=dados_prorrogacao.dias_adicionais),
-        dias_adicionais=dados_prorrogacao.dias_adicionais,
-        motivo=dados_prorrogacao.motivo,
-        observacao=dados_prorrogacao.observacao,
-        registrado_por_id=usuario_id,
-        ativo=True
-    )
-    
-    # Se a data de vencimento base não existia (o que seria estranho para prorrogar),
-    # data_nova_vencimento foi baseada na concessao
-    # O status agora passa a ser tratado dinamicamente no frontend ou na resposta da matriz
-    # mas mantemos o status real como estava, ou podemos atualizar se desejado.
-    # O conceito é não tocar no data_vencimento nem no status raiz (ou podemos deixá-lo VENCIDO).
-    
-    db.add(nova_prorrogacao)
-    await db.commit()
-    await db.refresh(nova_prorrogacao)
-    return nova_prorrogacao
-
-
-async def cancelar_prorrogacao(db: AsyncSession, vencimento_id: uuid.UUID) -> bool:
-    """
-    Cancela (desativa) a prorrogação ativa de um controle de vencimento.
-    """
-    result = await db.execute(
-        ProrrogacaoVencimento.__table__.update()
-        .where(
-            and_(
-                ProrrogacaoVencimento.controle_id == vencimento_id,
-                ProrrogacaoVencimento.ativo == True
-            )
-        )
-        .values(ativo=False)
-    )
-    await db.commit()
-    return result.rowcount > 0
 

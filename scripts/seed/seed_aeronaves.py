@@ -20,7 +20,7 @@ async def run(session: AsyncSession):
                 matricula=matricula,
                 serial_number=f"SN-{matricula}",
                 modelo="A-29",
-                status="OPERACIONAL"
+                status="DISPONIVEL"
             )
             session.add(acft)
             print(f"   + Aeronave {matricula} adicionada.")

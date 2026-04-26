@@ -86,7 +86,7 @@ O banco de dados atual do SAA29 possui os seguintes domínios:
 | `serial_number` | String(50) | UNIQUE, NOT NULL, INDEX | Numero de serie |
 | `matricula` | String(20) | UNIQUE, NOT NULL, INDEX | Matricula operacional |
 | `modelo` | String(50) | NOT NULL, default `A-29` | Modelo da aeronave |
-| `status` | String(20) | NOT NULL, default `OPERACIONAL` | `OPERACIONAL` \| `INDISPONIVEL` \| `INSPEÇÃO` \| `ESTOCADA` \| `INATIVA` |
+| `status` | String(20) | NOT NULL, default `DISPONIVEL` | `DISPONIVEL` \| `INDISPONIVEL` \| `INSPEÇÃO` \| `ESTOCADA` \| `INATIVA` |
 | `created_at` | DateTime tz | NOT NULL, default `now()` | Auditoria |
 | `updated_at` | DateTime tz | nullable, onupdate `now()` | Auditoria |
 
@@ -175,7 +175,7 @@ Arquivo base: `app/modules/equipamentos/models.py` (compartilhado com equipament
 | `tipo_controle_id` | UUID | FK -> `tipos_controle.id`, NOT NULL | Referência ao tipo |
 | `data_ultima_exec` | Date | nullable | Última execução real |
 | `data_vencimento` | Date | nullable, INDEX | Próximo vencimento |
-| `status` | String(20) | NOT NULL, default `PENDENTE` | `OK` \| `VENCENDO` \| `VENCIDO` \| `PENDENTE` |
+| `status` | String(20) | NOT NULL, default `OK` | `OK` \| `VENCENDO` \| `VENCIDO` \| `PRORROGADO` |
 | `origem` | String(20) | NOT NULL, default `PADRAO` | `PADRAO` \| `ESPECIFICO` |
 | `created_at` | DateTime tz | default `now()` | Auditoria |
 *Restrição: UNIQUE(item_id, tipo_controle_id).*

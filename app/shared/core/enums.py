@@ -26,10 +26,9 @@ class StatusItem(str, enum.Enum):
 class StatusVencimento(str, enum.Enum):
     """Status de um controle de vencimento de manutenção."""
     OK = "OK"
-    VENCENDO = "VENCENDO"   # próximo ao vencimento (threshold configurável)
+    VENCENDO = "VENCENDO"
     VENCIDO = "VENCIDO"
-    FALTANTE = "FALTANTE"   # item desinstalado mas o controle é obrigatório
-    PENDENTE = "PENDENTE"   # item instalado mas sem registro de execução
+    PRORROGADO = "PRORROGADO"
 
 
 class OrigemControle(str, enum.Enum):
@@ -56,7 +55,7 @@ class TipoPapel(str, enum.Enum):
 
 class StatusAeronave(str, enum.Enum):
     """Status operacional de uma aeronave."""
-    OPERACIONAL = "OPERACIONAL"
+    DISPONIVEL = "DISPONIVEL"
     INDISPONIVEL = "INDISPONIVEL"
     INSPECAO = "INSPEÇÃO"
     ESTOCADA = "ESTOCADA"
@@ -67,3 +66,12 @@ class TipoAnexo(str, enum.Enum):
     """Tipo de arquivo permitido como anexo de pane."""
     IMAGEM = "IMAGEM"
     DOCUMENTO = "DOCUMENTO"
+
+
+class TipoIndisponibilidade(str, enum.Enum):
+    """Motivos para a indisponibilidade de um mantenedor."""
+    FERIAS = "FERIAS"
+    DISPENSA = "DISPENSA"
+    FOLGA = "FOLGA"
+    SERVICO = "SERVIÇO"
+    OUTRO = "OUTRO"
