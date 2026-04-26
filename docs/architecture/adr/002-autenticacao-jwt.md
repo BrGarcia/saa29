@@ -61,5 +61,5 @@ Implementacao atual:
 - [`app/modules/auth/security.py`](../../../app/modules/auth/security.py)
 - [`app/modules/auth/router.py`](../../../app/modules/auth/router.py)
 - [`app/modules/auth/models.py`](../../../app/modules/auth/models.py)
-- [`docs/architecture/03_MODEL_DB.md`](../03_MODEL_DB.md)
+- [`docs/architecture/Database.md`](../Database.md)
 - [`docs/SECURITY.md`](../../SECURITY.md)

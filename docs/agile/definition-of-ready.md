@@ -15,7 +15,7 @@ A **Definition of Ready** define quando uma história ou tarefa está **pronta p
 ### ✅ Referências
 - [ ] A tarefa referencia o(s) requisito(s) do SRS (RF-XX ou RN-XX) quando aplicável
 - [ ] O algoritmo correspondente em `01_SPECS.md` foi lido pelo desenvolvedor
-- [ ] O modelo de dados em `03_MODEL_DB.md` foi revisado se envolver banco
+- [ ] O modelo de dados em `Database.md` foi revisado se envolver banco
 
 ### ✅ Tamanho
 - [ ] A tarefa é realizável em **1 sessão de trabalho** (≤ 4 horas)
@@ -51,7 +51,7 @@ Descreva o que deve acontecer (não como implementar).
 
 ### Referências
 - [01_SPECS.md §3 – Fluxo de Criação de Pane](../requirements/01_SPECS.md)
-- [03_MODEL_DB.md §2.9 – Panes](../architecture/03_MODEL_DB.md)
+- [Database.md §2.9 – Panes](../architecture/Database.md)
 ```
 
 ---

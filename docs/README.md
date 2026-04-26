@@ -83,7 +83,7 @@ O codigo fonte esta organizado em:
 ### Arquitetura
 
 - [overview.md](./architecture/overview.md)
-- [03_MODEL_DB.md](./architecture/03_MODEL_DB.md)
+- [Database.md](./architecture/Database.md)
 - [ADR-001 - Stack Tecnologica](./architecture/adr/001-stack-tecnologica.md)
 - [ADR-002 - Autenticacao JWT](./architecture/adr/002-autenticacao-jwt.md)
 - [ADR-003 - Controles de Vencimento](./architecture/adr/003-heranca-controles-vencimento.md)

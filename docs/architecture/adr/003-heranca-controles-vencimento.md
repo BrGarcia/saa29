@@ -53,4 +53,4 @@ Fluxo atual:
 
 - [`app/modules/equipamentos/service.py`](../../../app/modules/equipamentos/service.py)
 - [`app/modules/equipamentos/models.py`](../../../app/modules/equipamentos/models.py)
-- [`docs/architecture/03_MODEL_DB.md`](../03_MODEL_DB.md)
+- [`docs/architecture/Database.md`](../Database.md)

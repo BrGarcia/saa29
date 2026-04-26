@@ -244,6 +244,6 @@ Nunca faça commit do arquivo `.env`. O arquivo `.env.example` é o template ver
 
 - **SRS:** [`00_SRS.md`](./docs/requirements/00_SRS.md) — Requisitos funcionais e não funcionais
 - **Algoritmos:** [`01_SPECS.md`](./docs/requirements/01_SPECS.md) — Fluxos e algoritmos detalhados
-- **Modelo de Dados:** [`03_MODEL_DB.md`](./docs/architecture/03_MODEL_DB.md) — Entidades, relações e regras de negócio
+- **Modelo de Dados:** [`Database.md`](./docs/architecture/Database.md) — Entidades, relações e regras de negócio
 - **Metodologia:** [`04_AKITA.MD`](./docs/methodology/04_AKITA.MD) — Método Akita completo
 - **API Docs:** `http://localhost:8000/docs` (após subir o servidor)
