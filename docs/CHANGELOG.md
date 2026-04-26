@@ -9,10 +9,14 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 ## [Unreleased]
 
 ### Added
+- Módulo `efetivo` criado para gerenciamento de indisponibilidades do pessoal (férias, dispensa, etc.).
 - Sincronizacao da documentacao principal com a estrutura atual do repositorio.
 - Cobertura de arquitetura, API, requisitos e guias de desenvolvimento alinhada ao estado real do projeto.
 
 ### Changed
+- Refatoração arquitetural (Fase 1, 2 e 3 concluidas): Extração das lógicas temporais e regras de manutenção do módulo `equipamentos` para o novo módulo especializado `vencimentos`.
+- Unificação do status operacional das aeronaves para `DISPONIVEL` e `INDISPONIVEL` em todo o sistema.
+- Refatoração do script de inicialização do banco (`init_db.py`) e dos seeds de desenvolvimento para suportar a nova hierarquia do SQLAlchemy Registry.
 - `README.md` reescrito para refletir a arquitetura monolitica modular, o bootstrap em `app/bootstrap/main.py`, os scripts reais e a lista atual de modulos.
 - Referencias de setup e execucao ajustadas para `scripts/run_app.py`, `scripts/db/init_db.py` e `scripts/db/seed.py`.
 

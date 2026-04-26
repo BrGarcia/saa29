@@ -18,10 +18,10 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 try:
-    from scripts.seed.seed_equipamentos import garantir_catalogo_e_slots
+    from scripts.seed import seed_equipamentos
 except (ImportError, ModuleNotFoundError):
     # Fallback para execução direta via python -m scripts.db.init_db
-    from scripts.seed.seed_equipamentos import garantir_catalogo_e_slots
+    from scripts.seed import seed_equipamentos
 
 from app.bootstrap.database import get_session_factory
 from app.modules.auth.security import hash_senha
@@ -118,7 +118,7 @@ async def init_db():
                 print(f"✅ Aeronave {matricula} adicionada.")
 
         # 3. Garantir catálogo base de equipamentos (sem serial/instalação)
-        await garantir_catalogo_e_slots(session, create_sample_items=False)
+        await seed_equipamentos.run(session)
 
         await session.commit()
         print(f"🚀 Inicialização do Banco concluída!")

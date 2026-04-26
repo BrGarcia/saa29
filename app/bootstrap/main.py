@@ -222,9 +222,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
 
     # Shutdown: backup final se houver dados não persistidos no R2
-    if _db_dirty and current_settings.storage_backend.lower() == "r2" and current_settings.r2_bucket_name:
-        logging.info("[R2 Backup] Shutdown com dados não salvos — executando backup final...")
-        _run_r2_backup()
+    # (Desabilitado temporariamente para testes locais com banco zerado)
+    # if _db_dirty and current_settings.storage_backend.lower() == "r2" and current_settings.r2_bucket_name:
+    #     logging.info("[R2 Backup] Shutdown com dados não salvos — executando backup final...")
+    #     _run_r2_backup()
 
     # Fechar engine de banco de dados
     from app.bootstrap.database import _engine

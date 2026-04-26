@@ -22,8 +22,10 @@ from app.bootstrap.config import get_settings
 
 # Módulos de models (garante que as tabelas estejam no metadata)
 import app.modules.auth.models         # noqa: F401
+import app.modules.efetivo.models      # noqa: F401
 import app.modules.aeronaves.models    # noqa: F401
 import app.modules.equipamentos.models # noqa: F401
+import app.modules.vencimentos.models  # noqa: F401
 import app.modules.panes.models        # noqa: F401
 
 # Objeto de metadata que o Alembic usará para detectar mudanças

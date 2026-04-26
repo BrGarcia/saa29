@@ -17,10 +17,11 @@ echo "📦 Verificando/Instalando dependências (Auto-update)..."
 pip install --no-cache-dir -r requirements.txt
 
 # 0. Restaurar backup do R2 (se configurado)
-if [ -n "$R2_BUCKET_NAME" ]; then
-    echo "🔄 Restaurando banco de dados do Cloudflare R2..."
-    python scripts/maintenance/r2_manager.py restore
-fi
+# (Desabilitado temporariamente para testes locais com banco zerado)
+# if [ -n "$R2_BUCKET_NAME" ]; then
+#     echo "🔄 Restaurando banco de dados do Cloudflare R2..."
+#     python scripts/maintenance/r2_manager.py restore
+# fi
 
 # 1. Executar migrações do banco
 echo "🔄 Rodando migrações (Alembic)..."
