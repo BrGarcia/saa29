@@ -16,8 +16,7 @@ load_dotenv()
 
 from sqlalchemy import select
 from app.bootstrap.database import get_session_factory, get_engine, Base
-from app.modules.auth.security import hash_senha
-from app.modules.auth.models import Usuario
+from app.modules.auth.service import garantir_usuarios_essenciais
 from app.modules.aeronaves.models import Aeronave
 from app.modules.panes.models import Pane
 from app.modules.equipamentos.models import (
@@ -38,24 +37,10 @@ async def reset_db():
 async def seed():
     AsyncSessionLocal = get_session_factory()
     async with AsyncSessionLocal() as session:
-        # 1. Admin
-        admin_pass = os.getenv("DEFAULT_ADMIN_PASSWORD")
-        admin_user = os.getenv("DEFAULT_ADMIN_USER", "admin")
-        
-        if not admin_pass:
-            raise ValueError("CRITICAL: DEFAULT_ADMIN_PASSWORD não configurada no .env")
-
-        print(f"Criando admin: {admin_user}...")
-        admin = Usuario(
-            nome="Administrador Sistema",
-            posto="Cap",
-            especialidade="ENG",
-            funcao="ADMINISTRADOR",
-            ramal="1234",
-            username=admin_user,
-            senha_hash=hash_senha(admin_pass),
-        )
-        session.add(admin)
+        # 1. Usuários (Admin e Teste)
+        print("Povoando usuários essenciais...")
+        await garantir_usuarios_essenciais(session)
+        await session.flush()
 
         # 2. Tipos de Controle
         print("Criando tipos de controle...")

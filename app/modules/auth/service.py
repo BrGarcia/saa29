@@ -204,3 +204,62 @@ async def restaurar_usuario(
     usuario.ativo = True
     await db.flush()
     return usuario
+
+
+async def garantir_usuarios_essenciais(db: AsyncSession) -> None:
+    """
+    Garante que os usuários vitais (Admin) e de teste existam.
+    Esta função centraliza a lógica que antes estava espalhada em scripts de fix/seed.
+    """
+    import os
+    from app.modules.auth.models import Usuario
+    from app.modules.auth.security import hash_senha
+    from sqlalchemy import select
+
+    # 1. Garantir Admin Oficial (via .env)
+    admin_user = os.getenv("DEFAULT_ADMIN_USER", "admin").strip()
+    admin_pass = os.getenv("DEFAULT_ADMIN_PASSWORD")
+
+    if admin_pass:
+        res = await db.execute(select(Usuario).where(Usuario.username == admin_user))
+        admin = res.scalar_one_or_none()
+        if not admin:
+            print(f"AuthService: Criando admin padrão ({admin_user})...")
+            admin = Usuario(
+                nome="Administrador Sistema",
+                posto="Cap",
+                especialidade="ENG",
+                funcao="ADMINISTRADOR",
+                ramal="1234",
+                username=admin_user,
+                senha_hash=hash_senha(admin_pass),
+            )
+            db.add(admin)
+        else:
+            # Garantir que o admin tenha o papel correto
+            if admin.funcao != "ADMINISTRADOR":
+                admin.funcao = "ADMINISTRADOR"
+                print(f"AuthService: Corrigindo papel do admin para ADMINISTRADOR.")
+
+    # 2. Garantir Usuários de Teste (apenas se APP_ENV for development)
+    if os.getenv("APP_ENV") == "development":
+        usuarios_teste = [
+            ("encarregado", "ENCARREGADO", "Chefe de Linha", "Cap"),
+            ("mantenedor", "MANTENEDOR", "Técnico Especialista", "Sgt"),
+        ]
+        for user, role, nome, posto in usuarios_teste:
+            res = await db.execute(select(Usuario).where(Usuario.username == user))
+            if not res.scalar_one_or_none():
+                print(f"AuthService: Criando usuário de teste ({user})...")
+                u = Usuario(
+                    nome=nome,
+                    posto=posto,
+                    especialidade="BMB",
+                    funcao=role,
+                    ramal="0000",
+                    username=user,
+                    senha_hash=hash_senha("123"),
+                )
+                db.add(u)
+    
+    await db.flush()

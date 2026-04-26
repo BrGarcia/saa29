@@ -18,14 +18,10 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 try:
-    from scripts.seed_equipamentos import garantir_catalogo_e_slots
+    from scripts.seed.seed_equipamentos import garantir_catalogo_e_slots
 except (ImportError, ModuleNotFoundError):
-    try:
-        from seed_equipamentos import garantir_catalogo_e_slots
-    except (ImportError, ModuleNotFoundError):
-        # Caso especial para execução dentro de scripts/db/
-        sys.path.append(str(ROOT_DIR / "scripts"))
-        from seed_equipamentos import garantir_catalogo_e_slots
+    # Fallback para execução direta via python -m scripts.db.init_db
+    from scripts.seed.seed_equipamentos import garantir_catalogo_e_slots
 
 from app.bootstrap.database import get_session_factory
 from app.modules.auth.security import hash_senha
@@ -56,51 +52,13 @@ def _env_flag(name: str, default: bool = False) -> bool:
     return raw_value.strip().lower() in {"1", "true", "yes", "on"}
 
 async def init_db():
-    # DEFAULT_ADMIN_PASSWORD MUST be set for security
-    admin_pass = os.getenv("DEFAULT_ADMIN_PASSWORD")
-    if not admin_pass:
-        raise ValueError(
-            "CRITICAL: DEFAULT_ADMIN_PASSWORD environment variable is not set.\n"
-            "  - This is required for security (no hardcoded fallback).\n"
-            "  - Set it before running init_db.py\n"
-            "  - Example: export DEFAULT_ADMIN_PASSWORD='your_secure_password'"
-        )
-    
-    admin_user = os.getenv("DEFAULT_ADMIN_USER", "admin").strip()
-    admin_pass = admin_pass.strip()
-    
     AsyncSessionLocal = get_session_factory()
     async with AsyncSessionLocal() as session:
-        # 1. Garantir Usuário Admin
-        # COR-BOOT: Primeiro busca pelo username configurado. Se não achar,
-        # verifica se já existe qualquer ADMINISTRADOR no banco (banco restaurado do R2
-        # pode ter um admin com username diferente da variável de ambiente atual).
-        result = await session.execute(select(Usuario).where(Usuario.username == admin_user))
-        admin_existente = result.scalar_one_or_none()
-
-        if not admin_existente:
-            # Verifica se já existe qualquer administrador (evita duplicata ao restaurar DB do R2)
-            result_any = await session.execute(
-                select(Usuario).where(Usuario.funcao == "ADMINISTRADOR")
-            )
-            admin_qualquer = result_any.scalar_one_or_none()
-
-            if admin_qualquer:
-                print(f"ℹ️ Admin já existe com username '{admin_qualquer.username}'. Nenhum novo admin criado.")
-            else:
-                print(f"➕ Criando usuário mestre: {admin_user}...")
-                admin = Usuario(
-                    nome="Administrador Sistema",
-                    posto="MAJ",
-                    especialidade="ELE",
-                    funcao="ADMINISTRADOR",
-                    ramal="1234",
-                    username=admin_user,
-                    senha_hash=hash_senha(admin_pass),
-                )
-                session.add(admin)
-        else:
-            print(f"ℹ️ Usuário {admin_user} já existe.")
+        # 1. Garantir Usuários (Admin e Teste se dev)
+        from app.modules.auth.service import garantir_usuarios_essenciais
+        print("Garantindo usuários essenciais...")
+        await garantir_usuarios_essenciais(session)
+        await session.flush()
 
         # 1.1 Usuários de teste só podem ser criados com flag explícita
         app_env = os.getenv("APP_ENV", "production").strip().lower()
