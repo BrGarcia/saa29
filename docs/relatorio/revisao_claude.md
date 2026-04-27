@@ -1,4 +1,4 @@
-# Revisão Externa — SAA29
+﻿﻿# Revisão Externa — SAA29
 
 **Auditor:** Claude Opus 4.6  
 **Data:** 2026-04-27  
@@ -124,7 +124,7 @@ Substituir interpolações diretas por `escapeHtml(valor)` em todas as inserçõ
 
 ---
 
-#### H-03 · Token de Acesso Exposto no Body da Resposta de Login
+#### H-03 · Token de Acesso Exposto no Body da Resposta de Login (✅ Corrigido)
 
 | Campo | Valor |
 |:---|:---|
@@ -140,7 +140,7 @@ Remover `access_token` do body da resposta de login. O frontend deve usar apenas
 
 ---
 
-#### H-04 · Refresh Token Exposto Sem Proteção HttpOnly
+#### H-04 · Refresh Token Exposto Sem Proteção HttpOnly (✅ Corrigido)
 
 | Campo | Valor |
 |:---|:---|
@@ -156,7 +156,7 @@ Transportar o refresh token em cookie HttpOnly separado (`saa29_refresh_token`),
 
 ---
 
-#### H-05 · JWT Expiry de 480 Minutos no `.env`
+#### H-05 · JWT Expiry de 480 Minutos no `.env` (✅ Corrigido)
 
 | Campo | Valor |
 |:---|:---|
@@ -172,7 +172,7 @@ Reduzir `JWT_EXPIRE_MINUTES` para 15 no `.env` e confiar no fluxo de refresh tok
 
 ---
 
-#### H-06 · `ajustar_inventario` Sem Controle de Acesso (RBAC)
+#### H-06 · `ajustar_inventario` Sem Controle de Acesso (RBAC) (✅ Corrigido)
 
 | Campo | Valor |
 |:---|:---|
@@ -200,7 +200,7 @@ Alterar para `_: EncarregadoOuAdmin`.
 
 ---
 
-#### M-01 · Erro de Lógica na Catch-All do Refresh Token
+#### M-01 · Erro de Lógica na Catch-All do Refresh Token (✅ Corrigido)
 
 | Campo | Valor |
 |:---|:---|
@@ -222,7 +222,7 @@ except Exception as e:
 
 ---
 
-#### M-02 · Double Commit na Dependency `get_db`
+#### M-02 · Double Commit na Dependency `get_db` (✅ Corrigido)
 
 | Campo | Valor |
 |:---|:---|
@@ -238,7 +238,7 @@ Padronizar: usar `flush()` nos services e deixar o `get_db` commitar, ou remover
 
 ---
 
-#### M-03 · SQL Injection via `ilike` sem Escape no Inventário
+#### M-03 · SQL Injection via `ilike` sem Escape no Inventário (✅ Corrigido)
 
 | Campo | Valor |
 |:---|:---|
@@ -262,7 +262,7 @@ nome_escaped = _escape_like(nome)
 
 ---
 
-#### M-04 · Senha de Admin Hardcoded no `.env`
+#### M-04 · Senha de Admin Hardcoded no `.env` (✅ Corrigido)
 
 | Campo | Valor |
 |:---|:---|
@@ -278,7 +278,7 @@ Usar senha gerada aleatoriamente para desenvolvimento. Adicionar validação de 
 
 ---
 
-#### M-05 · Ausência de Limpeza de Tokens Expirados (Blacklist/Refresh)
+#### M-05 · Ausência de Limpeza de Tokens Expirados (Blacklist/Refresh) (✅ Corrigido)
 
 | Campo | Valor |
 |:---|:---|
@@ -294,7 +294,7 @@ Criar um job periódico (pode ser no `lifespan` ou via cron) que delete registro
 
 ---
 
-#### M-06 · Frontend Auth Check Apenas por `localStorage`
+#### M-06 · Frontend Auth Check Apenas por `localStorage` (✅ Corrigido)
 
 | Campo | Valor |
 |:---|:---|
@@ -310,7 +310,7 @@ Validar o papel do usuário no backend ao renderizar as rotas protegidas (middle
 
 ---
 
-#### M-07 · Backup R2 Executado Via `subprocess` Síncrono em Contexto Async
+#### M-07 · Backup R2 Executado Via `subprocess` Síncrono em Contexto Async (✅ Corrigido)
 
 | Campo | Valor |
 |:---|:---|
@@ -326,7 +326,7 @@ Usar `asyncio.create_subprocess_exec()` ou `anyio.run_process()` para manter o b
 
 ---
 
-#### M-08 · Variável `ext` Sobreescrita no `file_validators.py`
+#### M-08 · Variável `ext` Sobreescrita no `file_validators.py` (✅ Corrigido)
 
 | Campo | Valor |
 |:---|:---|
@@ -354,7 +354,7 @@ allowed_extensions = [e for exts in ALLOWED_MIME_TYPES.values() for e in exts]
 
 ---
 
-#### L-01 · `Aeronave.status` Não Usa Enum no Modelo
+#### L-01 · `Aeronave.status` Não Usa Enum no Modelo (✅ Corrigido)
 
 | Campo | Valor |
 |:---|:---|
@@ -370,7 +370,7 @@ Usar `StatusAeronave.INATIVA.value` nas comparações e idealmente trocar o tipo
 
 ---
 
-#### L-02 · `pane_id` Não Validado para Responsabilidade no Upload
+#### L-02 · `pane_id` Não Validado para Responsabilidade no Upload (✅ Corrigido)
 
 | Campo | Valor |
 |:---|:---|
@@ -379,11 +379,11 @@ Usar `StatusAeronave.INATIVA.value` nas comparações e idealmente trocar o tipo
 | **Localização** | `app/modules/panes/router.py` L180-201 |
 
 **Descrição:**  
-No upload de anexo, o `pane_id` vem da URL e o serviço valida a existência da pane, mas um usuário autenticado pode fazer upload de anexos em **qualquer** pane aberta, mesmo que não seja responsável por ela. Isso pode ser intencional no workflow atual, mas vale documentar.
+No upload de anexo, o `pane_id` vem da URL e o serviço valida a existência da pane, mas um usuário autenticado pode fazer upload de anexos em **qualquer** pane aberta, mesmo que não seja responsável por ela. Isso foi confirmado como intencional no workflow atual de manutenção para permitir a colaboração de equipes (documentado).
 
 ---
 
-#### L-03 · Módulo `_engine` Importado Diretamente no `lifespan`
+#### L-03 · Módulo `_engine` Importado Diretamente no `lifespan` (✅ Corrigido)
 
 | Campo | Valor |
 |:---|:---|
@@ -399,7 +399,7 @@ Expor uma função `dispose_engine()` no módulo `database.py`.
 
 ---
 
-#### L-04 · Verificação Duplicada de Matrícula no Frontend
+#### L-04 · Verificação Duplicada de Matrícula no Frontend (✅ Corrigido)
 
 | Campo | Valor |
 |:---|:---|
@@ -415,7 +415,7 @@ Remover a verificação client-side e confiar no backend (HTTP 409 já tratado n
 
 ---
 
-#### L-05 · Service de Vencimentos Sem Tipagem Explícita
+#### L-05 · Service de Vencimentos Sem Tipagem Explícita (✅ Corrigido)
 
 | Campo | Valor |
 |:---|:---|
@@ -431,7 +431,7 @@ Tipar explicitamente todos os parâmetros com os schemas correspondentes.
 
 ---
 
-#### L-06 · `database_url` Default Aponta para Caminho Sem Extensão
+#### L-06 · `database_url` Default Aponta para Caminho Sem Extensão (✅ Corrigido)
 
 | Campo | Valor |
 |:---|:---|
@@ -472,3 +472,5 @@ A auditoria também registra práticas de segurança **bem implementadas**:
 8. ✅ **Rate Limiting** — Login protegido com 5/minute via SlowAPI
 9. ✅ **Security Headers** — X-Content-Type-Options, X-Frame-Options, HSTS (em produção)
 10. ✅ **SQLite Pragmas** — FK enforcement, WAL mode e synchronous=NORMAL configurados
+
+

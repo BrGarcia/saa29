@@ -79,3 +79,10 @@ async def drop_all_tables() -> None:
     """Remove todas as tabelas."""
     async with get_engine().begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+
+async def dispose_engine() -> None:
+    """Libera a engine de banco de dados."""
+    global _engine
+    if _engine is not None:
+        await _engine.dispose()

@@ -61,6 +61,12 @@ async def inventario_page(request: Request):
     return templates.TemplateResponse("inventario.html", {"request": request})
 
 
+@router.get("/inspecoes", response_class=HTMLResponse, include_in_schema=False)
+async def inspecoes_page(request: Request):
+    """Módulo de Inspeções (Em breve)"""
+    return templates.TemplateResponse("inspecoes.html", {"request": request})
+
+
 @router.get("/vencimentos", response_class=HTMLResponse, include_in_schema=False)
 async def vencimentos_page(request: Request):
     """Visualização do Controle de Vencimentos da Frota"""

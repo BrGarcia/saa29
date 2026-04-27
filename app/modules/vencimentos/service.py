@@ -19,11 +19,11 @@ from app.modules.vencimentos.models import (
     ProrrogacaoVencimento,
 )
 from app.modules.vencimentos.schemas import (
-    TipoControleCreate,
+    TipoControleCreate, TipoControleUpdate,
     ProrrogacaoVencimentoCreate,
 )
 from app.shared.core import exceptions as domain_exc
-from app.shared.core.enums import StatusVencimento
+from app.shared.core.enums import StatusVencimento, StatusAeronave
 
 async def listar_tipos_controle(db: AsyncSession) -> list[TipoControle]:
     result = await db.execute(select(TipoControle).order_by(TipoControle.nome))
@@ -35,10 +35,10 @@ async def criar_tipo_controle(db: AsyncSession, dados: TipoControleCreate) -> Ti
         raise ValueError(f"Tipo de controle '{dados.nome}' já existe.")
     tipo = TipoControle(nome=dados.nome.upper(), descricao=dados.descricao)
     db.add(tipo)
-    await db.commit()
+    await db.flush()
     return tipo
 
-async def atualizar_tipo_controle(db: AsyncSession, tipo_id: uuid.UUID, dados) -> TipoControle:
+async def atualizar_tipo_controle(db: AsyncSession, tipo_id: uuid.UUID, dados: TipoControleUpdate) -> TipoControle:
     result = await db.execute(select(TipoControle).where(TipoControle.id == tipo_id))
     tipo = result.scalar_one_or_none()
     if not tipo:
@@ -53,7 +53,7 @@ async def atualizar_tipo_controle(db: AsyncSession, tipo_id: uuid.UUID, dados) -
         tipo.nome = novo_nome
     if dados.descricao is not None:
         tipo.descricao = dados.descricao
-    await db.commit()
+    await db.flush()
     return tipo
 
 async def associar_controle_a_equipamento(
@@ -124,7 +124,7 @@ async def remover_controle_de_equipamento(
     assoc = result.scalar_one_or_none()
     if assoc:
         await db.delete(assoc)
-        await db.commit()
+        await db.flush()
 
 async def registrar_execucao(db: AsyncSession, vencimento_id: uuid.UUID, data_exec: date) -> ControleVencimento:
     result = await db.execute(
@@ -206,7 +206,7 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
 
     res_acft = await db.execute(
         select(Aeronave)
-        .where(Aeronave.status != "INATIVA")
+        .where(Aeronave.status != StatusAeronave.INATIVA)
         .order_by(Aeronave.matricula)
     )
     aeronaves = res_acft.scalars().all()
@@ -358,7 +358,7 @@ async def prorrogar_vencimento(
     )
     
     db.add(nova_prorrogacao)
-    await db.commit()
+    await db.flush()
     await db.refresh(nova_prorrogacao)
     return nova_prorrogacao
 
@@ -373,5 +373,5 @@ async def cancelar_prorrogacao(db: AsyncSession, vencimento_id: uuid.UUID) -> bo
         )
         .values(ativo=False)
     )
-    await db.commit()
+    await db.flush()
     return result.rowcount > 0

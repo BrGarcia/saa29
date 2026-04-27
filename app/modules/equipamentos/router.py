@@ -200,7 +200,7 @@ async def listar_inventario(
 async def ajustar_inventario(
     dados: schemas.AjusteInventarioCreate,
     db: DBSession,
-    _: CurrentUser,
+    _: EncarregadoOuAdmin,
 ):
     """
     Ajusta o número de série físico de um equipamento.

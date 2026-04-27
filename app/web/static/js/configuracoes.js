@@ -83,16 +83,6 @@ async function criarAeronave(e) {
     const status = document.getElementById("statusInput").value;
 
     try {
-        // Verificar se já existe a matrícula antes de salvar
-        const existentes = await apiFetch(`/aeronaves/?limit=1000&incluir_inativas=true`);
-        const jaExiste = existentes.some(a => a.matricula === matricula);
-        
-        if (jaExiste) {
-            showToast(`A matrícula ${matricula} já está cadastrada no sistema.`, "error");
-            btn.disabled = false;
-            return;
-        }
-
         await apiFetch("/aeronaves/", {
             method: "POST",
             body: {

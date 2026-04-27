@@ -139,10 +139,12 @@ async def listar_inventario_aeronave(
 
     stmt_slots = select(SlotInventario).options(selectinload(SlotInventario.modelo))
     if nome:
+        from app.modules.panes.service import _escape_like
+        nome_escaped = _escape_like(nome)
         stmt_slots = stmt_slots.join(ModeloEquipamento).where(
             or_(
-                SlotInventario.nome_posicao.ilike(f"%{nome}%"),
-                ModeloEquipamento.nome_generico.ilike(f"%{nome}%")
+                SlotInventario.nome_posicao.ilike(f"%{nome_escaped}%", escape="\\"),
+                ModeloEquipamento.nome_generico.ilike(f"%{nome_escaped}%", escape="\\")
             )
         )
     
@@ -275,7 +277,7 @@ async def ajustar_inventario_item(
     await _efetivar_troca_no_slot(db, inst_atual, item_real, dados)
     
     try:
-        await db.commit()
+        await db.flush()
     except Exception as e:
         await db.rollback()
         if "FOREIGN KEY constraint failed" in str(e):
@@ -379,7 +381,7 @@ async def instalar_item(
         created_at=func.now()
     )
     db.add(instalacao)
-    await db.commit()
+    await db.flush()
     return instalacao
 
 async def remover_item(db: AsyncSession, instalacao_id: uuid.UUID, data_remocao: date, usuario_id: uuid.UUID | None = None) -> Instalacao:
@@ -393,7 +395,7 @@ async def remover_item(db: AsyncSession, instalacao_id: uuid.UUID, data_remocao:
     if usuario_id:
         instalacao.usuario_id = usuario_id
         
-    await db.commit()
+    await db.flush()
     return instalacao
 
 async def listar_historico_recente(db: AsyncSession, limit: int = 15, offset: int = 0) -> list[dict]:

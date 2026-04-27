@@ -80,10 +80,20 @@ async def login(
         max_age=15*60,  # 15 minutos
         secure=secure
     )
+    
+    response.set_cookie(
+        key="saa29_refresh_token",
+        value=refresh_token_str,
+        httponly=True,
+        samesite="lax",
+        max_age=7*24*60*60,  # 7 dias
+        path="/auth/refresh",
+        secure=secure
+    )
 
     return schemas.Token(
-        access_token=access_token,
-        refresh_token=refresh_token_str,
+        access_token="hidden",
+        refresh_token="hidden",
         token_type="bearer",
         usuario=schemas.UsuarioOut.model_validate(usuario),
     )
@@ -96,25 +106,34 @@ async def login(
     description="Usa um refresh token válido para obter um novo access token (15 min)",
 )
 async def refresh_access_token(
+    request: Request,
+    response: Response,
     db: DBSession,
-    request_data: schemas.RefreshTokenRequest,
 ) -> schemas.Token:
     """
     Fluxo de refresh:
-        1. Client envia refresh token válido
+        1. Client envia refresh token válido via cookie
         2. Validar e decodificar refresh token
         3. Buscar usuário correspondente
         4. Gerar novo access token
-        5. Opcionalmente gerar novo refresh token (rotate)
+        5. Opcionalmente gerar novo refresh token (rotate) e setar nos cookies
     """
     from app.modules.auth.security import decodificar_token, criar_refresh_token
     from app.modules.auth.models import TokenRefresh
     from datetime import datetime, timezone, timedelta
     from sqlalchemy import select
+    from app.bootstrap.config import get_settings
+    
+    refresh_token = request.cookies.get("saa29_refresh_token")
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token não fornecido.",
+        )
     
     try:
         # Decodificar refresh token
-        payload = decodificar_token(request_data.refresh_token)
+        payload = decodificar_token(refresh_token)
         
         # Validar que é um refresh token
         if payload.get("type") != "refresh":
@@ -181,18 +200,41 @@ async def refresh_access_token(
         
         await db.commit()
         
+        # Set cookies
+        secure = get_settings().app_env == "production"
+        response.set_cookie(
+            key="saa29_token",
+            value=new_access_token,
+            httponly=True,
+            samesite="lax",
+            max_age=15*60,
+            secure=secure
+        )
+        
+        response.set_cookie(
+            key="saa29_refresh_token",
+            value=new_refresh_token,
+            httponly=True,
+            samesite="lax",
+            max_age=7*24*60*60,
+            path="/auth/refresh",
+            secure=secure
+        )
+        
         return schemas.Token(
-            access_token=new_access_token,
-            refresh_token=new_refresh_token,
+            access_token="hidden",
+            refresh_token="hidden",
             token_type="bearer",
             usuario=schemas.UsuarioOut.model_validate(usuario),
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         # Qualquer erro na decodificação é acesso negado
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Refresh token inválido: {str(e)[:50]}",
+            detail="Refresh token inválido",
         )
 
 

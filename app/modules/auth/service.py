@@ -259,7 +259,7 @@ async def garantir_usuarios_essenciais(db: AsyncSession) -> None:
                     funcao=role,
                     ramal="0000",
                     username=user,
-                    senha_hash=hash_senha("123"),
+                    senha_hash=hash_senha("123456"),
                 )
                 db.add(u)
                 await db.flush()
@@ -278,5 +278,17 @@ async def garantir_usuarios_essenciais(db: AsyncSession) -> None:
                         observacao="Férias programadas (Seed Automático)"
                     )
                     db.add(indisp)
-    
+
+                    await db.flush()
+
+async def limpar_tokens_expirados(db: AsyncSession) -> None:
+    from sqlalchemy import delete
+    from datetime import datetime, timezone
+    from app.modules.auth.models import TokenBlacklist, TokenRefresh
+    agora = datetime.now(timezone.utc)
+
+    # Limpa blacklist
+    await db.execute(delete(TokenBlacklist).where(TokenBlacklist.expira_em < agora))
+    # Limpa refresh tokens
+    await db.execute(delete(TokenRefresh).where(TokenRefresh.expira_em < agora))
     await db.flush()

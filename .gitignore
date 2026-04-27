@@ -47,6 +47,6 @@ Thumbs.db
 variaveis_railway.txt
 railway_local_variables.txt
 var/logs/
-var/db/
+var/db
 var/uploads/
 var/tmp/

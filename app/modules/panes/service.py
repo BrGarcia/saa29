@@ -21,7 +21,7 @@ from sqlalchemy.orm import selectinload
 from app.modules.panes.models import Pane, Anexo, PaneResponsavel
 from app.modules.aeronaves.models import Aeronave # Importar aqui para evitar InvalidRequestError
 from app.modules.panes.schemas import PaneCreate, PaneUpdate, FiltroPane, AdicionarResponsavel
-from app.shared.core.enums import StatusPane
+from app.shared.core.enums import StatusPane, StatusAeronave
 from app.bootstrap.config import get_settings
 from app.shared.core.storage import get_storage_service
 
@@ -96,7 +96,7 @@ async def criar_pane(
     aeronave = await buscar_aeronave(db, dados.aeronave_id)
     if not aeronave:
         raise ValueError("Aeronave não encontrada.")
-    if aeronave.status == "INATIVA":
+    if aeronave.status == StatusAeronave.INATIVA:
         raise ValueError("Aeronave inativa. Reative a aeronave antes de registrar uma pane.")
 
     # RN-05: descrição padrão se vazia

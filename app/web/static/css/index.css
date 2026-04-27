@@ -253,6 +253,104 @@ h1, h2, h3, h4, h5 {
   color: #ffffff;
 }
 
+/* Cores por Seção (Configurações) */
+.btn-aeronave {
+  background-color: var(--primary-color) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+.btn-aeronave:hover {
+  background-color: var(--primary-hover) !important;
+  transform: translateY(-2px);
+}
+.btn-outline-aeronave {
+  background-color: transparent !important;
+  border: 1px solid var(--primary-color) !important;
+  color: var(--primary-color) !important;
+}
+.btn-outline-aeronave:hover {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+}
+
+.btn-equipamento {
+  background-color: #9b59b6 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(155, 89, 182, 0.2);
+}
+.btn-equipamento:hover {
+  background-color: #8e44ad !important;
+  transform: translateY(-2px);
+}
+.btn-outline-equipamento {
+  background-color: transparent !important;
+  border: 1px solid #9b59b6 !important;
+  color: #9b59b6 !important;
+}
+.btn-outline-equipamento:hover {
+  background-color: rgba(155, 89, 182, 0.1) !important;
+}
+
+.btn-vencimento {
+  background-color: #e67e22 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(230, 126, 34, 0.2);
+}
+.btn-vencimento:hover {
+  background-color: #d35400 !important;
+  transform: translateY(-2px);
+}
+.btn-outline-vencimento {
+  background-color: transparent !important;
+  border: 1px solid #e67e22 !important;
+  color: #e67e22 !important;
+}
+.btn-outline-vencimento:hover {
+  background-color: rgba(230, 126, 34, 0.1) !important;
+}
+
+.btn-efetivo {
+  background-color: #2ecc71 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(46, 204, 113, 0.2);
+}
+.btn-efetivo:hover {
+  background-color: #27ae60 !important;
+  transform: translateY(-2px);
+}
+.btn-outline-efetivo {
+  background-color: transparent !important;
+  border: 1px solid #2ecc71 !important;
+  color: #2ecc71 !important;
+}
+.btn-outline-efetivo:hover {
+  background-color: rgba(46, 204, 113, 0.1) !important;
+}
+
+.btn-inspecao {
+  background-color: #1abc9c !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(26, 188, 156, 0.2);
+}
+.btn-inspecao:hover {
+  background-color: #16a085 !important;
+  transform: translateY(-2px);
+}
+.btn-outline-inspecao {
+  background-color: transparent !important;
+  border: 1px solid #1abc9c !important;
+  color: #1abc9c !important;
+}
+.btn-outline-inspecao:hover {
+  background-color: rgba(26, 188, 156, 0.1) !important;
+}
+
+/* Ajustes para Dark Mode */
+[data-theme="dark"] .btn-outline-aeronave { color: #60a5fa !important; border-color: #60a5fa !important; }
+[data-theme="dark"] .btn-outline-equipamento { color: #c39bd3 !important; border-color: #c39bd3 !important; }
+[data-theme="dark"] .btn-outline-vencimento { color: #f8c471 !important; border-color: #f8c471 !important; }
+[data-theme="dark"] .btn-outline-efetivo { color: #82e0aa !important; border-color: #82e0aa !important; }
+[data-theme="dark"] .btn-outline-inspecao { color: #76d7c4 !important; border-color: #76d7c4 !important; }
+
 .btn-icon {
   background: transparent;
   color: var(--text-secondary);

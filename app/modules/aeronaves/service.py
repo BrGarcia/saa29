@@ -31,7 +31,7 @@ async def listar_aeronaves(
     """Retorna a lista de todas as aeronaves cadastradas."""
     query = select(Aeronave)
     if not incluir_inativas:
-        query = query.where(Aeronave.status != StatusAeronave.INATIVA.value)
+        query = query.where(Aeronave.status != StatusAeronave.INATIVA)
     result = await db.execute(query.order_by(Aeronave.matricula).offset(skip).limit(limit))
     return list(result.scalars().all())
 
@@ -45,10 +45,10 @@ async def alternar_status_aeronave(
     if not aeronave:
         raise ValueError("Aeronave não encontrada.")
     
-    if aeronave.status == StatusAeronave.INATIVA.value:
-        aeronave.status = StatusAeronave.DISPONIVEL.value
+    if aeronave.status == StatusAeronave.INATIVA:
+        aeronave.status = StatusAeronave.DISPONIVEL
     else:
-        aeronave.status = StatusAeronave.INATIVA.value
+        aeronave.status = StatusAeronave.INATIVA
         
     await db.flush()
     return aeronave
@@ -88,7 +88,7 @@ async def atualizar_aeronave(
 
     if "status" in changes:
         novo_status = changes["status"]
-        if aeronave.status == StatusAeronave.INATIVA.value:
+        if aeronave.status == StatusAeronave.INATIVA:
             raise ValueError("Aeronave inativa só pode ser reativada pela ação de reativar.")
         if novo_status == StatusAeronave.INATIVA:
             raise ValueError("Use a ação de desativar para tornar a aeronave inativa.")
@@ -116,7 +116,7 @@ async def desativar_aeronave(
     aeronave = await buscar_aeronave(db, aeronave_id)
     if not aeronave:
         raise ValueError("Aeronave não encontrada.")
-    aeronave.status = StatusAeronave.INATIVA.value
+    aeronave.status = StatusAeronave.INATIVA
     await db.flush()
 
 
@@ -128,5 +128,5 @@ async def reativar_aeronave(
     aeronave = await buscar_aeronave(db, aeronave_id)
     if not aeronave:
         raise ValueError("Aeronave não encontrada.")
-    aeronave.status = StatusAeronave.DISPONIVEL.value
+    aeronave.status = StatusAeronave.DISPONIVEL
     await db.flush()

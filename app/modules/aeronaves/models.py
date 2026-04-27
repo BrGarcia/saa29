@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, DateTime, func
+from sqlalchemy import String, DateTime, func, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.bootstrap.database import Base
@@ -65,10 +65,10 @@ class Aeronave(Base):
     )
 
     # --- Status ---
-    status: Mapped[str] = mapped_column(
-        String(20),
+    status: Mapped[StatusAeronave] = mapped_column(
+        Enum(StatusAeronave, native_enum=False, length=20),
         nullable=False,
-        default=StatusAeronave.DISPONIVEL.value,
+        default=StatusAeronave.DISPONIVEL,
         comment="Status operacional: DISPONIVEL | INDISPONIVEL | INSPEÇÃO | ESTOCADA | INATIVA",
     )
 
@@ -98,4 +98,4 @@ class Aeronave(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<Aeronave matricula={self.matricula!r} status={self.status!r}>"
+        return f"<Aeronave matricula={self.matricula!r} status={self.status.value!r}>"

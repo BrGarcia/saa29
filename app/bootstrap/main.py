@@ -7,6 +7,7 @@ import os
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
+import asyncio
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -129,26 +130,59 @@ async def _debounced_backup() -> None:
     try:
         await asyncio.sleep(_BACKUP_DEBOUNCE_SECONDS)
         if _db_dirty:
-            _run_r2_backup()
+            await _run_r2_backup()
             _db_dirty = False
     except asyncio.CancelledError:
         pass  # Nova escrita chegou — será reagendado pelo próximo commit
 
 
-def _run_r2_backup() -> None:
-    """Executa backup síncrono do banco SQLite para o Cloudflare R2."""
-    import subprocess, sys
+async def _run_r2_backup() -> None:
+    """Executa backup assíncrono do banco SQLite para o Cloudflare R2."""
+    import sys
+    import asyncio
     try:
-        result = subprocess.run(
-            [sys.executable, "scripts/maintenance/r2_manager.py", "backup"],
-            capture_output=True, text=True, timeout=60
+        process = await asyncio.create_subprocess_exec(
+            sys.executable, "scripts/maintenance/r2_manager.py", "backup",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
         )
-        if result.returncode == 0:
-            logging.info("[R2 Backup] %s", result.stdout.strip())
-        else:
-            logging.warning("[R2 Backup] Falha: %s", result.stderr.strip())
+        
+        # Add timeout to avoid hanging indefinitely
+        try:
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=60.0)
+            if process.returncode == 0:
+                logging.info("[R2 Backup] %s", stdout.decode().strip())
+            else:
+                logging.warning("[R2 Backup] Falha: %s", stderr.decode().strip())
+        except asyncio.TimeoutError:
+            process.kill()
+            await process.communicate()
+            logging.error("[R2 Backup] Timeout após 60 segundos.")
     except Exception as exc:
         logging.error("[R2 Backup] Erro inesperado: %s", exc)
+
+
+# ---------------------------------------------------------------------------
+# Background Task para limpeza de tokens expirados
+# ---------------------------------------------------------------------------
+
+async def _token_cleanup_task() -> None:
+    """Executa a limpeza de tokens expirados a cada hora."""
+    import asyncio
+    from app.bootstrap.database import get_session_factory
+    from app.modules.auth.service import limpar_tokens_expirados
+    
+    while True:
+        try:
+            async with get_session_factory()() as session:
+                await limpar_tokens_expirados(session)
+                await session.commit()
+            logging.info("[Token Cleanup] Limpeza de tokens executada com sucesso.")
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:
+            logging.error("[Token Cleanup] Erro na limpeza: %s", exc)
+        await asyncio.sleep(3600)  # Roda a cada 1 hora
 
 
 # -------- Security Headers Middleware (Sprint 2.2) --------
@@ -219,7 +253,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         sa_event.listen(Session, "after_commit", _mark_db_dirty)
         logging.info("[R2 Backup] Backup orientado a eventos ativo (debounce: %ds).", _BACKUP_DEBOUNCE_SECONDS)
 
+    # Iniciar task de limpeza de tokens
+    cleanup_task = asyncio.create_task(_token_cleanup_task())
+
     yield
+
+    # Cancelar tasks de background
+    cleanup_task.cancel()
 
     # Shutdown: backup final se houver dados não persistidos no R2
     # (Desabilitado temporariamente para testes locais com banco zerado)
@@ -228,9 +268,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     #     _run_r2_backup()
 
     # Fechar engine de banco de dados
-    from app.bootstrap.database import _engine
-    if _engine is not None:
-        await _engine.dispose()
+    from app.bootstrap.database import dispose_engine
+    await dispose_engine()
 
 
 def create_app() -> FastAPI:

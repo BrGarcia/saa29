@@ -29,7 +29,7 @@ async def validate_file_upload(file: UploadFile) -> None:
 
     # 2. Validar extensão
     ext = os.path.splitext(file.filename)[1].lower()
-    allowed_extensions = [ext for exts in ALLOWED_MIME_TYPES.values() for ext in exts]
+    allowed_extensions = [e for exts in ALLOWED_MIME_TYPES.values() for e in exts]
     if ext not in allowed_extensions:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
