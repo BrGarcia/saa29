@@ -265,7 +265,12 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
                 tipo_nome = ctrl.tipo_controle.nome
                 venc = venc_map.get(tipo_nome)
                 
-                status_final = venc.status if item else "DESINSTALADO"
+                if not item:
+                    status_final = "DESINSTALADO"
+                elif venc:
+                    status_final = venc.status
+                else:
+                    status_final = StatusVencimento.VENCIDO.value
                 prorrogado = False
                 data_nova = None
                 doc_prorrogacao = None

@@ -358,7 +358,7 @@ async function carregarListaRegras() {
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem;">Carregando regras...</td></tr>';
 
     try {
-        const regras = await apiFetch('/equipamentos/controles/regras');
+        const regras = await apiFetch('/vencimentos/regras');
         tbody.innerHTML = '';
         
         if(regras.length === 0) {
@@ -396,7 +396,7 @@ async function salvarNovaRegra(e) {
     const periodicidade_meses = parseInt(document.getElementById('regraMesesInput').value);
 
     try {
-        await apiFetch('/equipamentos/controles/regras', {
+        await apiFetch('/vencimentos/regras', {
             method: 'POST',
             body: { modelo_id, tipo_controle_id, periodicidade_meses }
         });
@@ -413,7 +413,7 @@ async function removerRegra(modeloId, tipoId) {
     if(!confirm("Tem certeza que deseja remover esta regra de periodicidade?")) return;
 
     try {
-        await apiFetch(`/equipamentos/controles/regras/${modeloId}/${tipoId}`, {
+        await apiFetch(`/vencimentos/regras/${modeloId}/${tipoId}`, {
             method: 'DELETE'
         });
         showToast("Regra removida com sucesso!", "success");

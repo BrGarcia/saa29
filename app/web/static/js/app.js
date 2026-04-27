@@ -166,4 +166,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (toggleThemeBtn) {
         toggleThemeBtn.addEventListener("click", toggleTheme);
     }
+    const logoutBtn = document.getElementById("logout-btn");
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", clearAuth);
+    }
 });

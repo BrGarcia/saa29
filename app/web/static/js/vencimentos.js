@@ -105,7 +105,7 @@ function criarCardAeronave(aeronave) {
     const header = document.createElement('div');
     header.className = 'acft-card-header';
     header.innerHTML = `
-        <span class="acft-matricula">${aeronave.matricula}</span>
+        <span class="acft-matricula">${escapeHtml(aeronave.matricula)}</span>
         <div class="acft-status-pills">${pillsHtml || '<span style="font-size:0.8rem;color:var(--text-secondary);">Sem controles</span>'}</div>
         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--text-secondary); transition: transform 0.2s;" class="chevron"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
     `;

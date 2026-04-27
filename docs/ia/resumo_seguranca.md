@@ -46,3 +46,7 @@ files_of_interest:
 reporting:
 - do_not_open_public_issue_for_vuln
 - follow_docs_SECURITY_md
+
+recent_actions:
+- 2026-04-27: External security audit completed (docs/relatorio/revisao_claude.md)
+- 2026-04-27: Critical issues C-01 (CSRF bypass) and C-02 (Cookie secure flag) resolved

@@ -25,7 +25,11 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         # 1. Validação CSRF (Somente mutações)
         # Bypassa validação apenas se o header de bypass estiver presente (injetado no conftest.py)
         # Isso permite que a suite de testes de lógica funcione enquanto test_csrf.py testa a trava real.
-        skip_csrf = request.headers.get("X-Skip-CSRF") == "true"
+        settings = get_settings()
+        skip_csrf = (
+            settings.app_env != "production" 
+            and request.headers.get("X-Skip-CSRF") == "true"
+        )
 
         if request.method in ["POST", "PUT", "PATCH", "DELETE"] and not skip_csrf:
             # Excessão para rotas de entrada de sessão

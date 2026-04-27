@@ -43,11 +43,11 @@ async function loadDashboard() {
                     tr.style.borderBottom = "1px solid var(--border-color)";
                     
                     tr.innerHTML = `
-                        <td style="padding: 1rem 0.5rem; font-weight: 500;">${pane.aeronave ? pane.aeronave.matricula : pane.aeronave_id.substring(0,8)}</td>
+                        <td style="padding: 1rem 0.5rem; font-weight: 500;">${escapeHtml(pane.aeronave ? pane.aeronave.matricula : pane.aeronave_id.substring(0,8))}</td>
                         <td style="padding: 1rem 0.5rem; color: var(--text-secondary);">${shortDate}</td>
-                        <td style="padding: 1rem 0.5rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${pane.descricao}</td>
+                        <td style="padding: 1rem 0.5rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(pane.descricao)}</td>
                         <td style="padding: 1rem 0.5rem; color: var(--text-secondary);">${responsavel}</td>
-                        <td style="padding: 1rem 0.5rem;"><span class="badge ${badgeClass}">${pane.status.replace("_", " ")}</span></td>
+                        <td style="padding: 1rem 0.5rem;"><span class="badge ${badgeClass}">${escapeHtml(pane.status.replace("_", " "))}</span></td>
                         <td style="padding: 1rem 0.5rem; display: flex; gap: 0.5rem; align-items: center;">
                             <a href="/panes/${pane.id}/detalhes" class="btn-icon" style="color: var(--primary-color); display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; border: none; padding: 0.25rem;" title="Visualizar">
                                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>

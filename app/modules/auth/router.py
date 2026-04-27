@@ -70,13 +70,15 @@ async def login(
     await db.commit()
     
     # Set secure cookie for access token (HttpOnly, Secure em produção)
+    from app.bootstrap.config import get_settings
+    secure = get_settings().app_env == "production"
     response.set_cookie(
         key="saa29_token",
         value=access_token,
         httponly=True,
         samesite="lax",
         max_age=15*60,  # 15 minutos
-        # secure=True  # Ativar em produção num ambiente puramente HTTPS
+        secure=secure
     )
 
     return schemas.Token(

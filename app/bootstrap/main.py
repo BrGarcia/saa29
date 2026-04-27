@@ -182,7 +182,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "default-src 'self'; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
-            "script-src 'self' 'unsafe-inline'; "
+            "script-src 'self'; "
             "img-src 'self' data: https://*.r2.cloudflarestorage.com; "
             "connect-src 'self' https://*.r2.cloudflarestorage.com; "
             "frame-src 'self' https://*.r2.cloudflarestorage.com;"

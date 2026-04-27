@@ -245,3 +245,187 @@ Arquivo base: `app/modules/panes/models.py`
 
 ## 8. Diagramas e Consultas
 (Mantém os diagramas Mermaid e consultas SQL originais).
+
+
+# 9. Dominio de Inspecoes
+
+Arquivo base sugerido: `app/modules/inspecoes/models.py`
+
+---
+
+## 9.1 Tipos de Inspecao
+
+**Tabela:** `tipos_inspecao`
+
+| Coluna | Tipo | Restricoes | Descricao |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, default `uuid4` | Identificador único |
+| `codigo` | String(20) | UNIQUE, NOT NULL, INDEX | Código (Y, 2Y, A, 4A) |
+| `nome` | String(100) | NOT NULL | Nome da inspeção |
+| `descricao` | String(300) | nullable | Descrição detalhada |
+| `ativa` | bool | NOT NULL, default `True` | Controle de uso |
+| `created_at` | DateTime tz | NOT NULL, default `now()` | Auditoria |
+
+---
+
+## 9.2 Catalogo de Tarefas de Inspecao
+
+**Tabela:** `tarefas_inspecao`
+
+| Coluna | Tipo | Restricoes | Descricao |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, default `uuid4` | Identificador único |
+| `nome` | String(150) | NOT NULL | Nome curto da tarefa |
+| `descricao` | Text | NOT NULL | Descrição detalhada |
+| `referencia` | String(100) | nullable | Referência técnica (manual, MPD, etc) |
+| `ativa` | bool | NOT NULL, default `True` | Controle de uso |
+| `created_at` | DateTime tz | NOT NULL, default `now()` | Auditoria |
+
+---
+
+## 9.3 Vinculo Tipo de Inspecao x Tarefas
+
+**Tabela:** `tipos_inspecao_tarefas`
+
+| Coluna | Tipo | Restricoes | Descricao |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, default `uuid4` | Identificador único |
+| `tipo_inspecao_id` | UUID | FK -> `tipos_inspecao.id`, NOT NULL, INDEX | Tipo de inspeção |
+| `tarefa_id` | UUID | FK -> `tarefas_inspecao.id`, NOT NULL, INDEX | Tarefa vinculada |
+| `ordem` | int | nullable | Ordem de execução |
+| `obrigatoria` | bool | NOT NULL, default `True` | Se a tarefa é obrigatória |
+| `created_at` | DateTime tz | NOT NULL, default `now()` | Auditoria |
+
+**Restrição:** UNIQUE(`tipo_inspecao_id`, `tarefa_id`)
+
+---
+
+## 9.4 Evento de Inspecao (Entrada da Aeronave)
+
+**Tabela:** `inspecao_eventos`
+
+| Coluna | Tipo | Restricoes | Descricao |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, default `uuid4` | Identificador único |
+| `aeronave_id` | UUID | FK -> `aeronaves.id`, NOT NULL, INDEX | Aeronave em inspeção |
+| `status` | String(20) | NOT NULL, default `ABERTA`, INDEX | `ABERTA` \| `EM_EXECUCAO` \| `CONCLUIDA` \| `CANCELADA` |
+| `observacao` | Text | nullable | Observações gerais |
+| `aberta_por_id` | UUID | FK -> `usuarios.id`, NOT NULL | Responsável pela abertura |
+| `aberta_em` | DateTime tz | NOT NULL, default `now()` | Data de abertura |
+| `concluida_em` | DateTime tz | nullable | Data de conclusão |
+| `created_at` | DateTime tz | NOT NULL, default `now()` | Auditoria |
+| `updated_at` | DateTime tz | nullable, onupdate `now()` | Auditoria |
+
+---
+
+## 9.5 Tipos Aplicados ao Evento
+
+**Tabela:** `inspecao_evento_tipos`
+
+| Coluna | Tipo | Restricoes | Descricao |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, default `uuid4` | Identificador único |
+| `evento_id` | UUID | FK -> `inspecao_eventos.id`, NOT NULL, INDEX | Evento de inspeção |
+| `tipo_inspecao_id` | UUID | FK -> `tipos_inspecao.id`, NOT NULL | Tipo aplicado |
+| `created_at` | DateTime tz | NOT NULL, default `now()` | Auditoria |
+
+**Restrição:** UNIQUE(`evento_id`, `tipo_inspecao_id`)
+
+---
+
+## 9.6 Tarefas Executadas na Inspecao
+
+**Tabela:** `inspecao_tarefas`
+
+| Coluna | Tipo | Restricoes | Descricao |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, default `uuid4` | Identificador único |
+| `evento_id` | UUID | FK -> `inspecao_eventos.id`, NOT NULL, INDEX | Evento vinculado |
+| `tarefa_id` | UUID | FK -> `tarefas_inspecao.id`, nullable | Referência ao catálogo |
+| `descricao` | Text | NOT NULL | Snapshot da tarefa (permite edição manual) |
+| `origem` | String(20) | NOT NULL | `TEMPLATE` \| `MANUAL` |
+| `status` | String(20) | NOT NULL, default `PENDENTE`, INDEX | `PENDENTE` \| `EM_EXECUCAO` \| `CONCLUIDA` |
+| `observacao` | Text | nullable | Observações da execução |
+| `executada_por_id` | UUID | FK -> `usuarios.id`, nullable | Quem executou |
+| `executada_em` | DateTime tz | nullable | Data/hora da execução |
+| `pane_id` | UUID | FK -> `panes.id`, nullable | Pane gerada (se houver) |
+| `created_at` | DateTime tz | NOT NULL, default `now()` | Auditoria |
+| `updated_at` | DateTime tz | nullable, onupdate `now()` | Auditoria |
+
+---
+
+## 9.7 Regras de Negócio (Importante)
+
+### Geração de tarefas no evento
+
+Ao criar um `inspecao_evento` com múltiplos tipos:
+
+1. Buscar tarefas de cada tipo em `tipos_inspecao_tarefas`
+2. Unificar pelo `tarefa_id`
+3. Remover duplicadas
+4. Inserir em `inspecao_tarefas` com:
+   - `origem = TEMPLATE`
+   - `descricao` copiada do catálogo (snapshot)
+
+---
+
+### Tarefas manuais
+
+- Podem ser adicionadas diretamente em `inspecao_tarefas`
+- `origem = MANUAL`
+- `tarefa_id = NULL`
+
+---
+
+### Execução
+
+Quando uma tarefa for concluída:
+- Atualizar `status = CONCLUIDA`
+- Preencher:
+  - `executada_por_id`
+  - `executada_em`
+
+A UI usa:
+- `usuarios.trigrama` + `executada_em` → badge visual
+
+---
+
+### Integração com Panes
+
+Se houver anomalia:
+- Criar registro em `panes`
+- Vincular via `inspecao_tarefas.pane_id`
+
+---
+
+### Status da Aeronave
+
+Durante inspeção:
+- `aeronaves.status = INSPEÇÃO`
+
+Ao concluir:
+- Retornar para `DISPONIVEL` ou `INDISPONIVEL` conforme contexto
+
+---
+
+## 9.8 Relacionamentos
+
+- `aeronaves 1 → N inspecao_eventos`
+- `inspecao_eventos 1 → N inspecao_evento_tipos`
+- `tipos_inspecao 1 → N inspecao_evento_tipos`
+- `tipos_inspecao N → N tarefas_inspecao` (via `tipos_inspecao_tarefas`)
+- `inspecao_eventos 1 → N inspecao_tarefas`
+- `inspecao_tarefas 0..1 → 1 panes`
+- `usuarios 1 → N execuções`
+
+---
+
+## 9.9 Decisão Arquitetural (Resumo)
+
+- Catálogo central de tarefas → evita duplicação
+- Tipos de inspeção → combináveis (Y, A, 2Y, 4A)
+- Evento único por entrada → simplifica operação
+- Snapshot da tarefa → protege histórico
+- Deduplicação por `tarefa_id` → essencial
+- Tarefa manual → flexibilidade operacional
+- Integração com panes → reaproveita domínio existente

@@ -74,7 +74,7 @@ async function carregarDetalhe() {
                 divAssinatura.style.display = "block";
                 const u = pane.concluido_por;
                 const postoNome = [u.posto, u.nome].filter(Boolean).join(" ");
-                divAssinatura.innerHTML = `<strong>Finalizado por:</strong> ${postoNome} (${u.trigrama || u.username})`;
+                divAssinatura.innerHTML = `<strong>Finalizado por:</strong> ${escapeHtml(postoNome)} (${escapeHtml(u.trigrama || u.username)})`;
             }
         } else if (pane.status === "ABERTA") {
             btnConc.style.display = "block";

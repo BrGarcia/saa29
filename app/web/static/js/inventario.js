@@ -102,15 +102,15 @@ function renderHistorico(logs) {
             const dataFormatada = new Date(log.created_at).toLocaleString('pt-BR');
             html += `
                 <tr style="border-bottom: 1px solid var(--border-color);">
-                    <td style="padding: 0.8rem 1rem; font-size: 0.85rem; color: var(--text-secondary);">${dataFormatada}</td>
-                    <td style="padding: 0.8rem 1rem; font-weight: 700; color: var(--primary-color);">${log.aeronave_matricula}</td>
-                    <td style="padding: 0.8rem 1rem;">${log.slot_nome}</td>
-                    <td style="padding: 0.8rem 1rem; font-family: monospace; font-weight: 500;">${log.item_sn}</td>
+                    <td style="padding: 0.8rem 1rem; font-size: 0.85rem; color: var(--text-secondary);">${escapeHtml(dataFormatada)}</td>
+                    <td style="padding: 0.8rem 1rem; font-weight: 700; color: var(--primary-color);">${escapeHtml(log.aeronave_matricula)}</td>
+                    <td style="padding: 0.8rem 1rem;">${escapeHtml(log.slot_nome)}</td>
+                    <td style="padding: 0.8rem 1rem; font-family: monospace; font-weight: 500;">${escapeHtml(log.item_sn)}</td>
                     <td style="padding: 0.8rem 1rem; text-align: center;">
-                        <span class="badge" style="background: var(--bg-tertiary); color: var(--text-primary); font-weight: 700;">${log.usuario_trigrama || 'SYS'}</span>
+                        <span class="badge" style="background: var(--bg-tertiary); color: var(--text-primary); font-weight: 700;">${escapeHtml(log.usuario_trigrama || 'SYS')}</span>
                     </td>
                     <td style="padding: 0.8rem 1rem;">
-                        <span style="font-size: 0.75rem; font-weight: 700; color: var(--status-success);">● ${log.tipo_acao}</span>
+                        <span style="font-size: 0.75rem; font-weight: 700; color: var(--status-success);">● ${escapeHtml(log.tipo_acao)}</span>
                     </td>
                 </tr>
             `;
@@ -316,7 +316,7 @@ function abrirModal(equipamentoId, snReal, anvConflito) {
     const btn = document.getElementById('btn-confirmar-transferencia');
     if(!msg || !modal || !btn) return;
 
-    msg.innerHTML = `O item <strong>${snReal}</strong> consta como instalado na aeronave <strong>${anvConflito}</strong>.`;
+    msg.innerHTML = `O item <strong>${escapeHtml(snReal)}</strong> consta como instalado na aeronave <strong>${escapeHtml(anvConflito)}</strong>.`;
     modal.style.display = 'flex';
 
     btn.onclick = () => {
@@ -335,7 +335,7 @@ function abrirModalRemocao(instalacaoId, sn, slotNome) {
     const btn = document.getElementById('btn-confirmar-remocao');
     if(!msg || !modal || !btn) return;
 
-    msg.innerHTML = `Deseja registrar a remoção do item <strong>${sn}</strong> da posição <strong>${slotNome}</strong>?`;
+    msg.innerHTML = `Deseja registrar a remoção do item <strong>${escapeHtml(sn)}</strong> da posição <strong>${escapeHtml(slotNome)}</strong>?`;
     modal.style.display = 'flex';
 
     btn.onclick = () => {

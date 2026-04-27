@@ -64,7 +64,7 @@ async def run(session: AsyncSession):
                         id=uuid.uuid4(),
                         item_id=item.id,
                         tipo_controle_id=tipo_cri.id,
-                        status=StatusVencimento.OK.value,
+                        status=StatusVencimento.VENCIDO.value,
                         origem="PADRAO"
                     )
                     session.add(venc)
