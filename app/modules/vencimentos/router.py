@@ -129,10 +129,10 @@ async def registrar_execucao(
     vencimento_id: uuid.UUID,
     dados: schemas.ControleVencimentoUpdate,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    current_user: EncarregadoOuAdmin,
 ):
     vencimento = await service.registrar_execucao(
-        db, vencimento_id, dados.data_ultima_exec
+        db, vencimento_id, dados.data_ultima_exec, current_user.id
     )
     return schemas.ControleVencimentoOut.model_validate(vencimento)
 

@@ -75,11 +75,13 @@ class ControleVencimento(Base):
     data_vencimento: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default=StatusVencimento.OK.value)
     origem: Mapped[str] = mapped_column(String(20), nullable=False, default=OrigemControle.PADRAO.value)
+    executado_por_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
 
     # --- Relacionamentos ---
     item: Mapped["ItemEquipamento"] = relationship(back_populates="controles_vencimento")
     tipo_controle: Mapped["TipoControle"] = relationship(back_populates="vencimentos")
+    executado_por: Mapped["Usuario"] = relationship() # type: ignore
     prorrogacoes: Mapped[list["ProrrogacaoVencimento"]] = relationship(back_populates="controle", cascade="all, delete-orphan")
 
 

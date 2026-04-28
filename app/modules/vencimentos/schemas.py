@@ -69,6 +69,7 @@ class ControleVencimentoOut(BaseModel):
     data_vencimento: date | None
     status: StatusVencimento
     origem: OrigemControle
+    executado_por_id: uuid.UUID | None = None
     created_at: datetime
 
 
@@ -81,6 +82,7 @@ class VencimentoCelulaOut(BaseModel):
     vencimento_id: uuid.UUID | None = None
     tipo_controle_nome: str
     data_ultima_exec: date | None = None
+    executado_por_trigrama: str | None = None
     data_vencimento: date | None = None
     status: str | None = None  # OK, VENCENDO, VENCIDO, PRORROGADO
     prorrogado: bool = False

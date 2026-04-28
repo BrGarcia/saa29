@@ -126,7 +126,7 @@ async def remover_controle_de_equipamento(
         await db.delete(assoc)
         await db.flush()
 
-async def registrar_execucao(db: AsyncSession, vencimento_id: uuid.UUID, data_exec: date) -> ControleVencimento:
+async def registrar_execucao(db: AsyncSession, vencimento_id: uuid.UUID, data_exec: date, usuario_id: uuid.UUID) -> ControleVencimento:
     result = await db.execute(
         select(ControleVencimento)
         .where(ControleVencimento.id == vencimento_id)
@@ -148,6 +148,7 @@ async def registrar_execucao(db: AsyncSession, vencimento_id: uuid.UUID, data_ex
     
     vencimento.data_ultima_exec = data_exec
     vencimento.data_vencimento = data_exec + relativedelta(months=periodicidade)
+    vencimento.executado_por_id = usuario_id
 
     await db.execute(
         ProrrogacaoVencimento.__table__.update()
@@ -222,7 +223,8 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
             selectinload(Instalacao.item)
             .selectinload(ItemEquipamento.controles_vencimento).options(
                 selectinload(ControleVencimento.tipo_controle),
-                selectinload(ControleVencimento.prorrogacoes)
+                selectinload(ControleVencimento.prorrogacoes),
+                selectinload(ControleVencimento.executado_por)
             ),
         )
         .where(
@@ -295,6 +297,7 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
                     "vencimento_id": str(venc.id) if venc else None,
                     "tipo_controle_nome": tipo_nome,
                     "data_ultima_exec": venc.data_ultima_exec.isoformat() if venc and venc.data_ultima_exec else None,
+                    "executado_por_trigrama": venc.executado_por.trigrama if venc and venc.executado_por else None,
                     "data_vencimento": venc.data_vencimento.isoformat() if venc and venc.data_vencimento else None,
                     "status": status_final,
                     "prorrogado": prorrogado,

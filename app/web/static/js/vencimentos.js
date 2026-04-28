@@ -22,9 +22,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const row = e.target.closest('.clickable-control');
             if (!row) return;
 
-            const { vencId, infoLabel, isProrrogado, novaVenc, docProrrog } = row.dataset;
+            const { vencId, infoLabel, isProrrogado, novaVenc, docProrrog, lastExec, lastUser } = row.dataset;
             if (vencId) {
-                openModalExecutar(vencId, infoLabel, isProrrogado === 'true', novaVenc, docProrrog);
+                openModalExecutar(vencId, infoLabel, isProrrogado === 'true', novaVenc, docProrrog, lastExec, lastUser);
             }
         });
     }
@@ -223,6 +223,13 @@ function criarChipEquipamento(slot, aeronave) {
             : (ctrl.data_vencimento ? 'Vence: ' + formatarData(ctrl.data_vencimento) : 'Sem execução registrada');
         
         if (isFaltante) titleText = "EQUIPAMENTO NÃO INSTALADO NO SLOT";
+        
+        if (ctrl.data_ultima_exec) {
+            titleText += `\nÚltima Execução: ${formatarData(ctrl.data_ultima_exec)}`;
+            if (ctrl.executado_por_trigrama) {
+                titleText += ` por ${ctrl.executado_por_trigrama}`;
+            }
+        }
 
         controlesHtml += `
             <div class="ctrl-row ${statusCls} ${vencId && slot.numero_serie ? 'clickable-control' : ''}" 
@@ -231,7 +238,9 @@ function criarChipEquipamento(slot, aeronave) {
                  data-info-label="${escapeHtml(infoLabel)}"
                  data-is-prorrogado="${isProrrogado}"
                  data-nova-venc="${ctrl.data_nova_vencimento || ''}"
-                 data-doc-prorrog="${escapeHtml(ctrl.numero_documento_prorrogacao || '')}">
+                 data-doc-prorrog="${escapeHtml(ctrl.numero_documento_prorrogacao || '')}"
+                 data-last-exec="${ctrl.data_ultima_exec || ''}"
+                 data-last-user="${escapeHtml(ctrl.executado_por_trigrama || '')}">
                 <span class="ctrl-nome">${ctrl.tipo_controle_nome}${isProrrogado ? '*' : ''}</span>
                 <span class="ctrl-data">${dataText}</span>
             </div>
@@ -398,10 +407,20 @@ function formatarData(dataStr) {
 // Modal de Execução
 // ─────────────────────────────────────────────
 
-function openModalExecutar(vencimentoId, info, prorrogado = false, dataNova = '', doc = '') {
+function openModalExecutar(vencimentoId, info, prorrogado = false, dataNova = '', doc = '', lastExec = '', lastUser = '') {
     document.getElementById('exec-vencimento-id').value = vencimentoId;
     document.getElementById('exec-info-label').innerText = info;
     document.getElementById('exec-data-input').value = new Date().toISOString().split('T')[0];
+    
+    const execLastLabel = document.getElementById('exec-last-label');
+    if (execLastLabel) {
+        if (lastExec) {
+            execLastLabel.innerText = `Última Execução: ${formatarData(lastExec)} ${lastUser ? `por ${lastUser}` : ''}`;
+            execLastLabel.style.display = 'block';
+        } else {
+            execLastLabel.style.display = 'none';
+        }
+    }
     
     // Alerta de Prorrogação
     const alert = document.getElementById('exec-prorrog-alert');
