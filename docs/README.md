@@ -58,7 +58,7 @@ Documentacao interativa da API:
 | Validacao | Pydantic v2 |
 | Auth | JWT (HS256) + refresh token + blacklist |
 | Frontend | Jinja2 + Vanilla JS + CSS |
-| Seguranca | CSRF, rate limiting, Trusted Host, headers de seguranca |
+| Seguranca | CSRF, CSP, Zero Trust (HTML Auth), RBAC, Rate Limiting, Trusted Host |
 | Upload/Storage | Local ou Cloudflare R2 |
 
 ## Arquitetura

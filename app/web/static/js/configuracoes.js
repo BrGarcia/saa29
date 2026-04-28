@@ -412,14 +412,22 @@ async function carregarListaRegras() {
                 <td style="padding: 0.75rem; text-align: center;"><strong>${escapeHtml(r.tipo_nome) || '---'}</strong></td>
                 <td style="padding: 0.75rem; text-align: center;">${r.periodicidade_meses} meses</td>
                 <td style="padding: 0.75rem; text-align: right;">
-                    <button class="btn-icon btn-remover-regra" style="color: var(--status-danger);">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    <button type="button" 
+                            class="btn-icon btn-remover-regra" 
+                            style="color: var(--status-danger);"
+                            data-modelo="${r.modelo_id}"
+                            data-tipo="${r.tipo_controle_id}">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="pointer-events: none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
                 </td>
             `;
             const btnRemove = tr.querySelector('.btn-remover-regra');
             if (btnRemove) {
-                btnRemove.addEventListener('click', () => removerRegra(r.modelo_id, r.tipo_controle_id));
+                btnRemove.addEventListener('click', (e) => {
+                    const mid = e.currentTarget.getAttribute('data-modelo');
+                    const tid = e.currentTarget.getAttribute('data-tipo');
+                    removerRegra(mid, tid);
+                });
             }
             tbody.appendChild(tr);
         });
@@ -452,16 +460,44 @@ async function salvarNovaRegra(e) {
 }
 
 async function removerRegra(modeloId, tipoId) {
-    if(!confirm("Tem certeza que deseja remover esta regra de periodicidade?")) return;
+    console.log("INÍCIO: removerRegra", {modeloId, tipoId});
+    
+    if(!confirm("Tem certeza que deseja remover esta regra de periodicidade?")) {
+        console.log("CANCELADO: Usuário desistiu");
+        return;
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    console.log("CSRF Token encontrado:", csrfToken ? "Sim" : "Não");
 
     try {
-        await apiFetch(`/vencimentos/regras/${modeloId}/${tipoId}`, {
-            method: 'DELETE'
+        console.log("DISPARANDO: fetch DELETE...");
+        const response = await fetch(`/vencimentos/regras/${modeloId}/${tipoId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-Token': csrfToken || '',
+                'Content-Type': 'application/json'
+            }
         });
-        showToast("Regra removida com sucesso!", "success");
-        await carregarListaRegras();
+
+        console.log("RESPOSTA RECEBIDA: Status", response.status);
+
+        if (response.ok) {
+            let data = null;
+            if (response.status !== 204) {
+                data = await response.json().catch(() => ({}));
+            }
+            console.log("DADOS RECEBIDOS:", data);
+            showToast("Regra removida com sucesso!", "success");
+            await carregarListaRegras();
+        } else {
+            const error = await response.json().catch(() => ({ detail: "Erro desconhecido" }));
+            console.error("ERRO NA API:", response.status, error);
+            showToast(error.detail || "Erro ao excluir.", "error");
+        }
     } catch(err) {
-        showToast(err.message || "Erro ao remover regra.", "error");
+        console.error("ERRO FATAL (Network/JS):", err);
+        showToast("Falha de conexão ao excluir regra.", "error");
     }
 }
 

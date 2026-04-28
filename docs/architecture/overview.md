@@ -77,9 +77,19 @@ Ele:
 - registra middlewares de seguranca, CSRF, CORS e Trusted Host;
 - monta os routers de `auth`, `aeronaves`, `equipamentos`, `panes` e das paginas HTML;
 - monta `app/web/static` em `/static`;
-- executa inicializacoes no lifespan, como a frota padrao e o backup orientado a eventos para R2 quando configurado.
+- executa inicializacoes no lifespan:
+    - Garante a existência da frota padrão;
+    - Inicia a rotina de limpeza automática de tokens expirados (`limpar_tokens_expirados`);
+    - Executa o backup orientado a eventos para R2 quando configurado;
+    - Garante o fechamento limpo do pool de conexões via `dispose_engine()` no shutdown.
 
 ## 4. Fluxo de Requisicao
+
+O SAA29 adota uma arquitetura **Zero Trust** para o frontend:
+
+1. **Requisicao de Pagina HTML:** O `app/web/pages/router.py` valida a sessao e o papel do usuario (RBAC) *antes* de renderizar o template Jinja2.
+2. **Requisicao de Dados (API):** Os endpoints em `app/modules/*/router.py` validam o JWT (presente no cookie ou header) e as permissoes especificas do recurso.
+3. **Consumo no Frontend:** O Vanilla JS consome as APIs e manipula o DOM utilizando funcoes de escape (`escapeHtml`) para prevenir XSS persistente ou refletido.
 
 Exemplo simplificado para uma operacao de pane:
 
@@ -183,9 +193,9 @@ erDiagram
 | Requisito | Implementacao atual |
 |-----------|---------------------|
 | Desempenho | SQLAlchemy async, SQLite WAL e consultas agregadas no service |
-| Seguranca | JWT, hash bcrypt, CSRF, Trusted Host, rate limit, headers de seguranca |
-| Rastreabilidade | Soft delete, auditoria de datas, blacklist de JWT, refresh token persistido |
-| Uploads | Validacao de tipo/tamanho e armazenamento local ou R2 |
+| Seguranca | Zero Trust em HTML/API, JWT 15min, Refresh Token HttpOnly, CSP estrita, CSRF prod-restricted, _escape_like contra SQLi |
+| Rastreabilidade | Soft delete, auditoria de datas, blacklist de JWT, refresh token persistido, limpeza automatica de sessoes |
+| Uploads | Validacao de MIME/tamanho e armazenamento local ou R2 com backup assincrono |
 | Testabilidade | Camadas desacopladas, dependencias injetadas e banco isolado nos testes |
 
 ## 9. Observacao Importante

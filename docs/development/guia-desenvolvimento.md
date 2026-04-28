@@ -166,6 +166,23 @@ Observacoes:
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-## 9. Observacao Pratica
+## 9. Convenções de Segurança
+
+Para manter a integridade do sistema após a auditoria de 2026, todos os desenvolvedores devem seguir estas convenções:
+
+### Frontend (JS)
+- **Manipulação de DOM:** Nunca utilize `element.innerHTML = dado_da_api` diretamente. Use sempre a função utilitária `escapeHtml(dado_da_api)` para prevenir XSS.
+- **Eventos:** Não utilize atributos `on*` (ex: `onclick`) no HTML. Use `addEventListener` em arquivos JS separados para conformidade com a CSP.
+
+### Backend (Python/FastAPI)
+- **Buscas Textuais:** Ao realizar buscas utilizando `LIKE` no SQLAlchemy, utilize a função `_escape_like(termo)` disponível em `app.modules.equipamentos.service` (ou similar) para prevenir injeção de caracteres curinga.
+- **Rotas HTML:** Toda nova rota em `app/web/pages/router.py` **deve** incluir a dependência `Depends(get_current_user)` ou superior (RBAC) para garantir a arquitetura Zero Trust.
+- **Exceções de Auth:** Sempre utilize `raise HTTPException` explicitamente em blocos de validação de token para garantir que o erro seja capturado corretamente pelo middleware e não retorne 500.
+
+### Banco de Dados
+- **Conexões:** O lifespan da aplicação em `main.py` gerencia o fechamento do pool via `dispose_engine()`. Não manipule o ciclo de vida da engine manualmente nos módulos.
+- **Limpeza:** A tarefa de limpeza de tokens expirados é automática. Se criar novas tabelas de tokens ou sessões, registre-as na rotina `limpar_tokens_expirados`.
+
+## 10. Observacao Pratica
 
 O ponto de entrada da aplicacao e `app/bootstrap/main.py`, nao um `app/main.py` direto. Isso importa para comandos de deploy, testes e para qualquer wrapper de execucao local.

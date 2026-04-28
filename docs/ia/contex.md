@@ -21,6 +21,7 @@ operational_constraints:
 - preserve_existing_panes: mandatory
 - before_any_db_schema_or_data_change: backup_original_database
 - avoid_reset_or_reseed_on_active_database: false (Standardized seed.py is the preferred dev path)
+- seed_execution_env: must_run_inside_docker (use `docker-compose exec -e PYTHONPATH=/app web python scripts/seed/seed.py` to target the active docker volume instead of local venv)
 
 stack:
 - backend: fastapi

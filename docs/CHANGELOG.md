@@ -6,6 +6,21 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 
 ---
 
+## [1.2.0] - 2026-04-28
+
+### Fixed
+- **Segurança (Auditoria Externa):** Implementação de 22 correções críticas, altas e médias identificadas em auditoria de segurança.
+- **CSRF & Cookies:** Bypass de CSRF restrito a ambientes não-produção e flag `secure` dinâmica para cookies de sessão.
+- **Headers & CSP:** Remoção de `'unsafe-inline'` da CSP e fortalecimento dos headers de segurança.
+- **Autenticação:** Implementação de `refresh_token` seguro (HttpOnly), ajuste de expiração JWT para 15min e rotina de limpeza automática de tokens expirados.
+- **Proteção XSS:** Aplicação sistemática de `escapeHtml()` no frontend para manipulações de DOM via `innerHTML`.
+- **Arquitetura Zero Trust:** Validação de autenticação e RBAC (papéis) agora aplicada no backend para todas as rotas de páginas HTML, eliminando a dependência exclusiva de checagem client-side.
+- **SQL Injection:** Proteção contra injeção em buscas via LIKE utilizando a função utilitária `_escape_like`.
+- **Estabilidade:** Correção de double-commit em services, melhoria na concorrência de backups R2 e tipagem estrita em serviços de vencimentos.
+- **Domínio:** Status de aeronaves migrado para `Enum` nativo e atualização de senhas padrão de teste para conformidade com requisitos de complexidade.
+
+---
+
 ## [1.1.0] - 2026-04-28
 
 ### Fixed

@@ -211,14 +211,15 @@ async def garantir_usuarios_essenciais(db: AsyncSession) -> None:
     Garante que os usuários vitais (Admin) e de teste existam.
     Esta função centraliza a lógica que antes estava espalhada em scripts de fix/seed.
     """
-    import os
+    from app.bootstrap.config import get_settings
     from app.modules.auth.models import Usuario
     from app.modules.auth.security import hash_senha
     from sqlalchemy import select
+    settings = get_settings()
 
-    # 1. Garantir Admin Oficial (via .env)
-    admin_user = os.getenv("DEFAULT_ADMIN_USER", "admin").strip()
-    admin_pass = os.getenv("DEFAULT_ADMIN_PASSWORD")
+    # 1. Garantir Admin Oficial (via Settings/.env)
+    admin_user = settings.default_admin_user.strip()
+    admin_pass = settings.default_admin_password
 
     if admin_pass:
         res = await db.execute(select(Usuario).where(Usuario.username == admin_user))
@@ -242,7 +243,7 @@ async def garantir_usuarios_essenciais(db: AsyncSession) -> None:
                 print(f"AuthService: Corrigindo papel do admin para ADMINISTRADOR.")
 
     # 2. Garantir Usuários de Teste (apenas se APP_ENV for development)
-    if os.getenv("APP_ENV") == "development":
+    if settings.app_env == "development":
         usuarios_teste = [
             ("encarregado", "ENCARREGADO", "Chefe de Linha", "Cap"),
             ("mantenedor", "MANTENEDOR", "Técnico Especialista", "Sgt"),

@@ -94,7 +94,6 @@ async def associar_controle(
 
 @router.delete(
     "/regras/{modelo_id}/{tipo_controle_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
     summary="Remover regra de periodicidade",
 )
 async def remover_regra(
@@ -104,7 +103,7 @@ async def remover_regra(
     _: EncarregadoOuAdmin,
 ):
     await service.remover_controle_de_equipamento(db, modelo_id, tipo_controle_id)
-    return None
+    return {"success": True, "message": "Regra removida"}
 
 # ---- Vencimentos ----
 

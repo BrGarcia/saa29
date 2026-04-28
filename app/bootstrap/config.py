@@ -31,6 +31,10 @@ class Settings(BaseSettings):
         description="Secret key for JWT encoding. MUST be set securely."
     )
 
+    # --- Usuário Inicial ---
+    default_admin_user: str = "admin"
+    default_admin_password: str | None = None
+
     # --- Banco de Dados ---
     # Padrão: SQLite para instalação local ou produção básica (monolito).
     database_url: str = "sqlite+aiosqlite:///./saa29_local.db"

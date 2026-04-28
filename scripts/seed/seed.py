@@ -20,7 +20,7 @@ from scripts.seed import (
     seed_auth,
     seed_aeronaves,
     seed_equipamentos,
-    #seed_vencimentos,
+    seed_vencimentos,
     seed_inventario,
     seed_panes
 )
@@ -41,11 +41,11 @@ async def main():
             # 3. Equipamentos (Catálogo/PNs/Slots)
             await seed_equipamentos.run(session)
             
-            # 4. Vencimentos (Regras/Periodicidades)
-            #await seed_vencimentos.run(session)
-            
-            # 5. Inventário (Instalação física de Itens)
+            # 4. Inventário (Instalação física de Itens)
             await seed_inventario.run(session)
+            
+            # 5. Vencimentos (Regras/Periodicidades)
+            await seed_vencimentos.run(session)
             
             # 6. Panes (Dados aleatórios para dashboard)
             await seed_panes.run(session)
