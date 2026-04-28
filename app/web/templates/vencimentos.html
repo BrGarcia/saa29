@@ -356,7 +356,85 @@
             Carregando dados da frota...
         </div>
     </div>
+
+    <!-- Seção de Cronograma Semestral -->
+    <div id="secao-cronograma" style="margin-top: 2rem; display: none;">
+        <div class="card glass-panel" style="padding: 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+                <div style="width: 32px; height: 32px; border-radius: 8px; background: var(--primary-color-bg); color: var(--primary-color); display: flex; align-items: center; justify-content: center;">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 1.1rem;">Cronograma de Vencimentos (Próximos 6 Meses)</h3>
+                    <p style="margin: 0; font-size: 0.75rem; color: var(--text-secondary);">Planejamento consolidado por equipamento e sistema</p>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="modern-table" id="tabela-cronograma">
+                    <thead>
+                        <tr>
+                            <th>Equipamento / Sistema</th>
+                            <th>Aeronave</th>
+                            <th>Controle</th>
+                            <th>Vencimento</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cronograma-body">
+                        <!-- Preenchido via JS -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="cronograma-vazio" style="display: none; padding: 2rem; text-align: center; color: var(--text-secondary);">
+                Nenhum vencimento programado para os próximos 6 meses.
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+    .table-responsive {
+        overflow-x: auto;
+    }
+    .modern-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+    .modern-table th {
+        text-align: left;
+        padding: 0.75rem 1rem;
+        background: var(--bg-tertiary);
+        color: var(--text-secondary);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 0.7rem;
+    }
+    .modern-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--border-color);
+        vertical-align: middle;
+    }
+    .modern-table tr:last-child td {
+        border-bottom: none;
+    }
+    .modern-table tr:hover {
+        background: rgba(0,0,0,0.02);
+    }
+    .cron-acft {
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+    .cron-date {
+        font-family: monospace;
+        font-weight: 600;
+    }
+</style>
 
 <!-- Modal para Registro de Execução -->
 <div id="modal-executar-controle"

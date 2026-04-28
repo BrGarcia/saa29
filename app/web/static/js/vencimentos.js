@@ -89,8 +89,10 @@ async function carregarMatriz() {
 
         // Mostrar contadores
         document.getElementById('summary-cards').style.display = 'grid';
+        document.getElementById('secao-cronograma').style.display = 'block';
         atualizarContadores(dados.aeronaves);
         renderizarGrid(dados.aeronaves);
+        renderizarCronograma(dados.aeronaves);
 
     } catch (err) {
         console.error(err);
@@ -305,6 +307,69 @@ function aplicarFiltros() {
     });
 
     renderizarGrid(aeronaves);
+}
+ 
+function renderizarCronograma(aeronaves) {
+    const body = document.getElementById('cronograma-body');
+    const containerVazio = document.getElementById('cronograma-vazio');
+    const tabela = document.getElementById('tabela-cronograma');
+    
+    body.innerHTML = '';
+    
+    // 1. Coletar todos os controles com data
+    const itens = [];
+    const hoje = new Date();
+    const limite = new Date();
+    limite.setMonth(hoje.getMonth() + 6);
+ 
+    aeronaves.forEach(acft => {
+        acft.slots.forEach(slot => {
+            slot.controles.forEach(ctrl => {
+                const dataStr = ctrl.data_nova_vencimento || ctrl.data_vencimento;
+                if (!dataStr) return;
+ 
+                const dataVenc = new Date(dataStr + 'T12:00:00'); // Evitar problemas de timezone
+                if (dataVenc >= hoje && dataVenc <= limite) {
+                    itens.push({
+                        aeronave: acft.matricula,
+                        sistema: slot.sistema,
+                        controle: ctrl.tipo_controle_nome,
+                        vencimento: dataVenc,
+                        vencimentoStr: dataStr,
+                        status: ctrl.status
+                    });
+                }
+            });
+        });
+    });
+ 
+    if (itens.length === 0) {
+        tabela.style.display = 'none';
+        containerVazio.style.display = 'block';
+        return;
+    }
+ 
+    tabela.style.display = 'table';
+    containerVazio.style.display = 'none';
+ 
+    // 2. Ordenar por data
+    itens.sort((a, b) => a.vencimento - b.vencimento);
+ 
+    // 3. Renderizar
+    itens.forEach(it => {
+        const tr = document.createElement('tr');
+        const statusCls = mapStatusCls(it.status);
+        const statusLabel = (it.status === 'VENCENDO') ? 'A VENCER' : (it.status || 'OK');
+ 
+        tr.innerHTML = `
+            <td><span style="font-weight:600; color:var(--text-primary);">${escapeHtml(it.sistema)}</span></td>
+            <td><span class="cron-acft">${escapeHtml(it.aeronave)}</span></td>
+            <td>${escapeHtml(it.controle)}</td>
+            <td><span class="cron-date">${formatarData(it.vencimentoStr)}</span></td>
+            <td><span class="badge ${statusCls.replace('status-', 'badge-')}" style="font-size:0.65rem;">${statusLabel}</span></td>
+        `;
+        body.appendChild(tr);
+    });
 }
 
 // ─────────────────────────────────────────────
