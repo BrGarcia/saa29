@@ -50,7 +50,7 @@ Existem duas abordagens possíveis, sendo a primeira a mais recomendada para man
 
 ### Para a Violação de CSP
 1.  **Remover Handlers Inline:** 
-    *   No arquivo `configuracoes.html`, remover todos os atributos `onclick`.
+    *   No arquivo `configuracoes.html`, remover todos os atributos `onclick`. (corrigido)
     *   No arquivo `configuracoes.js`, adicionar listeners de eventos via JavaScript para esses botões (ex: `document.getElementById('btn-close-modal').addEventListener('click', closeModalStatus)`).
 2.  **Alternativa (Menos Segura):** 
     *   Adicionar `'unsafe-inline'` ao `script-src` na configuração da CSP no `main.py`. **Não recomendado** pois enfraquece a segurança do sistema contra ataques XSS.
