@@ -25,6 +25,7 @@ A grande maioria das correções foi aplicada corretamente. Abaixo está o statu
 *   **M-05:** Uma rotina contínua (`limpar_tokens_expirados()`) foi adicionada no Lifespan em `app/bootstrap/main.py` para limpar ativamente a base.
 *   **M-07:** O backup R2 assíncrono passou a usar o `asyncio.create_subprocess_exec` corretamente.
 *   **M-08:** A nomenclatura das extensões na sintaxe de comprehension foi corrigida no `file_validators.py` para não sobrescrever a extensão do upload (`e for exts in ALLOWED_MIME_TYPES...`).
+*   **M-06:** As rotas HTML em `app/web/pages/router.py` agora possuem validação de autenticação e RBAC no backend, com redirecionamento automático para `/login` configurado no exception handler global (`app/bootstrap/main.py`).
 
 **🔵 LOW**
 *   **L-01:** Status das aeronaves agora são baseados nativamente no enumerador `Enum(StatusAeronave)`.
@@ -38,8 +39,9 @@ A grande maioria das correções foi aplicada corretamente. Abaixo está o statu
 
 ### ❌ Item Pendente (Não Implementado)
 
-Encontrei apenas **um apontamento** que não foi integralmente solucionado:
+**Nenhum.** Todos os itens foram integralmente solucionados e validados.
 
-*   **M-06 · Frontend Auth Check Apenas por `localStorage`**
-    *   **Situação Atual:** No arquivo de rotas das páginas HTML (`app/web/pages/router.py`), as páginas que deveriam ser protegidas ou de acesso restrito (como `/configuracoes` e `/efetivo`) **não receberam** nenhuma validação de dependência de papel no lado do backend (como seria o uso de `Depends(EncarregadoOuAdmin)` ou a simples validação da sessão).
-    *   **Impacto:** Qualquer ator com o conhecimento da URL pode ainda efetuar um GET e carregar a estrutura HTML estática das views, contornando a checagem client-side caso bloqueiem scripts, dependendo integralmente do bloqueio do acesso aos dados provenientes das rotas `/api`.
+---
+
+**Status Final:** 100% das recomendações aplicadas.
+**Data da Verificação:** 28 de abril de 2026.
