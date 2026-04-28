@@ -1,6 +1,6 @@
 # NEXT.md – Status e Próximos Passos
 
-**Versão Atual:** `1.0.1` (Produção)
+**Versão Atual:** `1.1.0` (Produção)
 
 ---
 
@@ -9,10 +9,10 @@
 | Fase | Status | Descrição |
 |------|--------|-----------|
 | ✅ Fundação e Backend | 100% | Core, Auth, Panes, Aeronaves, Equipamentos (API) |
-| ✅ Interface (UI/UX) | 95% | Login, Panes, Efetivo, Frota, Configurações (parcial) |
-| ✅ Segurança | 100% | Auditoria resolvida (AUD-01 a AUD-22) |
+| ✅ Interface (UI/UX) | 98% | Login, Panes, Efetivo, Frota, Configurações (parcial), Refatoração CSP |
+| ✅ Segurança | 100% | Auditoria e Hardening de Frontend (CSP estrito) concluídos |
 | ✅ Portabilidade | 100% | Suporte nativo a SQLite e PostgreSQL |
-| 🔲 Equipamentos (UI) | Pendente | Interface para gestão de controles e vencimentos |
+| 🔲 Equipamentos (UI) | Em Andamento | Interface para gestão de controles e vencimentos |
 | 🔲 Deploy Automatizado | Pendente | CI/CD completo no GitHub Actions |
 
 ---
@@ -49,7 +49,9 @@ uvicorn app.main:app --reload
    - [x] Implementar `selectinload` para mitigar N+1 queries em listagens de inventário.
    - [x] Refatorar tratamento de erros para Exceções de Domínio + Global Exception Handler.
    - [x] Configurar PRAGMA WAL no SQLite para performance concorrente.
+   - [x] Refatorar Frontend para remover handlers inline (CSP Hardening).
+   - [x] Documentar bug de Inativação de Aeronaves (Docs/Relatorio).
 
 ---
 
-*Última atualização: 2026-04-24*
+*Última atualização: 2026-04-28*

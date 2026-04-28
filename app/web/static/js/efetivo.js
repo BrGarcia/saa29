@@ -61,7 +61,7 @@ async function loadEfetivo(forceRefresh = false) {
                 btnEdit.title = 'Editar';
                 btnEdit.style.color = 'var(--status-warning)';
                 btnEdit.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
-                btnEdit.onclick = () => openEditarMembro(u);
+                btnEdit.addEventListener('click', () => openEditarMembro(u));
                 tdAcoes.appendChild(btnEdit);
 
                 if(!isSelf) {
@@ -71,7 +71,7 @@ async function loadEfetivo(forceRefresh = false) {
                     btnDelete.style.color = 'var(--status-danger)';
                     btnDelete.style.marginLeft = '0.25rem';
                     btnDelete.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>`;
-                    btnDelete.onclick = () => excluirMembro(u.id, u.nome);
+                    btnDelete.addEventListener('click', () => excluirMembro(u.id, u.nome));
                     tdAcoes.appendChild(btnDelete);
                 }
             } else {
@@ -80,7 +80,7 @@ async function loadEfetivo(forceRefresh = false) {
                 btnRestore.title = 'Reativar';
                 btnRestore.style.color = 'var(--status-ok)';
                 btnRestore.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>`;
-                btnRestore.onclick = () => restaurarMembro(u.id, u.nome);
+                btnRestore.addEventListener('click', () => restaurarMembro(u.id, u.nome));
                 tdAcoes.appendChild(btnRestore);
             }
         } else {
@@ -195,15 +195,32 @@ document.addEventListener("DOMContentLoaded", () => {
     isAdmin = (user.funcao || '').toUpperCase() === 'ADMINISTRADOR';
     if(isAdmin) {
         const btnAdd = document.getElementById('btn-add-membro');
-        if(btnAdd) btnAdd.style.display = 'inline-flex';
+        if(btnAdd) {
+            btnAdd.style.display = 'inline-flex';
+            btnAdd.addEventListener('click', openModalMembro);
+        }
         const thAcoes = document.getElementById('th-acoes');
         if(thAcoes) thAcoes.style.display = 'table-cell';
     }
     loadEfetivo();
+
+    const filterUser = document.getElementById('filter-user');
+    if (filterUser) {
+        filterUser.addEventListener('keyup', () => loadEfetivo());
+    }
+
+    const filterStatus = document.getElementById('filter-status-user');
+    if (filterStatus) {
+        filterStatus.addEventListener('change', () => loadEfetivo(true));
+    }
 
     const formMembro = document.getElementById('formMembro');
     if(formMembro) formMembro.addEventListener('submit', criarMembro);
 
     const formEditar = document.getElementById('formEditarMembro');
     if(formEditar) formEditar.addEventListener('submit', salvarEdicaoMembro);
+
+    // Handlers para fechar modais (CSP compliant)
+    document.getElementById('btn-cancelar-membro')?.addEventListener('click', closeModalMembro);
+    document.getElementById('btn-cancelar-edicao-membro')?.addEventListener('click', closeEditarMembro);
 });

@@ -8,8 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.aeronaves.models import Aeronave
 from app.modules.equipamentos.models import SlotInventario, ItemEquipamento, Instalacao
-from app.modules.vencimentos.models import ControleVencimento, TipoControle
-from app.shared.core.enums import StatusItem, StatusVencimento
+from app.shared.core.enums import StatusItem
 
 async def run(session: AsyncSession):
     print("🚀 [Inventário] Instalando itens de teste em todas as aeronaves...")
@@ -25,9 +24,7 @@ async def run(session: AsyncSession):
     res_slots = await session.execute(select(SlotInventario))
     slots = res_slots.scalars().all()
 
-    # 3. Buscar Tipos de Controle (CRI)
-    res_cri = await session.execute(select(TipoControle).where(TipoControle.nome == "CRI"))
-    tipo_cri = res_cri.scalar_one_or_none()
+
 
     for acft in aeronaves:
         for slot in slots:
@@ -59,16 +56,7 @@ async def run(session: AsyncSession):
                 session.add(inst)
 
                 # Criar Controle de Vencimento (Pendente por padrão)
-                if tipo_cri:
-                    venc = ControleVencimento(
-                        id=uuid.uuid4(),
-                        item_id=item.id,
-                        tipo_controle_id=tipo_cri.id,
-                        status=StatusVencimento.VENCIDO.value,
-                        origem="PADRAO"
-                    )
-                    session.add(venc)
-                
+
                 print(f"   + Instalado {sn} no slot {slot.nome_posicao} da aeronave {acft.matricula}")
     
     await session.flush()

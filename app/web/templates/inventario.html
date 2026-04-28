@@ -134,7 +134,7 @@
         <p style="color: var(--text-secondary); font-size: 0.95rem;">Deseja remover o item da aeronave anterior e
             transferi-lo para a aeronave atual?</p>
         <div class="modal-actions">
-            <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+            <button class="btn btn-secondary" id="btn-cancelar-transferencia">Cancelar</button>
             <button class="btn btn-primary" id="btn-confirmar-transferencia"
                 style="background-color: var(--status-danger); border-color: var(--status-danger);">Transferir
                 S/N</button>
@@ -156,7 +156,7 @@
         <p id="modal-remocao-msg" style="line-height: 1.6; color: var(--text-primary);"></p>
         <p style="color: var(--text-secondary); font-size: 0.95rem;">Esta ação registrará a remoção do item desta aeronave no sistema.</p>
         <div class="modal-actions">
-            <button class="btn btn-secondary" onclick="fecharModalRemocao()">Cancelar</button>
+            <button class="btn btn-secondary" id="btn-cancelar-remocao">Cancelar</button>
             <button class="btn btn-primary" id="btn-confirmar-remocao"
                 style="background-color: var(--status-danger); border-color: var(--status-danger);">Confirmar Remoção</button>
         </div>

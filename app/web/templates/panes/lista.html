@@ -36,7 +36,7 @@
     <div class="card glass-panel" style="width: 100%; max-width: 600px; margin: 1rem; max-height: 90vh; overflow-y: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Selecione a Aeronave</h3>
-            <button class="btn-icon" onclick="closeSelecaoAeronaveModal()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" id="btn-close-modal-selecao"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
 
         <div id="grid-aeronaves" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; padding: 0.5rem;">
@@ -69,7 +69,7 @@
     <div class="card glass-panel" style="width: 100%; max-width: 500px; margin: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Nova Ocorrência</h3>
-            <button class="btn-icon" onclick="closeNovaPaneModal()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" id="btn-close-modal-nova-pane"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
 
         <form id="formNovaPane">
@@ -103,7 +103,7 @@
             </div>
 
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
-                <button type="button" class="btn btn-outline" onclick="closeNovaPaneModal()">Cancelar</button>
+                <button type="button" class="btn btn-outline" id="btn-cancelar-nova-pane">Cancelar</button>
                 <button type="submit" class="btn btn-primary" id="btnSalvarPane">Cadastrar Pane</button>
             </div>
         </form>
@@ -115,7 +115,7 @@
     <div class="card glass-panel" style="width: 100%; max-width: 500px; margin: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Editar Ocorrência</h3>
-            <button class="btn-icon" onclick="closeEditPaneModal()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" id="btn-close-modal-editar-pane"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
 
         <form id="formEditarPane">
@@ -131,7 +131,7 @@
             </div>
 
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
-                <button type="button" class="btn btn-outline" onclick="closeEditPaneModal()">Cancelar</button>
+                <button type="button" class="btn btn-outline" id="btn-cancelar-editar-pane">Cancelar</button>
                 <button type="submit" class="btn btn-warning" id="btnAtualizarPane">Salvar Alterações</button>
             </div>
         </form>

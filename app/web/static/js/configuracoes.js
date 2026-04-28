@@ -53,11 +53,38 @@ document.addEventListener("DOMContentLoaded", () => {
     const formNovaRegra = document.getElementById('formNovaRegra');
     if(formNovaRegra) formNovaRegra.addEventListener('submit', salvarNovaRegra);
 
-    const btnCatalogo = document.getElementById('btn-gerenciar-catalogo');
-    if(btnCatalogo) btnCatalogo.onclick = openModalCatalogo;
+    const btnPN = document.getElementById('btn-gerenciar-catalogo');
+    if(btnPN) btnPN.onclick = openModalCatalogo;
 
     const formPN = document.getElementById('formNovoPN');
     if(formPN) formPN.addEventListener('submit', salvarNovoModelo);
+
+    // Navegação Efetivo
+    const btnEfetivo = document.getElementById('btn-config-efetivo');
+    if (btnEfetivo) {
+        btnEfetivo.addEventListener('click', () => {
+            window.location.href = '/efetivo';
+        });
+    }
+
+    // Handlers para fechar modais (CSP compliant)
+    document.getElementById('btn-close-modal-aeronave')?.addEventListener('click', closeModalConfig);
+    document.getElementById('btn-cancel-modal-aeronave')?.addEventListener('click', closeModalConfig);
+    
+    document.getElementById('btn-close-modal-status')?.addEventListener('click', closeModalStatus);
+    document.getElementById('btn-cancel-modal-status')?.addEventListener('click', closeModalStatus);
+    
+    document.getElementById('btn-close-modal-tipo-controle')?.addEventListener('click', closeModalTipoControle);
+    document.getElementById('btn-cancel-modal-tipo-controle')?.addEventListener('click', closeModalTipoControle);
+    
+    document.getElementById('btn-close-modal-editar-tipo')?.addEventListener('click', closeModalEditarTipo);
+    document.getElementById('btn-cancel-modal-editar-tipo')?.addEventListener('click', closeModalEditarTipo);
+    
+    document.getElementById('btn-close-modal-catalogo')?.addEventListener('click', closeModalCatalogo);
+    document.getElementById('btn-close-catalogo')?.addEventListener('click', closeModalCatalogo);
+    
+    document.getElementById('btn-close-modal-regras')?.addEventListener('click', closeModalRegras);
+    document.getElementById('btn-close-regras')?.addEventListener('click', closeModalRegras);
 });
 
 function openModalConfig() {

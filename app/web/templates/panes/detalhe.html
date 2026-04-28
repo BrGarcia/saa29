@@ -198,7 +198,7 @@
                     placeholder="Ex: Substituído o módulo de intercoligador..." required></textarea>
             </div>
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
-                <button type="button" class="btn btn-outline" onclick="closeConcluirModal()">Cancelar</button>
+                <button type="button" class="btn btn-outline" id="btn-cancel-modal-concluir">Cancelar</button>
                 <button type="submit" class="btn btn-success">Concluir Intervenção</button>
             </div>
         </form>
@@ -220,7 +220,7 @@
                 <textarea id="editDescricao" class="form-input" rows="4" required></textarea>
             </div>
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
-                <button type="button" class="btn btn-outline" onclick="closeEditarModal()">Cancelar</button>
+                <button type="button" class="btn btn-outline" id="btn-cancel-modal-editar">Cancelar</button>
                 <button type="submit" class="btn btn-warning">Salvar Alterações</button>
             </div>
         </form>
@@ -240,7 +240,7 @@
                 </select>
             </div>
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
-                <button type="button" class="btn btn-outline" onclick="closeDelegarModal()">Cancelar</button>
+                <button type="button" class="btn btn-outline" id="btn-cancel-modal-delegar">Cancelar</button>
                 <button type="submit" class="btn btn-primary">Atribuir Serviço</button>
             </div>
         </form>
@@ -255,7 +255,7 @@
         <div
             style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.2);">
             <h3 style="font-size: 1rem; color: var(--text-primary); margin: 0;">Visualização de Evidência</h3>
-            <button onclick="closeAnexoModal()" class="btn-icon"
+            <button id="btn-close-modal-anexo" class="btn-icon"
                 style="background: var(--bg-tertiary); width: 32px; height: 32px;" title="Fechar">
                 <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />

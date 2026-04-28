@@ -38,7 +38,7 @@
     <div class="card glass-panel" style="width: 100%; max-width: 450px; margin: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Editar Aeronave</h3>
-            <button class="btn-icon" type="button" onclick="closeModalFrota()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-modal-frota"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
 
         <form id="formAeronave">
@@ -60,7 +60,7 @@
             </div>
 
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
-                <button type="button" class="btn btn-outline" onclick="closeModalFrota()">Cancelar</button>
+                <button type="button" class="btn btn-outline" id="btn-cancelar-modal-frota">Cancelar</button>
                 <button type="submit" class="btn btn-primary" id="btnSalvarAcft">Salvar</button>
             </div>
         </form>
@@ -70,13 +70,4 @@
 
 {% block scripts %}
 <script src="/static/js/aeronaves.js"></script>
-<script>
-    document.addEventListener("DOMContentLoaded", () => {
-        const btnSearch = document.getElementById('btn-search-frota');
-        if(btnSearch) btnSearch.onclick = loadFrota;
-        
-        const btnNova = document.getElementById('btn-nova-aeronave');
-        if(btnNova) btnNova.onclick = openModalFrota;
-    });
-</script>
 {% endblock %}

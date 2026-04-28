@@ -264,10 +264,12 @@ async function carregarAnexos() {
            `;
             
             const btnAbrir = div.querySelector('.btn-abrir-anexo');
-            btnAbrir.onclick = () => abrirAnexo(ax.id, ax.tipo);
+            btnAbrir.addEventListener('click', () => abrirAnexo(ax.id, ax.tipo));
             
             const btnExcluirTrigger = div.querySelector('.btn-excluir-anexo');
-            if(btnExcluirTrigger) btnExcluirTrigger.onclick = () => handleExcluirAnexo(ax.id);
+            if(btnExcluirTrigger) {
+                btnExcluirTrigger.addEventListener('click', () => handleExcluirAnexo(ax.id));
+            }
 
             lista.appendChild(div);
         });
@@ -390,4 +392,10 @@ document.addEventListener("DOMContentLoaded", () => {
     
     const formEditar = document.getElementById('formEditar');
     if(formEditar) formEditar.addEventListener('submit', salvarEdicao);
+
+    // Handlers para fechar modais (CSP compliant)
+    document.getElementById('btn-cancel-modal-concluir')?.addEventListener('click', closeConcluirModal);
+    document.getElementById('btn-cancel-modal-editar')?.addEventListener('click', closeEditarModal);
+    document.getElementById('btn-cancel-modal-delegar')?.addEventListener('click', closeDelegarModal);
+    document.getElementById('btn-close-modal-anexo')?.addEventListener('click', closeAnexoModal);
 });

@@ -38,8 +38,8 @@ async function loadFrota() {
                 </td>
             `;
             
-            tr.querySelector('.btn-ver-panes').onclick = () => verPanes(acft.id);
-            tr.querySelector('.btn-editar-aeronave').onclick = () => openEditarAeronave(acft);
+            tr.querySelector('.btn-ver-panes').addEventListener('click', () => verPanes(acft.id));
+            tr.querySelector('.btn-editar-aeronave').addEventListener('click', () => openEditarAeronave(acft));
 
             
             body.appendChild(tr);
@@ -123,7 +123,8 @@ async function alternarStatusAeronave(aeronaveId, matricula, statusAtual) {
 function mapStatusAcftBadge(status) {
     if (!status) return '';
     switch (status.toUpperCase()) {
-        case 'DISPONIVEL': return 'badge-resolvida'; // Verde
+        case 'DISPONIVEL':
+        case 'OPERACIONAL': return 'badge-resolvida'; // Verde
         case 'INDISPONIVEL': return 'badge-pesquisa'; // Amarelo/Laranja
         case 'INSPEÇÃO': return 'badge-inspecao';    // Azul
         case 'ESTOCADA': return 'badge-estocada'; // Cinza
@@ -140,4 +141,14 @@ document.addEventListener("DOMContentLoaded", () => {
     loadFrota();
     const form = document.getElementById('formAeronave');
     if(form) form.addEventListener('submit', criarAeronave);
+
+    const btnSearch = document.getElementById('btn-search-frota');
+    if(btnSearch) btnSearch.addEventListener('click', loadFrota);
+    
+    const btnNova = document.getElementById('btn-nova-aeronave');
+    if(btnNova) btnNova.addEventListener('click', openModalFrota);
+
+    // Handlers para fechar modais (CSP compliant)
+    document.getElementById('btn-close-modal-frota')?.addEventListener('click', closeModalFrota);
+    document.getElementById('btn-cancelar-modal-frota')?.addEventListener('click', closeModalFrota);
 });

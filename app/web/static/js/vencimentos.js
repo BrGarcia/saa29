@@ -7,31 +7,40 @@ let matrizGlobal = null;
 let filtroStatusAtual = 'todos';
 
 document.addEventListener("DOMContentLoaded", async () => {
-    await carregarMatriz();
+    // 1. Configurar Listeners Primeiro (Para que a UI responda mesmo durante o loading)
+    
+    // Filtro de texto
+    const filtroTexto = document.getElementById('filtro-vencimentos');
+    if (filtroTexto) {
+        filtroTexto.addEventListener('input', (e) => aplicarFiltros());
+    }
 
-    document.getElementById('filtro-vencimentos').addEventListener('input', (e) => {
-        aplicarFiltros();
-    });
+    // Delegação de eventos para os itens de controle (CSP compliant)
+    const grid = document.getElementById('vencimentos-grid');
+    if (grid) {
+        grid.addEventListener('click', (e) => {
+            const row = e.target.closest('.clickable-control');
+            if (!row) return;
 
+            const { vencId, infoLabel, isProrrogado, novaVenc, docProrrog } = row.dataset;
+            if (vencId) {
+                openModalExecutar(vencId, infoLabel, isProrrogado === 'true', novaVenc, docProrrog);
+            }
+        });
+    }
+
+    // Formulários
     const formExec = document.getElementById('formExecutarControle');
     if (formExec) formExec.addEventListener('submit', salvarExecucao);
 
     const formProrrog = document.getElementById('formProrrogarVencimento');
     if (formProrrog) formProrrog.addEventListener('submit', salvarProrrogacao);
 
-    // Delegação de eventos para os itens de controle (CSP compliant)
-    document.getElementById('vencimentos-grid').addEventListener('click', (e) => {
-        const row = e.target.closest('.clickable-control');
-        if (!row) return;
-
-        const { vencId, infoLabel, isProrrogado, novaVenc, docProrrog } = row.dataset;
-        if (vencId) {
-            openModalExecutar(vencId, infoLabel, isProrrogado === 'true', novaVenc, docProrrog);
-        }
-    });
-
-    // Configuração de botões estáticos (Removendo dependência de onclick no HTML)
+    // Botões estáticos e filtros de status
     setupStaticListeners();
+
+    // 2. Carregar os dados
+    await carregarMatriz();
 });
 
 function setupStaticListeners() {
@@ -46,12 +55,6 @@ function setupStaticListeners() {
 
     const btnProrrogado = document.getElementById('btn-filtro-prorrogado');
     if (btnProrrogado) btnProrrogado.addEventListener('click', () => filtrarStatus('prorrogado'));
-
-    const btnIncompleta = document.getElementById('btn-filtro-incompleta');
-    if (btnIncompleta) btnIncompleta.addEventListener('click', () => filtrarStatus('incompleta'));
-
-    const cardPendente = document.getElementById('card-status-pendente');
-    if (cardPendente) cardPendente.addEventListener('click', () => filtrarStatus('pendente'));
 
     // Botões de fechar/cancelar modais
     document.getElementById('btn-close-exec-modal')?.addEventListener('click', closeModalExecutar);
@@ -137,25 +140,40 @@ function criarCardAeronave(aeronave) {
         });
     });
 
-    // Pills de resumo da aeronave (Removido pill-ok a pedido do usuário)
+    // Pills de resumo da aeronave (Apenas números com tooltip)
     let pillsHtml = '';
-    if (danger > 0) pillsHtml += `<span class="pill pill-danger">● ${danger} Vencido${danger > 1 ? 's' : ''}</span>`;
-    if (warn > 0) pillsHtml += `<span class="pill pill-warn">● ${warn} A Vencer</span>`;
-    if (incompleto > 0) pillsHtml += `<span class="pill pill-incompleta">● ${incompleto} Faltante${incompleto > 1 ? 's' : ''}</span>`;
-    if (pendente > 0) pillsHtml += `<span class="pill pill-pendente">● ${pendente} Pendente${pendente > 1 ? 's' : ''}</span>`;
+    if (danger > 0) pillsHtml += `<span class="pill pill-danger" title="${danger} Vencido(s)">${danger}</span>`;
+    if (warn > 0) pillsHtml += `<span class="pill pill-warn" title="${warn} A Vencer">${warn}</span>`;
+    if (prorrog > 0) pillsHtml += `<span class="pill pill-prorrogado" title="${prorrog} Prorrogado(s)">${prorrog}</span>`;
+
+    const isVencido = danger > 0 || aeronave.status_vencimento === 'VENCIDO';
+    wrapper.className = `acft-card ${isVencido ? 'vencida' : ''}`;
+    wrapper.dataset.matricula = aeronave.matricula;
 
     // Header do card
     const header = document.createElement('div');
-    const isAllOk = ok > 0 && danger === 0 && warn === 0 && prorrog === 0 && incompleto === 0 && pendente === 0;
+    const isAllOk = !isVencido && incompleto === 0 && (ok > 0 || warn > 0);
     const temControles = (ok + danger + warn + prorrog + incompleto + pendente) > 0;
     
     header.className = `acft-card-header ${isAllOk ? 'status-all-ok' : ''}`;
+    
+    // Status operacional da aeronave (Sincronizado com Frota)
+    const statusAnv = (aeronave.status_aeronave || 'DISPONIVEL').toUpperCase();
+    let statusAnvCls = 'badge-resolvida'; // Default DISPONIVEL/OPERACIONAL
+    if (statusAnv === 'INDISPONIVEL') statusAnvCls = 'badge-pesquisa';
+    else if (statusAnv === 'INSPEÇÃO') statusAnvCls = 'badge-inspecao';
+    else if (statusAnv === 'ESTOCADA') statusAnvCls = 'badge-estocada';
+    else if (statusAnv === 'INATIVA') statusAnvCls = 'badge-aberta';
+    else if (statusAnv === 'OPERACIONAL') statusAnvCls = 'badge-resolvida';
+
     header.innerHTML = `
-        <span class="acft-matricula">${escapeHtml(aeronave.matricula)}</span>
-        <div class="acft-status-pills">
-            ${pillsHtml || (temControles ? '' : '<span style="font-size:0.8rem;color:var(--text-secondary);">Sem controles</span>')}
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <span class="acft-matricula">${escapeHtml(aeronave.matricula)}</span>
+            <div class="acft-status-pills">
+                ${pillsHtml || (temControles ? '' : '<span style="font-size:0.8rem;color:var(--text-secondary);">Sem controles</span>')}
+            </div>
         </div>
-        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--text-secondary); transition: transform 0.2s;" class="chevron"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        <span class="badge ${statusAnvCls}" style="font-size: 0.65rem; padding: 0.2rem 0.6rem; border: 1px solid rgba(255,255,255,0.1)">${statusAnv}</span>
     `;
 
     // Body com chips de equipamentos
@@ -169,12 +187,10 @@ function criarCardAeronave(aeronave) {
 
     // Toggle collapse — inicia recolhido
     body.style.display = 'none';
-    header.querySelector('.chevron').style.transform = 'rotate(-90deg)';
 
     header.addEventListener('click', () => {
         const isOpen = body.style.display !== 'none';
         body.style.display = isOpen ? 'none' : 'flex';
-        header.querySelector('.chevron').style.transform = isOpen ? 'rotate(-90deg)' : '';
     });
 
     wrapper.appendChild(header);
@@ -252,9 +268,7 @@ function atualizarContadores(aeronaves) {
     document.getElementById('cnt-ok').innerText = ok;
     document.getElementById('cnt-warn').innerText = warn;
     document.getElementById('cnt-danger').innerText = danger;
-    document.getElementById('cnt-pendente').innerText = pendente;
     document.getElementById('cnt-prorrogado').innerText = prorrog;
-    document.getElementById('cnt-incompleta').innerText = incompleto;
 }
 
 function filtrarStatus(tipo) {
@@ -282,8 +296,6 @@ function aplicarFiltros() {
                     if (filtroStatusAtual === 'warn') return st === 'VENCENDO';
                     if (filtroStatusAtual === 'danger') return st === 'VENCIDO';
                     if (filtroStatusAtual === 'prorrogado') return st === 'PRORROGADO';
-                    if (filtroStatusAtual === 'incompleta') return st === 'FALTANTE';
-                    if (filtroStatusAtual === 'pendente') return st === 'PENDENTE';
                     return false;
                 })
             );

@@ -56,6 +56,7 @@ class TipoPapel(str, enum.Enum):
 class StatusAeronave(str, enum.Enum):
     """Status operacional de uma aeronave."""
     DISPONIVEL = "DISPONIVEL"
+    OPERACIONAL = "OPERACIONAL"
     INDISPONIVEL = "INDISPONIVEL"
     INSPECAO = "INSPEÇÃO"
     ESTOCADA = "ESTOCADA"

@@ -68,17 +68,17 @@ core_rules:
 
 current_focus:
 - docs_synced: true (IA and Architecture folders aligned)
-- security_controls_active: true
+- security_controls_active: 100_percent (CSP hardening completed)
 - inventory_module_active: true
 - configuracoes_module_active: true
 - matriz_vencimentos_active: true
 - inspecoes_module_active: true
-- ddd_modularization_completed: true (Vencimentos and Efetivo extracted)
-- status_standardization_completed: true (DISPONIVEL vs OPERACIONAL)
+- ddd_modularization_completed: true
+- frontend_csp_refactoring_completed: true (removed all inline scripts)
 - alembic_migrations_up_to_date: true
 - test_suites_passing: 100_percent (unit, security, architecture)
 
 known_gaps_from_roadmap:
 - logout_frontend_backend_alignment
 - database_url_consistency
-- stronger_cookie_only_auth_migration
+- bug_fix_inativar_anv_config (documented in docs/relatorio)

@@ -34,7 +34,7 @@ python -m scripts.db.init_db
 # 3. Popular dados de teste apenas com flag explícita fora de produção
 if [ "$APP_ENV" != "production" ] && [ "$ENABLE_DEV_SEEDS" = "true" ]; then
     echo "🌱 Populando dados de teste (Seed)..."
-    python -m scripts.db.seed
+    python -m scripts.seed.seed
     python -m scripts.seed_equipamentos
     python -m scripts.seed_30_panes
 else

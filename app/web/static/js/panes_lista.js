@@ -72,17 +72,17 @@ async function loadPanes() {
                 </td>
             `;
             
-            tr.onclick = () => window.location.href = `/panes/${pane.id}/detalhes`;
+            tr.addEventListener('click', () => window.location.href = `/panes/${pane.id}/detalhes`);
             
             // Event listeners para botões internos para parar propagação
             const btnEdit = tr.querySelector('.btn-edit');
-            if(btnEdit) btnEdit.onclick = (e) => { e.stopPropagation(); openEditPaneModal(pane.id); };
+            if(btnEdit) btnEdit.addEventListener('click', (e) => { e.stopPropagation(); openEditPaneModal(pane.id); });
             
             const btnDelete = tr.querySelector('.btn-delete');
-            if(btnDelete) btnDelete.onclick = (e) => { e.stopPropagation(); softDeletePane(pane.id); };
+            if(btnDelete) btnDelete.addEventListener('click', (e) => { e.stopPropagation(); softDeletePane(pane.id); });
             
             const btnRestore = tr.querySelector('.btn-restore');
-            if(btnRestore) btnRestore.onclick = (e) => { e.stopPropagation(); restorePane(pane.id); };
+            if(btnRestore) btnRestore.addEventListener('click', (e) => { e.stopPropagation(); restorePane(pane.id); });
 
             body.appendChild(tr);
         });
@@ -128,7 +128,7 @@ async function openSelecaoAeronaveModal() {
                 btn.style.background = bgVar;
             };
             
-            btn.onclick = () => openNuevaPaneModal(f.id, f.matricula);
+            btn.addEventListener('click', () => openNuevaPaneModal(f.id, f.matricula));
             gridAeronaves.appendChild(btn);
         });
 
@@ -338,8 +338,13 @@ document.addEventListener("DOMContentLoaded", () => {
         formEditarPane.addEventListener('submit', handleSalvarEdicao);
     }
 
-    // Expose close functions for the Close buttons (since some are still using inline onclick for brevity, 
-    // but in a strict CSP we ideally want all event listeners attached here)
+    // Handlers para fechar modais (CSP compliant)
+    document.getElementById('btn-close-modal-selecao')?.addEventListener('click', closeSelecaoAeronaveModal);
+    document.getElementById('btn-close-modal-nova-pane')?.addEventListener('click', closeNovaPaneModal);
+    document.getElementById('btn-cancelar-nova-pane')?.addEventListener('click', closeNovaPaneModal);
+    document.getElementById('btn-close-modal-editar-pane')?.addEventListener('click', closeEditPaneModal);
+    document.getElementById('btn-cancelar-editar-pane')?.addEventListener('click', closeEditPaneModal);
+
     window.closeSelecaoAeronaveModal = closeSelecaoAeronaveModal;
     window.closeNovaPaneModal = closeNovaPaneModal;
     window.closeEditPaneModal = closeEditPaneModal;

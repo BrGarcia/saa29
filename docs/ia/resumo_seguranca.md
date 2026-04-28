@@ -48,5 +48,6 @@ reporting:
 - follow_docs_SECURITY_md
 
 recent_actions:
-- 2026-04-27: External security audit completed (docs/relatorio/revisao_claude.md)
-- 2026-04-27: Critical issues C-01 (CSRF bypass) and C-02 (Cookie secure flag) resolved
+- 2026-04-28: Full Frontend CSP Hardening (removed all inline scripts and event handlers).
+- 2026-04-27: External security audit completed (docs/relatorio/revisao_claude.md).
+- 2026-04-27: Critical issues C-01 (CSRF bypass) and C-02 (Cookie secure flag) resolved.

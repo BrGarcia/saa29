@@ -266,13 +266,15 @@ function renderInventario(items) {
         `;
         
         const badgeSn = tr.querySelector('.badge-sn-siloms');
-        if(badgeSn) badgeSn.onclick = () => abrirModalRemocao(item.instalacao_id, item.numero_serie, item.nome_posicao);
+        if(badgeSn) {
+            badgeSn.addEventListener('click', () => abrirModalRemocao(item.instalacao_id, item.numero_serie, item.nome_posicao));
+        }
         
         const input = tr.querySelector('.real-input');
-        input.oninput = () => compareSN(input, item.numero_serie || '', item.equipamento_id);
+        input.addEventListener('input', () => compareSN(input, item.numero_serie || '', item.equipamento_id));
         
         const btnSync = tr.querySelector('.btn-sync');
-        btnSync.onclick = () => ajustarInventario(item.equipamento_id, input.value);
+        btnSync.addEventListener('click', () => ajustarInventario(item.equipamento_id, input.value));
         
         tbody.appendChild(tr);
     });
@@ -374,4 +376,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (filterNome) {
         filterNome.addEventListener('input', loadInventario);
     }
+
+    // Handlers para fechar modais (CSP compliant)
+    document.getElementById('btn-cancelar-transferencia')?.addEventListener('click', fecharModal);
+    document.getElementById('btn-cancelar-remocao')?.addEventListener('click', fecharModalRemocao);
 });

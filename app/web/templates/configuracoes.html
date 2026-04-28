@@ -84,7 +84,7 @@
             <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0; flex-grow: 1;">
                 Gerenciamento de usuários, atribuição de funções (Mantenedor, Encarregado) e controle de acessos.
             </p>
-            <button class="btn btn-efetivo" style="width: 100%;" onclick="window.location.href='/efetivo'">
+            <button class="btn btn-efetivo" id="btn-config-efetivo" style="width: 100%;">
                 Gerenciar Efetivo
             </button>
         </div>
@@ -114,7 +114,7 @@
     <div class="card glass-panel" style="width: 100%; max-width: 450px; margin: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Nova Aeronave</h3>
-            <button class="btn-icon" type="button" onclick="closeModalConfig()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-modal-aeronave"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
 
         <form id="formAeronave">
@@ -137,7 +137,7 @@
             </div>
 
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
-                <button type="button" class="btn btn-outline" onclick="closeModalConfig()">Cancelar</button>
+                <button type="button" class="btn btn-outline" id="btn-cancel-modal-aeronave">Cancelar</button>
                 <button type="submit" class="btn btn-aeronave" id="btnSalvarAcft">Registrar</button>
             </div>
         </form>
@@ -149,7 +149,7 @@
     <div class="card glass-panel" style="width: 100%; max-width: 450px; margin: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Alterar Status da Aeronave</h3>
-            <button class="btn-icon" type="button" onclick="closeModalStatus()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-modal-status"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
 
         <form id="formAlterarStatusAeronave">
@@ -170,7 +170,7 @@
             </div>
 
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
-                <button type="button" class="btn btn-outline" onclick="closeModalStatus()">Cancelar</button>
+                <button type="button" class="btn btn-outline" id="btn-cancel-modal-status">Cancelar</button>
                 <button type="submit" class="btn btn-aeronave" id="btnConfirmarStatus">Alterar Status</button>
             </div>
         </form>
@@ -182,7 +182,7 @@
     <div class="card glass-panel" style="width: 100%; max-width: 450px; margin: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Novo Tipo de Controle</h3>
-            <button class="btn-icon" type="button" onclick="closeModalTipoControle()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-modal-tipo-controle"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
 
         <form id="formTipoControle">
@@ -196,7 +196,7 @@
             </div>
 
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
-                <button type="button" class="btn btn-outline" onclick="closeModalTipoControle()">Cancelar</button>
+                <button type="button" class="btn btn-outline" id="btn-cancel-modal-tipo-controle">Cancelar</button>
                 <button type="submit" class="btn btn-vencimento" id="btnSalvarTipoControle">Salvar</button>
             </div>
         </form>
@@ -208,7 +208,7 @@
     <div class="card glass-panel" style="width: 100%; max-width: 480px; margin: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Editar Tipo de Controle</h3>
-            <button class="btn-icon" type="button" onclick="closeModalEditarTipo()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-modal-editar-tipo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
 
         <form id="formEditarTipoControle">
@@ -228,7 +228,7 @@
             </div>
 
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
-                <button type="button" class="btn btn-outline" onclick="closeModalEditarTipo()">Cancelar</button>
+                <button type="button" class="btn btn-outline" id="btn-cancel-modal-editar-tipo">Cancelar</button>
                 <button type="submit" class="btn btn-vencimento" id="btnSalvarEditarTipo">Salvar Alterações</button>
             </div>
         </form>
@@ -240,7 +240,7 @@
     <div class="card glass-panel" style="width: 100%; max-width: 700px; margin: 1rem; max-height: 90vh; display: flex; flex-direction: column;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Gerenciamento de Catálogo (Part Numbers)</h3>
-            <button class="btn-icon" type="button" onclick="closeModalCatalogo()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-modal-catalogo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
 
         <div style="overflow-y: auto; flex-grow: 1; padding-right: 0.5rem;">
@@ -282,7 +282,7 @@
         </div>
 
         <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
-            <button type="button" class="btn btn-outline" onclick="closeModalCatalogo()">Fechar</button>
+            <button type="button" class="btn btn-outline" id="btn-close-catalogo">Fechar</button>
         </div>
     </div>
 </div>
@@ -292,7 +292,7 @@
     <div class="card glass-panel" style="width: 100%; max-width: 700px; margin: 1rem; max-height: 90vh; display: flex; flex-direction: column;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Regras de Vencimento por Equipamento</h3>
-            <button class="btn-icon" type="button" onclick="closeModalRegras()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-modal-regras"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
 
         <div style="overflow-y: auto; flex-grow: 1; padding-right: 0.5rem;">
@@ -339,7 +339,7 @@
         </div>
 
         <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
-            <button type="button" class="btn btn-outline" onclick="closeModalRegras()">Fechar</button>
+            <button type="button" class="btn btn-outline" id="btn-close-regras">Fechar</button>
         </div>
     </div>
 </div>

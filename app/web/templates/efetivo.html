@@ -6,7 +6,7 @@
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
     <!-- Filtragem Básica -->
     <div style="display: flex; gap: 1rem; flex: 1; max-width: 600px;">
-        <input type="text" id="filter-user" class="form-input" placeholder="Buscar efetivo..." style="flex: 1;" onkeyup="loadEfetivo()">
+        <input type="text" id="filter-user" class="form-input" placeholder="Buscar efetivo..." style="flex: 1;">
         <select id="filter-status-user" class="form-input" style="width: auto;">
             <option value="ativos">ATIVOS</option>
             <option value="inativos">DESATIVADOS</option>
@@ -93,7 +93,7 @@
             </div>
 
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
-                <button type="button" class="btn btn-outline" onclick="closeModalMembro()">Cancelar</button>
+                <button type="button" class="btn btn-outline" id="btn-cancelar-membro">Cancelar</button>
                 <button type="submit" class="btn btn-primary" id="btnSalvarMembro">Confirmar Inclusão</button>
             </div>
         </form>
@@ -141,7 +141,7 @@
                 </div>
             </div>
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
-                <button type="button" class="btn btn-outline" onclick="closeEditarMembro()">Cancelar</button>
+                <button type="button" class="btn btn-outline" id="btn-cancelar-edicao-membro">Cancelar</button>
                 <button type="submit" class="btn btn-primary" id="btnSalvarEdicao">Salvar Alterações</button>
             </div>
         </form>
@@ -151,13 +151,4 @@
 
 {% block scripts %}
 <script src="/static/js/efetivo.js"></script>
-<script>
-    document.addEventListener("DOMContentLoaded", () => {
-        const btnAdd = document.getElementById('btn-add-membro');
-        if(btnAdd) btnAdd.onclick = openModalMembro;
-        
-        const filterStatus = document.getElementById('filter-status-user');
-        if(filterStatus) filterStatus.onchange = () => loadEfetivo(true);
-    });
-</script>
 {% endblock %}

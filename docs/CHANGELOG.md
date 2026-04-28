@@ -6,19 +6,20 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 
 ---
 
-## [Unreleased]
+## [1.1.0] - 2026-04-28
+
+### Fixed
+- **Segurança (CSP):** Remoção completa de scripts inline e handlers de eventos (`onclick`, `onkeyup`, etc.) em todos os templates HTML para conformidade estrita com a política `script-src 'self'`.
+- **Arquitetura Frontend:** Migração da lógica de interface para arquivos `.js` especializados utilizando `addEventListener`, melhorando a manutenibilidade e segurança contra XSS.
+- **Bug de Aeronaves:** Identificada a causa do erro 409 (Conflict) ao tentar inativar aeronaves via interface de configurações (Backlog para correção em 1.1.1).
 
 ### Added
-- Módulo `efetivo` criado para gerenciamento de indisponibilidades do pessoal (férias, dispensa, etc.).
-- Sincronizacao da documentacao principal com a estrutura atual do repositorio.
-- Cobertura de arquitetura, API, requisitos e guias de desenvolvimento alinhada ao estado real do projeto.
+- Documentação de análise de bug em `docs/relatorio/relatorio_bug_inativar_anv.md`.
+- Reforço da infraestrutura de eventos no frontend para todos os modais do sistema.
 
-### Changed
-- Refatoração arquitetural (Fase 1, 2 e 3 concluidas): Extração das lógicas temporais e regras de manutenção do módulo `equipamentos` para o novo módulo especializado `vencimentos`.
-- Unificação do status operacional das aeronaves para `DISPONIVEL` e `INDISPONIVEL` em todo o sistema.
-- Refatoração do script de inicialização do banco (`init_db.py`) e dos seeds de desenvolvimento para suportar a nova hierarquia do SQLAlchemy Registry.
-- `README.md` reescrito para refletir a arquitetura monolitica modular, o bootstrap em `app/bootstrap/main.py`, os scripts reais e a lista atual de modulos.
-- Referencias de setup e execucao ajustadas para `scripts/run_app.py`, `scripts/db/init_db.py` e `scripts/db/seed.py`.
+---
+
+## [Unreleased]
 
 ---
 
