@@ -85,7 +85,7 @@ async def criar_slot(
 ):
     try:
         slot = await service.criar_slot(db, dados)
-        await db.commit()
+        # O commit é feito automaticamente pela dependência get_db ao final do request
         return schemas.SlotInventarioOut.model_validate(slot)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

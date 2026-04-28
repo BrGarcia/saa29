@@ -360,8 +360,8 @@ async function carregarListaRegras() {
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid var(--border-color)';
             tr.innerHTML = `
-                <td style="padding: 0.75rem;">${r.pn || '---'}</td>
-                <td style="padding: 0.75rem; text-align: center;"><strong>${r.tipo_nome || '---'}</strong></td>
+                <td style="padding: 0.75rem;">${escapeHtml(r.pn) || '---'}</td>
+                <td style="padding: 0.75rem; text-align: center;"><strong>${escapeHtml(r.tipo_nome) || '---'}</strong></td>
                 <td style="padding: 0.75rem; text-align: center;">${r.periodicidade_meses} meses</td>
                 <td style="padding: 0.75rem; text-align: right;">
                     <button class="btn-icon" style="color: var(--status-danger);" onclick="removerRegra('${r.modelo_id}', '${r.tipo_controle_id}')">
@@ -451,9 +451,9 @@ async function carregarListaCatalogo() {
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid var(--border-color)';
             tr.innerHTML = `
-                <td style="padding: 0.75rem;"><strong>${m.part_number}</strong></td>
-                <td style="padding: 0.75rem;">${m.nome_generico}</td>
-                <td style="padding: 0.75rem; color: var(--text-secondary); font-size: 0.85rem;">${m.descricao || '---'}</td>
+                <td style="padding: 0.75rem;"><strong>${escapeHtml(m.part_number)}</strong></td>
+                <td style="padding: 0.75rem;">${escapeHtml(m.nome_generico)}</td>
+                <td style="padding: 0.75rem; color: var(--text-secondary); font-size: 0.85rem;">${escapeHtml(m.descricao) || '---'}</td>
             `;
             tbody.appendChild(tr);
         });

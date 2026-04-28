@@ -87,7 +87,7 @@ async def associar_controle(
         assoc = await service.associar_controle_a_equipamento(
             db, dados.modelo_id, dados.tipo_controle_id, dados.periodicidade_meses
         )
-        await db.commit()
+        # O commit é feito automaticamente pela dependência get_db ao final do request
         return schemas.EquipamentoControleOut.model_validate(assoc)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))

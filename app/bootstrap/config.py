@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     # --- Banco de Dados ---
     # Padrão: SQLite para instalação local ou produção básica (monolito).
-    database_url: str = "sqlite+aiosqlite:///./var/db"
+    database_url: str = "sqlite+aiosqlite:///./saa29_local.db"
 
     # --- JWT ---
     jwt_algorithm: str = Field(

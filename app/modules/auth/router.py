@@ -67,7 +67,7 @@ async def login(
         expira_em=datetime.now(timezone.utc) + timedelta(days=7)
     )
     db.add(refresh_token_model)
-    await db.commit()
+    # O commit é feito automaticamente pela dependência get_db ao final do request
     
     # Set secure cookie for access token (HttpOnly, Secure em produção)
     from app.bootstrap.config import get_settings
@@ -198,7 +198,7 @@ async def refresh_access_token(
         # Revogar refresh token antigo (opcional, mas mais seguro)
         stored_token.revogado_em = datetime.now(timezone.utc)
         
-        await db.commit()
+        # O commit é feito automaticamente pela dependência get_db ao final do request
         
         # Set cookies
         secure = get_settings().app_env == "production"
@@ -266,7 +266,7 @@ async def logout(
                 jti=jti,
                 expira_em=datetime.fromtimestamp(exp, tz=timezone.utc)
             ))
-            await db.commit()
+            # O commit é feito automaticamente pela dependência get_db ao final do request
     except Exception:
         # Se o token já for inválido, logout é considerado ok.
         pass

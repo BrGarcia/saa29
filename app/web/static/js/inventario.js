@@ -250,8 +250,8 @@ function renderInventario(items) {
 
         tr.innerHTML = `
             <td style="padding: 0.8rem 1rem;"><span class="badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary-color); font-weight: 600; font-size: 0.75rem;">${item.sistema || '-'}</span></td>
-            <td style="padding: 0.8rem 1rem;"><div style="font-weight: 600;">${item.equipamento_nome}</div><div style="font-size: 0.75rem; color: var(--text-secondary);">${item.status_item || 'NÃO INSTALADO'}</div></td>
-            <td style="padding: 0.8rem 1rem; font-family: monospace; font-size: 0.9rem;">${item.part_number}</td>
+            <td style="padding: 0.8rem 1rem;"><div style="font-weight: 600;">${escapeHtml(item.equipamento_nome)}</div><div style="font-size: 0.75rem; color: var(--text-secondary);">${escapeHtml(item.status_item) || 'NÃO INSTALADO'}</div></td>
+            <td style="padding: 0.8rem 1rem; font-family: monospace; font-size: 0.9rem;">${escapeHtml(item.part_number)}</td>
             <td style="padding: 0.8rem 1rem;" class="td-sn-siloms">${snSilomsHtml}</td>
             <td style="padding: 0.8rem 1rem;">${rastreabilidade}</td>
             <td style="padding: 0.6rem 1rem;">
@@ -262,7 +262,7 @@ function renderInventario(items) {
                     </button>
                 </div>
             </td>
-            <td style="padding: 0.8rem 1rem;">${item.aeronave_anterior ? `<span class="badge" style="background: var(--bg-tertiary); color: var(--primary-color);">${item.aeronave_anterior}</span>` : '-'}</td>
+            <td style="padding: 0.8rem 1rem;">${item.aeronave_anterior ? `<span class="badge" style="background: var(--bg-tertiary); color: var(--primary-color);">${escapeHtml(item.aeronave_anterior)}</span>` : '-'}</td>
         `;
         
         const badgeSn = tr.querySelector('.badge-sn-siloms');

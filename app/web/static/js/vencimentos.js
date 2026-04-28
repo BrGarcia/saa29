@@ -169,8 +169,8 @@ function criarChipEquipamento(slot, aeronave) {
     });
 
     chip.innerHTML = `
-        <div class="equip-chip-name">${slot.sistema}</div>
-        <div class="equip-chip-sn ${snClass}">${snText}</div>
+        <div class="equip-chip-name">${escapeHtml(slot.sistema)}</div>
+        <div class="equip-chip-sn ${snClass}">${escapeHtml(snText)}</div>
         <div class="equip-chip-controls">${controlesHtml}</div>
     `;
 
