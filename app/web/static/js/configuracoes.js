@@ -24,37 +24,37 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const btnNova = document.getElementById('btn-nova-aeronave');
-    if(btnNova) btnNova.onclick = openModalConfig;
+    if(btnNova) btnNova.addEventListener('click', openModalConfig);
     
     const form = document.getElementById('formAeronave');
     if(form) form.addEventListener('submit', criarAeronave);
 
     const btnAlterarStatus = document.getElementById('btn-alterar-status-aeronave');
-    if(btnAlterarStatus) btnAlterarStatus.onclick = openModalStatus;
+    if(btnAlterarStatus) btnAlterarStatus.addEventListener('click', openModalStatus);
     
     const formStatus = document.getElementById('formAlterarStatusAeronave');
     if(formStatus) formStatus.addEventListener('submit', alterarStatusAeronave);
 
     const btnTiposControle = document.getElementById('btn-tipos-controle');
-    if(btnTiposControle) btnTiposControle.onclick = openModalTipoControle;
+    if(btnTiposControle) btnTiposControle.addEventListener('click', openModalTipoControle);
 
     const formTipoControle = document.getElementById('formTipoControle');
     if(formTipoControle) formTipoControle.addEventListener('submit', salvarTipoControle);
 
     const btnEditarTipo = document.getElementById('btn-editar-tipo-controle');
-    if(btnEditarTipo) btnEditarTipo.onclick = openModalEditarTipo;
+    if(btnEditarTipo) btnEditarTipo.addEventListener('click', openModalEditarTipo);
 
     const formEditarTipo = document.getElementById('formEditarTipoControle');
     if(formEditarTipo) formEditarTipo.addEventListener('submit', salvarEditarTipo);
 
     const btnEquipamentoControle = document.getElementById('btn-equipamento-controle');
-    if(btnEquipamentoControle) btnEquipamentoControle.onclick = openModalRegras;
+    if(btnEquipamentoControle) btnEquipamentoControle.addEventListener('click', openModalRegras);
 
     const formNovaRegra = document.getElementById('formNovaRegra');
     if(formNovaRegra) formNovaRegra.addEventListener('submit', salvarNovaRegra);
 
     const btnPN = document.getElementById('btn-gerenciar-catalogo');
-    if(btnPN) btnPN.onclick = openModalCatalogo;
+    if(btnPN) btnPN.addEventListener('click', openModalCatalogo);
 
     const formPN = document.getElementById('formNovoPN');
     if(formPN) formPN.addEventListener('submit', salvarNovoModelo);
@@ -171,7 +171,10 @@ async function alterarStatusAeronave(e) {
         return;
     }
 
-    const matricula = select.options[select.selectedIndex].text.split(' ')[0];
+    const optText = select.options[select.selectedIndex].text;
+    const matricula = optText.split(' ')[0];
+    const statusAtualMatch = optText.match(/Status:\s*([^)]+)/);
+    const statusAtual = statusAtualMatch ? statusAtualMatch[1] : null;
     
     if (!confirm(`Deseja alterar o status da aeronave ${matricula} para ${novoStatus}?`)) {
         return;
@@ -180,14 +183,32 @@ async function alterarStatusAeronave(e) {
     btn.disabled = true;
     
     try {
-        // Usamos PUT para atualizar o status diretamente
-        // Nota: O endpoint PUT /aeronaves/{id} aceita o campo 'status'
-        await apiFetch(`/aeronaves/${aeronaveId}`, { 
-            method: "PUT",
-            body: {
-                status: novoStatus
+        if (novoStatus === statusAtual) {
+            showToast("A aeronave já está nesse status.", "info");
+            closeModalStatus();
+            return;
+        }
+
+        // Regra de Negócio: Se for inativar ou reativar (sair de INATIVA), precisa usar o endpoint toggle
+        if (statusAtual === 'INATIVA' || novoStatus === 'INATIVA') {
+            await apiFetch(`/aeronaves/${aeronaveId}/toggle-status`, { method: "POST" });
+            
+            // Se estava inativa, o toggle mudou para DISPONIVEL. 
+            // Se o usuário pediu outro status (ex: ESTOCADA), precisa de um PUT complementar.
+            if (statusAtual === 'INATIVA' && novoStatus !== 'DISPONIVEL' && novoStatus !== 'INATIVA') {
+                await apiFetch(`/aeronaves/${aeronaveId}`, { 
+                    method: "PUT",
+                    body: { status: novoStatus }
+                });
             }
-        });
+        } else {
+            // Transições comuns (DISPONIVEL <-> ESTOCADA, etc.)
+            await apiFetch(`/aeronaves/${aeronaveId}`, { 
+                method: "PUT",
+                body: { status: novoStatus }
+            });
+        }
+
         showToast(`Status da aeronave ${matricula} alterado para ${novoStatus}!`, "success");
         closeModalStatus();
     } catch(err) {
@@ -391,11 +412,15 @@ async function carregarListaRegras() {
                 <td style="padding: 0.75rem; text-align: center;"><strong>${escapeHtml(r.tipo_nome) || '---'}</strong></td>
                 <td style="padding: 0.75rem; text-align: center;">${r.periodicidade_meses} meses</td>
                 <td style="padding: 0.75rem; text-align: right;">
-                    <button class="btn-icon" style="color: var(--status-danger);" onclick="removerRegra('${r.modelo_id}', '${r.tipo_controle_id}')">
+                    <button class="btn-icon btn-remover-regra" style="color: var(--status-danger);">
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
                 </td>
             `;
+            const btnRemove = tr.querySelector('.btn-remover-regra');
+            if (btnRemove) {
+                btnRemove.addEventListener('click', () => removerRegra(r.modelo_id, r.tipo_controle_id));
+            }
             tbody.appendChild(tr);
         });
     } catch(e) {
