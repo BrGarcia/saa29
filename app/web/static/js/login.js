@@ -1,7 +1,17 @@
-// Se o usuário já estiver na sessão, mande p/ dashboard.
-document.addEventListener("DOMContentLoaded", () => {
+// Se o usuário já tiver sessão ativa no servidor, redireciona.
+// Caso contrário, limpa dados locais stale e permanece no login.
+document.addEventListener("DOMContentLoaded", async () => {
     if (localStorage.getItem("saa29_user")) {
-        window.location.href = "/panes";
+        try {
+            const res = await fetch("/auth/me", { credentials: "same-origin" });
+            if (res.ok) {
+                // Sessão válida no servidor — redireciona
+                window.location.href = "/panes";
+                return;
+            }
+        } catch (e) { /* rede falhou, fica no login */ }
+        // Sessão inválida — limpa dados locais stale
+        localStorage.removeItem("saa29_user");
     }
 
     const form = document.getElementById('loginForm');

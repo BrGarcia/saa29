@@ -18,7 +18,51 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const formProrrog = document.getElementById('formProrrogarVencimento');
     if (formProrrog) formProrrog.addEventListener('submit', salvarProrrogacao);
+
+    // Delegação de eventos para os itens de controle (CSP compliant)
+    document.getElementById('vencimentos-grid').addEventListener('click', (e) => {
+        const row = e.target.closest('.clickable-control');
+        if (!row) return;
+
+        const { vencId, infoLabel, isProrrogado, novaVenc, docProrrog } = row.dataset;
+        if (vencId) {
+            openModalExecutar(vencId, infoLabel, isProrrogado === 'true', novaVenc, docProrrog);
+        }
+    });
+
+    // Configuração de botões estáticos (Removendo dependência de onclick no HTML)
+    setupStaticListeners();
 });
+
+function setupStaticListeners() {
+    const btnTodos = document.getElementById('btn-filtro-todos');
+    if (btnTodos) btnTodos.addEventListener('click', () => filtrarStatus('todos'));
+    
+    const btnWarn = document.getElementById('btn-filtro-warn');
+    if (btnWarn) btnWarn.addEventListener('click', () => filtrarStatus('warn'));
+    
+    const btnDanger = document.getElementById('btn-filtro-danger');
+    if (btnDanger) btnDanger.addEventListener('click', () => filtrarStatus('danger'));
+
+    const btnProrrogado = document.getElementById('btn-filtro-prorrogado');
+    if (btnProrrogado) btnProrrogado.addEventListener('click', () => filtrarStatus('prorrogado'));
+
+    const btnIncompleta = document.getElementById('btn-filtro-incompleta');
+    if (btnIncompleta) btnIncompleta.addEventListener('click', () => filtrarStatus('incompleta'));
+
+    const cardPendente = document.getElementById('card-status-pendente');
+    if (cardPendente) cardPendente.addEventListener('click', () => filtrarStatus('pendente'));
+
+    // Botões de fechar/cancelar modais
+    document.getElementById('btn-close-exec-modal')?.addEventListener('click', closeModalExecutar);
+    document.getElementById('btn-cancelar-exec')?.addEventListener('click', closeModalExecutar);
+    document.getElementById('btn-close-prorrog-modal')?.addEventListener('click', closeModalProrrogar);
+    document.getElementById('btn-cancelar-prorrog')?.addEventListener('click', closeModalProrrogar);
+
+    // Ações de modais
+    document.getElementById('btn-abrir-prorrog-modal')?.addEventListener('click', openModalProrrogarFromExec);
+    document.getElementById('btn-cancelar-prorrogacao')?.addEventListener('click', cancelarProrrogacao);
+}
 
 // ─────────────────────────────────────────────
 // Carregamento de Dados
@@ -93,20 +137,24 @@ function criarCardAeronave(aeronave) {
         });
     });
 
-    // Pills de resumo da aeronave
+    // Pills de resumo da aeronave (Removido pill-ok a pedido do usuário)
     let pillsHtml = '';
     if (danger > 0) pillsHtml += `<span class="pill pill-danger">● ${danger} Vencido${danger > 1 ? 's' : ''}</span>`;
     if (warn > 0) pillsHtml += `<span class="pill pill-warn">● ${warn} A Vencer</span>`;
     if (incompleto > 0) pillsHtml += `<span class="pill pill-incompleta">● ${incompleto} Faltante${incompleto > 1 ? 's' : ''}</span>`;
     if (pendente > 0) pillsHtml += `<span class="pill pill-pendente">● ${pendente} Pendente${pendente > 1 ? 's' : ''}</span>`;
-    if (ok > 0 && danger === 0 && warn === 0 && prorrog === 0 && incompleto === 0 && pendente === 0) pillsHtml += `<span class="pill pill-ok">✓ Em Dia</span>`;
 
     // Header do card
     const header = document.createElement('div');
-    header.className = 'acft-card-header';
+    const isAllOk = ok > 0 && danger === 0 && warn === 0 && prorrog === 0 && incompleto === 0 && pendente === 0;
+    const temControles = (ok + danger + warn + prorrog + incompleto + pendente) > 0;
+    
+    header.className = `acft-card-header ${isAllOk ? 'status-all-ok' : ''}`;
     header.innerHTML = `
         <span class="acft-matricula">${escapeHtml(aeronave.matricula)}</span>
-        <div class="acft-status-pills">${pillsHtml || '<span style="font-size:0.8rem;color:var(--text-secondary);">Sem controles</span>'}</div>
+        <div class="acft-status-pills">
+            ${pillsHtml || (temControles ? '' : '<span style="font-size:0.8rem;color:var(--text-secondary);">Sem controles</span>')}
+        </div>
         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--text-secondary); transition: transform 0.2s;" class="chevron"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
     `;
 
@@ -159,9 +207,13 @@ function criarChipEquipamento(slot, aeronave) {
         if (isFaltante) titleText = "EQUIPAMENTO NÃO INSTALADO NO SLOT";
 
         controlesHtml += `
-            <div class="ctrl-row ${statusCls}" 
+            <div class="ctrl-row ${statusCls} ${vencId && slot.numero_serie ? 'clickable-control' : ''}" 
                  title="${titleText}"
-                 ${vencId && slot.numero_serie ? `onclick="openModalExecutar('${vencId}', '${infoLabel}', ${isProrrogado}, '${ctrl.data_nova_vencimento}', '${ctrl.numero_documento_prorrogacao || ''}')"` : ''}>
+                 data-venc-id="${vencId || ''}"
+                 data-info-label="${escapeHtml(infoLabel)}"
+                 data-is-prorrogado="${isProrrogado}"
+                 data-nova-venc="${ctrl.data_nova_vencimento || ''}"
+                 data-doc-prorrog="${escapeHtml(ctrl.numero_documento_prorrogacao || '')}">
                 <span class="ctrl-nome">${ctrl.tipo_controle_nome}${isProrrogado ? '*' : ''}</span>
                 <span class="ctrl-data">${dataText}</span>
             </div>
