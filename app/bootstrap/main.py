@@ -299,6 +299,27 @@ def create_app() -> FastAPI:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+    # Redirect unauthorized/forbidden HTML requests to login (M-06)
+    from fastapi import Request, HTTPException
+    from fastapi.responses import RedirectResponse
+
+    @app.exception_handler(HTTPException)
+    async def custom_http_exception_handler(request: Request, exc: HTTPException):
+        # Se for um erro 401 ou 403 em uma rota de PÁGINA (não API), redireciona
+        if exc.status_code in [401, 403]:
+            # Verifica se a request aceita HTML ou se NÃO começa com prefixos de API conhecidos
+            accept = request.headers.get("accept", "")
+            path = request.url.path
+            is_api = any(path.startswith(p) for p in ["/auth", "/efetivo", "/aeronaves", "/equipamentos", "/vencimentos", "/panes/"])
+            # Nota: /panes/ é API, /panes é página.
+            
+            if "text/html" in accept and not is_api:
+                return RedirectResponse(url="/login")
+        
+        # Fallback para o handler padrão
+        from fastapi.exception_handlers import http_exception_handler
+        return await http_exception_handler(request, exc)
+
     _register_middlewares(app)
     _register_routers(app)
     _mount_static(app)

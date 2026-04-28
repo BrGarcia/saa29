@@ -1,4 +1,4 @@
-﻿﻿# Revisão Externa — SAA29
+# Revisão Externa — SAA29
 
 **Auditor:** Claude Opus 4.6  
 **Data:** 2026-04-27  
@@ -451,10 +451,10 @@ Alterar default para `sqlite+aiosqlite:///./saa29_local.db`.
 
 | Prioridade | Issues | Esforço Estimado |
 |:---|:---|:---|
-| **Sprint imediato** | C-01, C-02, H-05, H-06 | ~2h |
-| **Sprint corrente** | H-01, H-02, H-03, H-04 | ~4h |
-| **Backlog técnico** | M-01..M-08 | ~6h |
-| **Nice to have** | L-01..L-06 | ~3h |
+| **Sprint imediato** | C-01, C-02, H-05, H-06 | **✅ Concluído** |
+| **Sprint corrente** | H-01, H-02, H-03, H-04 | **✅ Concluído** |
+| **Backlog técnico** | M-01..M-08 | **✅ Concluído** |
+| **Nice to have** | L-01..L-06 | **✅ Concluído** |
 
 ---
 
