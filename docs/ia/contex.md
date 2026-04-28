@@ -1,7 +1,7 @@
 # ctx
 
 meta:
-- sync_date: 2026-04-26
+- sync_date: 2026-04-28
 - mode: machine
 - format: kv_short
 - truth: official_docs_first
@@ -46,6 +46,7 @@ domains:
 - equipamentos: modelo (PN), slot, item (SN), instalacao, inventario
 - vencimentos: tipo_controle, periodicidade_pn, matriz_vencimentos, prorrogacoes (OK, VENCENDO, VENCIDO, PRORROGADO)
 - configuracoes: admin_dashboard, gerenciamento_frota, administracao_efetivo, regras_vencimento
+- inspecoes: cronograma_inspecoes, status_inspecao, historico_inspecoes
 
 auth_state:
 - access_token: jwt_hs256
@@ -71,6 +72,7 @@ current_focus:
 - inventory_module_active: true
 - configuracoes_module_active: true
 - matriz_vencimentos_active: true
+- inspecoes_module_active: true
 - ddd_modularization_completed: true (Vencimentos and Efetivo extracted)
 - status_standardization_completed: true (DISPONIVEL vs OPERACIONAL)
 - alembic_migrations_up_to_date: true

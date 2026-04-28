@@ -22,8 +22,8 @@ app:
 - modules/vencimentos/: temporal_intelligence_maintenance_rules_extensions
 - shared/core/: enums,helpers,storage,validators,limiter,exceptions
 - shared/middleware/: csrf
-- web/pages/router.py: html_routes (panes,frota,inventario,vencimentos,configuracoes,efetivo)
-- web/templates/: jinja_templates (base,panes,aeronaves,inventario,vencimentos,configuracoes,efetivo)
+- web/pages/router.py: html_routes (panes,frota,inventario,vencimentos,configuracoes,efetivo,inspecoes)
+- web/templates/: jinja_templates (base,panes,aeronaves,inventario,vencimentos,configuracoes,efetivo,inspecoes)
 - web/static/js/: configuracoes.js,vencimentos.js,inventario.js,panes.js,app.js,auth_check.js
 - web/static/css/: index.css (design_system_tokens_and_components)
 
