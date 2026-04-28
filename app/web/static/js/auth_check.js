@@ -1,6 +1,7 @@
 document.addEventListener("DOMContentLoaded", async () => {
     // Validação com backend (M-06)
-    if (window.location.pathname !== "/login") {
+    const path = window.location.pathname.replace(/\/$/, "");
+    if (path !== "/login" && path !== "") {
         try {
             const res = await fetch("/auth/me");
             if (!res.ok) {

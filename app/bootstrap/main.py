@@ -307,13 +307,17 @@ def create_app() -> FastAPI:
     async def custom_http_exception_handler(request: Request, exc: HTTPException):
         # Se for um erro 401 ou 403 em uma rota de PÁGINA (não API), redireciona
         if exc.status_code in [401, 403]:
-            # Verifica se a request aceita HTML ou se NÃO começa com prefixos de API conhecidos
-            accept = request.headers.get("accept", "")
             path = request.url.path
-            is_api = any(path.startswith(p) for p in ["/auth", "/efetivo", "/aeronaves", "/equipamentos", "/vencimentos", "/panes/"])
-            # Nota: /panes/ é API, /panes é página.
+            accept = request.headers.get("accept", "").lower()
             
-            if "text/html" in accept and not is_api:
+            # Lista de prefixos que são EXCLUSIVAMENTE API (JSON)
+            api_prefixes = ["/auth/", "/efetivo/", "/aeronaves/", "/equipamentos/", "/vencimentos/", "/panes/"]
+            is_api = any(path.startswith(p) for p in api_prefixes)
+            
+            # Se for navegação via browser (HTML) e não for API, redireciona pro login
+            # Mas NUNCA redireciona se já estivermos no /login (evita loop infinito)
+            if "text/html" in accept and not is_api and path != "/login":
+                logging.warning(f"[Auth Redirect] Redirecionando {path} para /login (Erro {exc.status_code})")
                 return RedirectResponse(url="/login")
         
         # Fallback para o handler padrão
