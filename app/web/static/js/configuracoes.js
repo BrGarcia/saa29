@@ -56,8 +56,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnPN = document.getElementById('btn-gerenciar-catalogo');
     if(btnPN) btnPN.addEventListener('click', openModalCatalogo);
 
-    const formPN = document.getElementById('formNovoPN');
-    if(formPN) formPN.addEventListener('submit', salvarNovoModelo);
+    const btnNovoPN = document.getElementById('btn-novo-pn');
+    if(btnNovoPN) btnNovoPN.addEventListener('click', openModalNovoPN);
+
+    const formNovoPN = document.getElementById('formNovoPN');
+    if(formNovoPN) formNovoPN.addEventListener('submit', salvarNovoPN);
+
+    const formEditarPN = document.getElementById('formEditarPN');
+    if(formEditarPN) formEditarPN.addEventListener('submit', salvarEditarPN);
 
     // Navegação Efetivo
     const btnEfetivo = document.getElementById('btn-config-efetivo');
@@ -82,6 +88,12 @@ document.addEventListener("DOMContentLoaded", () => {
     
     document.getElementById('btn-close-modal-catalogo')?.addEventListener('click', closeModalCatalogo);
     document.getElementById('btn-close-catalogo')?.addEventListener('click', closeModalCatalogo);
+
+    document.getElementById('btn-close-modal-novo-pn')?.addEventListener('click', closeModalNovoPN);
+    document.getElementById('btn-cancel-modal-novo-pn')?.addEventListener('click', closeModalNovoPN);
+
+    document.getElementById('btn-close-modal-editar-pn')?.addEventListener('click', closeModalEditarPN);
+    document.getElementById('btn-cancel-modal-editar-pn')?.addEventListener('click', closeModalEditarPN);
     
     document.getElementById('btn-close-modal-regras')?.addEventListener('click', closeModalRegras);
     document.getElementById('btn-close-regras')?.addEventListener('click', closeModalRegras);
@@ -294,13 +306,13 @@ async function openModalEditarTipo() {
         select.innerHTML = '<option value="" disabled selected>Erro ao carregar</option>';
     }
 
-    select.onchange = function() {
+    select.addEventListener('change', function() {
         const tipo = tiposControleCache.find(t => t.id === this.value);
         if(tipo) {
             document.getElementById('editarCodigoInput').value = tipo.nome;
             document.getElementById('editarDescInput').value = tipo.descricao || '';
         }
-    };
+    });
 }
 
 function closeModalEditarTipo() {
@@ -509,48 +521,69 @@ window.removerRegra = removerRegra;
 // Módulo de Catálogo (Part Numbers)
 // ==========================================
 
-async function openModalCatalogo() {
+function openModalCatalogo() {
     const modal = document.getElementById('modal-catalogo');
     modal.style.display = 'flex';
-    await carregarListaCatalogo();
+    carregarListaCatalogo();
 }
 
 function closeModalCatalogo() {
     const modal = document.getElementById('modal-catalogo');
     if(modal) modal.style.display = 'none';
-    const form = document.getElementById('formNovoPN');
-    if(form) form.reset();
 }
+
+function openModalNovoPN() {
+    document.getElementById('modal-novo-pn').style.display = 'flex';
+}
+
+function closeModalNovoPN() {
+    document.getElementById('modal-novo-pn').style.display = 'none';
+    document.getElementById('formNovoPN').reset();
+}
+
+let catalogoCache = [];
 
 async function carregarListaCatalogo() {
     const tbody = document.getElementById('lista-catalogo-body');
-    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 1rem;">Carregando catálogo...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem;">Carregando catálogo...</td></tr>';
 
     try {
-        const modelos = await apiFetch('/equipamentos/');
+        catalogoCache = await apiFetch('/equipamentos/');
         tbody.innerHTML = '';
         
-        if(modelos.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 1rem; color: var(--text-secondary);">Nenhum equipamento cadastrado.</td></tr>';
+        if(catalogoCache.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem; color: var(--text-secondary);">Nenhum equipamento cadastrado.</td></tr>';
             return;
         }
 
-        modelos.forEach(m => {
+        catalogoCache.forEach(m => {
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid var(--border-color)';
             tr.innerHTML = `
                 <td style="padding: 0.75rem;"><strong>${escapeHtml(m.part_number)}</strong></td>
                 <td style="padding: 0.75rem;">${escapeHtml(m.nome_generico)}</td>
                 <td style="padding: 0.75rem; color: var(--text-secondary); font-size: 0.85rem;">${escapeHtml(m.descricao) || '---'}</td>
+                <td style="padding: 0.75rem; text-align: right; display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button type="button" class="btn-icon btn-editar-pn" data-id="${m.id}" style="color: var(--primary-color);">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    </button>
+                    <button type="button" class="btn-icon btn-remover-pn" data-id="${m.id}" style="color: var(--status-danger);">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                </td>
             `;
+            
+            tr.querySelector('.btn-editar-pn').addEventListener('click', () => openModalEditarPN(m.id));
+            tr.querySelector('.btn-remover-pn').addEventListener('click', () => removerPN(m.id, m.part_number));
+            
             tbody.appendChild(tr);
         });
     } catch(e) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 1rem; color: var(--status-danger);">Erro ao carregar catálogo.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem; color: var(--status-danger);">Erro ao carregar catálogo.</td></tr>';
     }
 }
 
-async function salvarNovoModelo(e) {
+async function salvarNovoPN(e) {
     e.preventDefault();
     const btn = document.getElementById('btnSalvarPN');
     btn.disabled = true;
@@ -565,8 +598,10 @@ async function salvarNovoModelo(e) {
             body: { part_number, nome_generico, descricao }
         });
         showToast("Part Number cadastrado com sucesso!", "success");
-        document.getElementById('formNovoPN').reset();
-        await carregarListaCatalogo();
+        closeModalNovoPN();
+        if (document.getElementById('modal-catalogo').style.display === 'flex') {
+            carregarListaCatalogo();
+        }
     } catch(err) {
         showToast(err.message || "Erro ao cadastrar PN.", "error");
     } finally {
@@ -574,6 +609,68 @@ async function salvarNovoModelo(e) {
     }
 }
 
+function openModalEditarPN(id) {
+    const pn = catalogoCache.find(m => m.id === id);
+    if (!pn) return;
+
+    document.getElementById('editarPnId').value = pn.id;
+    document.getElementById('editarPnInput').value = pn.part_number;
+    document.getElementById('editarNomePnInput').value = pn.nome_generico;
+    document.getElementById('editarDescPnInput').value = pn.descricao || '';
+    
+    document.getElementById('modal-editar-pn').style.display = 'flex';
+}
+
+function closeModalEditarPN() {
+    document.getElementById('modal-editar-pn').style.display = 'none';
+    document.getElementById('formEditarPN').reset();
+}
+
+async function salvarEditarPN(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSalvarEditarPN');
+    const id = document.getElementById('editarPnId').value;
+    
+    btn.disabled = true;
+    const part_number = document.getElementById('editarPnInput').value.trim().toUpperCase();
+    const nome_generico = document.getElementById('editarNomePnInput').value.trim();
+    const descricao = document.getElementById('editarDescPnInput').value.trim();
+
+    try {
+        await apiFetch(`/equipamentos/${id}`, {
+            method: 'PATCH',
+            body: { part_number, nome_generico, descricao }
+        });
+        showToast("Part Number atualizado com sucesso!", "success");
+        closeModalEditarPN();
+        carregarListaCatalogo();
+    } catch(err) {
+        showToast(err.message || "Erro ao atualizar PN.", "error");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function removerPN(id, pn) {
+    if (!confirm(`Tem certeza que deseja remover o PN ${pn}? Esta ação pode afetar itens vinculados.`)) {
+        return;
+    }
+
+    try {
+        await apiFetch(`/equipamentos/${id}`, { method: 'DELETE' });
+        showToast("Part Number removido com sucesso!", "success");
+        carregarListaCatalogo();
+    } catch(err) {
+        showToast(err.message || "Erro ao remover PN.", "error");
+    }
+}
+
 window.openModalCatalogo = openModalCatalogo;
 window.closeModalCatalogo = closeModalCatalogo;
-window.salvarNovoModelo = salvarNovoModelo;
+window.openModalNovoPN = openModalNovoPN;
+window.closeModalNovoPN = closeModalNovoPN;
+window.salvarNovoPN = salvarNovoPN;
+window.openModalEditarPN = openModalEditarPN;
+window.closeModalEditarPN = closeModalEditarPN;
+window.salvarEditarPN = salvarEditarPN;
+window.removerPN = removerPN;

@@ -17,6 +17,11 @@ class ModeloEquipamentoCreate(BaseModel):
     nome_generico: str = Field(..., max_length=100)
     descricao: str | None = None
 
+class ModeloEquipamentoUpdate(BaseModel):
+    part_number: str | None = Field(None, max_length=50)
+    nome_generico: str | None = Field(None, max_length=100)
+    descricao: str | None = None
+
 class ModeloEquipamentoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID

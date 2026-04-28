@@ -25,6 +25,7 @@ from app.modules.vencimentos.models import (
 )
 from app.modules.equipamentos.schemas import (
     ModeloEquipamentoCreate,
+    ModeloEquipamentoUpdate,
     SlotInventarioCreate,
     ItemEquipamentoCreate,
     InventarioItemOut,
@@ -61,6 +62,47 @@ async def buscar_modelo_por_pn(db: AsyncSession, pn: str) -> ModeloEquipamento |
 async def listar_modelos(db: AsyncSession) -> list[ModeloEquipamento]:
     result = await db.execute(select(ModeloEquipamento).order_by(ModeloEquipamento.part_number))
     return list(result.scalars().all())
+
+async def atualizar_modelo(db: AsyncSession, modelo_id: uuid.UUID, dados: ModeloEquipamentoUpdate) -> ModeloEquipamento:
+    result = await db.execute(select(ModeloEquipamento).where(ModeloEquipamento.id == modelo_id))
+    modelo = result.scalar_one_or_none()
+    if not modelo:
+        raise domain_exc.EntidadeNaoEncontradaError("Equipamento não encontrado.")
+    
+    if dados.part_number is not None:
+        part_number = dados.part_number.strip().upper()
+        if part_number != modelo.part_number:
+            existing = await buscar_modelo_por_pn(db, part_number)
+            if existing:
+                raise ValueError(f"O Part Number '{part_number}' já está cadastrado.")
+        modelo.part_number = part_number
+    
+    if dados.nome_generico is not None:
+        modelo.nome_generico = dados.nome_generico
+    if dados.descricao is not None:
+        modelo.descricao = dados.descricao
+        
+    await db.flush()
+    return modelo
+
+async def remover_modelo(db: AsyncSession, modelo_id: uuid.UUID) -> None:
+    result = await db.execute(select(ModeloEquipamento).where(ModeloEquipamento.id == modelo_id))
+    modelo = result.scalar_one_or_none()
+    if not modelo:
+        raise domain_exc.EntidadeNaoEncontradaError("Equipamento não encontrado.")
+        
+    # Verificar se existem itens físicos atrelados
+    res_itens = await db.execute(select(ItemEquipamento).where(ItemEquipamento.modelo_id == modelo_id))
+    if res_itens.scalar_one_or_none():
+        raise ValueError("Não é possível excluir: existem itens físicos (Serial Numbers) cadastrados para este PN.")
+        
+    # Verificar se existem slots atrelados
+    res_slots = await db.execute(select(SlotInventario).where(SlotInventario.modelo_id == modelo_id))
+    if res_slots.scalar_one_or_none():
+        raise ValueError("Não é possível excluir: este PN está associado a slots na configuração da aeronave.")
+        
+    await db.delete(modelo)
+    await db.flush()
 
 
 # ============================================================

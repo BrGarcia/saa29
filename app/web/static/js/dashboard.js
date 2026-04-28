@@ -63,7 +63,7 @@ async function loadDashboard() {
                         </td>
                     `;
                     const btnDelete = tr.querySelector('.btn-delete-dashboard');
-                    if(btnDelete) btnDelete.onclick = () => softDeletePaneDashboard(pane.id);
+                    if(btnDelete) btnDelete.addEventListener('click', () => softDeletePaneDashboard(pane.id));
                     
                     recentPanesBody.appendChild(tr);
                 });

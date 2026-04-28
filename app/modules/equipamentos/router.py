@@ -58,6 +58,39 @@ async def buscar_equipamento(
     return schemas.ModeloEquipamentoOut.model_validate(equipamento)
 
 
+@router.patch("/{equipamento_id}", response_model=schemas.ModeloEquipamentoOut, summary="Atualizar equipamento")
+async def atualizar_equipamento(
+    equipamento_id: uuid.UUID,
+    dados: schemas.ModeloEquipamentoUpdate,
+    db: DBSession,
+    _: EncarregadoOuAdmin,
+):
+    try:
+        from app.shared.core import exceptions as domain_exc
+        equipamento = await service.atualizar_modelo(db, equipamento_id, dados)
+        return schemas.ModeloEquipamentoOut.model_validate(equipamento)
+    except domain_exc.EntidadeNaoEncontradaError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+
+@router.delete("/{equipamento_id}", summary="Excluir equipamento")
+async def remover_equipamento(
+    equipamento_id: uuid.UUID,
+    db: DBSession,
+    _: EncarregadoOuAdmin,
+):
+    try:
+        from app.shared.core import exceptions as domain_exc
+        await service.remover_modelo(db, equipamento_id)
+        return {"success": True, "message": "Equipamento removido com sucesso."}
+    except domain_exc.EntidadeNaoEncontradaError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
 # ---- Slots de Inventário (Posições na ANV) ----
 
 @router.get(

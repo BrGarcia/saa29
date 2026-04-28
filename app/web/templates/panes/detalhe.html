@@ -271,8 +271,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-    const PANE_ID = "{{ pane_id }}";
-</script>
+<div id="pane-data" data-pane-id="{{ pane_id }}" style="display: none;"></div>
 <script src="/static/js/panes_detalhe.js"></script>
 {% endblock %}

@@ -41,9 +41,16 @@
             <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0; flex-grow: 1;">
                 Cadastro do catálogo de Part Numbers e estrutura de slots para os sistemas das aeronaves.
             </p>
-            <button class="btn btn-equipamento" id="btn-gerenciar-catalogo" style="width: 100%;">
-                Gerenciar Catálogo
-            </button>
+            <div style="display: flex; gap: 0.5rem; flex-direction: column;">
+                <button class="btn btn-equipamento" id="btn-novo-pn" style="width: 100%;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 5px;"><path d="M12 5v14m-7-7h14"/></svg>
+                    Cadastrar PN
+                </button>
+                <button class="btn btn-equipamento" id="btn-gerenciar-catalogo" style="width: 100%;">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 5px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                    Gerenciar Catálogo
+                </button>
+            </div>
         </div>
 
         <!-- Painel Vencimentos -->
@@ -237,35 +244,13 @@
 
 <!-- Modal para Gerenciar Catálogo (Part Numbers) -->
 <div id="modal-catalogo" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
-    <div class="card glass-panel" style="width: 100%; max-width: 700px; margin: 1rem; max-height: 90vh; display: flex; flex-direction: column;">
+    <div class="card glass-panel" style="width: 100%; max-width: 800px; margin: 1rem; max-height: 90vh; display: flex; flex-direction: column;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Gerenciamento de Catálogo (Part Numbers)</h3>
             <button class="btn-icon" type="button" id="btn-close-modal-catalogo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
 
         <div style="overflow-y: auto; flex-grow: 1; padding-right: 0.5rem;">
-            <!-- Form para novo PN -->
-            <form id="formNovoPN" style="background: rgba(0,0,0,0.05); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem;">
-                <h4 style="margin: 0 0 1rem 0; font-size: 1rem;">Cadastrar Novo Part Number</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.75rem; align-items: end;">
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label class="form-label" style="font-size: 0.8rem;">P/N *</label>
-                        <input type="text" id="pnInput" class="form-input" required placeholder="Ex: 123456-7">
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label class="form-label" style="font-size: 0.8rem;">Nome Genérico *</label>
-                        <input type="text" id="nomePnInput" class="form-input" required placeholder="Ex: MDP">
-                    </div>
-                    <button type="submit" class="btn btn-equipamento" id="btnSalvarPN" style="padding: 0.5rem 1rem;">
-                        Cadastrar
-                    </button>
-                </div>
-                <div class="form-group" style="margin-top: 1rem; margin-bottom: 0;">
-                    <label class="form-label" style="font-size: 0.8rem;">Descrição</label>
-                    <input type="text" id="descPnInput" class="form-input" placeholder="Opcional">
-                </div>
-            </form>
-
             <!-- Tabela de PNs existentes -->
             <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
                 <thead style="background: rgba(0,0,0,0.1);">
@@ -273,6 +258,7 @@
                         <th style="text-align: left; padding: 0.75rem;">Part Number</th>
                         <th style="text-align: left; padding: 0.75rem;">Nome Genérico</th>
                         <th style="text-align: left; padding: 0.75rem;">Descrição</th>
+                        <th style="text-align: right; padding: 0.75rem;">Ações</th>
                     </tr>
                 </thead>
                 <tbody id="lista-catalogo-body">
@@ -284,6 +270,67 @@
         <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
             <button type="button" class="btn btn-outline" id="btn-close-catalogo">Fechar</button>
         </div>
+    </div>
+</div>
+
+<!-- Modal para Novo PN -->
+<div id="modal-novo-pn" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card glass-panel" style="width: 100%; max-width: 480px; margin: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+            <h3 style="margin: 0; font-size: 1.25rem;">Cadastrar Novo Part Number</h3>
+            <button class="btn-icon" type="button" id="btn-close-modal-novo-pn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+        </div>
+
+        <form id="formNovoPN">
+            <div class="form-group">
+                <label class="form-label">Part Number (P/N) *</label>
+                <input type="text" id="pnInput" class="form-input" required placeholder="Ex: 123456-7">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Nome Genérico *</label>
+                <input type="text" id="nomePnInput" class="form-input" required placeholder="Ex: MDP">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Descrição</label>
+                <input type="text" id="descPnInput" class="form-input" placeholder="Opcional">
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+                <button type="button" class="btn btn-outline" id="btn-cancel-modal-novo-pn">Cancelar</button>
+                <button type="submit" class="btn btn-equipamento" id="btnSalvarPN">Cadastrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal para Editar PN -->
+<div id="modal-editar-pn" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card glass-panel" style="width: 100%; max-width: 480px; margin: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+            <h3 style="margin: 0; font-size: 1.25rem;">Editar Part Number</h3>
+            <button class="btn-icon" type="button" id="btn-close-modal-editar-pn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+        </div>
+
+        <form id="formEditarPN">
+            <input type="hidden" id="editarPnId">
+            <div class="form-group">
+                <label class="form-label">Part Number (P/N) *</label>
+                <input type="text" id="editarPnInput" class="form-input" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Nome Genérico *</label>
+                <input type="text" id="editarNomePnInput" class="form-input" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Descrição</label>
+                <input type="text" id="editarDescPnInput" class="form-input">
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+                <button type="button" class="btn btn-outline" id="btn-cancel-modal-editar-pn">Cancelar</button>
+                <button type="submit" class="btn btn-equipamento" id="btnSalvarEditarPN">Salvar Alterações</button>
+            </div>
+        </form>
     </div>
 </div>
 

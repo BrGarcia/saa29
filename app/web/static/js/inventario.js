@@ -321,9 +321,11 @@ function abrirModal(equipamentoId, snReal, anvConflito) {
     msg.innerHTML = `O item <strong>${escapeHtml(snReal)}</strong> consta como instalado na aeronave <strong>${escapeHtml(anvConflito)}</strong>.`;
     modal.style.display = 'flex';
 
-    btn.onclick = () => {
+    const oldBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(oldBtn, btn);
+    oldBtn.addEventListener('click', () => {
         ajustarInventario(equipamentoId, snReal, true);
-    };
+    });
 }
 
 function fecharModal() {
@@ -340,9 +342,11 @@ function abrirModalRemocao(instalacaoId, sn, slotNome) {
     msg.innerHTML = `Deseja registrar a remoção do item <strong>${escapeHtml(sn)}</strong> da posição <strong>${escapeHtml(slotNome)}</strong>?`;
     modal.style.display = 'flex';
 
-    btn.onclick = () => {
+    const oldBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(oldBtn, btn);
+    oldBtn.addEventListener('click', () => {
         removerEquipamento(instalacaoId);
-    };
+    });
 }
 
 function fecharModalRemocao() {

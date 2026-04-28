@@ -1,4 +1,5 @@
 let ehGestorGlobal = false;
+let PANE_ID = null;
 
 async function carregarDetalhe() {
     try {
@@ -365,8 +366,14 @@ window.handleConcluirDireto = handleConcluirDireto;
 window.handleSalvarComentarios = handleSalvarComentarios;
 
 document.addEventListener("DOMContentLoaded", () => {
+    PANE_ID = document.getElementById("pane-data")?.getAttribute("data-pane-id");
+    if(!PANE_ID) {
+        console.error("PANE_ID não encontrado no DOM");
+        showToast("Erro ao carregar ID da Pane.", "error");
+        return;
+    }
     carregarDetalhe();
-    
+
     // Bind button events
     const btnConcluir = document.getElementById('btn-concluir');
     if(btnConcluir) btnConcluir.addEventListener('click', handleConcluirDireto);

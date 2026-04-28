@@ -117,16 +117,16 @@ async function openSelecaoAeronaveModal() {
             `;
             btn.innerHTML = `<span style="font-weight: 700; font-family: monospace; font-size: 1.1rem; color: ${colorVar}">${f.matricula}</span>`;
             
-            btn.onmouseover = () => { 
+            btn.addEventListener('mouseover', () => { 
                 btn.style.transform = 'translateY(-3px)';
                 btn.style.boxShadow = `0 4px 12px ${isOperacional ? 'rgba(46, 204, 113, 0.2)' : 'rgba(243, 156, 18, 0.2)'}`;
                 btn.style.background = isOperacional ? 'rgba(46, 204, 113, 0.2)' : 'rgba(243, 156, 18, 0.2)';
-            };
-            btn.onmouseout = () => { 
+            });
+            btn.addEventListener('mouseout', () => { 
                 btn.style.transform = 'translateY(0)';
                 btn.style.boxShadow = 'none';
                 btn.style.background = bgVar;
-            };
+            });
             
             btn.addEventListener('click', () => openNuevaPaneModal(f.id, f.matricula));
             gridAeronaves.appendChild(btn);
