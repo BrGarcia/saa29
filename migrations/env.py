@@ -27,6 +27,7 @@ import app.modules.aeronaves.models    # noqa: F401
 import app.modules.equipamentos.models # noqa: F401
 import app.modules.vencimentos.models  # noqa: F401
 import app.modules.panes.models        # noqa: F401
+import app.modules.inspecoes.models    # noqa: F401
 
 # Objeto de metadata que o Alembic usará para detectar mudanças
 target_metadata = Base.metadata
