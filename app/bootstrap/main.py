@@ -370,7 +370,7 @@ def _register_middlewares(app: FastAPI) -> None:
         CORSMiddleware,
         allow_origins=cors_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicit methods (was "*")
+        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],  # Explicit methods (was "*")
         allow_headers=[
             "Content-Type",
             "Authorization",

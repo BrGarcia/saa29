@@ -42,12 +42,17 @@ files_of_interest:
 - app/shared/core/file_validators.py
 - app/shared/core/storage.py
 - app/shared/core/limiter.py
+- app/modules/inspecoes/router.py (isolated_not_registered)
+
+isolated_modules:
+- app/modules/inspecoes: router_defined_but_not_registered; endpoints_require_CurrentUser_or_EncarregadoOuAdmin_if_enabled
 
 reporting:
 - do_not_open_public_issue_for_vuln
 - follow_docs_SECURITY_md
 
 recent_actions:
+- 2026-04-29: Inspecoes backend scaffold created as isolated module; no active route, migration, or bootstrap registration yet.
 - 2026-04-28: Full Frontend CSP Hardening (removed all inline scripts and event handlers).
 - 2026-04-27: External security audit completed (docs/relatorio/revisao_claude.md).
 - 2026-04-27: Critical issues C-01 (CSRF bypass) and C-02 (Cookie secure flag) resolved.

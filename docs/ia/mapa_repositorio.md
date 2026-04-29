@@ -20,12 +20,21 @@ app:
 - modules/panes/: pane_flow_attachments_responsaveis
 - modules/equipamentos/: catalog_slots_physical_items_inventory
 - modules/vencimentos/: temporal_intelligence_maintenance_rules_extensions
+- modules/inspecoes/: isolated_backend_scaffold_not_bootstrapped
 - shared/core/: enums,helpers,storage,validators,limiter,exceptions
 - shared/middleware/: csrf
-- web/pages/router.py: html_routes (panes,frota,inventario,vencimentos,configuracoes,efetivo,inspecoes)
-- web/templates/: jinja_templates (base,panes,aeronaves,inventario,vencimentos,configuracoes,efetivo,inspecoes)
+- web/pages/router.py: html_routes (panes,frota,inventario,vencimentos,configuracoes,efetivo,inspecoes_placeholder)
+- web/templates/: jinja_templates (base,panes,aeronaves,inventario,vencimentos,configuracoes,efetivo,inspecoes_placeholder)
 - web/static/js/: configuracoes.js,vencimentos.js,inventario.js,panes.js,app.js,auth_check.js
 - web/static/css/: index.css (design_system_tokens_and_components)
+
+app/modules/inspecoes:
+- __init__.py: passive_package_no_router_autoimport
+- models.py: TipoInspecao,TarefaTemplate,Inspecao,InspecaoTarefa
+- schemas.py: local_status_enums,pydantic_contracts
+- service.py: isolated_business_rules_crud_instantiation_completion
+- router.py: api_router_defined_not_registered
+- activation_required: bootstrap_model_import,include_router,migration,frontend_binding,tests
 
 scripts:
 - db/init_db.py: bootstrap_admin_frota
@@ -38,6 +47,7 @@ scripts:
 
 tests:
 - unit/: feature_and_api_behavior
+- unit/test_inspecoes.py: isolated_inspections_service_router_security_tests
 - security/: csrf_refresh
 - architecture/: architecture_and_perf_guards
 

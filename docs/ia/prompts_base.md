@@ -23,3 +23,9 @@ prompt_docs_sync:
 
 prompt_db_safety:
 > Before any database change, assume the current database is in active use, preserve all existing pane records, create a backup of the original database first, and never reset or reseed the active database.
+
+prompt_inspecoes_isolation:
+> When working on app/modules/inspecoes, keep it isolated unless activation is explicitly requested. Do not register its router, import its models in bootstrap, add migrations, alter shared enums, or modify active frontend navigation without explicit approval.
+
+prompt_inspecoes_activation:
+> To activate inspections, plan the sequence explicitly: backup active DB, create migration, import models in bootstrap, include router under a chosen prefix, bind frontend routes/templates, add tests, then update docs/api and docs/ia.

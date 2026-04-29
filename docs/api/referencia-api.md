@@ -710,3 +710,5 @@ Response `200`: `AjusteInventarioResponse`
 ## 8. Observacao Final
 
 Esta pagina documenta a API real do projeto atual. Se houver mudanca em rotas, schemas ou permissao por papel, a referencia deve ser atualizada junto do codigo de `app/modules/*`.
+
+Nota: o modulo `app/modules/inspecoes` possui router isolado em desenvolvimento, mas ainda nao esta registrado no bootstrap principal. Seus endpoints nao fazem parte da API ativa ate que a ativacao seja feita explicitamente.

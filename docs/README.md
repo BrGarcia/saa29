@@ -70,6 +70,7 @@ O codigo fonte esta organizado em:
 - `app/modules/aeronaves` para aeronaves;
 - `app/modules/panes` para panes, anexos e responsaveis;
 - `app/modules/equipamentos` para inventario e vencimentos;
+- `app/modules/inspecoes` para scaffold backend isolado de inspecoes, ainda sem registro no app principal;
 - `app/shared` para enums, utilitarios, storage e middleware;
 - `app/web` para rotas HTML, templates e assets.
 

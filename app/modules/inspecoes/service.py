@@ -1,0 +1,476 @@
+"""
+Regras de negocio do modulo isolado de inspecoes.
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timezone
+
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.modules.aeronaves.models import Aeronave
+from app.modules.auth.models import Usuario
+from app.modules.inspecoes import schemas
+from app.modules.inspecoes.models import Inspecao, InspecaoTarefa, TarefaTemplate, TipoInspecao
+
+
+STATUS_FINAIS = {
+    schemas.StatusInspecao.CONCLUIDA.value,
+    schemas.StatusInspecao.CANCELADA.value,
+}
+STATUS_ATIVOS = {
+    schemas.StatusInspecao.ABERTA.value,
+    schemas.StatusInspecao.EM_ANDAMENTO.value,
+}
+
+
+def _normalizar_codigo(codigo: str) -> str:
+    return codigo.strip().upper()
+
+
+def _garantir_inspecao_editavel(inspecao: Inspecao) -> None:
+    if inspecao.status in STATUS_FINAIS:
+        raise ValueError("Inspecoes concluidas ou canceladas nao podem ser editadas.")
+
+
+async def _buscar_aeronave(db: AsyncSession, aeronave_id: uuid.UUID) -> Aeronave | None:
+    result = await db.execute(select(Aeronave).where(Aeronave.id == aeronave_id))
+    return result.scalar_one_or_none()
+
+
+async def _buscar_usuario(db: AsyncSession, usuario_id: uuid.UUID) -> Usuario | None:
+    result = await db.execute(select(Usuario).where(Usuario.id == usuario_id, Usuario.ativo == True))  # noqa: E712
+    return result.scalar_one_or_none()
+
+
+async def criar_tipo_inspecao(db: AsyncSession, dados: schemas.TipoInspecaoCreate) -> TipoInspecao:
+    codigo = _normalizar_codigo(dados.codigo)
+    existente = await db.execute(select(TipoInspecao).where(TipoInspecao.codigo == codigo))
+    if existente.scalar_one_or_none():
+        raise ValueError(f"Tipo de inspecao '{codigo}' ja cadastrado.")
+
+    tipo = TipoInspecao(
+        codigo=codigo,
+        nome=dados.nome.strip(),
+        descricao=dados.descricao,
+    )
+    db.add(tipo)
+    await db.flush()
+    return tipo
+
+
+async def listar_tipos_inspecao(db: AsyncSession, incluir_inativos: bool = False) -> list[TipoInspecao]:
+    query = select(TipoInspecao).order_by(TipoInspecao.codigo)
+    if not incluir_inativos:
+        query = query.where(TipoInspecao.ativo == True)  # noqa: E712
+    result = await db.execute(query)
+    return list(result.scalars().all())
+
+
+async def buscar_tipo_inspecao(
+    db: AsyncSession,
+    tipo_id: uuid.UUID,
+    incluir_inativos: bool = False,
+) -> TipoInspecao | None:
+    query = select(TipoInspecao).where(TipoInspecao.id == tipo_id)
+    if not incluir_inativos:
+        query = query.where(TipoInspecao.ativo == True)  # noqa: E712
+    result = await db.execute(query)
+    return result.scalar_one_or_none()
+
+
+async def atualizar_tipo_inspecao(
+    db: AsyncSession,
+    tipo_id: uuid.UUID,
+    dados: schemas.TipoInspecaoUpdate,
+) -> TipoInspecao:
+    tipo = await buscar_tipo_inspecao(db, tipo_id, incluir_inativos=True)
+    if not tipo:
+        raise ValueError("Tipo de inspecao nao encontrado.")
+
+    changes = dados.model_dump(exclude_unset=True)
+    if "codigo" in changes and changes["codigo"] is not None:
+        codigo = _normalizar_codigo(changes["codigo"])
+        if codigo != tipo.codigo:
+            result = await db.execute(select(TipoInspecao).where(TipoInspecao.codigo == codigo))
+            if result.scalar_one_or_none():
+                raise ValueError(f"Tipo de inspecao '{codigo}' ja cadastrado.")
+        tipo.codigo = codigo
+
+    if "nome" in changes and changes["nome"] is not None:
+        tipo.nome = changes["nome"].strip()
+    if "descricao" in changes:
+        tipo.descricao = changes["descricao"]
+    if "ativo" in changes and changes["ativo"] is not None:
+        tipo.ativo = changes["ativo"]
+
+    await db.flush()
+    return tipo
+
+
+async def desativar_tipo_inspecao(db: AsyncSession, tipo_id: uuid.UUID) -> None:
+    tipo = await buscar_tipo_inspecao(db, tipo_id, incluir_inativos=True)
+    if not tipo:
+        raise ValueError("Tipo de inspecao nao encontrado.")
+    tipo.ativo = False
+    await db.flush()
+
+
+async def listar_tarefas_template(db: AsyncSession, tipo_id: uuid.UUID) -> list[TarefaTemplate]:
+    result = await db.execute(
+        select(TarefaTemplate)
+        .where(TarefaTemplate.tipo_inspecao_id == tipo_id)
+        .order_by(TarefaTemplate.ordem)
+    )
+    return list(result.scalars().all())
+
+
+async def criar_tarefa_template(
+    db: AsyncSession,
+    tipo_id: uuid.UUID,
+    dados: schemas.TarefaTemplateCreate,
+) -> TarefaTemplate:
+    tipo = await buscar_tipo_inspecao(db, tipo_id)
+    if not tipo:
+        raise ValueError("Tipo de inspecao nao encontrado ou inativo.")
+
+    existente = await db.execute(
+        select(TarefaTemplate).where(
+            TarefaTemplate.tipo_inspecao_id == tipo_id,
+            TarefaTemplate.ordem == dados.ordem,
+        )
+    )
+    if existente.scalar_one_or_none():
+        raise ValueError("Ja existe uma tarefa template com esta ordem para o tipo selecionado.")
+
+    tarefa = TarefaTemplate(
+        tipo_inspecao_id=tipo_id,
+        ordem=dados.ordem,
+        titulo=dados.titulo.strip(),
+        descricao_padrao=dados.descricao_padrao,
+        sistema=dados.sistema,
+        obrigatoria=dados.obrigatoria,
+    )
+    db.add(tarefa)
+    await db.flush()
+    return tarefa
+
+
+async def atualizar_tarefa_template(
+    db: AsyncSession,
+    tarefa_id: uuid.UUID,
+    dados: schemas.TarefaTemplateUpdate,
+) -> TarefaTemplate:
+    result = await db.execute(select(TarefaTemplate).where(TarefaTemplate.id == tarefa_id))
+    tarefa = result.scalar_one_or_none()
+    if not tarefa:
+        raise ValueError("Tarefa template nao encontrada.")
+
+    changes = dados.model_dump(exclude_unset=True)
+    if "ordem" in changes and changes["ordem"] is not None and changes["ordem"] != tarefa.ordem:
+        existente = await db.execute(
+            select(TarefaTemplate).where(
+                TarefaTemplate.tipo_inspecao_id == tarefa.tipo_inspecao_id,
+                TarefaTemplate.ordem == changes["ordem"],
+                TarefaTemplate.id != tarefa.id,
+            )
+        )
+        if existente.scalar_one_or_none():
+            raise ValueError("Ja existe uma tarefa template com esta ordem para o tipo selecionado.")
+        tarefa.ordem = changes["ordem"]
+
+    if "titulo" in changes and changes["titulo"] is not None:
+        tarefa.titulo = changes["titulo"].strip()
+    if "descricao_padrao" in changes:
+        tarefa.descricao_padrao = changes["descricao_padrao"]
+    if "sistema" in changes:
+        tarefa.sistema = changes["sistema"]
+    if "obrigatoria" in changes and changes["obrigatoria"] is not None:
+        tarefa.obrigatoria = changes["obrigatoria"]
+
+    await db.flush()
+    return tarefa
+
+
+async def remover_tarefa_template(db: AsyncSession, tarefa_id: uuid.UUID) -> None:
+    result = await db.execute(select(TarefaTemplate).where(TarefaTemplate.id == tarefa_id))
+    tarefa = result.scalar_one_or_none()
+    if not tarefa:
+        raise ValueError("Tarefa template nao encontrada.")
+    await db.delete(tarefa)
+    await db.flush()
+
+
+async def reordenar_tarefas_template(
+    db: AsyncSession,
+    tipo_id: uuid.UUID,
+    dados: schemas.ReordenarTarefas,
+) -> list[TarefaTemplate]:
+    tarefas = await listar_tarefas_template(db, tipo_id)
+    tarefas_por_id = {tarefa.id: tarefa for tarefa in tarefas}
+    novas_ordens = {item.id: item.ordem for item in dados.tarefas}
+
+    if set(novas_ordens) != set(tarefas_por_id):
+        raise ValueError("A reordenacao deve conter exatamente todas as tarefas do tipo.")
+    if len(set(novas_ordens.values())) != len(novas_ordens):
+        raise ValueError("A nova ordem nao pode conter posicoes duplicadas.")
+
+    # Evita colisao temporaria com a constraint unica durante a troca de ordens.
+    for index, tarefa in enumerate(tarefas, start=1):
+        tarefa.ordem = -index
+    await db.flush()
+
+    for tarefa_id, nova_ordem in novas_ordens.items():
+        tarefas_por_id[tarefa_id].ordem = nova_ordem
+    await db.flush()
+    return await listar_tarefas_template(db, tipo_id)
+
+
+async def listar_inspecoes(
+    db: AsyncSession,
+    filtros: schemas.FiltroInspecao | None = None,
+) -> list[Inspecao]:
+    query = select(Inspecao).options(
+        selectinload(Inspecao.aeronave),
+        selectinload(Inspecao.tipo_inspecao),
+        selectinload(Inspecao.tarefas),
+    )
+    if filtros:
+        if filtros.aeronave_id:
+            query = query.where(Inspecao.aeronave_id == filtros.aeronave_id)
+        if filtros.tipo_inspecao_id:
+            query = query.where(Inspecao.tipo_inspecao_id == filtros.tipo_inspecao_id)
+        if filtros.status:
+            query = query.where(Inspecao.status == filtros.status.value)
+        query = query.offset(filtros.skip).limit(filtros.limit)
+    else:
+        query = query.limit(100)
+
+    result = await db.execute(query.order_by(Inspecao.data_abertura.desc()))
+    return list(result.scalars().all())
+
+
+async def buscar_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> Inspecao | None:
+    result = await db.execute(
+        select(Inspecao)
+        .where(Inspecao.id == inspecao_id)
+        .options(
+            selectinload(Inspecao.aeronave),
+            selectinload(Inspecao.tipo_inspecao),
+            selectinload(Inspecao.aberto_por),
+            selectinload(Inspecao.concluido_por),
+            selectinload(Inspecao.tarefas).selectinload(InspecaoTarefa.executado_por),
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def abrir_inspecao(
+    db: AsyncSession,
+    dados: schemas.InspecaoCreate,
+    aberto_por_id: uuid.UUID,
+) -> Inspecao:
+    aeronave = await _buscar_aeronave(db, dados.aeronave_id)
+    if not aeronave:
+        raise ValueError("Aeronave nao encontrada.")
+
+    tipo = await buscar_tipo_inspecao(db, dados.tipo_inspecao_id)
+    if not tipo:
+        raise ValueError("Tipo de inspecao nao encontrado ou inativo.")
+
+    usuario = await _buscar_usuario(db, aberto_por_id)
+    if not usuario:
+        raise ValueError("Usuario de abertura nao encontrado ou inativo.")
+
+    ativa = await db.execute(
+        select(Inspecao).where(
+            Inspecao.aeronave_id == dados.aeronave_id,
+            Inspecao.tipo_inspecao_id == dados.tipo_inspecao_id,
+            Inspecao.status.in_(STATUS_ATIVOS),
+        )
+    )
+    if ativa.scalar_one_or_none():
+        raise ValueError("Ja existe inspecao ativa deste tipo para esta aeronave.")
+
+    templates = await listar_tarefas_template(db, dados.tipo_inspecao_id)
+    if not templates:
+        raise ValueError("O tipo de inspecao nao possui tarefas template cadastradas.")
+
+    inspecao = Inspecao(
+        aeronave_id=dados.aeronave_id,
+        tipo_inspecao_id=dados.tipo_inspecao_id,
+        status=schemas.StatusInspecao.ABERTA.value,
+        observacoes=dados.observacoes,
+        aberto_por_id=aberto_por_id,
+    )
+    db.add(inspecao)
+    await db.flush()
+
+    for template in templates:
+        db.add(
+            InspecaoTarefa(
+                inspecao_id=inspecao.id,
+                tarefa_template_id=template.id,
+                ordem=template.ordem,
+                titulo=template.titulo,
+                descricao=template.descricao_padrao,
+                sistema=template.sistema,
+                obrigatoria=template.obrigatoria,
+                status=schemas.StatusTarefaInspecao.PENDENTE.value,
+            )
+        )
+
+    await db.flush()
+    inspecao_carregada = await buscar_inspecao(db, inspecao.id)
+    if not inspecao_carregada:
+        raise ValueError("Falha ao carregar inspecao criada.")
+    return inspecao_carregada
+
+
+async def atualizar_inspecao(
+    db: AsyncSession,
+    inspecao_id: uuid.UUID,
+    dados: schemas.InspecaoUpdate,
+) -> Inspecao:
+    inspecao = await buscar_inspecao(db, inspecao_id)
+    if not inspecao:
+        raise ValueError("Inspecao nao encontrada.")
+    _garantir_inspecao_editavel(inspecao)
+    inspecao.observacoes = dados.observacoes
+    await db.flush()
+    return inspecao
+
+
+async def adicionar_tarefa_avulsa(
+    db: AsyncSession,
+    inspecao_id: uuid.UUID,
+    dados: schemas.InspecaoTarefaCreate,
+) -> InspecaoTarefa:
+    inspecao = await buscar_inspecao(db, inspecao_id)
+    if not inspecao:
+        raise ValueError("Inspecao nao encontrada.")
+    _garantir_inspecao_editavel(inspecao)
+
+    ordem = dados.ordem
+    if ordem is None:
+        maior_ordem = await db.execute(
+            select(func.max(InspecaoTarefa.ordem)).where(InspecaoTarefa.inspecao_id == inspecao_id)
+        )
+        ordem = (maior_ordem.scalar_one_or_none() or 0) + 1
+
+    tarefa = InspecaoTarefa(
+        inspecao_id=inspecao_id,
+        ordem=ordem,
+        titulo=dados.titulo.strip(),
+        descricao=dados.descricao,
+        sistema=dados.sistema,
+        obrigatoria=dados.obrigatoria,
+        status=schemas.StatusTarefaInspecao.PENDENTE.value,
+    )
+    db.add(tarefa)
+    await db.flush()
+    await db.refresh(tarefa)
+    return tarefa
+
+
+async def atualizar_tarefa_inspecao(
+    db: AsyncSession,
+    tarefa_id: uuid.UUID,
+    dados: schemas.InspecaoTarefaUpdate,
+    usuario_padrao_id: uuid.UUID | None = None,
+) -> InspecaoTarefa:
+    result = await db.execute(
+        select(InspecaoTarefa)
+        .where(InspecaoTarefa.id == tarefa_id)
+        .options(selectinload(InspecaoTarefa.inspecao), selectinload(InspecaoTarefa.executado_por))
+    )
+    tarefa = result.scalar_one_or_none()
+    if not tarefa:
+        raise ValueError("Tarefa de inspecao nao encontrada.")
+
+    _garantir_inspecao_editavel(tarefa.inspecao)
+
+    status_novo = dados.status
+    executor_id = dados.executado_por_id or usuario_padrao_id
+
+    if status_novo == schemas.StatusTarefaInspecao.CONCLUIDA:
+        if not executor_id:
+            raise ValueError("Executor obrigatorio para concluir tarefa.")
+        executor = await _buscar_usuario(db, executor_id)
+        if not executor:
+            raise ValueError("Executor nao encontrado ou inativo.")
+        tarefa.executado_por_id = executor_id
+        tarefa.data_execucao = datetime.now(timezone.utc)
+    elif status_novo in {schemas.StatusTarefaInspecao.PENDENTE, schemas.StatusTarefaInspecao.NA}:
+        tarefa.executado_por_id = None
+        tarefa.data_execucao = None
+
+    tarefa.status = status_novo.value
+    tarefa.observacao_execucao = dados.observacao_execucao
+
+    if tarefa.inspecao.status == schemas.StatusInspecao.ABERTA.value and status_novo != schemas.StatusTarefaInspecao.PENDENTE:
+        tarefa.inspecao.status = schemas.StatusInspecao.EM_ANDAMENTO.value
+
+    await db.flush()
+    tarefa_carregada = await _buscar_tarefa_com_relacoes(db, tarefa.id)
+    if not tarefa_carregada:
+        raise ValueError("Falha ao carregar tarefa atualizada.")
+    return tarefa_carregada
+
+
+async def _buscar_tarefa_com_relacoes(db: AsyncSession, tarefa_id: uuid.UUID) -> InspecaoTarefa | None:
+    result = await db.execute(
+        select(InspecaoTarefa)
+        .where(InspecaoTarefa.id == tarefa_id)
+        .options(selectinload(InspecaoTarefa.executado_por))
+    )
+    return result.scalar_one_or_none()
+
+
+async def concluir_inspecao(
+    db: AsyncSession,
+    inspecao_id: uuid.UUID,
+    concluido_por_id: uuid.UUID,
+) -> Inspecao:
+    inspecao = await buscar_inspecao(db, inspecao_id)
+    if not inspecao:
+        raise ValueError("Inspecao nao encontrada.")
+    _garantir_inspecao_editavel(inspecao)
+
+    usuario = await _buscar_usuario(db, concluido_por_id)
+    if not usuario:
+        raise ValueError("Usuario de conclusao nao encontrado ou inativo.")
+
+    pendentes = [
+        tarefa
+        for tarefa in inspecao.tarefas
+        if tarefa.obrigatoria and tarefa.status == schemas.StatusTarefaInspecao.PENDENTE.value
+    ]
+    if pendentes:
+        raise ValueError("Inspecao possui tarefas obrigatorias pendentes.")
+
+    inspecao.status = schemas.StatusInspecao.CONCLUIDA.value
+    inspecao.data_conclusao = datetime.now(timezone.utc)
+    inspecao.concluido_por_id = concluido_por_id
+    await db.flush()
+    return inspecao
+
+
+async def cancelar_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> Inspecao:
+    inspecao = await buscar_inspecao(db, inspecao_id)
+    if not inspecao:
+        raise ValueError("Inspecao nao encontrada.")
+    _garantir_inspecao_editavel(inspecao)
+    inspecao.status = schemas.StatusInspecao.CANCELADA.value
+    await db.flush()
+    return inspecao
+
+
+def calcular_progresso(inspecao: Inspecao) -> tuple[int, int, int]:
+    total = len(inspecao.tarefas)
+    concluidas = sum(1 for tarefa in inspecao.tarefas if tarefa.status in {"CONCLUIDA", "N/A"})
+    percentual = round((concluidas / total) * 100) if total else 0
+    return total, concluidas, percentual

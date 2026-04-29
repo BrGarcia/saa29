@@ -1,9 +1,15 @@
 let ehGestorGlobal = false;
 let PANE_ID = null;
+let paneSomenteLeitura = false;
+
+function acaoBloqueadaPaneInativa() {
+    showToast("Pane excluída: ação indisponível enquanto estiver na lixeira.", "info");
+}
 
 async function carregarDetalhe() {
     try {
         const pane = await apiFetch(`/panes/${PANE_ID}`);
+        paneSomenteLeitura = !pane.ativo;
 
         // Textos base e Cabeçalho (Matrícula)
         document.getElementById("det-id").innerText = pane.codigo || "---/--";
@@ -46,6 +52,8 @@ async function carregarDetalhe() {
         const resStatus = document.getElementById("status-resolucao-salva");
         const divAssinatura = document.getElementById("det-assinatura");
         const comInput = document.getElementById("comentarios-texto");
+        const alertaInativa = document.getElementById("det-inativa-alerta");
+        const btnSalvarComentarios = document.getElementById("btn-salvar-comentarios");
 
         btnConc.style.display = "none";
         btnDelegar.style.display = "none";
@@ -54,13 +62,27 @@ async function carregarDetalhe() {
         resInput.disabled = false;
         resStatus.style.display = "none";
         divAssinatura.style.display = "none";
+        alertaInativa.style.display = "none";
+        btnSalvarComentarios.style.display = "inline-flex";
+        btnSalvarComentarios.disabled = false;
         comInput.value = pane.comentarios || "";
+        comInput.disabled = false;
 
         const localUser = JSON.parse(localStorage.getItem("saa29_user") || '{}');
         ehGestorGlobal = (localUser.funcao === 'ENCARREGADO' || localUser.funcao === 'ADMINISTRADOR');
 
         let bClass = "badge-aberta";
-        if (pane.status === "RESOLVIDA") {
+        let statusLabel = pane.status.replace("_", " ");
+        if (paneSomenteLeitura) {
+            bClass = "badge-resolvida";
+            statusLabel = "EXCLUIDA";
+            formUp.style.display = "none";
+            resInput.disabled = true;
+            comInput.disabled = true;
+            btnSalvarComentarios.style.display = "none";
+            alertaInativa.style.display = "block";
+            resInput.value = pane.observacao_conclusao || "";
+        } else if (pane.status === "RESOLVIDA") {
             bClass = "badge-resolvida";
             formUp.style.display = "none";
             resInput.disabled = true;
@@ -86,7 +108,7 @@ async function carregarDetalhe() {
             resInput.value = pane.observacao_conclusao || "";
         }
 
-        spanSts.innerHTML = `<span class="badge ${bClass}">${pane.status.replace("_", " ")}</span>`;
+        spanSts.innerHTML = `<span class="badge ${bClass}">${statusLabel}</span>`;
 
         carregarAnexos();
 
@@ -97,6 +119,10 @@ async function carregarDetalhe() {
 }
 
 async function handleSalvarComentarios() {
+    if (paneSomenteLeitura) {
+        acaoBloqueadaPaneInativa();
+        return;
+    }
     const comentarios = document.getElementById("comentarios-texto").value.trim();
     const btn = document.getElementById("btn-salvar-comentarios");
     const statusMsg = document.getElementById("status-comentarios-salvo");
@@ -124,6 +150,10 @@ async function handleSalvarComentarios() {
 }
 
 async function handleConcluirDireto() {
+    if (paneSomenteLeitura) {
+        acaoBloqueadaPaneInativa();
+        return;
+    }
     const obs = document.getElementById("resolucao-texto").value.trim();
     if (!obs) {
         showToast("Por favor, descreva a ação corretiva antes de concluir.", "error");
@@ -154,6 +184,10 @@ function closeConcluirModal() { document.getElementById("modal-concluir").style.
 
 async function enviarConclusao(e) {
     e.preventDefault();
+    if (paneSomenteLeitura) {
+        acaoBloqueadaPaneInativa();
+        return;
+    }
     const obs = document.getElementById("obsConclusao").value;
     try {
         await apiFetch(`/panes/${PANE_ID}/concluir`, {
@@ -169,6 +203,10 @@ async function enviarConclusao(e) {
 
 let usuariosParaDelegar = [];
 async function openDelegarModal() {
+    if (paneSomenteLeitura) {
+        acaoBloqueadaPaneInativa();
+        return;
+    }
     document.getElementById("modal-delegar").style.display = "flex";
     const select = document.getElementById("mantenedorSelect");
     select.innerHTML = '<option value="">Carregando...</option>';
@@ -191,6 +229,10 @@ function closeDelegarModal() { document.getElementById("modal-delegar").style.di
 
 async function enviarDelegacao(e) {
     e.preventDefault();
+    if (paneSomenteLeitura) {
+        acaoBloqueadaPaneInativa();
+        return;
+    }
     const mantId = document.getElementById("mantenedorSelect").value;
     if (!mantId) return;
 
@@ -208,6 +250,10 @@ async function enviarDelegacao(e) {
 }
 
 function openEditarModal() {
+    if (paneSomenteLeitura) {
+        acaoBloqueadaPaneInativa();
+        return;
+    }
     document.getElementById("editSistema").value = document.getElementById("det-sistema").innerText;
     document.getElementById("editDescricao").value = document.getElementById("det-descricao").innerText;
     document.getElementById("modal-editar").style.display = "flex";
@@ -216,6 +262,10 @@ function closeEditarModal() { document.getElementById("modal-editar").style.disp
 
 async function salvarEdicao(e) {
     e.preventDefault();
+    if (paneSomenteLeitura) {
+        acaoBloqueadaPaneInativa();
+        return;
+    }
     const sistema = document.getElementById("editSistema").value;
     const descricao = document.getElementById("editDescricao").value;
 
@@ -246,7 +296,7 @@ async function carregarAnexos() {
             div.style = "display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; background: var(--bg-primary); border-radius: var(--radius-md); font-size: 0.85rem; border: 1px solid var(--border-color);";
 
             let btnExcluir = '';
-            if (ehGestorGlobal) {
+            if (ehGestorGlobal && !paneSomenteLeitura) {
                 btnExcluir = `
                     <button type="button" class="btn-icon btn-excluir-anexo" style="color: var(--status-error); width: 28px; height: 28px; background: transparent;" title="Excluir Anexo">
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -278,6 +328,10 @@ async function carregarAnexos() {
 }
 
 async function handleExcluirAnexo(anexoId) {
+    if (paneSomenteLeitura) {
+        acaoBloqueadaPaneInativa();
+        return;
+    }
     if (!confirm("Deseja realmente excluir este anexo?")) return;
     try {
         await apiFetch(`/panes/${PANE_ID}/anexos/${anexoId}`, { method: "DELETE" });
@@ -329,6 +383,10 @@ async function abrirAnexo(anexoId, tipoAnexo) {
 
 async function handleUpload(e) {
     e.preventDefault();
+    if (paneSomenteLeitura) {
+        acaoBloqueadaPaneInativa();
+        return;
+    }
     const input = document.getElementById("arquivoInput");
     if (input.files.length === 0) return;
 

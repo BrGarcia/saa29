@@ -51,6 +51,7 @@ app/
 │   ├── auth/         -> autenticao, usuarios, JWT, blacklist e refresh token
 │   ├── aeronaves/    -> cadastro e status de aeronaves
 │   ├── equipamentos/ -> modelos, slots, itens, instalacoes e controles
+│   ├── inspecoes/    -> scaffold backend isolado, nao registrado no bootstrap
 │   └── panes/        -> panes, anexos e responsaveis
 ├── shared/
 │   ├── core/         -> enums, helpers, storage, validadores, limiter
@@ -82,6 +83,8 @@ Ele:
     - Inicia a rotina de limpeza automática de tokens expirados (`limpar_tokens_expirados`);
     - Executa o backup orientado a eventos para R2 quando configurado;
     - Garante o fechamento limpo do pool de conexões via `dispose_engine()` no shutdown.
+
+Nota: `app/modules/inspecoes` existe como scaffold isolado. Seus modelos e router nao sao importados nem registrados por `app/bootstrap/main.py` enquanto o modulo nao for ativado explicitamente com migration, bootstrap e frontend.
 
 ## 4. Fluxo de Requisicao
 
