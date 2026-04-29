@@ -114,7 +114,7 @@ async def abrir_inspecao_teste(
         db,
         schemas.InspecaoCreate(
             aeronave_id=aeronave.id,
-            tipo_inspecao_id=tipo_id,
+            tipos_inspecao_ids=[tipo_id],
             observacoes="Inspecao aberta por teste",
         ),
         usuario.id,
@@ -299,3 +299,121 @@ async def test_router_isolado_encarregado_pode_criar_tipo(db: AsyncSession):
 
     result = await db.execute(select(inspecoes_models.TipoInspecao))
     assert result.scalar_one_or_none() is not None
+
+
+# --- Novos Testes TDD Baseados no Backlog (RN-01, RN-02, RN-04, RN-05) ---
+
+@pytest.mark.asyncio
+async def test_rn02_adicionar_tarefa_manual_a_evento_existente(db: AsyncSession):
+    """
+    RN-02: Permite adicionar tarefas de origem MANUAL diretamente ao evento (tarefa_id nulo).
+    """
+    usuario = await criar_usuario_teste(db)
+    aeronave = await criar_aeronave_teste(db)
+    tipo, _ = await criar_tipo_com_tarefas(db, obrigatorias=1)
+    inspecao = await abrir_inspecao_teste(db, usuario, aeronave, tipo.id)
+
+    tarefa_manual = await service.adicionar_tarefa_avulsa(
+        db,
+        inspecao.id,
+        schemas.InspecaoTarefaCreate(
+            titulo="Tarefa Adicional Manual",
+            descricao="Inspecao extra detectada no patio",
+            obrigatoria=True,
+        )
+    )
+
+    assert tarefa_manual.id is not None
+    assert tarefa_manual.inspecao_id == inspecao.id
+    # Validando a intencao da RN-02: a tarefa avulsa nao esta atrelada a um template
+    assert tarefa_manual.tarefa_template_id is None
+    assert tarefa_manual.titulo == "Tarefa Adicional Manual"
+
+
+@pytest.mark.asyncio
+async def test_rn04_tarefa_com_anomalia_deve_gerar_pane_vinculada(db: AsyncSession):
+    """
+    RN-04: Se houver anomalia, uma Pane deve ser criada e vinculada via inspecao_tarefas.pane_id.
+    """
+    usuario = await criar_usuario_teste(db)
+    aeronave = await criar_aeronave_teste(db)
+    tipo, _ = await criar_tipo_com_tarefas(db, obrigatorias=1)
+    inspecao = await abrir_inspecao_teste(db, usuario, aeronave, tipo.id)
+    tarefa = inspecao.tarefas[0]
+
+    mock_pane_id = uuid.uuid4()
+
+    atualizada = await service.atualizar_tarefa_inspecao(
+        db,
+        tarefa.id,
+        schemas.InspecaoTarefaUpdate(
+            status=schemas.StatusTarefaInspecao.CONCLUIDA,
+            observacao_execucao="Vazamento encontrado no pneu direito",
+            pane_id=mock_pane_id,
+        ),
+        usuario_padrao_id=usuario.id,
+    )
+    
+    assert atualizada.pane_id == mock_pane_id
+
+
+@pytest.mark.asyncio
+async def test_rn05_status_aeronave_atualizado_ao_abrir_e_concluir_inspecao(db: AsyncSession):
+    """
+    RN-05: A aeronave muda para INSPECAO na abertura do evento. 
+    Ao concluir, retorna para DISPONIVEL (ou INDISPONIVEL caso restem panes impeditivas).
+    """
+    usuario = await criar_usuario_teste(db)
+    aeronave = await criar_aeronave_teste(db)
+    assert aeronave.status == StatusAeronave.DISPONIVEL
+
+    tipo, _ = await criar_tipo_com_tarefas(db, obrigatorias=1)
+    inspecao = await abrir_inspecao_teste(db, usuario, aeronave, tipo.id)
+
+    # Validacao 1: Deve mudar o status da aeronave na abertura
+    await db.refresh(aeronave)
+    assert aeronave.status == StatusAeronave.INSPECAO
+
+    # Concluir a inspecao
+    tarefa = inspecao.tarefas[0]
+    await service.atualizar_tarefa_inspecao(
+        db,
+        tarefa.id,
+        schemas.InspecaoTarefaUpdate(
+            status=schemas.StatusTarefaInspecao.CONCLUIDA,
+        ),
+        usuario_padrao_id=usuario.id,
+    )
+    await service.concluir_inspecao(db, inspecao.id, usuario.id)
+
+    # Validacao 2: Deve retornar a aeronave para DISPONIVEL
+    await db.refresh(aeronave)
+    assert aeronave.status == StatusAeronave.DISPONIVEL
+
+
+@pytest.mark.asyncio
+async def test_rn01_abrir_inspecao_com_multiplos_tipos_e_deduplicar_tarefas(db: AsyncSession):
+    """
+    RN-01: O modelo suporta a aplicacao de multiplos tipos de inspecao em um unico evento.
+    Deve unificar e deduplicar as tarefas.
+    """
+    usuario = await criar_usuario_teste(db)
+    aeronave = await criar_aeronave_teste(db)
+    
+    tipo1, templates1 = await criar_tipo_com_tarefas(db, obrigatorias=2)
+    tipo2, templates2 = await criar_tipo_com_tarefas(db, obrigatorias=2)
+    
+    dados = schemas.InspecaoCreate(
+        aeronave_id=aeronave.id,
+        tipos_inspecao_ids=[tipo1.id, tipo2.id], 
+        observacoes="Inspecao Combinada"
+    )
+    
+    inspecao = await service.abrir_inspecao(db, dados, usuario.id)
+    
+    # Ambos os tipos tem "Tarefa obrigatoria 1" e "Tarefa obrigatoria 2", a deduplicacao
+    # garante que resultem em apenas 2 tarefas totais instanciadas no evento.
+    assert len(inspecao.tarefas) == 2
+    
+    assert hasattr(inspecao, "tipos_aplicados")
+    assert len(inspecao.tipos_aplicados) == 2

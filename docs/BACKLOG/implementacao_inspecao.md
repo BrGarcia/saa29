@@ -38,8 +38,8 @@ Validação executada:
 - `venv/bin/python -m py_compile app/modules/inspecoes/...`
 - import de `app.modules.inspecoes.models`, `schemas`, `service` e `router`;
 - `sqlalchemy.orm.configure_mappers()` com modelos principais carregados.
-- `venv/bin/python -m pytest tests/unit/test_inspecoes.py -q` (`8 passed`);
-- `venv/bin/python -m pytest tests/unit -q` (`84 passed`).
+- `venv/bin/python -m pytest tests/unit/test_inspecoes.py -q` (`12 passed`);
+- `venv/bin/python -m pytest tests/unit -q` (`88 passed`).
 
 ---
 
@@ -202,6 +202,7 @@ Adicionar novo card na grade do `configuracoes.html`:
 - [x] Testes unitários do service isolado
 - [x] Testes de autenticação/RBAC do router isolado
 - [x] Teste de regressão garantindo que a API de inspeções não está ativa no app principal
+- [x] Criação de Testes TDD base para RN-01, RN-02, RN-04 e RN-05 (GREEN - Passando)
 - [ ] Testes de integração dos endpoints
 - [ ] Ajustes de UX (responsividade, animações, dark mode)
 - [ ] Documentação da API (docstrings)

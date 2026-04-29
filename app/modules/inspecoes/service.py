@@ -14,7 +14,8 @@ from sqlalchemy.orm import selectinload
 from app.modules.aeronaves.models import Aeronave
 from app.modules.auth.models import Usuario
 from app.modules.inspecoes import schemas
-from app.modules.inspecoes.models import Inspecao, InspecaoTarefa, TarefaTemplate, TipoInspecao
+from app.modules.inspecoes.models import Inspecao, InspecaoEventoTipo, InspecaoTarefa, TarefaTemplate, TipoInspecao
+from app.shared.core.enums import StatusAeronave
 
 
 STATUS_FINAIS = {
@@ -235,14 +236,14 @@ async def listar_inspecoes(
 ) -> list[Inspecao]:
     query = select(Inspecao).options(
         selectinload(Inspecao.aeronave),
-        selectinload(Inspecao.tipo_inspecao),
+        selectinload(Inspecao.tipos_aplicados),
         selectinload(Inspecao.tarefas),
     )
     if filtros:
         if filtros.aeronave_id:
             query = query.where(Inspecao.aeronave_id == filtros.aeronave_id)
         if filtros.tipo_inspecao_id:
-            query = query.where(Inspecao.tipo_inspecao_id == filtros.tipo_inspecao_id)
+            query = query.join(Inspecao.tipos_aplicados).where(TipoInspecao.id == filtros.tipo_inspecao_id)
         if filtros.status:
             query = query.where(Inspecao.status == filtros.status.value)
         query = query.offset(filtros.skip).limit(filtros.limit)
@@ -259,7 +260,7 @@ async def buscar_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> Inspecao 
         .where(Inspecao.id == inspecao_id)
         .options(
             selectinload(Inspecao.aeronave),
-            selectinload(Inspecao.tipo_inspecao),
+            selectinload(Inspecao.tipos_aplicados),
             selectinload(Inspecao.aberto_por),
             selectinload(Inspecao.concluido_por),
             selectinload(Inspecao.tarefas).selectinload(InspecaoTarefa.executado_por),
@@ -277,31 +278,32 @@ async def abrir_inspecao(
     if not aeronave:
         raise ValueError("Aeronave nao encontrada.")
 
-    tipo = await buscar_tipo_inspecao(db, dados.tipo_inspecao_id)
-    if not tipo:
-        raise ValueError("Tipo de inspecao nao encontrado ou inativo.")
+    tipos = []
+    for tipo_id in dados.tipos_inspecao_ids:
+        tipo = await buscar_tipo_inspecao(db, tipo_id)
+        if not tipo:
+            raise ValueError(f"Tipo de inspecao {tipo_id} nao encontrado ou inativo.")
+        tipos.append(tipo)
 
     usuario = await _buscar_usuario(db, aberto_por_id)
     if not usuario:
         raise ValueError("Usuario de abertura nao encontrado ou inativo.")
 
-    ativa = await db.execute(
-        select(Inspecao).where(
+    query_ativa = (
+        select(Inspecao)
+        .join(InspecaoEventoTipo)
+        .where(
             Inspecao.aeronave_id == dados.aeronave_id,
-            Inspecao.tipo_inspecao_id == dados.tipo_inspecao_id,
             Inspecao.status.in_(STATUS_ATIVOS),
+            InspecaoEventoTipo.tipo_inspecao_id.in_(dados.tipos_inspecao_ids),
         )
     )
-    if ativa.scalar_one_or_none():
-        raise ValueError("Ja existe inspecao ativa deste tipo para esta aeronave.")
-
-    templates = await listar_tarefas_template(db, dados.tipo_inspecao_id)
-    if not templates:
-        raise ValueError("O tipo de inspecao nao possui tarefas template cadastradas.")
+    ativa = await db.execute(query_ativa)
+    if ativa.scalars().first():
+        raise ValueError("Ja existe inspecao ativa com um dos tipos selecionados para esta aeronave.")
 
     inspecao = Inspecao(
         aeronave_id=dados.aeronave_id,
-        tipo_inspecao_id=dados.tipo_inspecao_id,
         status=schemas.StatusInspecao.ABERTA.value,
         observacoes=dados.observacoes,
         aberto_por_id=aberto_por_id,
@@ -309,12 +311,32 @@ async def abrir_inspecao(
     db.add(inspecao)
     await db.flush()
 
-    for template in templates:
+    for tipo in tipos:
+        db.add(InspecaoEventoTipo(inspecao_id=inspecao.id, tipo_inspecao_id=tipo.id))
+
+    aeronave.status = StatusAeronave.INSPECAO.value
+
+    templates = []
+    for tipo in tipos:
+        templates.extend(await listar_tarefas_template(db, tipo.id))
+
+    if not templates:
+        raise ValueError("Os tipos de inspecao nao possuem tarefas template cadastradas.")
+
+    vistos = set()
+    templates_deduplicados = []
+    for t in templates:
+        chave = t.titulo.strip().lower()
+        if chave not in vistos:
+            vistos.add(chave)
+            templates_deduplicados.append(t)
+
+    for i, template in enumerate(templates_deduplicados, start=1):
         db.add(
             InspecaoTarefa(
                 inspecao_id=inspecao.id,
                 tarefa_template_id=template.id,
-                ordem=template.ordem,
+                ordem=i,
                 titulo=template.titulo,
                 descricao=template.descricao_padrao,
                 sistema=template.sistema,
@@ -410,6 +432,9 @@ async def atualizar_tarefa_inspecao(
 
     tarefa.status = status_novo.value
     tarefa.observacao_execucao = dados.observacao_execucao
+    
+    if dados.pane_id:
+        tarefa.pane_id = dados.pane_id
 
     if tarefa.inspecao.status == schemas.StatusInspecao.ABERTA.value and status_novo != schemas.StatusTarefaInspecao.PENDENTE:
         tarefa.inspecao.status = schemas.StatusInspecao.EM_ANDAMENTO.value
@@ -455,6 +480,8 @@ async def concluir_inspecao(
     inspecao.status = schemas.StatusInspecao.CONCLUIDA.value
     inspecao.data_conclusao = datetime.now(timezone.utc)
     inspecao.concluido_por_id = concluido_por_id
+    if inspecao.aeronave:
+        inspecao.aeronave.status = StatusAeronave.DISPONIVEL.value
     await db.flush()
     return inspecao
 
@@ -465,6 +492,8 @@ async def cancelar_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> Inspeca
         raise ValueError("Inspecao nao encontrada.")
     _garantir_inspecao_editavel(inspecao)
     inspecao.status = schemas.StatusInspecao.CANCELADA.value
+    if inspecao.aeronave:
+        inspecao.aeronave.status = StatusAeronave.DISPONIVEL.value
     await db.flush()
     return inspecao
 

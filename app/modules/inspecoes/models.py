@@ -34,7 +34,10 @@ class TipoInspecao(Base):
         cascade="all, delete-orphan",
         order_by="TarefaTemplate.ordem",
     )
-    inspecoes: Mapped[list["Inspecao"]] = relationship(back_populates="tipo_inspecao")
+    inspecoes: Mapped[list["Inspecao"]] = relationship(
+        secondary="inspecao_evento_tipos",
+        back_populates="tipos_aplicados"
+    )
 
     def __repr__(self) -> str:
         return f"<TipoInspecao codigo={self.codigo!r} ativo={self.ativo!r}>"
@@ -68,6 +71,24 @@ class TarefaTemplate(Base):
         return f"<TarefaTemplate tipo={self.tipo_inspecao_id} ordem={self.ordem} titulo={self.titulo!r}>"
 
 
+class InspecaoEventoTipo(Base):
+    """Vinculo N:N de Tipos aplicados a um Evento de Inspecao."""
+
+    __tablename__ = "inspecao_evento_tipos"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    inspecao_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("inspecoes.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    tipo_inspecao_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tipos_inspecao.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+
 class Inspecao(Base):
     """Inspecao aberta para uma aeronave."""
 
@@ -75,11 +96,6 @@ class Inspecao(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     aeronave_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("aeronaves.id", ondelete="RESTRICT"), nullable=False, index=True)
-    tipo_inspecao_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("tipos_inspecao.id", ondelete="RESTRICT"),
-        nullable=False,
-        index=True,
-    )
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="ABERTA", index=True)
     data_abertura: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
     data_conclusao: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -89,7 +105,10 @@ class Inspecao(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
-    tipo_inspecao: Mapped["TipoInspecao"] = relationship(back_populates="inspecoes")
+    tipos_aplicados: Mapped[list["TipoInspecao"]] = relationship(
+        secondary="inspecao_evento_tipos",
+        back_populates="inspecoes"
+    )
     aeronave = relationship("Aeronave", lazy="select")
     aberto_por = relationship("Usuario", foreign_keys=[aberto_por_id], lazy="select")
     concluido_por = relationship("Usuario", foreign_keys=[concluido_por_id], lazy="select")
@@ -127,6 +146,7 @@ class InspecaoTarefa(Base):
     observacao_execucao: Mapped[str | None] = mapped_column(Text, nullable=True)
     executado_por_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=True)
     data_execucao: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    pane_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("panes.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 

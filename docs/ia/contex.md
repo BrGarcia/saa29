@@ -11,7 +11,7 @@ project:
 - type: web_monolith_modular_ddd
 - domain: panes_aeronaves_inventario_a29
 - status: architecture_stabilized_ddd_active
-- test_status: unit_pass_after_inspecoes_tests (84 tests)
+- test_status: unit_pass_after_inspecoes_tests (88 tests)
 - db_state: active_db_preserve_no_schema_change_for_inspecoes
 
 operational_constraints:
@@ -80,7 +80,7 @@ current_focus:
 - configuracoes_module_active: true
 - matriz_vencimentos_active: true
 - inspecoes_module_active: false
-- inspecoes_backend_scaffold_isolated: true
+- inspecoes_backend_scaffold_isolated: true (TDD tests added for RN-01, RN-02, RN-04, RN-05)
 - inspecoes_router_registered_in_bootstrap: false
 - inspecoes_models_imported_in_bootstrap: false
 - inspecoes_migration_created: false
@@ -88,7 +88,7 @@ current_focus:
 - ddd_modularization_completed: true
 - frontend_csp_refactoring_completed: true (removed all inline scripts)
 - alembic_migrations_up_to_date: true_for_active_schema; inspecoes_no_migration_yet
-- test_suites_passing: tests/unit_pass (84 tests)
+- test_suites_passing: tests/unit_pass (88 tests)
 
 known_gaps_from_roadmap:
 - logout_frontend_backend_alignment

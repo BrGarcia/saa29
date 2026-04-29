@@ -107,7 +107,7 @@ class ReordenarTarefas(BaseModel):
 
 class InspecaoCreate(BaseModel):
     aeronave_id: uuid.UUID
-    tipo_inspecao_id: uuid.UUID
+    tipos_inspecao_ids: list[uuid.UUID] = Field(min_length=1)
     observacoes: str | None = None
 
 
@@ -135,6 +135,7 @@ class InspecaoTarefaUpdate(BaseModel):
     status: StatusTarefaInspecao
     observacao_execucao: str | None = None
     executado_por_id: uuid.UUID | None = None
+    pane_id: uuid.UUID | None = None
 
 
 class InspecaoTarefaOut(BaseModel):
@@ -153,6 +154,7 @@ class InspecaoTarefaOut(BaseModel):
     executado_por_id: uuid.UUID | None
     executado_por: UsuarioResumo | None = None
     data_execucao: datetime | None
+    pane_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime | None
 
@@ -163,8 +165,7 @@ class InspecaoOut(BaseModel):
     id: uuid.UUID
     aeronave_id: uuid.UUID
     aeronave: AeronaveResumo | None = None
-    tipo_inspecao_id: uuid.UUID
-    tipo_inspecao: TipoInspecaoOut | None = None
+    tipos_aplicados: list[TipoInspecaoOut] = []
     status: StatusInspecao
     data_abertura: datetime
     data_conclusao: datetime | None
@@ -184,8 +185,7 @@ class InspecaoListItem(BaseModel):
     id: uuid.UUID
     aeronave_id: uuid.UUID
     aeronave: AeronaveResumo | None = None
-    tipo_inspecao_id: uuid.UUID
-    tipo_inspecao: TipoInspecaoOut | None = None
+    tipos_aplicados: list[TipoInspecaoOut] = []
     status: StatusInspecao
     data_abertura: datetime
     data_conclusao: datetime | None
