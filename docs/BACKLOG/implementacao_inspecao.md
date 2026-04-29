@@ -173,24 +173,24 @@ Adicionar novo card na grade do `configuracoes.html`:
 - [x] Criar `app/modules/inspecoes/__init__.py` (isolado, sem autoimport do router)
 - [x] Criar `app/modules/inspecoes/models.py` (4 tabelas)
 - [x] Adicionar enums `StatusInspecao` e `StatusTarefa` localmente em `schemas.py` para manter isolamento
-- [ ] Adicionar enums `StatusInspecao` e `StatusTarefa` em `enums.py` (pendente para ativação)
-- [ ] Adicionar relationships em `Aeronave` e `Usuario` (pendente para ativação)
-- [ ] Gerar migration Alembic
-- [ ] Testar migration (upgrade/downgrade)
+- [x] Adicionar enums `StatusInspecao` e `StatusTarefa` em `enums.py` (pendente para ativação)
+- [x] Adicionar relationships em `Aeronave` e `Usuario` (pendente para ativação)
+- [x] Gerar migration Alembic
+- [x] Testar migration (upgrade/downgrade)
 
 ### Fase 2 — Backend: Schemas + Service + Router (~4h)
 - [x] Criar `schemas.py` com Pydantic models
 - [x] Criar `service.py` com lógica de negócio (CRUD + regras RN-I01 a RN-I07)
 - [x] Criar `router.py` com endpoints da API
-- [ ] Registrar router no app principal (pendente por isolamento)
+- [x] Registrar router no app principal (pendente por isolamento)
 - [ ] Testar endpoints via Swagger/docs
 
 ### Fase 3 — Frontend: Navegação + Configurações (~3h)
-- [ ] Adicionar ícone de Inspeções no `base.html` (nav)
-- [ ] Adicionar card "Inspeções" em `configuracoes.html`
-- [ ] Criar modais de tipo de inspeção e tarefas
-- [ ] Implementar JS para CRUD de tipos e tarefas
-- [ ] Adicionar rotas de página em `pages/router.py`
+- [x] Adicionar ícone de Inspeções no `base.html` (nav)
+- [x] Adicionar card "Inspeções" em `configuracoes.html`
+- [x] Criar modais de tipo de inspeção e tarefas
+- [x] Implementar JS para CRUD de tipos e tarefas
+- [x] Adicionar rotas de página em `pages/router.py`
 
 ### Fase 4 — Frontend: Listagem e Detalhe (~4h)
 - [ ] Criar template `inspecoes/lista.html` (cards com progresso)

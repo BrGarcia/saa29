@@ -79,16 +79,15 @@ current_focus:
 - inventory_module_active: true
 - configuracoes_module_active: true
 - matriz_vencimentos_active: true
-- inspecoes_module_active: false
-- inspecoes_backend_scaffold_isolated: true (TDD tests added for RN-01, RN-02, RN-04, RN-05)
-- inspecoes_router_registered_in_bootstrap: false
-- inspecoes_models_imported_in_bootstrap: false
-- inspecoes_migration_created: false
-- inspecoes_frontend_integrated: false
+- inspecoes_module_active: true
+- inspecoes_backend_scaffold_isolated: false (integrated and tests passing)
+- inspecoes_router_registered_in_bootstrap: true
+- inspecoes_models_imported_in_bootstrap: true
+- inspecoes_migration_created: true
+- inspecoes_frontend_integrated: phase_3_completed (configuracoes CRUD)
 - ddd_modularization_completed: true
 - frontend_csp_refactoring_completed: true (removed all inline scripts)
-- alembic_migrations_up_to_date: true_for_active_schema; inspecoes_no_migration_yet
-- test_suites_passing: tests/unit_pass (88 tests)
+- alembic_migrations_up_to_date: true
 
 known_gaps_from_roadmap:
 - logout_frontend_backend_alignment

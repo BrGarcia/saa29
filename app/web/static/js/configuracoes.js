@@ -97,6 +97,22 @@ document.addEventListener("DOMContentLoaded", () => {
     
     document.getElementById('btn-close-modal-regras')?.addEventListener('click', closeModalRegras);
     document.getElementById('btn-close-regras')?.addEventListener('click', closeModalRegras);
+
+    // Inspeções
+    const btnConfigInspecoes = document.getElementById('btn-config-inspecoes');
+    if(btnConfigInspecoes) btnConfigInspecoes.addEventListener('click', openModalTiposInspecao);
+
+    document.getElementById('btn-close-modal-inspecoes')?.addEventListener('click', closeModalTiposInspecao);
+    document.getElementById('btn-close-inspecoes')?.addEventListener('click', closeModalTiposInspecao);
+    
+    document.getElementById('btn-novo-tipo-inspecao')?.addEventListener('click', () => openModalFormTipoInspecao());
+    document.getElementById('btn-close-form-tipo-inspecao')?.addEventListener('click', closeModalFormTipoInspecao);
+    document.getElementById('btn-cancel-form-tipo-inspecao')?.addEventListener('click', closeModalFormTipoInspecao);
+    document.getElementById('formTipoInspecao')?.addEventListener('submit', salvarTipoInspecao);
+
+    document.getElementById('btn-close-modal-tarefas')?.addEventListener('click', closeModalTarefasTemplate);
+    document.getElementById('btn-close-tarefas')?.addEventListener('click', closeModalTarefasTemplate);
+    document.getElementById('formNovaTarefa')?.addEventListener('submit', salvarTarefaTemplate);
 });
 
 function openModalConfig() {
@@ -667,10 +683,247 @@ async function removerPN(id, pn) {
 
 window.openModalCatalogo = openModalCatalogo;
 window.closeModalCatalogo = closeModalCatalogo;
-window.openModalNovoPN = openModalNovoPN;
-window.closeModalNovoPN = closeModalNovoPN;
-window.salvarNovoPN = salvarNovoPN;
 window.openModalEditarPN = openModalEditarPN;
 window.closeModalEditarPN = closeModalEditarPN;
 window.salvarEditarPN = salvarEditarPN;
 window.removerPN = removerPN;
+
+// ==========================================
+// Módulo de Inspeções (Tipos e Tarefas)
+// ==========================================
+
+let tiposInspecaoCache = [];
+let tarefasTemplateCache = [];
+
+function openModalTiposInspecao() {
+    const modal = document.getElementById('modal-inspecoes-tipos');
+    modal.style.display = 'flex';
+    carregarListaTiposInspecao();
+}
+
+function closeModalTiposInspecao() {
+    const modal = document.getElementById('modal-inspecoes-tipos');
+    if(modal) modal.style.display = 'none';
+}
+
+async function carregarListaTiposInspecao() {
+    const tbody = document.getElementById('lista-tipos-inspecao-body');
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem;">Carregando...</td></tr>';
+
+    try {
+        tiposInspecaoCache = await apiFetch('/inspecoes/tipos');
+        tbody.innerHTML = '';
+        
+        if(tiposInspecaoCache.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem; color: var(--text-secondary);">Nenhum tipo de inspeção cadastrado.</td></tr>';
+            return;
+        }
+
+        tiposInspecaoCache.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border-color)';
+            tr.innerHTML = `
+                <td style="padding: 0.75rem;"><strong>${escapeHtml(t.codigo)}</strong></td>
+                <td style="padding: 0.75rem;">
+                    <div style="font-weight: 500;">${escapeHtml(t.nome)}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHtml(t.descricao || '')}</div>
+                </td>
+                <td style="padding: 0.75rem; text-align: center;">
+                    <span style="display: inline-block; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600; background: ${t.ativo ? 'rgba(46, 204, 113, 0.1)' : 'rgba(231, 76, 60, 0.1)'}; color: ${t.ativo ? 'var(--status-ok)' : 'var(--status-danger)'};">${t.ativo ? 'Ativo' : 'Inativo'}</span>
+                </td>
+                <td style="padding: 0.75rem; text-align: right; display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button type="button" class="btn-icon btn-tarefas-tipo" data-id="${t.id}" title="Gerenciar Tarefas" style="color: var(--primary-color);">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                    </button>
+                    <button type="button" class="btn-icon btn-editar-tipo-insp" data-id="${t.id}" title="Editar Tipo" style="color: var(--text-color);">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    </button>
+                </td>
+            `;
+            
+            tr.querySelector('.btn-tarefas-tipo').addEventListener('click', () => openModalTarefasTemplate(t.id));
+            tr.querySelector('.btn-editar-tipo-insp').addEventListener('click', () => openModalFormTipoInspecao(t.id));
+            
+            tbody.appendChild(tr);
+        });
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem; color: var(--status-danger);">Erro ao carregar tipos de inspeção.</td></tr>';
+    }
+}
+
+function openModalFormTipoInspecao(id = null) {
+    document.getElementById('modal-form-tipo-inspecao').style.display = 'flex';
+    document.getElementById('formTipoInspecao').reset();
+    
+    if (id) {
+        const t = tiposInspecaoCache.find(x => x.id === id);
+        if (t) {
+            document.getElementById('titulo-form-tipo-inspecao').innerText = 'Editar Tipo de Inspeção';
+            document.getElementById('tipoInspecaoId').value = t.id;
+            document.getElementById('codigoTipoInspecaoInput').value = t.codigo;
+            document.getElementById('nomeTipoInspecaoInput').value = t.nome;
+            document.getElementById('descTipoInspecaoInput').value = t.descricao || '';
+            document.getElementById('container-status-tipo-inspecao').style.display = 'block';
+            document.getElementById('ativoTipoInspecaoInput').value = t.ativo ? 'true' : 'false';
+        }
+    } else {
+        document.getElementById('titulo-form-tipo-inspecao').innerText = 'Novo Tipo de Inspeção';
+        document.getElementById('tipoInspecaoId').value = '';
+        document.getElementById('container-status-tipo-inspecao').style.display = 'none';
+    }
+}
+
+function closeModalFormTipoInspecao() {
+    document.getElementById('modal-form-tipo-inspecao').style.display = 'none';
+    document.getElementById('formTipoInspecao').reset();
+}
+
+async function salvarTipoInspecao(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSalvarTipoInspecao');
+    btn.disabled = true;
+
+    const id = document.getElementById('tipoInspecaoId').value;
+    const codigo = document.getElementById('codigoTipoInspecaoInput').value.trim().toUpperCase();
+    const nome = document.getElementById('nomeTipoInspecaoInput').value.trim();
+    const descricao = document.getElementById('descTipoInspecaoInput').value.trim();
+    
+    try {
+        if (id) {
+            const ativo = document.getElementById('ativoTipoInspecaoInput').value === 'true';
+            await apiFetch(`/inspecoes/tipos/${id}`, {
+                method: 'PATCH',
+                body: { codigo, nome, descricao, ativo }
+            });
+            showToast("Tipo atualizado com sucesso!", "success");
+        } else {
+            await apiFetch('/inspecoes/tipos', {
+                method: 'POST',
+                body: { codigo, nome, descricao }
+            });
+            showToast("Tipo criado com sucesso!", "success");
+        }
+        closeModalFormTipoInspecao();
+        carregarListaTiposInspecao();
+    } catch(err) {
+        showToast(err.message || "Erro ao salvar.", "error");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ---- Tarefas do Template ----
+
+let tipoInspecaoAtualId = null;
+
+function openModalTarefasTemplate(tipoId) {
+    tipoInspecaoAtualId = tipoId;
+    const tipo = tiposInspecaoCache.find(x => x.id === tipoId);
+    if(tipo) {
+        document.getElementById('titulo-modal-tarefas').innerText = `Tarefas: ${tipo.codigo} - ${tipo.nome}`;
+    }
+    
+    document.getElementById('tarefaTipoInspecaoId').value = tipoId;
+    document.getElementById('modal-tarefas-template').style.display = 'flex';
+    
+    carregarListaTarefasTemplate();
+}
+
+function closeModalTarefasTemplate() {
+    document.getElementById('modal-tarefas-template').style.display = 'none';
+    document.getElementById('formNovaTarefa').reset();
+    tipoInspecaoAtualId = null;
+}
+
+async function carregarListaTarefasTemplate() {
+    if (!tipoInspecaoAtualId) return;
+    
+    const tbody = document.getElementById('lista-tarefas-template-body');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 1rem;">Carregando...</td></tr>';
+
+    try {
+        tarefasTemplateCache = await apiFetch(`/inspecoes/tipos/${tipoInspecaoAtualId}/tarefas`);
+        tbody.innerHTML = '';
+        
+        if(tarefasTemplateCache.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 1rem; color: var(--text-secondary);">Nenhuma tarefa cadastrada para este tipo.</td></tr>';
+            // Sugere a ordem 1
+            document.getElementById('tarefaOrdemInput').value = 1;
+            return;
+        }
+
+        // Sugere a próxima ordem
+        const maxOrdem = Math.max(...tarefasTemplateCache.map(t => t.ordem));
+        document.getElementById('tarefaOrdemInput').value = maxOrdem + 1;
+
+        tarefasTemplateCache.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border-color)';
+            tr.innerHTML = `
+                <td style="padding: 0.75rem; text-align: center; font-weight: 600;">${t.ordem}</td>
+                <td style="padding: 0.75rem;">${escapeHtml(t.sistema || '---')}</td>
+                <td style="padding: 0.75rem;">
+                    <div style="font-weight: 500;">${escapeHtml(t.titulo)}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHtml(t.descricao_padrao || '')}</div>
+                </td>
+                <td style="padding: 0.75rem; text-align: center;">
+                    ${t.obrigatoria ? '<span style="color:var(--status-danger); font-weight:bold;">Sim</span>' : '<span style="color:var(--text-secondary);">Não</span>'}
+                </td>
+                <td style="padding: 0.75rem; text-align: right;">
+                    <button type="button" class="btn-icon btn-remover-tarefa" data-id="${t.id}" title="Remover" style="color: var(--status-danger);">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                </td>
+            `;
+            
+            tr.querySelector('.btn-remover-tarefa').addEventListener('click', () => removerTarefaTemplate(t.id));
+            tbody.appendChild(tr);
+        });
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 1rem; color: var(--status-danger);">Erro ao carregar tarefas.</td></tr>';
+    }
+}
+
+async function salvarTarefaTemplate(e) {
+    e.preventDefault();
+    if (!tipoInspecaoAtualId) return;
+    
+    const btn = document.getElementById('btnSalvarTarefaTemplate');
+    btn.disabled = true;
+
+    const ordem = parseInt(document.getElementById('tarefaOrdemInput').value);
+    const titulo = document.getElementById('tarefaTituloInput').value.trim();
+    const sistema = document.getElementById('tarefaSistemaInput').value.trim();
+    const descricao_padrao = document.getElementById('tarefaDescInput').value.trim();
+    const obrigatoria = document.getElementById('tarefaObrigatoriaInput').checked;
+
+    try {
+        await apiFetch(`/inspecoes/tipos/${tipoInspecaoAtualId}/tarefas`, {
+            method: 'POST',
+            body: { ordem, titulo, sistema, descricao_padrao, obrigatoria }
+        });
+        showToast("Tarefa adicionada!", "success");
+        document.getElementById('formNovaTarefa').reset();
+        carregarListaTarefasTemplate();
+    } catch(err) {
+        showToast(err.message || "Erro ao adicionar tarefa.", "error");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function removerTarefaTemplate(tarefaId) {
+    if (!tipoInspecaoAtualId) return;
+    if (!confirm("Remover esta tarefa? O histórico de inspeções já abertas não será afetado.")) return;
+
+    try {
+        await apiFetch(`/inspecoes/tipos/${tipoInspecaoAtualId}/tarefas/${tarefaId}`, {
+            method: 'DELETE'
+        });
+        showToast("Tarefa removida.", "success");
+        carregarListaTarefasTemplate();
+    } catch(err) {
+        showToast(err.message || "Erro ao remover.", "error");
+    }
+}
+
