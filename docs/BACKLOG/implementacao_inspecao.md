@@ -2,7 +2,44 @@
 
 > **Projeto:** SAA29 — Sistema de Apoio à Aviônica A-29  
 > **Data:** 2026-04-25  
-> **Status:** 📋 Planejamento Inicial  
+> **Status:** Implementação inicial isolada iniciada em 2026-04-29  
+
+---
+
+## 0. Estado Atual da Implementação
+
+Em `2026-04-29`, foi iniciado um scaffold backend isolado em `app/modules/inspecoes/`.
+
+Arquivos criados:
+
+- `app/modules/inspecoes/__init__.py`
+- `app/modules/inspecoes/models.py`
+- `app/modules/inspecoes/schemas.py`
+- `app/modules/inspecoes/service.py`
+- `app/modules/inspecoes/router.py`
+
+Escopo implementado:
+
+- modelos ORM locais para `TipoInspecao`, `TarefaTemplate`, `Inspecao` e `InspecaoTarefa`;
+- schemas Pydantic e enums locais ao módulo, sem alterar `app/shared/core/enums.py`;
+- service com CRUD inicial, abertura de inspeção com instanciação de tarefas, bloqueio de duplicidade ativa, atualização de tarefa com rastreabilidade, cancelamento e conclusão condicionada a tarefas obrigatórias;
+- router FastAPI definido, mas ainda não registrado no app principal.
+
+Isolamento mantido:
+
+- não houve alteração em `app/bootstrap/main.py`;
+- não houve import dos modelos de inspeção no bootstrap;
+- não houve migration Alembic;
+- não houve alteração em `Aeronave`, `Usuario`, `base.html`, `configuracoes.html`, rotas web ou frontend ativo;
+- o módulo não altera o schema do banco nem aparece na API ativa enquanto não for registrado explicitamente.
+
+Validação executada:
+
+- `venv/bin/python -m py_compile app/modules/inspecoes/...`
+- import de `app.modules.inspecoes.models`, `schemas`, `service` e `router`;
+- `sqlalchemy.orm.configure_mappers()` com modelos principais carregados.
+- `venv/bin/python -m pytest tests/unit/test_inspecoes.py -q` (`8 passed`);
+- `venv/bin/python -m pytest tests/unit -q` (`84 passed`).
 
 ---
 
@@ -397,18 +434,19 @@ Adicionar novo card na grade do `configuracoes.html`:
 ## 11. Faseamento da Implementação
 
 ### Fase 1 — Banco de Dados e Models (~2h)
-- [ ] Criar `app/modules/inspecoes/__init__.py`
-- [ ] Criar `app/modules/inspecoes/models.py` (4 tabelas)
-- [ ] Adicionar enums `StatusInspecao` e `StatusTarefa` em `enums.py`
-- [ ] Adicionar relationships em `Aeronave` e `Usuario`
+- [x] Criar `app/modules/inspecoes/__init__.py` (isolado, sem autoimport do router)
+- [x] Criar `app/modules/inspecoes/models.py` (4 tabelas)
+- [x] Adicionar enums `StatusInspecao` e `StatusTarefa` localmente em `schemas.py` para manter isolamento
+- [ ] Adicionar enums `StatusInspecao` e `StatusTarefa` em `enums.py` (pendente para ativação)
+- [ ] Adicionar relationships em `Aeronave` e `Usuario` (pendente para ativação)
 - [ ] Gerar migration Alembic
 - [ ] Testar migration (upgrade/downgrade)
 
 ### Fase 2 — Backend: Schemas + Service + Router (~4h)
-- [ ] Criar `schemas.py` com Pydantic models
-- [ ] Criar `service.py` com lógica de negócio (CRUD + regras RN-I01 a RN-I07)
-- [ ] Criar `router.py` com endpoints da API
-- [ ] Registrar router no app principal
+- [x] Criar `schemas.py` com Pydantic models
+- [x] Criar `service.py` com lógica de negócio (CRUD + regras RN-I01 a RN-I07)
+- [x] Criar `router.py` com endpoints da API
+- [ ] Registrar router no app principal (pendente por isolamento)
 - [ ] Testar endpoints via Swagger/docs
 
 ### Fase 3 — Frontend: Navegação + Configurações (~3h)
@@ -425,7 +463,9 @@ Adicionar novo card na grade do `configuracoes.html`:
 - [ ] Implementar `inspecao_detalhe.js` (execução de tarefas, conclusão)
 
 ### Fase 5 — Polimento e Testes (~2h)
-- [ ] Testes unitários do service
+- [x] Testes unitários do service isolado
+- [x] Testes de autenticação/RBAC do router isolado
+- [x] Teste de regressão garantindo que a API de inspeções não está ativa no app principal
 - [ ] Testes de integração dos endpoints
 - [ ] Ajustes de UX (responsividade, animações, dark mode)
 - [ ] Documentação da API (docstrings)
