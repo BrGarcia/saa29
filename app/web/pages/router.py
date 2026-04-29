@@ -65,7 +65,13 @@ async def inventario_page(request: Request, _=Depends(get_current_user)):
 @router.get("/inspecoes", response_class=HTMLResponse, include_in_schema=False)
 async def inspecoes_page(request: Request, _=Depends(get_current_user)):
     """Módulo de Inspeções"""
-    return templates.TemplateResponse("inspecoes.html", {"request": request})
+    return templates.TemplateResponse("inspecoes/lista.html", {"request": request})
+
+
+@router.get("/inspecoes/{id}/detalhes", response_class=HTMLResponse, include_in_schema=False)
+async def detalhe_inspecao_page(request: Request, id: str, _=Depends(get_current_user)):
+    """Visualização detalhada de uma inspeção."""
+    return templates.TemplateResponse("inspecoes/detalhe.html", {"request": request, "inspecao_id": id})
 
 
 @router.get("/vencimentos", response_class=HTMLResponse, include_in_schema=False)

@@ -193,10 +193,10 @@ Adicionar novo card na grade do `configuracoes.html`:
 - [x] Adicionar rotas de página em `pages/router.py`
 
 ### Fase 4 — Frontend: Listagem e Detalhe (~4h)
-- [ ] Criar template `inspecoes/lista.html` (cards com progresso)
-- [ ] Criar template `inspecoes/detalhe.html` (tabela de tarefas)
-- [ ] Implementar `inspecoes.js` (listagem, filtros, nova inspeção)
-- [ ] Implementar `inspecao_detalhe.js` (execução de tarefas, conclusão)
+- [x] Criar template `inspecoes/lista.html` (cards com progresso)
+- [x] Criar template `inspecoes/detalhe.html` (tabela de tarefas)
+- [x] Implementar `inspecoes.js` (listagem, filtros, nova inspeção)
+- [x] Implementar `inspecao_detalhe.js` (execução de tarefas, conclusão)
 
 ### Fase 5 — Polimento e Testes (~2h)
 - [x] Testes unitários do service isolado
