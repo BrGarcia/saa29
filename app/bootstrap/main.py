@@ -27,6 +27,7 @@ import app.modules.vencimentos.models
 import app.modules.aeronaves.models
 import app.modules.panes.models
 import app.modules.efetivo.models
+import app.modules.inspecoes.models
 
 from app.bootstrap.config import get_settings
 
@@ -37,6 +38,7 @@ from app.modules.aeronaves.router import router as aeronaves_router
 from app.modules.equipamentos.router import router as equipamentos_router
 from app.modules.vencimentos.router import router as vencimentos_router
 from app.modules.panes.router import router as panes_router
+from app.modules.inspecoes.router import router as inspecoes_router
 from app.web.pages.router import router as pages_router
 from app.shared.core.limiter import limiter
 
@@ -387,6 +389,7 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(equipamentos_router, prefix="/equipamentos", tags=["Equipamentos"])
     app.include_router(vencimentos_router,  prefix="/vencimentos",  tags=["Vencimentos"])
     app.include_router(panes_router,        prefix="/panes",        tags=["Panes"])
+    app.include_router(inspecoes_router,    prefix="/inspecoes",    tags=["Inspeções"])
     
     # Frontend Pages (sem prefixo de API explícito - Root)
     app.include_router(pages_router)

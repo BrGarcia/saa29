@@ -76,3 +76,18 @@ class TipoIndisponibilidade(str, enum.Enum):
     FOLGA = "FOLGA"
     SERVICO = "SERVIÇO"
     OUTRO = "OUTRO"
+
+
+class StatusInspecao(str, enum.Enum):
+    """Status operacional de uma inspeção."""
+    ABERTA = "ABERTA"
+    EM_ANDAMENTO = "EM_ANDAMENTO"
+    CONCLUIDA = "CONCLUIDA"
+    CANCELADA = "CANCELADA"
+
+
+class StatusTarefaInspecao(str, enum.Enum):
+    """Status de uma tarefa de inspeção."""
+    PENDENTE = "PENDENTE"
+    CONCLUIDA = "CONCLUIDA"
+    NA = "N/A"

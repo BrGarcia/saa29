@@ -96,6 +96,11 @@ class Aeronave(Base):
         back_populates="aeronave",
         lazy="select",
     )
+    inspecoes: Mapped[list] = relationship(
+        "Inspecao",
+        back_populates="aeronave",
+        lazy="select",
+    )
 
     def __repr__(self) -> str:
         return f"<Aeronave matricula={self.matricula!r} status={self.status.value!r}>"

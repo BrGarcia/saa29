@@ -125,6 +125,24 @@ class Usuario(Base):
         back_populates="usuario",
         lazy="select",
     )
+    inspecoes_abertas: Mapped[list] = relationship(
+        "Inspecao",
+        foreign_keys="Inspecao.aberto_por_id",
+        back_populates="aberto_por",
+        lazy="select",
+    )
+    inspecoes_concluidas: Mapped[list] = relationship(
+        "Inspecao",
+        foreign_keys="Inspecao.concluido_por_id",
+        back_populates="concluido_por",
+        lazy="select",
+    )
+    tarefas_inspecao_executadas: Mapped[list] = relationship(
+        "InspecaoTarefa",
+        foreign_keys="InspecaoTarefa.executado_por_id",
+        back_populates="executado_por",
+        lazy="select",
+    )
 
     def __repr__(self) -> str:
         return f"<Usuario id={self.id} username={self.username!r} funcao={self.funcao!r}>"

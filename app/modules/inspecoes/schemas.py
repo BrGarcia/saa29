@@ -4,25 +4,10 @@ Schemas Pydantic do modulo isolado de inspecoes.
 
 from __future__ import annotations
 
-import enum
 import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
-
-
-class StatusInspecao(str, enum.Enum):
-    ABERTA = "ABERTA"
-    EM_ANDAMENTO = "EM_ANDAMENTO"
-    CONCLUIDA = "CONCLUIDA"
-    CANCELADA = "CANCELADA"
-
-
-class StatusTarefaInspecao(str, enum.Enum):
-    PENDENTE = "PENDENTE"
-    CONCLUIDA = "CONCLUIDA"
-    NA = "N/A"
-
 
 class AeronaveResumo(BaseModel):
     model_config = ConfigDict(from_attributes=True)
