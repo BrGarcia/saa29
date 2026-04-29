@@ -1,0 +1,44 @@
+# Pane Pendente Verificada
+
+## Observação inicial
+
+O arquivo estava vazio em `2026-04-29`, então não havia uma pane previamente descrita para validação literal. Durante a inspeção do código, a pane pendente mais concreta encontrada foi a abaixo.
+
+---
+
+### 1. Busca textual de panes falha com caracteres especiais (`%` e `_`)
+
+- **Sintoma provável:** ao filtrar panes por texto contendo `%`, `_` ou barra invertida, a lista pode retornar resultados errados, nenhum resultado, ou interpretar parte da busca como curinga SQL.
+- **Onde está o problema:** `app/modules/panes/service.py`, função `listar_panes()`, linhas do bloco de filtro textual.
+- **Evidência técnica:** a função `_escape_like()` existe e escapa `%` e `_`, mas o `LIKE` usado em `Pane.descricao`, `Pane.sistema_subsistema` e `Aeronave.matricula` não informa `escape="\\"`.
+- **Comparativo importante:** no módulo de equipamentos o mesmo cuidado foi aplicado corretamente com `ilike(..., escape="\\")` em `app/modules/equipamentos/service.py`.
+
+### Causa provável
+
+Há uma inconsistência entre a sanitização do valor e a forma como a query SQL é montada:
+
+- `_escape_like()` transforma, por exemplo, `%` em `\%` e `_` em `\_`.
+- Porém, sem declarar explicitamente o caractere de escape no `LIKE`, o banco pode tratar esses caracteres de forma incorreta.
+- Na prática, o backend aparenta estar protegido, mas o escape fica incompleto e o filtro textual de panes não se comporta como esperado para entradas com curingas.
+
+### Como resolver
+
+Sem implementar agora, a correção recomendada é:
+
+1. Ajustar o bloco de busca em `app/modules/panes/service.py` para usar `like(..., escape="\\")` ou `ilike(..., escape="\\")` em todos os campos filtrados.
+2. Manter o uso de `_escape_like()` antes de interpolar o valor no padrão `%...%`.
+3. Adicionar testes cobrindo buscas com:
+   - texto contendo `%`
+   - texto contendo `_`
+   - texto contendo `\\`
+   - texto comum sem caracteres especiais, para garantir ausência de regressão
+
+### Impacto esperado da correção
+ß
+- Busca textual consistente entre módulos.
+- Eliminação de falsos positivos e falsos negativos no filtro de panes.
+- Comportamento alinhado com a intenção original de segurança e previsibilidade do `_escape_like()`.
+
+---
+
+*Atualizado em: 2026-04-29*

@@ -86,7 +86,7 @@ async def buscar_pane(
     _: CurrentUser,
 ) -> schemas.PaneOut:
     """Retorna dados completos da pane com anexos e responsáveis."""
-    resultado = await service.buscar_pane(db, pane_id)
+    resultado = await service.buscar_pane(db, pane_id, incluir_inativos=True)
     if not resultado:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -248,7 +248,7 @@ async def baixar_anexo(
     usuario_atual: CurrentUser,
 ):
     """Entrega o anexo apenas dentro do fluxo autenticado do sistema."""
-    anexo = await service.buscar_anexo(db, pane_id, anexo_id)
+    anexo = await service.buscar_anexo(db, pane_id, anexo_id, incluir_inativos=True)
     if not anexo:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

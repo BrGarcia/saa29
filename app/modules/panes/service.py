@@ -528,17 +528,21 @@ async def buscar_anexo(
     db: AsyncSession,
     pane_id: uuid.UUID,
     anexo_id: uuid.UUID,
+    incluir_inativos: bool = False,
 ) -> Anexo | None:
-    """Busca um anexo de uma pane ativa."""
-    result = await db.execute(
+    """Busca um anexo de uma pane, opcionalmente incluindo panes inativas."""
+    query = (
         select(Anexo)
         .join(Pane, Pane.id == Anexo.pane_id)
         .where(
             Anexo.id == anexo_id,
             Anexo.pane_id == pane_id,
-            Pane.ativo == True,  # noqa: E712
         )
     )
+    if not incluir_inativos:
+        query = query.where(Pane.ativo == True)  # noqa: E712
+
+    result = await db.execute(query)
     return result.scalar_one_or_none()
 
 

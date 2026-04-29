@@ -93,12 +93,12 @@ async def remover_modelo(db: AsyncSession, modelo_id: uuid.UUID) -> None:
         
     # Verificar se existem itens físicos atrelados
     res_itens = await db.execute(select(ItemEquipamento).where(ItemEquipamento.modelo_id == modelo_id))
-    if res_itens.scalar_one_or_none():
+    if res_itens.first():
         raise ValueError("Não é possível excluir: existem itens físicos (Serial Numbers) cadastrados para este PN.")
         
     # Verificar se existem slots atrelados
     res_slots = await db.execute(select(SlotInventario).where(SlotInventario.modelo_id == modelo_id))
-    if res_slots.scalar_one_or_none():
+    if res_slots.first():
         raise ValueError("Não é possível excluir: este PN está associado a slots na configuração da aeronave.")
         
     await db.delete(modelo)
