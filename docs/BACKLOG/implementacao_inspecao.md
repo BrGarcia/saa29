@@ -203,9 +203,9 @@ Adicionar novo card na grade do `configuracoes.html`:
 - [x] Testes de autenticação/RBAC do router isolado
 - [x] Teste de regressão garantindo que a API de inspeções não está ativa no app principal
 - [x] Criação de Testes TDD base para RN-01, RN-02, RN-04 e RN-05 (GREEN - Passando)
-- [ ] Testes de integração dos endpoints
-- [ ] Ajustes de UX (responsividade, animações, dark mode)
-- [ ] Documentação da API (docstrings)
+- [x] Testes de integração dos endpoints
+- [x] Ajustes de UX (responsividade, animações, dark mode)
+- [x] Documentação da API (docstrings)
 
 ---
 

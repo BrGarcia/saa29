@@ -20,7 +20,7 @@ from app.modules.auth.models import Usuario
 from app.modules.auth.security import hash_senha
 from app.modules.inspecoes import schemas, service
 from app.modules.inspecoes.router import router as inspecoes_router
-from app.shared.core.enums import StatusAeronave
+from app.shared.core.enums import StatusAeronave, StatusInspecao, StatusTarefaInspecao
 
 
 INSPECOES_URL = "/inspecoes"
@@ -169,11 +169,11 @@ async def test_abrir_inspecao_instancia_tarefas_e_bloqueia_duplicidade_ativa(db:
 
     inspecao = await abrir_inspecao_teste(db, usuario, aeronave, tipo.id)
 
-    assert inspecao.status == schemas.StatusInspecao.ABERTA.value
+    assert inspecao.status == StatusInspecao.ABERTA.value
     assert inspecao.aeronave_id == aeronave.id
     assert len(inspecao.tarefas) == len(templates)
     assert [t.ordem for t in inspecao.tarefas] == [1, 2, 3]
-    assert all(t.status == schemas.StatusTarefaInspecao.PENDENTE.value for t in inspecao.tarefas)
+    assert all(t.status == StatusTarefaInspecao.PENDENTE.value for t in inspecao.tarefas)
 
     with pytest.raises(ValueError, match="Ja existe inspecao ativa"):
         await abrir_inspecao_teste(db, usuario, aeronave, tipo.id)
@@ -192,7 +192,7 @@ async def test_atualizar_tarefa_concluida_exige_executor_e_move_inspecao_para_an
             db,
             tarefa.id,
             schemas.InspecaoTarefaUpdate(
-                status=schemas.StatusTarefaInspecao.CONCLUIDA,
+                status=StatusTarefaInspecao.CONCLUIDA,
                 observacao_execucao="Executada sem executor",
             ),
             usuario_padrao_id=None,
@@ -202,18 +202,18 @@ async def test_atualizar_tarefa_concluida_exige_executor_e_move_inspecao_para_an
         db,
         tarefa.id,
         schemas.InspecaoTarefaUpdate(
-            status=schemas.StatusTarefaInspecao.CONCLUIDA,
+            status=StatusTarefaInspecao.CONCLUIDA,
             observacao_execucao="Executada conforme checklist",
         ),
         usuario_padrao_id=usuario.id,
     )
 
-    assert atualizada.status == schemas.StatusTarefaInspecao.CONCLUIDA.value
+    assert atualizada.status == StatusTarefaInspecao.CONCLUIDA.value
     assert atualizada.executado_por_id == usuario.id
     assert atualizada.data_execucao is not None
 
     recarregada = await service.buscar_inspecao(db, inspecao.id)
-    assert recarregada.status == schemas.StatusInspecao.EM_ANDAMENTO.value
+    assert recarregada.status == StatusInspecao.EM_ANDAMENTO.value
 
 
 @pytest.mark.asyncio
@@ -228,9 +228,9 @@ async def test_concluir_inspecao_bloqueia_obrigatorias_pendentes(db: AsyncSessio
 
     for tarefa in inspecao.tarefas:
         status = (
-            schemas.StatusTarefaInspecao.CONCLUIDA
+            StatusTarefaInspecao.CONCLUIDA
             if tarefa.obrigatoria
-            else schemas.StatusTarefaInspecao.PENDENTE
+            else StatusTarefaInspecao.PENDENTE
         )
         await service.atualizar_tarefa_inspecao(
             db,
@@ -241,16 +241,16 @@ async def test_concluir_inspecao_bloqueia_obrigatorias_pendentes(db: AsyncSessio
 
     concluida = await service.concluir_inspecao(db, inspecao.id, usuario.id)
 
-    assert concluida.status == schemas.StatusInspecao.CONCLUIDA.value
+    assert concluida.status == StatusInspecao.CONCLUIDA.value
     assert concluida.concluido_por_id == usuario.id
     assert concluida.data_conclusao is not None
 
 
 @pytest.mark.asyncio
-async def test_inspecoes_permanece_isolado_do_app_principal(client: AsyncClient, usuario_e_token: dict):
+async def test_inspecoes_registrado_no_app_principal(client: AsyncClient, usuario_e_token: dict):
     response = await client.get(f"{INSPECOES_URL}/tipos", headers=usuario_e_token["headers"])
 
-    assert response.status_code == 404
+    assert response.status_code == 200
 
 
 @pytest.mark.asyncio
@@ -347,7 +347,7 @@ async def test_rn04_tarefa_com_anomalia_deve_gerar_pane_vinculada(db: AsyncSessi
         db,
         tarefa.id,
         schemas.InspecaoTarefaUpdate(
-            status=schemas.StatusTarefaInspecao.CONCLUIDA,
+            status=StatusTarefaInspecao.CONCLUIDA,
             observacao_execucao="Vazamento encontrado no pneu direito",
             pane_id=mock_pane_id,
         ),
@@ -380,7 +380,7 @@ async def test_rn05_status_aeronave_atualizado_ao_abrir_e_concluir_inspecao(db: 
         db,
         tarefa.id,
         schemas.InspecaoTarefaUpdate(
-            status=schemas.StatusTarefaInspecao.CONCLUIDA,
+            status=StatusTarefaInspecao.CONCLUIDA,
         ),
         usuario_padrao_id=usuario.id,
     )

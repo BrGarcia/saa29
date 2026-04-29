@@ -84,7 +84,8 @@ current_focus:
 - inspecoes_router_registered_in_bootstrap: true
 - inspecoes_models_imported_in_bootstrap: true
 - inspecoes_migration_created: true
-- inspecoes_frontend_integrated: phase_4_completed (lista e detalhes)
+- inspecoes_frontend_integrated: completed
+- inspecoes_full_module_completed: true
 - ddd_modularization_completed: true
 - frontend_csp_refactoring_completed: true (removed all inline scripts)
 - alembic_migrations_up_to_date: true

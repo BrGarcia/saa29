@@ -7,7 +7,9 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel
+from app.shared.core.enums import StatusInspecao, StatusTarefaInspecao
+from pydantic import ConfigDict, Field
 
 class AeronaveResumo(BaseModel):
     model_config = ConfigDict(from_attributes=True)

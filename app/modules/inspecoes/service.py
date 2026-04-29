@@ -15,16 +15,16 @@ from app.modules.aeronaves.models import Aeronave
 from app.modules.auth.models import Usuario
 from app.modules.inspecoes import schemas
 from app.modules.inspecoes.models import Inspecao, InspecaoEventoTipo, InspecaoTarefa, TarefaTemplate, TipoInspecao
-from app.shared.core.enums import StatusAeronave
+from app.shared.core.enums import StatusAeronave, StatusInspecao, StatusTarefaInspecao
 
 
 STATUS_FINAIS = {
-    schemas.StatusInspecao.CONCLUIDA.value,
-    schemas.StatusInspecao.CANCELADA.value,
+    StatusInspecao.CONCLUIDA.value,
+    StatusInspecao.CANCELADA.value,
 }
 STATUS_ATIVOS = {
-    schemas.StatusInspecao.ABERTA.value,
-    schemas.StatusInspecao.EM_ANDAMENTO.value,
+    StatusInspecao.ABERTA.value,
+    StatusInspecao.EM_ANDAMENTO.value,
 }
 
 
@@ -304,7 +304,7 @@ async def abrir_inspecao(
 
     inspecao = Inspecao(
         aeronave_id=dados.aeronave_id,
-        status=schemas.StatusInspecao.ABERTA.value,
+        status=StatusInspecao.ABERTA.value,
         observacoes=dados.observacoes,
         aberto_por_id=aberto_por_id,
     )
@@ -341,7 +341,7 @@ async def abrir_inspecao(
                 descricao=template.descricao_padrao,
                 sistema=template.sistema,
                 obrigatoria=template.obrigatoria,
-                status=schemas.StatusTarefaInspecao.PENDENTE.value,
+                status=StatusTarefaInspecao.PENDENTE.value,
             )
         )
 
@@ -390,7 +390,7 @@ async def adicionar_tarefa_avulsa(
         descricao=dados.descricao,
         sistema=dados.sistema,
         obrigatoria=dados.obrigatoria,
-        status=schemas.StatusTarefaInspecao.PENDENTE.value,
+        status=StatusTarefaInspecao.PENDENTE.value,
     )
     db.add(tarefa)
     await db.flush()
@@ -418,7 +418,7 @@ async def atualizar_tarefa_inspecao(
     status_novo = dados.status
     executor_id = dados.executado_por_id or usuario_padrao_id
 
-    if status_novo == schemas.StatusTarefaInspecao.CONCLUIDA:
+    if status_novo == StatusTarefaInspecao.CONCLUIDA:
         if not executor_id:
             raise ValueError("Executor obrigatorio para concluir tarefa.")
         executor = await _buscar_usuario(db, executor_id)
@@ -426,7 +426,7 @@ async def atualizar_tarefa_inspecao(
             raise ValueError("Executor nao encontrado ou inativo.")
         tarefa.executado_por_id = executor_id
         tarefa.data_execucao = datetime.now(timezone.utc)
-    elif status_novo in {schemas.StatusTarefaInspecao.PENDENTE, schemas.StatusTarefaInspecao.NA}:
+    elif status_novo in {StatusTarefaInspecao.PENDENTE, StatusTarefaInspecao.NA}:
         tarefa.executado_por_id = None
         tarefa.data_execucao = None
 
@@ -436,8 +436,8 @@ async def atualizar_tarefa_inspecao(
     if dados.pane_id:
         tarefa.pane_id = dados.pane_id
 
-    if tarefa.inspecao.status == schemas.StatusInspecao.ABERTA.value and status_novo != schemas.StatusTarefaInspecao.PENDENTE:
-        tarefa.inspecao.status = schemas.StatusInspecao.EM_ANDAMENTO.value
+    if tarefa.inspecao.status == StatusInspecao.ABERTA.value and status_novo != StatusTarefaInspecao.PENDENTE:
+        tarefa.inspecao.status = StatusInspecao.EM_ANDAMENTO.value
 
     await db.flush()
     tarefa_carregada = await _buscar_tarefa_com_relacoes(db, tarefa.id)
@@ -472,12 +472,12 @@ async def concluir_inspecao(
     pendentes = [
         tarefa
         for tarefa in inspecao.tarefas
-        if tarefa.obrigatoria and tarefa.status == schemas.StatusTarefaInspecao.PENDENTE.value
+        if tarefa.obrigatoria and tarefa.status == StatusTarefaInspecao.PENDENTE.value
     ]
     if pendentes:
         raise ValueError("Inspecao possui tarefas obrigatorias pendentes.")
 
-    inspecao.status = schemas.StatusInspecao.CONCLUIDA.value
+    inspecao.status = StatusInspecao.CONCLUIDA.value
     inspecao.data_conclusao = datetime.now(timezone.utc)
     inspecao.concluido_por_id = concluido_por_id
     if inspecao.aeronave:
@@ -491,7 +491,7 @@ async def cancelar_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> Inspeca
     if not inspecao:
         raise ValueError("Inspecao nao encontrada.")
     _garantir_inspecao_editavel(inspecao)
-    inspecao.status = schemas.StatusInspecao.CANCELADA.value
+    inspecao.status = StatusInspecao.CANCELADA.value
     if inspecao.aeronave:
         inspecao.aeronave.status = StatusAeronave.DISPONIVEL.value
     await db.flush()

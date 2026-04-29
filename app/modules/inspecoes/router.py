@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 
 from app.bootstrap.dependencies import CurrentUser, DBSession, EncarregadoOuAdmin
 from app.modules.inspecoes import schemas, service
+from app.shared.core.enums import StatusInspecao
 
 router = APIRouter()
 
@@ -182,7 +183,7 @@ async def listar_inspecoes(
     _: CurrentUser,
     aeronave_id: uuid.UUID | None = Query(default=None),
     tipo_inspecao_id: uuid.UUID | None = Query(default=None),
-    status_inspecao: schemas.StatusInspecao | None = Query(default=None, alias="status"),
+    status_inspecao: StatusInspecao | None = Query(default=None, alias="status"),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=1000),
 ) -> list[schemas.InspecaoListItem]:
