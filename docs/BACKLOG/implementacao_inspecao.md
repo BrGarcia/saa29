@@ -429,33 +429,79 @@ Atualizar o cabeçalho da tabela em `detalhe.html` para incluir a nova coluna:
 - [ ] Validar consistência visual com a coluna "Atualização/Trigrama" do Inventário
 
 
+---
 
+## 16. Desacoplamento do Catálogo de Tarefas (Nova Funcionalidade)
 
+> **Status:** Backlog — Planejado
+> **Prioridade:** Alta
 
+### 16.1. Objetivo
+Desacoplar a criação de tarefas da definição dos Tipos de Inspeção. O usuário deverá poder criar e gerenciar um "Catálogo de Tarefas" de forma independente. Na tela de gerenciamento de um Tipo de Inspeção (template), o usuário apenas selecionará as tarefas previamente criadas no catálogo e as adicionará ao tipo de inspeção.
 
-==================================
+### 16.2. Página de Configurações — Novo Layout
 
-Plano criado com sucesso em docs/implementacao_inspecao.md. Aqui está um resumo dos pontos-chave:
+A seção de Inspeções na página de `configuracoes.html` passará a ter duas frentes distintas de gerenciamento:
 
-📋 Resumo do Plano
-Banco de Dados — 4 novas tabelas:
+```text
+┌─────────────────────────────────────────────┐
+│ 🔍 Inspeções                                │
+│                                             │
+│ Gerenciamento de templates e catálogo       │
+│                                             │
+│ ─── Tipos de Inspeção ───────────────────── │
+│ [+ Cadastrar Tipo de Inspeção]              │
+│ [📋 Gerenciar Tipos de Inspeção]            │
+│                                             │
+│ ─── Catálogo de Tarefas ─────────────────── │
+│ [+ Criar Tarefa]                            │
+│ [📋 Gerenciar Tarefas]                      │
+└─────────────────────────────────────────────┘
+```
 
-tipos_inspecao — catálogo de tipos (IF-50H, IPG, IPE, etc.)
-tarefas_template — tarefas padrão por tipo de inspeção
-inspecoes — inspeções realizadas (vinculadas a aeronaves + usuários)
-inspecao_tarefas — tarefas instanciadas com rastreio de executor
-Frontend — 3 áreas:
+### 16.3. Modais e Interações Necessárias
 
-Ícone na nav ao lado de Panes, Inventário e Frota
-Página /inspecoes com cards mostrando aeronaves em inspeção + barra de progresso
-Página /inspecoes/{id}/detalhes com tabela de tarefas, status e executor
-Card em /configuracoes para cadastro de tipos e tarefas-template
-7 regras de negócio (instanciação automática de tarefas, validação de conclusão, rastreabilidade obrigatória, etc.)
+#### A. Gerenciamento do Catálogo de Tarefas
+1. **Modal Criar/Editar Tarefa:**
+   - Campos: `Nome / Título`, `Descrição`, `Sistema (ex: Aviônica, Motor)`, `Referência (Opcional)` e `Status (Ativa/Inativa)`.
+   - Salva a tarefa diretamente na tabela de catálogo (`tarefas_inspecao` ou tabela equivalente definida no backend).
+2. **Modal Gerenciar Tarefas:**
+   - Tabela listando todas as tarefas do catálogo global com opções para editar e inativar.
 
-5 fases de implementação (~15h estimadas total)
+#### B. Gerenciamento do Tipo de Inspeção (Vinculação)
+1. **Modal Gerenciar Tipo de Inspeção (Vínculo):**
+   - Ao invés de criar tarefas do zero dentro do tipo, o modal exibirá uma interface para **adicionar tarefas existentes**.
+   - Incluirá um `<select>` com busca (ou dropdown dinâmico) listando as tarefas do catálogo (ativas).
+   - Ao selecionar a tarefa, o usuário define a `ordem` e se ela é `obrigatória` para este Tipo de Inspeção.
+   - Permite remover tarefas do Tipo de Inspeção (remove o vínculo, mas não exclui a tarefa do catálogo global).
 
-❓ Decisões pendentes para você validar:
-Os tipos de inspeção sugeridos (IF-50H, IF-100H, IPG, IPE) são adequados ao contexto da unidade?
-Deseja que a abertura de inspeção altere automaticamente o status da aeronave para INDISPONIVEL?
-A regra de unicidade (não permitir 2 inspeções ativas do mesmo tipo na mesma aeronave) faz sentido?
-Quer começar a implementação por alguma fase específica?
+### 16.4. Impacto no Backend
+
+- **Rotas de Catálogo de Tarefas:** Criar rotas CRUD independentes para as tarefas (ex: `GET /inspecoes/tarefas`, `POST /inspecoes/tarefas`, `PUT /inspecoes/tarefas/{id}`).
+- **Rotas de Vínculo:** Ajustar as rotas de gerenciamento do template (`POST /inspecoes/tipos/{id}/tarefas`) para receber apenas o `tarefa_id`, `ordem` e `obrigatoria`, validando se a tarefa existe no catálogo.
+- **Modelagem:** O banco de dados já prevê (ou deverá prever) a estrutura desacoplada (`tarefas_inspecao` e a tabela associativa `tipos_inspecao_tarefas`), então o ajuste será principalmente nas rotas Pydantic (schemas) e no Service para expor o CRUD independente de tarefas.
+
+### 16.5. Arquivos Impactados
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `app/modules/inspecoes/schemas.py` | Schemas para CRUD independente de Tarefas. |
+| `app/modules/inspecoes/service.py` | Métodos CRUD para o catálogo global de tarefas. Ajuste na vinculação ao tipo. |
+| `app/modules/inspecoes/router.py` | Rotas de API REST para gerenciar tarefas de forma independente. |
+| `app/web/templates/configuracoes.html` | Atualizar os botões do card de inspeções. Criar os novos modais (Criar Tarefa, Gerenciar Tarefas, Editar Vínculos). |
+| `app/web/static/js/configuracoes.js` | Funções AJAX/Fetch para o novo CRUD de tarefas e para popular o `<select>` de tarefas no modal de vinculação. |
+
+### 16.6. Faseamento da Implementação
+
+1. **Fase 1 (Backend - CRUD Catálogo):**
+   - Implementar schemas, services e endpoints (router) para criar, listar, atualizar e inativar tarefas no catálogo global.
+2. **Fase 2 (Frontend - Configurações de Tarefas):**
+   - Adicionar botões no card de Inspeções em `configuracoes.html`.
+   - Implementar os modais de "Criar Tarefa" e "Gerenciar Tarefas".
+   - Integrar com a API via `configuracoes.js`.
+3. **Fase 3 (Frontend - Vinculação ao Tipo):**
+   - Refatorar o modal atual de gerenciamento de tarefas do tipo para usar o componente de seleção de tarefas do catálogo.
+   - Ajustar o JS e o endpoint para salvar o vínculo (ID do tipo + ID da tarefa + ordem + obrigatoriedade).
+4. **Fase 4 (Testes):**
+   - Garantir que a alteração de uma tarefa no catálogo não quebre inspeções já em andamento.
+   - Testar o bloqueio de tarefas inativas na hora de vincular a um novo tipo de inspeção.

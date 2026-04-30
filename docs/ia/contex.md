@@ -95,6 +95,7 @@ current_focus:
 backlog_inspecoes:
 - feature_tarefas_extras: completed
 - feature_auditoria_checklist: completed
+- feature_desacoplamento_tarefas_catalogo: planned
 - csp_compliance: mandatory_for_all_new_UI (no_inline_scripts_no_onclick_attrs)
 
 known_gaps_from_roadmap:
