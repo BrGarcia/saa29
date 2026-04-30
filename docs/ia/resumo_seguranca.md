@@ -53,6 +53,7 @@ reporting:
 
 recent_actions:
 - 2026-04-29: Inspecoes backend scaffold created as isolated module; no active route, migration, or bootstrap registration yet.
+- 2026-04-30: Backlog updated with two new inspection features (tarefas extras + auditoria checklist). Both specs enforce CSP compliance (no inline scripts).
 - 2026-04-29: Fixed major bug in Inspecoes navigation caused by CSP blocking inline Jinja2 `<script>` tags. Emphasized `<meta>` tags for JS data passing.
 - 2026-04-28: Full Frontend CSP Hardening (removed all inline scripts and event handlers).
 - 2026-04-27: External security audit completed (docs/relatorio/revisao_claude.md).

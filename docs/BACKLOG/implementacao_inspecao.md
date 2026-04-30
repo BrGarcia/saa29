@@ -242,7 +242,191 @@ Adicionar novo card na grade do `configuracoes.html`:
 - `ON DELETE CASCADE` para tarefas ao excluir inspeção cancelada
 - Constraint `UNIQUE(aeronave_id, tipo_inspecao_id)` filtrado por status não-finalizado (RN-I07)
 
+---
 
+## 14. Inclusão de Tarefas Extras na Inspeção (Nova Funcionalidade)
+
+> **Status:** Backlog — Não implementado  
+> **Prioridade:** Alta  
+> **Referência:** RN-02 (Tarefas Manuais)  
+
+### 14.1. Objetivo
+
+Permitir que o usuário adicione tarefas extras (avulsas) a uma inspeção **em andamento**, diretamente pela página de Detalhes da Inspeção (`/inspecoes/{id}/detalhes`). As tarefas extras complementam o checklist original (gerado a partir dos templates) sem alterar o catálogo de tarefas-padrão.
+
+### 14.2. Endpoint de Backend (Já Existente)
+
+O endpoint `POST /inspecoes/{inspecao_id}/tarefas` já está implementado em `app/modules/inspecoes/router.py` (função `adicionar_tarefa_avulsa`). Ele aceita o schema `InspecaoTarefaCreate`:
+
+```
+{
+  "ordem": 99,           // opcional, posição na lista
+  "titulo": "Verificar conector J3 do MDP",
+  "descricao": "Conector apresentou folga visual",
+  "sistema": "Aviônica",
+  "obrigatoria": true
+}
+```
+
+**RBAC:** Apenas `ENCARREGADO` ou `ADMINISTRADOR` podem adicionar tarefas extras.
+
+### 14.3. Frontend — Botão "Adicionar Tarefa"
+
+Adicionar um botão na página de detalhes da inspeção (`inspecao_detalhe.js`), visível **somente quando a inspeção está em status `ABERTA` ou `EM_ANDAMENTO`**:
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  Checklist de Tarefas                     [+ Adicionar Tarefa]  │
+├──────────────────────────────────────────────────────────────────┤
+│  # │ Sistema  │ Ação / Descrição     │ Req │ Status │ Ações     │
+│  ──┼──────────┼──────────────────────┼─────┼────────┼───────────│
+│  1 │ Aviônica │ Verificar MDP        │ Sim │ CONC.  │ 👁        │
+│  2 │ Display  │ Testar CMFD 1 e 2    │ Sim │ PEND.  │ ✏        │
+│  ...                                                             │
+│  N │ Aviônica │ Verificar conector   │ Sim │ PEND.  │ ✏  [MAN] │
+│     (manual)                                                     │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### 14.4. Modal "Adicionar Tarefa Extra"
+
+Criar um novo modal no template `detalhe.html` (dentro do `{% block content %}`, sem scripts inline):
+
+| Campo       | Tipo     | Obrigatório | Observação                        |
+|-------------|----------|-------------|-----------------------------------|
+| Título      | text     | Sim         | max 200 caracteres                |
+| Descrição   | textarea | Não         | detalhes complementares           |
+| Sistema     | text     | Não         | ex: "Aviônica", "Rádio", "IFF"   |
+| Obrigatória | checkbox | Não         | default: `true`                   |
+
+**Regras do modal:**
+- O botão "Salvar" faz `POST /inspecoes/{id}/tarefas` via `apiFetch`
+- Em caso de sucesso, chama `carregarDetalhesInspecao()` para atualizar a listagem
+- Tarefas extras são exibidas com um badge `[MAN]` (Manual) ao lado do título para diferenciá-las das tarefas de template
+- A ordem da tarefa extra é calculada automaticamente como `max(ordem_existente) + 1`
+
+### 14.5. Impacto no Checklist
+
+- Tarefas extras são incluídas na contagem geral de progresso (barra de progresso)
+- Se `obrigatoria = true`, a tarefa extra **bloqueia** a conclusão da inspeção até ser resolvida (RN-06)
+- A diferenciação visual entre tarefas de template e tarefas manuais é feita pelo campo `tarefa_template_id`: se `null`, a tarefa é manual
+
+### 14.6. Restrição CSP
+
+> ⚠️ **CRÍTICO:** O modal deve ser definido no HTML estático (`detalhe.html`). Todos os event listeners (abrir modal, fechar, submit do form) devem ser registrados via `addEventListener` no arquivo `inspecao_detalhe.js`. **Nenhum script inline ou `onclick` em atributos HTML é permitido** (regra `script-src 'self'`).
+
+### 14.7. Arquivos Impactados
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `app/web/templates/inspecoes/detalhe.html` | Adicionar botão "Adicionar Tarefa" + modal |
+| `app/web/static/js/inspecao_detalhe.js` | Adicionar handlers do modal e chamada `POST` |
+
+### 14.8. Faseamento
+
+- [ ] Adicionar HTML do botão e modal em `detalhe.html`
+- [ ] Implementar handlers em `inspecao_detalhe.js` (abrir/fechar/submit)
+- [ ] Adicionar badge `[MAN]` na renderização de tarefas manuais
+- [ ] Testar: adicionar tarefa → checklist atualizado → progresso recalculado
+- [ ] Testar: tarefa obrigatória manual bloqueia conclusão
+
+---
+
+## 15. Auditoria de Alterações no Checklist (Ajuste na Listagem)
+
+> **Status:** Backlog — Não implementado  
+> **Prioridade:** Média  
+> **Referência visual:** Coluna "Atualização/Trigrama" da página Inventário de Equipamentos (`inventario.js`, linhas 206, 235-249)  
+
+### 15.1. Objetivo
+
+Exibir na tabela "Checklist de Tarefas" da página de Detalhes da Inspeção duas novas informações de rastreabilidade para cada tarefa que já foi atualizada:
+
+1. **Trigrama** do usuário que alterou/concluiu a tarefa
+2. **Data/Hora** da mudança de status
+
+### 15.2. Estado Atual da Tabela
+
+A tabela atual possui 6 colunas:
+
+| Ord | Sistema | Ação / Descrição | Req | Status | Ações |
+
+O campo `executado_por` (com trigrama) já é parcialmente exibido **dentro** da célula de Status como um texto secundário (`Por: XXX`). O campo `data_execucao` já existe no schema `InspecaoTarefaOut` mas **não é exibido** na tabela.
+
+### 15.3. Novo Layout da Tabela
+
+Adicionar uma nova coluna "Atualização" entre "Status" e "Ações", seguindo o padrão visual do Inventário:
+
+```
+┌────┬──────────┬──────────────────────┬─────┬─────────┬──────────────┬───────┐
+│ Ord│ Sistema  │ Ação / Descrição     │ Req │ Status  │ Atualização  │ Ações │
+├────┼──────────┼──────────────────────┼─────┼─────────┼──────────────┼───────┤
+│  1 │ Aviônica │ Verificar fixação MDP│ Sim │ ✅ CONC │ 29/04/26     │  👁   │
+│    │          │                      │     │         │ 14:35        │       │
+│    │          │                      │     │         │ SGT ABC      │       │
+├────┼──────────┼──────────────────────┼─────┼─────────┼──────────────┼───────┤
+│  2 │ Rádio    │ Inspecionar VUHF     │ Sim │ ⏳ PEND│     —        │  ✏   │
+└────┴──────────┴──────────────────────┴─────┴─────────┴──────────────┴───────┘
+```
+
+### 15.4. Implementação Frontend — Padrão Inventário
+
+Replicar a lógica de renderização já existente em `inventario.js` (linhas 235-249) para a função `renderizarTarefas()` em `inspecao_detalhe.js`:
+
+```javascript
+// Padrão de referência (inventario.js):
+// if (item.data_atualizacao) {
+//     rastreabilidade = `<div style="font-size: 0.8rem;">
+//         <div style="color: var(--text-secondary);">${dia}/${mes}/${ano} ${hora}:${min}</div>
+//         <div style="font-weight: 700; color: var(--primary-color);">${trigrama || 'SYS'}</div>
+//     </div>`;
+// }
+```
+
+**Campos da API a utilizar:**
+- `t.data_execucao` → formatar como `DD/MM/AA HH:MM`
+- `t.executado_por?.trigrama` → exibir trigrama em destaque (bold, cor primária)
+- Se a tarefa estiver `PENDENTE` (sem execução), exibir `—`
+
+### 15.5. Ajuste na Coluna Status
+
+Com a criação da coluna "Atualização" dedicada, **remover** o texto secundário `Por: ${trigrama}` que atualmente é renderizado dentro da célula de Status (linha ~135 de `inspecao_detalhe.js`). Isso elimina a duplicação de informação e mantém a célula de Status limpa, contendo apenas o badge colorido.
+
+### 15.6. Ajuste no `<thead>` do Template HTML
+
+Atualizar o cabeçalho da tabela em `detalhe.html` para incluir a nova coluna:
+
+```html
+<tr>
+    <th style="text-align: center; padding: 0.75rem; width: 50px;">Ord</th>
+    <th style="text-align: left; padding: 0.75rem; width: 120px;">Sistema</th>
+    <th style="text-align: left; padding: 0.75rem;">Ação / Descrição</th>
+    <th style="text-align: center; padding: 0.75rem; width: 60px;">Req</th>
+    <th style="text-align: center; padding: 0.75rem; width: 100px;">Status</th>
+    <th style="text-align: center; padding: 0.75rem; width: 130px;">Atualização</th>
+    <th style="text-align: right; padding: 0.75rem; width: 80px;">Ações</th>
+</tr>
+```
+
+**Nota:** Atualizar o `colspan` do placeholder de "Nenhuma tarefa" de `6` para `7`.
+
+### 15.7. Restrição CSP
+
+> ⚠️ **CRÍTICO:** Toda a renderização é feita via `createElement` e `innerHTML` em arquivos `.js` externos. Nenhum atributo `onclick` ou `<script>` inline é permitido. Os dados de data/trigrama já vêm da API via `apiFetch` — nenhum dado dinâmico é passado via Jinja.
+
+### 15.8. Arquivos Impactados
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `app/web/templates/inspecoes/detalhe.html` | Adicionar coluna "Atualização" no `<thead>`, ajustar colspan |
+| `app/web/static/js/inspecao_detalhe.js` | Adicionar `<td>` com data/trigrama na `renderizarTarefas()`, remover trigrama duplicado da célula Status |
+
+### 15.9. Faseamento
+
+- [ ] Atualizar `<thead>` em `detalhe.html` (adicionar coluna, ajustar colspan)
+- [ ] Atualizar `renderizarTarefas()` em `inspecao_detalhe.js` (nova `<td>` + limpar Status)
+- [ ] Testar: tarefas pendentes exibem `—`, tarefas concluídas exibem `DD/MM/AA HH:MM` + trigrama
+- [ ] Validar consistência visual com a coluna "Atualização/Trigrama" do Inventário
 
 
 

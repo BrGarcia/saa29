@@ -72,6 +72,8 @@ core_rules:
 - RN-I04: tarefa_CONCLUIDA_exige_executor_e_data_execucao
 - RN-I05: inspecao_CONCLUIDA_ou_CANCELADA_nao_editavel
 - RN-I07: bloqueia_duplicidade_ativa_por_aeronave_tipo
+- RN-I08_backlog: tarefas_extras_manuais_via_frontend (endpoint POST existente, UI pendente)
+- RN-I09_backlog: auditoria_checklist_coluna_atualizacao_trigrama (dados existentes na API, renderização pendente)
 
 current_focus:
 - docs_synced: true (IA updated for isolated inspections scaffold)
@@ -89,6 +91,11 @@ current_focus:
 - ddd_modularization_completed: true
 - frontend_csp_refactoring_completed: true (removed all inline scripts)
 - alembic_migrations_up_to_date: true
+
+backlog_inspecoes:
+- feature_tarefas_extras: POST_endpoint_exists_UI_modal_pending (docs/BACKLOG/implementacao_inspecao.md#14)
+- feature_auditoria_checklist: data_execucao_and_trigrama_column_pending (docs/BACKLOG/implementacao_inspecao.md#15)
+- csp_compliance: mandatory_for_all_new_UI (no_inline_scripts_no_onclick_attrs)
 
 known_gaps_from_roadmap:
 - logout_frontend_backend_alignment
