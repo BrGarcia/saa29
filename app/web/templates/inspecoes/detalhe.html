@@ -13,21 +13,30 @@
 
     <!-- Tabela de Tarefas -->
     <div class="card" style="display: flex; flex-direction: column; gap: 1rem;">
-        <h3 style="margin: 0; font-size: 1.15rem; display: flex; align-items: center; gap: 0.5rem;">
-            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
-            Checklist de Tarefas
-        </h3>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-size: 1.15rem; display: flex; align-items: center; gap: 0.5rem;">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                Checklist de Tarefas
+            </h3>
+            <div id="container-btn-add-tarefa" style="display: none;">
+                <button class="btn btn-sm btn-outline" id="btn-open-modal-add-tarefa" style="color: var(--primary-color); border-color: var(--primary-color); padding: 0.3rem 0.6rem; font-size: 0.85rem;">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Adicionar Tarefa
+                </button>
+            </div>
+        </div>
         
         <div style="overflow-x: auto;">
             <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem;">
                 <thead style="background: rgba(0,0,0,0.05);">
                     <tr>
-                        <th style="text-align: center; padding: 0.75rem; width: 60px;">Ord</th>
-                        <th style="text-align: left; padding: 0.75rem; width: 140px;">Sistema</th>
+                        <th style="text-align: center; padding: 0.75rem; width: 50px;">Ord</th>
+                        <th style="text-align: left; padding: 0.75rem; width: 120px;">Sistema</th>
                         <th style="text-align: left; padding: 0.75rem;">Ação / Descrição</th>
-                        <th style="text-align: center; padding: 0.75rem; width: 100px;">Req</th>
-                        <th style="text-align: center; padding: 0.75rem; width: 130px;">Status</th>
-                        <th style="text-align: right; padding: 0.75rem; width: 100px;">Ações</th>
+                        <th style="text-align: center; padding: 0.75rem; width: 60px;">Req</th>
+                        <th style="text-align: center; padding: 0.75rem; width: 100px;">Status</th>
+                        <th style="text-align: center; padding: 0.75rem; width: 130px;">Atualização</th>
+                        <th style="text-align: right; padding: 0.75rem; width: 80px;">Ações</th>
                     </tr>
                 </thead>
                 <tbody id="tabela-tarefas-body">
@@ -72,6 +81,43 @@
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
                 <button type="button" class="btn btn-outline" id="btn-cancel-modal-tarefa">Cancelar</button>
                 <button type="submit" class="btn btn-inspecao" id="btnSalvarTarefa">Salvar Tarefa</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal de Adicionar Tarefa Extra -->
+<div id="modal-add-tarefa" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card glass-panel" style="width: 100%; max-width: 500px; margin: 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+            <h3 style="margin: 0; font-size: 1.25rem;">Adicionar Tarefa Extra</h3>
+            <button class="btn-icon" type="button" id="btn-close-modal-add-tarefa"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+        </div>
+
+        <form id="formAddTarefa">
+            <div class="form-group">
+                <label class="form-label">Título *</label>
+                <input type="text" id="addTarefaTituloInput" class="form-input" required maxlength="200" placeholder="Ex: Verificar fixação do painel">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Sistema</label>
+                <input type="text" id="addTarefaSistemaInput" class="form-input" maxlength="100" placeholder="Ex: Aviônica, Rádio, Estrutura">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Descrição / Ação Requerida</label>
+                <textarea id="addTarefaDescInput" class="form-input" rows="3" placeholder="Detalhes complementares..."></textarea>
+            </div>
+            
+            <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;">
+                <input type="checkbox" id="addTarefaObrigatoriaInput" checked style="width: 1.2rem; height: 1.2rem;">
+                <label for="addTarefaObrigatoriaInput" class="form-label" style="margin: 0; cursor: pointer;">Tarefa Obrigatória para conclusão da inspeção</label>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+                <button type="button" class="btn btn-outline" id="btn-cancel-modal-add-tarefa">Cancelar</button>
+                <button type="submit" class="btn btn-inspecao" id="btnSalvarAddTarefa">Adicionar Tarefa</button>
             </div>
         </form>
     </div>

@@ -258,7 +258,7 @@ async def test_router_isolado_exige_autenticacao_para_listar(db: AsyncSession):
     app = criar_app_isolado(db)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
-        response = await client.get(INSPECOES_URL)
+        response = await client.get(f"{INSPECOES_URL}/")
 
     assert response.status_code == 401
 

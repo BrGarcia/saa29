@@ -17,6 +17,11 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('btn-close-modal-tarefa')?.addEventListener('click', closeModalTarefa);
     document.getElementById('btn-cancel-modal-tarefa')?.addEventListener('click', closeModalTarefa);
     document.getElementById('formExecutarTarefa')?.addEventListener('submit', salvarTarefa);
+
+    document.getElementById('btn-open-modal-add-tarefa')?.addEventListener('click', openModalAddTarefa);
+    document.getElementById('btn-close-modal-add-tarefa')?.addEventListener('click', closeModalAddTarefa);
+    document.getElementById('btn-cancel-modal-add-tarefa')?.addEventListener('click', closeModalAddTarefa);
+    document.getElementById('formAddTarefa')?.addEventListener('submit', salvarAddTarefa);
 });
 
 async function carregarDetalhesInspecao() {
@@ -42,6 +47,15 @@ function renderizarCabecalho() {
     const concluidas = inspecaoAtual.tarefas.filter(t => t.status !== 'PENDENTE').length;
     const pct = total === 0 ? 0 : Math.round((concluidas / total) * 100);
     const todasObrigatoriasFeitas = inspecaoAtual.tarefas.filter(t => t.obrigatoria && t.status === 'PENDENTE').length === 0;
+
+    const containerBtnAdd = document.getElementById('container-btn-add-tarefa');
+    if (containerBtnAdd) {
+        if (inspecaoAtual.status === 'ABERTA' || inspecaoAtual.status === 'EM_ANDAMENTO') {
+            containerBtnAdd.style.display = 'block';
+        } else {
+            containerBtnAdd.style.display = 'none';
+        }
+    }
 
     let botoesAcao = '';
     if (inspecaoAtual.status === 'ABERTA' || inspecaoAtual.status === 'EM_ANDAMENTO') {
@@ -96,7 +110,7 @@ function renderizarCabecalho() {
 function renderizarTarefas() {
     const tbody = document.getElementById('tabela-tarefas-body');
     if (!inspecaoAtual || !inspecaoAtual.tarefas || inspecaoAtual.tarefas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 2rem; color: var(--text-secondary);">Nenhuma tarefa cadastrada nesta inspeção.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 2rem; color: var(--text-secondary);">Nenhuma tarefa cadastrada nesta inspeção.</td></tr>';
         return;
     }
 
@@ -108,6 +122,21 @@ function renderizarTarefas() {
     tarefas.forEach(t => {
         const isClosed = (inspecaoAtual.status === 'CONCLUIDA' || inspecaoAtual.status === 'CANCELADA');
         const stColor = getTarefaStatusColor(t.status);
+        
+        let rastreabilidade = '<div style="color: var(--text-secondary); text-align: center;">—</div>';
+        if (t.data_execucao && t.executado_por) {
+            const date = new Date(t.data_execucao);
+            const dia = String(date.getDate()).padStart(2, '0');
+            const mes = String(date.getMonth() + 1).padStart(2, '0');
+            const ano = String(date.getFullYear()).slice(-2);
+            const hora = String(date.getHours()).padStart(2, '0');
+            const min = String(date.getMinutes()).padStart(2, '0');
+            
+            rastreabilidade = `<div style="font-size: 0.8rem; text-align: center;">
+                <div style="color: var(--text-secondary);">${dia}/${mes}/${ano} ${hora}:${min}</div>
+                <div style="font-weight: 700; color: var(--primary-color);">${t.executado_por.trigrama || 'SYS'}</div>
+            </div>`;
+        }
         
         const tr = document.createElement('tr');
         tr.style.borderBottom = '1px solid var(--border-color)';
@@ -121,7 +150,10 @@ function renderizarTarefas() {
             <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: var(--text-secondary);">${t.ordem}</td>
             <td style="padding: 0.75rem; color: var(--text-secondary);">${escapeHtml(t.sistema || 'Geral')}</td>
             <td style="padding: 0.75rem;">
-                <div style="font-weight: 500;">${escapeHtml(t.titulo)}</div>
+                <div style="font-weight: 500;">
+                    ${!t.tarefa_template_id ? '<span style="font-size: 0.65rem; background: var(--primary-color); color: white; padding: 2px 6px; border-radius: 4px; margin-right: 5px; font-weight: bold; vertical-align: middle;" title="Tarefa Adicionada Manualmente">MAN</span>' : ''}
+                    ${escapeHtml(t.titulo)}
+                </div>
                 <div style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHtml(t.descricao || '')}</div>
                 ${t.observacao_execucao ? `<div style="font-size: 0.8rem; color: var(--text-color); margin-top: 4px; border-left: 2px solid ${stColor}; padding-left: 5px;"><i>Obs: ${escapeHtml(t.observacao_execucao)}</i></div>` : ''}
             </td>
@@ -132,7 +164,9 @@ function renderizarTarefas() {
                 <span style="display: inline-block; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600; background: ${stColor}20; color: ${stColor}; border: 1px solid ${stColor};">
                     ${t.status}
                 </span>
-                ${t.executado_por ? `<div style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 4px;">Por: ${t.executado_por.trigrama || t.executado_por.nome}</div>` : ''}
+            </td>
+            <td style="padding: 0.75rem;">
+                ${rastreabilidade}
             </td>
             <td style="padding: 0.75rem; text-align: right;">
                 <button type="button" class="btn-icon btn-executar" title="${isClosed ? 'Visualizar' : 'Atualizar Status'}" style="color: var(--primary-color);">
@@ -238,5 +272,50 @@ async function cancelarInspecao() {
         carregarDetalhesInspecao();
     } catch(err) {
         showToast(err.message || "Erro ao cancelar inspeção.", "error");
+    }
+}
+
+function openModalAddTarefa() {
+    document.getElementById('modal-add-tarefa').style.display = 'flex';
+    document.getElementById('addTarefaTituloInput').focus();
+}
+
+function closeModalAddTarefa() {
+    document.getElementById('modal-add-tarefa').style.display = 'none';
+    document.getElementById('formAddTarefa').reset();
+}
+
+async function salvarAddTarefa(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSalvarAddTarefa');
+    btn.disabled = true;
+
+    const titulo = document.getElementById('addTarefaTituloInput').value.trim();
+    const sistema = document.getElementById('addTarefaSistemaInput').value.trim() || null;
+    const descricao = document.getElementById('addTarefaDescInput').value.trim() || null;
+    const obrigatoria = document.getElementById('addTarefaObrigatoriaInput').checked;
+
+    const tarefas = inspecaoAtual.tarefas || [];
+    const ordens = tarefas.map(t => t.ordem).filter(o => !isNaN(o));
+    const proximaOrdem = ordens.length > 0 ? Math.max(...ordens) + 1 : 1;
+
+    try {
+        await apiFetch(`/inspecoes/${inspecaoAtual.id}/tarefas`, {
+            method: 'POST',
+            body: {
+                titulo,
+                descricao,
+                sistema,
+                obrigatoria,
+                ordem: proximaOrdem
+            }
+        });
+        showToast("Tarefa extra adicionada!", "success");
+        closeModalAddTarefa();
+        carregarDetalhesInspecao();
+    } catch(err) {
+        showToast(err.message || "Erro ao adicionar tarefa.", "error");
+    } finally {
+        btn.disabled = false;
     }
 }
