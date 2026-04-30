@@ -1,8 +1,9 @@
 """
 Endpoints do modulo isolado de inspecoes.
 
-O router nao esta registrado no bootstrap principal. Para ativar no futuro,
-inclua este router explicitamente em app/bootstrap/main.py.
+Ordem das rotas: SEMPRE defina rotas estaticas antes de rotas dinamicas
+(ex: /tarefas-catalogo antes de /{inspecao_id}) para evitar que o FastAPI
+capture segmentos fixos como UUIDs invalidos (HTTP 422).
 """
 
 from __future__ import annotations
@@ -54,6 +55,11 @@ async def criar_tipo_inspecao(
     "/tipos/{tipo_id}",
     response_model=schemas.TipoInspecaoOut,
     summary="Atualizar tipo de inspecao",
+)
+@router.patch(
+    "/tipos/{tipo_id}",
+    response_model=schemas.TipoInspecaoOut,
+    summary="Atualizar tipo de inspecao (parcial)",
 )
 async def atualizar_tipo_inspecao(
     tipo_id: uuid.UUID,
@@ -241,6 +247,34 @@ async def reordenar_tarefas_template(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
+# ---------------------------------------------------------------------------
+# Rotas de inspeção — PUT /tarefas/{tarefa_id} definido ANTES de /{inspecao_id}
+# para evitar conflito de captura pelo segmento dinâmico.
+# ---------------------------------------------------------------------------
+
+@router.put(
+    "/tarefas/{tarefa_id}",
+    response_model=schemas.InspecaoTarefaOut,
+    summary="Atualizar tarefa de inspecao",
+)
+async def atualizar_tarefa_inspecao(
+    tarefa_id: uuid.UUID,
+    dados: schemas.InspecaoTarefaUpdate,
+    db: DBSession,
+    usuario_atual: CurrentUser,
+) -> schemas.InspecaoTarefaOut:
+    try:
+        tarefa = await service.atualizar_tarefa_inspecao(
+            db,
+            tarefa_id,
+            dados,
+            usuario_padrao_id=usuario_atual.id,
+        )
+        return schemas.InspecaoTarefaOut.model_validate(tarefa)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
 @router.get(
     "/",
     response_model=list[schemas.InspecaoListItem],
@@ -390,29 +424,6 @@ async def adicionar_tarefa_avulsa(
 ) -> schemas.InspecaoTarefaOut:
     try:
         tarefa = await service.adicionar_tarefa_avulsa(db, inspecao_id, dados)
-        return schemas.InspecaoTarefaOut.model_validate(tarefa)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
-
-
-@router.put(
-    "/tarefas/{tarefa_id}",
-    response_model=schemas.InspecaoTarefaOut,
-    summary="Atualizar tarefa de inspecao",
-)
-async def atualizar_tarefa_inspecao(
-    tarefa_id: uuid.UUID,
-    dados: schemas.InspecaoTarefaUpdate,
-    db: DBSession,
-    usuario_atual: CurrentUser,
-) -> schemas.InspecaoTarefaOut:
-    try:
-        tarefa = await service.atualizar_tarefa_inspecao(
-            db,
-            tarefa_id,
-            dados,
-            usuario_padrao_id=usuario_atual.id,
-        )
         return schemas.InspecaoTarefaOut.model_validate(tarefa)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
