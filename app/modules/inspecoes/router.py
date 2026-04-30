@@ -174,7 +174,7 @@ async def reordenar_tarefas_template(
 
 
 @router.get(
-    "",
+    "/",
     response_model=list[schemas.InspecaoListItem],
     summary="Listar inspecoes",
 )
@@ -223,7 +223,7 @@ async def buscar_inspecao(
 
 
 @router.post(
-    "",
+    "/",
     response_model=schemas.InspecaoOut,
     status_code=status.HTTP_201_CREATED,
     summary="Abrir inspecao",

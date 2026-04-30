@@ -72,8 +72,8 @@ async def _fazer_requisicao_escrita(
     return await client.request(metodo, url, **kwargs)
 
 
-async def _bootstrap_csrf(client: AsyncClient) -> str:
-    response = await client.get(CSRF_BOOTSTRAP_URL)
+async def _bootstrap_csrf(client: AsyncClient, headers: dict | None = None) -> str:
+    response = await client.get(CSRF_BOOTSTRAP_URL, headers=headers)
     assert response.status_code == 200
 
     token = response.headers.get(CSRF_HEADER)
@@ -151,7 +151,7 @@ class TestSincronizacaoCSRF:
         QUANDO encadear chamadas AJAX de leitura
         ENTÃO cada resposta deve devolver X-CSRF-Token para o frontend se manter sincronizado.
         """
-        token_atual = await _bootstrap_csrf(client)
+        token_atual = await _bootstrap_csrf(client, headers=usuario_e_token["headers"])
 
         for endpoint in AJAX_GET_ENDPOINTS:
             response = await client.get(
@@ -178,7 +178,7 @@ class TestSincronizacaoCSRF:
         QUANDO enviar uma mutation AJAX válida
         ENTÃO a resposta deve devolver X-CSRF-Token para a próxima requisição.
         """
-        token_atual = await _bootstrap_csrf(client)
+        token_atual = await _bootstrap_csrf(client, headers=usuario_e_token["headers"])
 
         response = await client.post(
             "/aeronaves/",

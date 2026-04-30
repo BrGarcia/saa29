@@ -70,8 +70,8 @@ class TestRefreshTokenRotation:
         assert login_response.status_code == 200
 
         login_body = login_response.json()
-        access_token_original = login_body["access_token"]
-        refresh_token_original = login_body["refresh_token"]
+        access_token_original = login_response.cookies.get("saa29_token")
+        refresh_token_original = login_response.cookies.get("saa29_refresh_token")
         assert access_token_original
         assert refresh_token_original
 
@@ -82,18 +82,27 @@ class TestRefreshTokenRotation:
         assert payload_refresh_original["type"] == "refresh"
         assert payload_refresh_original["sub"] == str(usuario.id)
 
+        result = await db.execute(select(TokenRefresh).where(TokenRefresh.usuario_id == usuario.id))
+        all_tokens = result.scalars().all()
+        print("TOKENS NO DB:", [t.jti for t in all_tokens], "expira:", [t.expira_em for t in all_tokens])
+        print("PAYLOAD JTI:", payload_refresh_original["jti"])
+
         csrf_token = login_response.headers.get(CSRF_HEADER) or csrf_token
 
         refresh_response = await client.post(
             REFRESH_URL,
-            json={"refresh_token": refresh_token_original},
-            headers={CSRF_HEADER: csrf_token},
+            headers={
+                CSRF_HEADER: csrf_token,
+                "Cookie": f"saa29_refresh_token={refresh_token_original}"
+            },
         )
+        if refresh_response.status_code != 200:
+            print("ERRO:", refresh_response.json())
         assert refresh_response.status_code == 200
 
         refresh_body = refresh_response.json()
-        access_token_novo = refresh_body["access_token"]
-        refresh_token_novo = refresh_body["refresh_token"]
+        access_token_novo = refresh_response.cookies.get("saa29_token")
+        refresh_token_novo = refresh_response.cookies.get("saa29_refresh_token")
         assert access_token_novo != access_token_original
         assert refresh_token_novo != refresh_token_original
 
@@ -117,7 +126,6 @@ class TestRefreshTokenRotation:
         csrf_token = refresh_response.headers.get(CSRF_HEADER) or csrf_token
         replay_response = await client.post(
             REFRESH_URL,
-            json={"refresh_token": refresh_token_original},
-            headers={CSRF_HEADER: csrf_token},
+            headers={CSRF_HEADER: csrf_token, "Cookie": f"saa29_refresh_token={refresh_token_original}"},
         )
         assert replay_response.status_code == 401

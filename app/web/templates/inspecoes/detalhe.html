@@ -80,9 +80,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-    // Passa o ID da inspeção do template Jinja para o JS
-    window.INSPECAO_ID = "{{ inspecao_id }}";
-</script>
-<script src="/static/js/inspecao_detalhe.js"></script>
+<meta name="inspecao-id" content="{{ inspecao_id }}">
+<script src="/static/js/inspecao_detalhe.js?v=2"></script>
 {% endblock %}

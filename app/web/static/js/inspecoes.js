@@ -74,13 +74,15 @@ async function carregarInspecoes() {
             const pct = i.progresso_percentual || 0;
             const statusColor = getStatusColor(i.status);
             
-            const card = document.createElement('div');
+            const card = document.createElement('a');
+            card.href = `/inspecoes/${i.id}/detalhes`;
             card.className = 'card hover-float';
             card.style.display = 'flex';
             card.style.flexDirection = 'column';
             card.style.gap = '1rem';
             card.style.cursor = 'pointer';
-            card.onclick = () => window.location.href = `/inspecoes/${i.id}/detalhes`;
+            card.style.textDecoration = 'none';
+            card.style.color = 'inherit';
             
             const pacotes = i.tipos_aplicados.map(t => t.codigo).join(' + ');
 

@@ -5,6 +5,9 @@
 let inspecaoAtual = null;
 
 document.addEventListener("DOMContentLoaded", () => {
+    const metaTag = document.querySelector('meta[name="inspecao-id"]');
+    window.INSPECAO_ID = metaTag ? metaTag.content : null;
+
     if (!window.INSPECAO_ID) {
         window.location.href = '/inspecoes';
         return;

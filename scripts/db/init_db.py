@@ -31,6 +31,7 @@ from sqlalchemy import select
 load_dotenv()
 
 # Importar TODOS os modelos para o SQLAlchemy Registry (SEC-02/COR-01)
+import app.modules.inspecoes.models
 import app.modules.auth.models
 import app.modules.efetivo.models
 import app.modules.aeronaves.models

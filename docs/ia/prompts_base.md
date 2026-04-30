@@ -29,3 +29,6 @@ prompt_inspecoes_isolation:
 
 prompt_inspecoes_activation:
 > To activate inspections, plan the sequence explicitly: backup active DB, create migration, import models in bootstrap, include router under a chosen prefix, bind frontend routes/templates, add tests, then update docs/api and docs/ia.
+
+prompt_frontend_csp:
+> CRITICAL: This project uses a strict Content-Security-Policy (script-src 'self'). NEVER use inline scripts (`<script>...</script>`) or inline event handlers (e.g., `onclick="..."`) in HTML templates. ALWAYS use `addEventListener` in external `.js` files. To pass data from Jinja to JS, use `<meta name="...">` or `data-*` attributes on HTML elements, then read them in JS.

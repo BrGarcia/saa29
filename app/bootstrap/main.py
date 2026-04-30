@@ -21,13 +21,13 @@ from slowapi.errors import RateLimitExceeded
 # Importar TODOS os modelos explicitamente para o SQLAlchemy Registry (SEC-02/COR-01)
 # ATENÇÃO: a ordem importa — equipamentos.models deve vir antes de aeronaves.models
 # pois Aeronave tem relationship("Instalacao") e o mapper precisa que Instalacao já esteja registrada.
+import app.modules.inspecoes.models
 import app.modules.auth.models
 import app.modules.equipamentos.models
 import app.modules.vencimentos.models
 import app.modules.aeronaves.models
 import app.modules.panes.models
 import app.modules.efetivo.models
-import app.modules.inspecoes.models
 
 from app.bootstrap.config import get_settings
 

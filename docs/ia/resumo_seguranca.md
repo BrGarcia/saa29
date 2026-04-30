@@ -9,7 +9,7 @@ controls:
 - account_lockout_after_failed_attempts
 - trusted_host
 - cors_restricted
-- security_headers_and_csp
+- strict_csp_script_src_self_no_inline
 - upload_type_and_size_validation
 - local_or_r2_storage_abstraction
 
@@ -53,6 +53,7 @@ reporting:
 
 recent_actions:
 - 2026-04-29: Inspecoes backend scaffold created as isolated module; no active route, migration, or bootstrap registration yet.
+- 2026-04-29: Fixed major bug in Inspecoes navigation caused by CSP blocking inline Jinja2 `<script>` tags. Emphasized `<meta>` tags for JS data passing.
 - 2026-04-28: Full Frontend CSP Hardening (removed all inline scripts and event handlers).
 - 2026-04-27: External security audit completed (docs/relatorio/revisao_claude.md).
 - 2026-04-27: Critical issues C-01 (CSRF bypass) and C-02 (Cookie secure flag) resolved.
