@@ -418,15 +418,15 @@ async def atualizar_tarefa_inspecao(
     status_novo = dados.status
     executor_id = dados.executado_por_id or usuario_padrao_id
 
-    if status_novo == StatusTarefaInspecao.CONCLUIDA:
+    if status_novo in {StatusTarefaInspecao.CONCLUIDA, StatusTarefaInspecao.NA}:
         if not executor_id:
-            raise ValueError("Executor obrigatorio para concluir tarefa.")
+            raise ValueError("Executor obrigatorio para atualizar tarefa.")
         executor = await _buscar_usuario(db, executor_id)
         if not executor:
             raise ValueError("Executor nao encontrado ou inativo.")
         tarefa.executado_por_id = executor_id
         tarefa.data_execucao = datetime.now(timezone.utc)
-    elif status_novo in {StatusTarefaInspecao.PENDENTE, StatusTarefaInspecao.NA}:
+    elif status_novo == StatusTarefaInspecao.PENDENTE:
         tarefa.executado_por_id = None
         tarefa.data_execucao = None
 

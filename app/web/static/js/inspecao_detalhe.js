@@ -237,8 +237,8 @@ async function salvarTarefa(e) {
     const observacao_execucao = document.getElementById('tarefaObsInput').value.trim() || null;
 
     try {
-        await apiFetch(`/inspecoes/${inspecaoAtual.id}/tarefas/${tarefaId}`, {
-            method: 'PATCH',
+        await apiFetch(`/inspecoes/tarefas/${tarefaId}`, {
+            method: 'PUT',
             body: { status, observacao_execucao }
         });
         showToast("Tarefa atualizada!", "success");

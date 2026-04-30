@@ -34,5 +34,17 @@ Este documento sumariza os problemas técnicos resolvidos recentemente para esta
 - **Solução:** O endpoint de detalhe passou a buscar a pane com inclusão de inativas, o download de anexos ficou consistente com essa regra, e a tela de detalhe passou a renderizar panes excluídas em modo somente leitura, bloqueando edição, conclusão, comentários, delegação e upload/exclusão de anexos.
 - **Status:** ✅ CORRIGIDO
 
+### 6. Erro 404 ao Atualizar Tarefa de Inspeção
+- **Sintoma:** Ao tentar salvar a execução de uma tarefa de inspeção, a interface falhava silenciosamente e o console indicava `404 Not Found` para a rota `tarefas/ID`.
+- **Causa:** O frontend (`inspecao_detalhe.js`) chamava a URL `/inspecoes/{inspecao_id}/tarefas/{tarefa_id}` usando o método `PATCH`, enquanto o backend esperava `/inspecoes/tarefas/{tarefa_id}` via `PUT`.
+- **Solução:** O JS foi corrigido para realizar a requisição HTTP `PUT` no endpoint exato correspondente ao roteador da API.
+- **Status:** ✅ CORRIGIDO
+
+### 7. Falha de Auditoria em Tarefas "N/A"
+- **Sintoma:** Ao mudar o status de uma tarefa de inspeção para "N/A", a coluna de atualização não exibia a data, hora ou o trigrama de quem tomou a decisão.
+- **Causa:** O backend (`service.py`) limpava deliberadamente o campo de executor e data de execução quando o status recebido era "N/A" ou "PENDENTE".
+- **Solução:** O status `N/A` foi agrupado junto ao status `CONCLUIDA` na lógica de negócio, exigindo um executor válido e registrando o timestamp exato do momento da alteração para garantir rastreabilidade.
+- **Status:** ✅ CORRIGIDO
+
 ---
-*Última atualização: 2026-04-29*
+*Última atualização: 2026-04-30*
