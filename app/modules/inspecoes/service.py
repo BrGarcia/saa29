@@ -14,7 +14,7 @@ from sqlalchemy.orm import selectinload
 from app.modules.aeronaves.models import Aeronave
 from app.modules.auth.models import Usuario
 from app.modules.inspecoes import schemas
-from app.modules.inspecoes.models import Inspecao, InspecaoEventoTipo, InspecaoTarefa, TarefaTemplate, TipoInspecao
+from app.modules.inspecoes.models import Inspecao, InspecaoEventoTipo, InspecaoTarefa, TarefaTemplate, TipoInspecao, TarefaCatalogo
 from app.shared.core.enums import StatusAeronave, StatusInspecao, StatusTarefaInspecao
 
 
@@ -120,9 +120,65 @@ async def desativar_tipo_inspecao(db: AsyncSession, tipo_id: uuid.UUID) -> None:
     await db.flush()
 
 
+async def criar_tarefa_catalogo(db: AsyncSession, dados: schemas.TarefaCatalogoCreate) -> TarefaCatalogo:
+    tarefa = TarefaCatalogo(
+        titulo=dados.titulo.strip(),
+        descricao=dados.descricao,
+        sistema=dados.sistema,
+        ativa=dados.ativa,
+    )
+    db.add(tarefa)
+    await db.flush()
+    return tarefa
+
+
+async def listar_tarefas_catalogo(db: AsyncSession, incluir_inativos: bool = False) -> list[TarefaCatalogo]:
+    query = select(TarefaCatalogo).order_by(TarefaCatalogo.titulo)
+    if not incluir_inativos:
+        query = query.where(TarefaCatalogo.ativa == True)  # noqa: E712
+    result = await db.execute(query)
+    return list(result.scalars().all())
+
+
+async def buscar_tarefa_catalogo(db: AsyncSession, tarefa_id: uuid.UUID, incluir_inativos: bool = False) -> TarefaCatalogo | None:
+    query = select(TarefaCatalogo).where(TarefaCatalogo.id == tarefa_id)
+    if not incluir_inativos:
+        query = query.where(TarefaCatalogo.ativa == True)  # noqa: E712
+    result = await db.execute(query)
+    return result.scalar_one_or_none()
+
+
+async def atualizar_tarefa_catalogo(db: AsyncSession, tarefa_id: uuid.UUID, dados: schemas.TarefaCatalogoUpdate) -> TarefaCatalogo:
+    tarefa = await buscar_tarefa_catalogo(db, tarefa_id, incluir_inativos=True)
+    if not tarefa:
+        raise ValueError("Tarefa do catalogo nao encontrada.")
+
+    changes = dados.model_dump(exclude_unset=True)
+    if "titulo" in changes and changes["titulo"] is not None:
+        tarefa.titulo = changes["titulo"].strip()
+    if "descricao" in changes:
+        tarefa.descricao = changes["descricao"]
+    if "sistema" in changes:
+        tarefa.sistema = changes["sistema"]
+    if "ativa" in changes and changes["ativa"] is not None:
+        tarefa.ativa = changes["ativa"]
+
+    await db.flush()
+    return tarefa
+
+
+async def desativar_tarefa_catalogo(db: AsyncSession, tarefa_id: uuid.UUID) -> None:
+    tarefa = await buscar_tarefa_catalogo(db, tarefa_id, incluir_inativos=True)
+    if not tarefa:
+        raise ValueError("Tarefa do catalogo nao encontrada.")
+    tarefa.ativa = False
+    await db.flush()
+
+
 async def listar_tarefas_template(db: AsyncSession, tipo_id: uuid.UUID) -> list[TarefaTemplate]:
     result = await db.execute(
         select(TarefaTemplate)
+        .options(selectinload(TarefaTemplate.tarefa_catalogo))
         .where(TarefaTemplate.tipo_inspecao_id == tipo_id)
         .order_by(TarefaTemplate.ordem)
     )
@@ -138,6 +194,10 @@ async def criar_tarefa_template(
     if not tipo:
         raise ValueError("Tipo de inspecao nao encontrado ou inativo.")
 
+    catalogo = await buscar_tarefa_catalogo(db, dados.tarefa_catalogo_id)
+    if not catalogo:
+        raise ValueError("Tarefa do catalogo nao encontrada ou inativa.")
+
     existente = await db.execute(
         select(TarefaTemplate).where(
             TarefaTemplate.tipo_inspecao_id == tipo_id,
@@ -147,16 +207,24 @@ async def criar_tarefa_template(
     if existente.scalar_one_or_none():
         raise ValueError("Ja existe uma tarefa template com esta ordem para o tipo selecionado.")
 
+    existente_tarefa = await db.execute(
+        select(TarefaTemplate).where(
+            TarefaTemplate.tipo_inspecao_id == tipo_id,
+            TarefaTemplate.tarefa_catalogo_id == dados.tarefa_catalogo_id,
+        )
+    )
+    if existente_tarefa.scalar_one_or_none():
+        raise ValueError("Esta tarefa ja esta vinculada a este tipo de inspecao.")
+
     tarefa = TarefaTemplate(
         tipo_inspecao_id=tipo_id,
+        tarefa_catalogo_id=dados.tarefa_catalogo_id,
         ordem=dados.ordem,
-        titulo=dados.titulo.strip(),
-        descricao_padrao=dados.descricao_padrao,
-        sistema=dados.sistema,
         obrigatoria=dados.obrigatoria,
     )
     db.add(tarefa)
     await db.flush()
+    await db.refresh(tarefa, ["tarefa_catalogo"])
     return tarefa
 
 
@@ -165,7 +233,7 @@ async def atualizar_tarefa_template(
     tarefa_id: uuid.UUID,
     dados: schemas.TarefaTemplateUpdate,
 ) -> TarefaTemplate:
-    result = await db.execute(select(TarefaTemplate).where(TarefaTemplate.id == tarefa_id))
+    result = await db.execute(select(TarefaTemplate).options(selectinload(TarefaTemplate.tarefa_catalogo)).where(TarefaTemplate.id == tarefa_id))
     tarefa = result.scalar_one_or_none()
     if not tarefa:
         raise ValueError("Tarefa template nao encontrada.")
@@ -183,12 +251,6 @@ async def atualizar_tarefa_template(
             raise ValueError("Ja existe uma tarefa template com esta ordem para o tipo selecionado.")
         tarefa.ordem = changes["ordem"]
 
-    if "titulo" in changes and changes["titulo"] is not None:
-        tarefa.titulo = changes["titulo"].strip()
-    if "descricao_padrao" in changes:
-        tarefa.descricao_padrao = changes["descricao_padrao"]
-    if "sistema" in changes:
-        tarefa.sistema = changes["sistema"]
     if "obrigatoria" in changes and changes["obrigatoria"] is not None:
         tarefa.obrigatoria = changes["obrigatoria"]
 
@@ -326,7 +388,7 @@ async def abrir_inspecao(
     vistos = set()
     templates_deduplicados = []
     for t in templates:
-        chave = t.titulo.strip().lower()
+        chave = t.tarefa_catalogo.titulo.strip().lower()
         if chave not in vistos:
             vistos.add(chave)
             templates_deduplicados.append(t)
@@ -335,11 +397,11 @@ async def abrir_inspecao(
         db.add(
             InspecaoTarefa(
                 inspecao_id=inspecao.id,
-                tarefa_template_id=template.id,
+                tarefa_catalogo_id=template.tarefa_catalogo_id,
                 ordem=i,
-                titulo=template.titulo,
-                descricao=template.descricao_padrao,
-                sistema=template.sistema,
+                titulo=template.tarefa_catalogo.titulo,
+                descricao=template.tarefa_catalogo.descricao,
+                sistema=template.tarefa_catalogo.sistema,
                 obrigatoria=template.obrigatoria,
                 status=StatusTarefaInspecao.PENDENTE.value,
             )

@@ -54,19 +54,40 @@ class TipoInspecaoOut(BaseModel):
     updated_at: datetime | None
 
 
-class TarefaTemplateCreate(BaseModel):
-    ordem: int = Field(ge=1)
+class TarefaCatalogoCreate(BaseModel):
     titulo: str = Field(min_length=1, max_length=200)
-    descricao_padrao: str | None = None
+    descricao: str | None = None
     sistema: str | None = Field(default=None, max_length=100)
+    ativa: bool = True
+
+
+class TarefaCatalogoUpdate(BaseModel):
+    titulo: str | None = Field(default=None, min_length=1, max_length=200)
+    descricao: str | None = None
+    sistema: str | None = Field(default=None, max_length=100)
+    ativa: bool | None = None
+
+
+class TarefaCatalogoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    titulo: str
+    descricao: str | None
+    sistema: str | None
+    ativa: bool
+    created_at: datetime
+    updated_at: datetime | None
+
+
+class TarefaTemplateCreate(BaseModel):
+    tarefa_catalogo_id: uuid.UUID
+    ordem: int = Field(ge=1)
     obrigatoria: bool = True
 
 
 class TarefaTemplateUpdate(BaseModel):
     ordem: int | None = Field(default=None, ge=1)
-    titulo: str | None = Field(default=None, min_length=1, max_length=200)
-    descricao_padrao: str | None = None
-    sistema: str | None = Field(default=None, max_length=100)
     obrigatoria: bool | None = None
 
 
@@ -75,12 +96,11 @@ class TarefaTemplateOut(BaseModel):
 
     id: uuid.UUID
     tipo_inspecao_id: uuid.UUID
+    tarefa_catalogo_id: uuid.UUID
     ordem: int
-    titulo: str
-    descricao_padrao: str | None
-    sistema: str | None
     obrigatoria: bool
     created_at: datetime
+    tarefa_catalogo: TarefaCatalogoOut | None = None
 
 
 class ReordenarTarefaItem(BaseModel):
@@ -130,7 +150,7 @@ class InspecaoTarefaOut(BaseModel):
 
     id: uuid.UUID
     inspecao_id: uuid.UUID
-    tarefa_template_id: uuid.UUID | None
+    tarefa_catalogo_id: uuid.UUID | None
     ordem: int
     titulo: str
     descricao: str | None

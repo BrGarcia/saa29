@@ -43,11 +43,35 @@ class TipoInspecao(Base):
         return f"<TipoInspecao codigo={self.codigo!r} ativo={self.ativo!r}>"
 
 
+class TarefaCatalogo(Base):
+    """Catalogo global de tarefas independentes."""
+
+    __tablename__ = "tarefas_catalogo"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    titulo: Mapped[str] = mapped_column(String(200), nullable=False)
+    descricao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sistema: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    ativa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+
+    templates_vinculados: Mapped[list["TarefaTemplate"]] = relationship(
+        back_populates="tarefa_catalogo",
+        cascade="all, delete-orphan"
+    )
+    tarefas_instanciadas: Mapped[list["InspecaoTarefa"]] = relationship(back_populates="tarefa_catalogo")
+
+    def __repr__(self) -> str:
+        return f"<TarefaCatalogo titulo={self.titulo!r} ativa={self.ativa!r}>"
+
+
 class TarefaTemplate(Base):
-    """Tarefa padrao pertencente a um tipo de inspecao."""
+    """Vinculo N:N entre TipoInspecao e TarefaCatalogo."""
 
     __tablename__ = "tarefas_template"
     __table_args__ = (
+        UniqueConstraint("tipo_inspecao_id", "tarefa_catalogo_id", name="uq_tarefa_template_por_tipo"),
         UniqueConstraint("tipo_inspecao_id", "ordem", name="uq_tarefa_template_ordem_por_tipo"),
     )
 
@@ -57,18 +81,20 @@ class TarefaTemplate(Base):
         nullable=False,
         index=True,
     )
+    tarefa_catalogo_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tarefas_catalogo.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     ordem: Mapped[int] = mapped_column(Integer, nullable=False)
-    titulo: Mapped[str] = mapped_column(String(200), nullable=False)
-    descricao_padrao: Mapped[str | None] = mapped_column(Text, nullable=True)
-    sistema: Mapped[str | None] = mapped_column(String(100), nullable=True)
     obrigatoria: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
 
     tipo_inspecao: Mapped["TipoInspecao"] = relationship(back_populates="tarefas_template")
-    tarefas_instanciadas: Mapped[list["InspecaoTarefa"]] = relationship(back_populates="tarefa_template")
+    tarefa_catalogo: Mapped["TarefaCatalogo"] = relationship(back_populates="templates_vinculados")
 
     def __repr__(self) -> str:
-        return f"<TarefaTemplate tipo={self.tipo_inspecao_id} ordem={self.ordem} titulo={self.titulo!r}>"
+        return f"<TarefaTemplate tipo={self.tipo_inspecao_id} tarefa={self.tarefa_catalogo_id} ordem={self.ordem}>"
 
 
 class InspecaoEventoTipo(Base):
@@ -133,8 +159,8 @@ class InspecaoTarefa(Base):
         nullable=False,
         index=True,
     )
-    tarefa_template_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("tarefas_template.id", ondelete="SET NULL"),
+    tarefa_catalogo_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("tarefas_catalogo.id", ondelete="SET NULL"),
         nullable=True,
     )
     ordem: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -151,7 +177,7 @@ class InspecaoTarefa(Base):
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     inspecao: Mapped["Inspecao"] = relationship(back_populates="tarefas")
-    tarefa_template: Mapped["TarefaTemplate | None"] = relationship(back_populates="tarefas_instanciadas")
+    tarefa_catalogo: Mapped["TarefaCatalogo | None"] = relationship(back_populates="tarefas_instanciadas")
     executado_por = relationship("Usuario", foreign_keys=[executado_por_id], lazy="select")
 
     def __repr__(self) -> str:

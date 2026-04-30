@@ -87,6 +87,74 @@ async def desativar_tipo_inspecao(
 
 
 @router.get(
+    "/tarefas-catalogo",
+    response_model=list[schemas.TarefaCatalogoOut],
+    summary="Listar tarefas do catalogo",
+)
+async def listar_tarefas_catalogo(
+    db: DBSession,
+    _: CurrentUser,
+    incluir_inativos: bool = Query(default=False),
+) -> list[schemas.TarefaCatalogoOut]:
+    tarefas = await service.listar_tarefas_catalogo(db, incluir_inativos=incluir_inativos)
+    return [schemas.TarefaCatalogoOut.model_validate(tarefa) for tarefa in tarefas]
+
+
+@router.post(
+    "/tarefas-catalogo",
+    response_model=schemas.TarefaCatalogoOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Criar tarefa no catalogo",
+)
+async def criar_tarefa_catalogo(
+    dados: schemas.TarefaCatalogoCreate,
+    db: DBSession,
+    _: EncarregadoOuAdmin,
+) -> schemas.TarefaCatalogoOut:
+    try:
+        tarefa = await service.criar_tarefa_catalogo(db, dados)
+        return schemas.TarefaCatalogoOut.model_validate(tarefa)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
+@router.put(
+    "/tarefas-catalogo/{tarefa_id}",
+    response_model=schemas.TarefaCatalogoOut,
+    summary="Atualizar tarefa no catalogo",
+)
+async def atualizar_tarefa_catalogo(
+    tarefa_id: uuid.UUID,
+    dados: schemas.TarefaCatalogoUpdate,
+    db: DBSession,
+    _: EncarregadoOuAdmin,
+) -> schemas.TarefaCatalogoOut:
+    try:
+        tarefa = await service.atualizar_tarefa_catalogo(db, tarefa_id, dados)
+        return schemas.TarefaCatalogoOut.model_validate(tarefa)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
+@router.delete(
+    "/tarefas-catalogo/{tarefa_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    response_class=Response,
+    summary="Desativar tarefa no catalogo",
+)
+async def desativar_tarefa_catalogo(
+    tarefa_id: uuid.UUID,
+    db: DBSession,
+    _: EncarregadoOuAdmin,
+) -> None:
+    try:
+        await service.desativar_tarefa_catalogo(db, tarefa_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get(
     "/tipos/{tipo_id}/tarefas",
     response_model=list[schemas.TarefaTemplateOut],
     summary="Listar tarefas template de um tipo",

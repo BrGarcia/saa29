@@ -74,13 +74,20 @@ async def criar_tipo_com_tarefas(
     tarefas = []
     ordem = 1
     for idx in range(obrigatorias):
+        catalogo = await service.criar_tarefa_catalogo(
+            db,
+            schemas.TarefaCatalogoCreate(
+                titulo=f"Tarefa obrigatoria {idx + 1}",
+                sistema="AVI",
+                ativa=True,
+            )
+        )
         tarefa = await service.criar_tarefa_template(
             db,
             tipo.id,
             schemas.TarefaTemplateCreate(
+                tarefa_catalogo_id=catalogo.id,
                 ordem=ordem,
-                titulo=f"Tarefa obrigatoria {idx + 1}",
-                sistema="AVI",
                 obrigatoria=True,
             ),
         )
@@ -88,13 +95,20 @@ async def criar_tipo_com_tarefas(
         ordem += 1
 
     for idx in range(opcionais):
+        catalogo = await service.criar_tarefa_catalogo(
+            db,
+            schemas.TarefaCatalogoCreate(
+                titulo=f"Tarefa opcional {idx + 1}",
+                sistema="COM",
+                ativa=True,
+            )
+        )
         tarefa = await service.criar_tarefa_template(
             db,
             tipo.id,
             schemas.TarefaTemplateCreate(
+                tarefa_catalogo_id=catalogo.id,
                 ordem=ordem,
-                titulo=f"Tarefa opcional {idx + 1}",
-                sistema="COM",
                 obrigatoria=False,
             ),
         )
@@ -326,7 +340,7 @@ async def test_rn02_adicionar_tarefa_manual_a_evento_existente(db: AsyncSession)
     assert tarefa_manual.id is not None
     assert tarefa_manual.inspecao_id == inspecao.id
     # Validando a intencao da RN-02: a tarefa avulsa nao esta atrelada a um template
-    assert tarefa_manual.tarefa_template_id is None
+    assert tarefa_manual.tarefa_catalogo_id is None
     assert tarefa_manual.titulo == "Tarefa Adicional Manual"
 
 
