@@ -60,6 +60,7 @@ async def criar_tipo_inspecao(db: AsyncSession, dados: schemas.TipoInspecaoCreat
     )
     db.add(tipo)
     await db.flush()
+    await db.refresh(tipo)
     return tipo
 
 
@@ -109,6 +110,7 @@ async def atualizar_tipo_inspecao(
         tipo.ativo = changes["ativo"]
 
     await db.flush()
+    await db.refresh(tipo)
     return tipo
 
 
@@ -129,6 +131,7 @@ async def criar_tarefa_catalogo(db: AsyncSession, dados: schemas.TarefaCatalogoC
     )
     db.add(tarefa)
     await db.flush()
+    await db.refresh(tarefa)
     return tarefa
 
 
@@ -164,6 +167,7 @@ async def atualizar_tarefa_catalogo(db: AsyncSession, tarefa_id: uuid.UUID, dado
         tarefa.ativa = changes["ativa"]
 
     await db.flush()
+    await db.refresh(tarefa)
     return tarefa
 
 
