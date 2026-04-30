@@ -99,8 +99,11 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('btn-close-regras')?.addEventListener('click', closeModalRegras);
 
     // Inspeções
-    const btnConfigInspecoes = document.getElementById('btn-config-inspecoes');
-    if(btnConfigInspecoes) btnConfigInspecoes.addEventListener('click', openModalTiposInspecao);
+    document.getElementById('btn-config-inspecoes')?.addEventListener('click', openModalTiposInspecao);
+    document.getElementById('btn-gerenciar-catalogo-tarefas')?.addEventListener('click', openModalCatalogoTarefas);
+    document.getElementById('btn-criar-inspecao')?.addEventListener('click', () => {
+        window.location.href = '/inspecoes';
+    });
 
     document.getElementById('btn-close-modal-inspecoes')?.addEventListener('click', closeModalTiposInspecao);
     document.getElementById('btn-close-inspecoes')?.addEventListener('click', closeModalTiposInspecao);
@@ -113,6 +116,14 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('btn-close-modal-tarefas')?.addEventListener('click', closeModalTarefasTemplate);
     document.getElementById('btn-close-tarefas')?.addEventListener('click', closeModalTarefasTemplate);
     document.getElementById('formNovaTarefa')?.addEventListener('submit', salvarTarefaTemplate);
+
+    // Catálogo de Tarefas
+    document.getElementById('btn-close-modal-catalogo-tarefas')?.addEventListener('click', closeModalCatalogoTarefas);
+    document.getElementById('btn-close-catalogo-tarefas')?.addEventListener('click', closeModalCatalogoTarefas);
+    document.getElementById('btn-nova-tarefa-catalogo')?.addEventListener('click', () => openModalFormTarefaCatalogo());
+    document.getElementById('btn-close-form-tarefa-catalogo')?.addEventListener('click', closeModalFormTarefaCatalogo);
+    document.getElementById('btn-cancel-form-tarefa-catalogo')?.addEventListener('click', closeModalFormTarefaCatalogo);
+    document.getElementById('formTarefaCatalogo')?.addEventListener('submit', salvarTarefaCatalogo);
 });
 
 function openModalConfig() {
@@ -827,6 +838,7 @@ function openModalTarefasTemplate(tipoId) {
     document.getElementById('modal-tarefas-template').style.display = 'flex';
     
     carregarListaTarefasTemplate();
+    carregarOpcoesCatalogoTarefas();
 }
 
 function closeModalTarefasTemplate() {
@@ -861,10 +873,10 @@ async function carregarListaTarefasTemplate() {
             tr.style.borderBottom = '1px solid var(--border-color)';
             tr.innerHTML = `
                 <td style="padding: 0.75rem; text-align: center; font-weight: 600;">${t.ordem}</td>
-                <td style="padding: 0.75rem;">${escapeHtml(t.sistema || '---')}</td>
+                <td style="padding: 0.75rem;">${escapeHtml(t.tarefa_catalogo?.sistema || '---')}</td>
                 <td style="padding: 0.75rem;">
-                    <div style="font-weight: 500;">${escapeHtml(t.titulo)}</div>
-                    <div style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHtml(t.descricao_padrao || '')}</div>
+                    <div style="font-weight: 500;">${escapeHtml(t.tarefa_catalogo?.titulo || '')}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHtml(t.tarefa_catalogo?.descricao || '')}</div>
                 </td>
                 <td style="padding: 0.75rem; text-align: center;">
                     ${t.obrigatoria ? '<span style="color:var(--status-danger); font-weight:bold;">Sim</span>' : '<span style="color:var(--text-secondary);">Não</span>'}
@@ -892,19 +904,25 @@ async function salvarTarefaTemplate(e) {
     btn.disabled = true;
 
     const ordem = parseInt(document.getElementById('tarefaOrdemInput').value);
-    const titulo = document.getElementById('tarefaTituloInput').value.trim();
-    const sistema = document.getElementById('tarefaSistemaInput').value.trim();
-    const descricao_padrao = document.getElementById('tarefaDescInput').value.trim();
+    const tarefa_catalogo_id = document.getElementById('tarefaCatalogoSelect').value;
     const obrigatoria = document.getElementById('tarefaObrigatoriaInput').checked;
+
+    if (!tarefa_catalogo_id) {
+        showToast("Selecione uma tarefa do catálogo.", "error");
+        btn.disabled = false;
+        return;
+    }
 
     try {
         await apiFetch(`/inspecoes/tipos/${tipoInspecaoAtualId}/tarefas`, {
             method: 'POST',
-            body: { ordem, titulo, sistema, descricao_padrao, obrigatoria }
+            body: { ordem, tarefa_catalogo_id, obrigatoria }
         });
         showToast("Tarefa adicionada!", "success");
         document.getElementById('formNovaTarefa').reset();
         carregarListaTarefasTemplate();
+        // Manter a checkbox obrigatoria como true apos o reset
+        document.getElementById('tarefaObrigatoriaInput').checked = true;
     } catch(err) {
         showToast(err.message || "Erro ao adicionar tarefa.", "error");
     } finally {
@@ -924,6 +942,163 @@ async function removerTarefaTemplate(tarefaId) {
         carregarListaTarefasTemplate();
     } catch(err) {
         showToast(err.message || "Erro ao remover.", "error");
+    }
+}
+
+// ==========================================
+// Módulo do Catálogo Global de Tarefas
+// ==========================================
+
+let tarefasCatalogoGeralCache = [];
+
+function openModalCatalogoTarefas() {
+    document.getElementById('modal-catalogo-tarefas').style.display = 'flex';
+    carregarListaCatalogoTarefas();
+}
+
+function closeModalCatalogoTarefas() {
+    document.getElementById('modal-catalogo-tarefas').style.display = 'none';
+}
+
+async function carregarListaCatalogoTarefas() {
+    const tbody = document.getElementById('lista-tarefas-catalogo-body');
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem;">Carregando...</td></tr>';
+
+    try {
+        tarefasCatalogoGeralCache = await apiFetch('/inspecoes/tarefas-catalogo?incluir_inativos=true');
+        tbody.innerHTML = '';
+        
+        if(tarefasCatalogoGeralCache.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem; color: var(--text-secondary);">Nenhuma tarefa cadastrada no catálogo.</td></tr>';
+            return;
+        }
+
+        tarefasCatalogoGeralCache.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border-color)';
+            tr.innerHTML = `
+                <td style="padding: 0.75rem;">${escapeHtml(t.sistema || '---')}</td>
+                <td style="padding: 0.75rem;">
+                    <div style="font-weight: 500;">${escapeHtml(t.titulo)}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHtml(t.descricao || '')}</div>
+                </td>
+                <td style="padding: 0.75rem; text-align: center;">
+                    <span style="display: inline-block; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600; background: ${t.ativa ? 'rgba(46, 204, 113, 0.1)' : 'rgba(231, 76, 60, 0.1)'}; color: ${t.ativa ? 'var(--status-ok)' : 'var(--status-danger)'};">${t.ativa ? 'Ativa' : 'Inativa'}</span>
+                </td>
+                <td style="padding: 0.75rem; text-align: right; display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button type="button" class="btn-icon btn-editar-tarefa-catalogo" data-id="${t.id}" title="Editar Tarefa" style="color: var(--text-color);">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    </button>
+                    ${t.ativa ? `
+                    <button type="button" class="btn-icon btn-desativar-tarefa-catalogo" data-id="${t.id}" title="Desativar Tarefa" style="color: var(--status-danger);">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                    ` : ''}
+                </td>
+            `;
+            
+            tr.querySelector('.btn-editar-tarefa-catalogo').addEventListener('click', () => openModalFormTarefaCatalogo(t.id));
+            const btnDesativar = tr.querySelector('.btn-desativar-tarefa-catalogo');
+            if (btnDesativar) {
+                btnDesativar.addEventListener('click', () => desativarTarefaCatalogo(t.id));
+            }
+            
+            tbody.appendChild(tr);
+        });
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem; color: var(--status-danger);">Erro ao carregar catálogo.</td></tr>';
+    }
+}
+
+function openModalFormTarefaCatalogo(id = null) {
+    document.getElementById('modal-form-tarefa-catalogo').style.display = 'flex';
+    document.getElementById('formTarefaCatalogo').reset();
+    
+    if (id) {
+        const t = tarefasCatalogoGeralCache.find(x => x.id === id);
+        if (t) {
+            document.getElementById('titulo-form-tarefa-catalogo').innerText = 'Editar Tarefa no Catálogo';
+            document.getElementById('tarefaCatalogoId').value = t.id;
+            document.getElementById('tituloTarefaCatalogoInput').value = t.titulo;
+            document.getElementById('sistemaTarefaCatalogoInput').value = t.sistema || '';
+            document.getElementById('descTarefaCatalogoInput').value = t.descricao || '';
+            document.getElementById('container-status-tarefa-catalogo').style.display = 'block';
+            document.getElementById('ativoTarefaCatalogoInput').value = t.ativa ? 'true' : 'false';
+        }
+    } else {
+        document.getElementById('titulo-form-tarefa-catalogo').innerText = 'Nova Tarefa no Catálogo';
+        document.getElementById('tarefaCatalogoId').value = '';
+        document.getElementById('container-status-tarefa-catalogo').style.display = 'none';
+    }
+}
+
+function closeModalFormTarefaCatalogo() {
+    document.getElementById('modal-form-tarefa-catalogo').style.display = 'none';
+    document.getElementById('formTarefaCatalogo').reset();
+}
+
+async function salvarTarefaCatalogo(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSalvarTarefaCatalogo');
+    btn.disabled = true;
+
+    const id = document.getElementById('tarefaCatalogoId').value;
+    const titulo = document.getElementById('tituloTarefaCatalogoInput').value.trim();
+    const sistema = document.getElementById('sistemaTarefaCatalogoInput').value.trim();
+    const descricao = document.getElementById('descTarefaCatalogoInput').value.trim();
+    
+    try {
+        if (id) {
+            const ativa = document.getElementById('ativoTarefaCatalogoInput').value === 'true';
+            await apiFetch(`/inspecoes/tarefas-catalogo/${id}`, {
+                method: 'PUT',
+                body: { titulo, sistema, descricao, ativa }
+            });
+            showToast("Tarefa atualizada com sucesso!", "success");
+        } else {
+            await apiFetch('/inspecoes/tarefas-catalogo', {
+                method: 'POST',
+                body: { titulo, sistema, descricao }
+            });
+            showToast("Tarefa criada com sucesso!", "success");
+        }
+        closeModalFormTarefaCatalogo();
+        carregarListaCatalogoTarefas();
+    } catch(err) {
+        showToast(err.message || "Erro ao salvar tarefa.", "error");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function desativarTarefaCatalogo(id) {
+    if (!confirm("Tem certeza que deseja inativar esta tarefa do catálogo global?")) return;
+
+    try {
+        await apiFetch(`/inspecoes/tarefas-catalogo/${id}`, { method: 'DELETE' });
+        showToast("Tarefa inativada com sucesso!", "success");
+        carregarListaCatalogoTarefas();
+    } catch(err) {
+        showToast(err.message || "Erro ao inativar tarefa.", "error");
+    }
+}
+
+async function carregarOpcoesCatalogoTarefas() {
+    const select = document.getElementById('tarefaCatalogoSelect');
+    select.innerHTML = '<option value="">Carregando...</option>';
+
+    try {
+        const tarefas = await apiFetch('/inspecoes/tarefas-catalogo');
+        select.innerHTML = '<option value="" disabled selected>Selecione uma tarefa ativa</option>';
+        
+        tarefas.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.text = `[${t.sistema || 'Geral'}] ${t.titulo}`;
+            select.appendChild(opt);
+        });
+    } catch(e) {
+        select.innerHTML = '<option value="" disabled selected>Erro ao carregar catálogo</option>';
     }
 }
 

@@ -74,6 +74,7 @@ core_rules:
 - RN-I07: bloqueia_duplicidade_ativa_por_aeronave_tipo
 - RN-I08: tarefas_extras_manuais_via_frontend_completed
 - RN-I09: auditoria_checklist_coluna_atualizacao_trigrama_completed
+- RN-I10: desacoplamento_tarefas_catalogo_global_completed
 
 current_focus:
 - docs_synced: true (IA updated for isolated inspections scaffold)
@@ -95,11 +96,12 @@ current_focus:
 backlog_inspecoes:
 - feature_tarefas_extras: completed
 - feature_auditoria_checklist: completed
-- feature_desacoplamento_tarefas_catalogo: planned
+- feature_desacoplamento_tarefas_catalogo: completed
 - csp_compliance: mandatory_for_all_new_UI (no_inline_scripts_no_onclick_attrs)
 
 known_gaps_from_roadmap:
-- logout_frontend_backend_alignment
-- database_url_consistency
-- bug_fix_inativar_anv_config (documented in docs/relatorio)
-- inspecoes_requires_activation_plan: migration, bootstrap_model_import, router_registration, frontend_integration, tests
+- none (last audit gaps resolved)
+- bug_fix_inativar_anv_config_verified: true
+- logout_frontend_backend_alignment_verified: true
+- database_url_consistency_verified: true
+- inspecoes_requires_activation_plan: migration, bootstrap_model_import, router_registration, frontend_integration, tests (Module now fully active)

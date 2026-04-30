@@ -433,7 +433,7 @@ Atualizar o cabeçalho da tabela em `detalhe.html` para incluir a nova coluna:
 
 ## 16. Desacoplamento do Catálogo de Tarefas (Nova Funcionalidade)
 
-> **Status:** Backlog — Planejado
+> **Status:** Implementado
 > **Prioridade:** Alta
 
 ### 16.1. Objetivo
@@ -493,15 +493,15 @@ A seção de Inspeções na página de `configuracoes.html` passará a ter duas 
 
 ### 16.6. Faseamento da Implementação
 
-1. **Fase 1 (Backend - CRUD Catálogo):**
+- [x] **Fase 1 (Backend - CRUD Catálogo):**
    - Implementar schemas, services e endpoints (router) para criar, listar, atualizar e inativar tarefas no catálogo global.
-2. **Fase 2 (Frontend - Configurações de Tarefas):**
+- [x] **Fase 2 (Frontend - Configurações de Tarefas):**
    - Adicionar botões no card de Inspeções em `configuracoes.html`.
    - Implementar os modais de "Criar Tarefa" e "Gerenciar Tarefas".
    - Integrar com a API via `configuracoes.js`.
-3. **Fase 3 (Frontend - Vinculação ao Tipo):**
+- [x] **Fase 3 (Frontend - Vinculação ao Tipo):**
    - Refatorar o modal atual de gerenciamento de tarefas do tipo para usar o componente de seleção de tarefas do catálogo.
    - Ajustar o JS e o endpoint para salvar o vínculo (ID do tipo + ID da tarefa + ordem + obrigatoriedade).
-4. **Fase 4 (Testes):**
+- [x] **Fase 4 (Testes):**
    - Garantir que a alteração de uma tarefa no catálogo não quebre inspeções já em andamento.
    - Testar o bloqueio de tarefas inativas na hora de vincular a um novo tipo de inspeção.
