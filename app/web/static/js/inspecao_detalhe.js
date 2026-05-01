@@ -163,9 +163,6 @@ function renderizarTarefas() {
                 ${t.observacao_execucao ? `<div style="font-size: 0.8rem; color: var(--text-color); margin-top: 4px; border-left: 2px solid ${stColor}; padding-left: 5px;"><i>Obs: ${escapeHtml(t.observacao_execucao)}</i></div>` : ''}
             </td>
             <td style="padding: 0.75rem; text-align: center;">
-                ${t.obrigatoria ? '<span style="color:var(--status-danger); font-weight:bold; font-size: 0.85rem;">Sim</span>' : '<span style="color:var(--text-secondary); font-size: 0.85rem;">Não</span>'}
-            </td>
-            <td style="padding: 0.75rem; text-align: center;">
                 <span style="display: inline-block; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600; background: ${stColor}20; color: ${stColor}; border: 1px solid ${stColor};">
                     ${t.status}
                 </span>
