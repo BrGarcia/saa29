@@ -38,16 +38,17 @@ O que deve ser feito:
 
 Regras de implementação:
 - O módulo `shared/services/image` deve permanecer genérico e reutilizável.
-- Os módulos de negócio só devem chamar o pipeline.
+- Os módulos de negócio só devem chamar o pipeline.py
 - Não duplicar a lógica de processamento de imagem em outros lugares.
 - Usar imports consistentes com a estrutura do projeto.
 - Manter compatibilidade com Windows e Linux.
 
 Pontos de integração esperados:
 - Upload de anexos em panes
-- Upload de imagens em aeronaves
+- Upload de imagens em inspeções
 - Upload de imagens em equipamentos
 - Qualquer outro módulo que receba arquivos visuais
+- Qualquer módulo futuro que receba arquivos visuais (atualizar pasta docs/ia com essa regra)
 
 Critério de sucesso:
 - O projeto passa a processar imagens automaticamente via `shared/services/image`.

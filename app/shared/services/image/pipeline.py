@@ -11,7 +11,7 @@ from app.bootstrap.config.image import (
 )
 
 from .converter import convert_if_needed
-from .optimizer import compress_image
+from .optimizer import optimize_image as compress_image
 from .resizer import resize_image
 from .validator import validate_image
 
