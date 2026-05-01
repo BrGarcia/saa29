@@ -109,3 +109,6 @@ known_gaps_from_roadmap:
 - bug_422_routing_conflict_resolved: true (static routes defined before dynamic)
 - bug_missing_greenlet_refresh_resolved: true (await db.refresh after flush on onupdate fields)
 - rule_async_orm_refresh: mandatory_await_db_refresh_after_flush_for_serialized_objects_with_onupdate_fields
+- bug_fix_concluir_inspecao_missing_greenlet_resolved: true (refetch after flush in state transitions)
+- bug_fix_badge_man_trigrama_resolved: true (distinguish template vs manual via tarefa_catalogo_id)
+- feature_remove_req_column_from_inspections: completed
