@@ -61,10 +61,10 @@ function renderizarCabecalho() {
     if (inspecaoAtual.status === 'ABERTA' || inspecaoAtual.status === 'EM_ANDAMENTO') {
         botoesAcao = `
             <div style="display: flex; gap: 1rem;">
-                <button class="btn btn-outline" onclick="cancelarInspecao()" style="color: var(--status-danger); border-color: var(--status-danger);">
+                <button id="btn-cancelar-inspecao" class="btn btn-outline" style="color: var(--status-danger); border-color: var(--status-danger);">
                     Cancelar Inspeção
                 </button>
-                <button class="btn btn-inspecao" onclick="concluirInspecao()" ${todasObrigatoriasFeitas && total > 0 ? '' : 'disabled style="opacity:0.5;" title="Conclua todas as tarefas obrigatórias"'} >
+                <button id="btn-concluir-inspecao" class="btn btn-inspecao" ${todasObrigatoriasFeitas && total > 0 ? '' : 'disabled style="opacity:0.5;" title="Conclua todas as tarefas obrigatórias"'} >
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 5px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                     Concluir Inspeção
                 </button>
@@ -105,6 +105,11 @@ function renderizarCabecalho() {
             </div>
         </div>
     `;
+
+    if (inspecaoAtual.status === 'ABERTA' || inspecaoAtual.status === 'EM_ANDAMENTO') {
+        document.getElementById('btn-cancelar-inspecao')?.addEventListener('click', cancelarInspecao);
+        document.getElementById('btn-concluir-inspecao')?.addEventListener('click', concluirInspecao);
+    }
 }
 
 function renderizarTarefas() {
