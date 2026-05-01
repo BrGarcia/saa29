@@ -156,7 +156,7 @@ function renderizarTarefas() {
             <td style="padding: 0.75rem; color: var(--text-secondary);">${escapeHtml(t.sistema || 'Geral')}</td>
             <td style="padding: 0.75rem;">
                 <div style="font-weight: 500;">
-                    ${!t.tarefa_template_id ? '<span style="font-size: 0.65rem; background: var(--primary-color); color: white; padding: 2px 6px; border-radius: 4px; margin-right: 5px; font-weight: bold; vertical-align: middle;" title="Tarefa Adicionada Manualmente">MAN</span>' : ''}
+                    ${!t.tarefa_catalogo_id ? `<span style="font-size: 0.65rem; background: var(--primary-color); color: white; padding: 2px 6px; border-radius: 4px; margin-right: 5px; font-weight: bold; vertical-align: middle;" title="Tarefa Adicionada Manualmente">${escapeHtml(inspecaoAtual.aberto_por?.trigrama || 'EXT')}</span>` : ''}
                     ${escapeHtml(t.titulo)}
                 </div>
                 <div style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHtml(t.descricao || '')}</div>
