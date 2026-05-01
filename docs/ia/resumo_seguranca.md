@@ -42,19 +42,15 @@ files_of_interest:
 - app/shared/core/file_validators.py
 - app/shared/core/storage.py
 - app/shared/core/limiter.py
-- app/modules/inspecoes/router.py (isolated_not_registered)
+- app/modules/inspecoes/router.py (Active)
 
-isolated_modules:
-- app/modules/inspecoes: router_defined_but_not_registered; endpoints_require_CurrentUser_or_EncarregadoOuAdmin_if_enabled
+- app/modules/inspecoes: Module integrated and active. Endpoints secured with CurrentUser and EncarregadoOuAdmin.
 
 reporting:
 - do_not_open_public_issue_for_vuln
 - follow_docs_SECURITY_md
 
 recent_actions:
-- 2026-04-29: Inspecoes backend scaffold created as isolated module; no active route, migration, or bootstrap registration yet.
-- 2026-04-30: Backlog updated with two new inspection features (tarefas extras + auditoria checklist). Both specs enforce CSP compliance (no inline scripts).
-- 2026-04-29: Fixed major bug in Inspecoes navigation caused by CSP blocking inline Jinja2 `<script>` tags. Emphasized `<meta>` tags for JS data passing.
-- 2026-04-28: Full Frontend CSP Hardening (removed all inline scripts and event handlers).
-- 2026-04-27: External security audit completed (docs/relatorio/revisao_claude.md).
-- 2026-04-27: Critical issues C-01 (CSRF bypass) and C-02 (Cookie secure flag) resolved.
+- 2026-05-01: Inspections module fully integrated, migrated and active.
+- 2026-05-01: Resolved HTTP 422 routing conflict in Task Catalog (priority of static routes over dynamic UUID path).
+- 2026-05-01: Resolved SQLAlchemy MissingGreenlet error in Task Catalog by enforcing await db.refresh() after flush on onupdate fields.

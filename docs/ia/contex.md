@@ -1,7 +1,7 @@
 # ctx
 
 meta:
-- sync_date: 2026-04-30
+- sync_date: 2026-05-01
 - mode: machine
 - format: kv_short
 - truth: official_docs_first
@@ -105,3 +105,6 @@ known_gaps_from_roadmap:
 - logout_frontend_backend_alignment_verified: true
 - database_url_consistency_verified: true
 - inspecoes_requires_activation_plan: migration, bootstrap_model_import, router_registration, frontend_integration, tests (Module now fully active)
+- bug_422_routing_conflict_resolved: true (static routes defined before dynamic)
+- bug_missing_greenlet_refresh_resolved: true (await db.refresh after flush on onupdate fields)
+- rule_async_orm_refresh: mandatory_await_db_refresh_after_flush_for_serialized_objects_with_onupdate_fields
