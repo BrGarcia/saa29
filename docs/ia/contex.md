@@ -81,6 +81,7 @@ current_focus:
 - security_controls_active: 100_percent (CSP hardening completed)
 - inventory_module_active: true
 - configuracoes_module_active: true
+- configuracoes_inspecoes_module_completed: true (Do not alter this logic unless explicitly requested)
 - matriz_vencimentos_active: true
 - inspecoes_module_active: true
 - inspecoes_backend_scaffold_isolated: false (integrated and tests passing)

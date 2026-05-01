@@ -429,7 +429,11 @@ async def atualizar_inspecao(
     _garantir_inspecao_editavel(inspecao)
     inspecao.observacoes = dados.observacoes
     await db.flush()
-    return inspecao
+    
+    inspecao_carregada = await buscar_inspecao(db, inspecao_id)
+    if not inspecao_carregada:
+        raise ValueError("Falha ao carregar inspecao atualizada.")
+    return inspecao_carregada
 
 
 async def adicionar_tarefa_avulsa(
@@ -549,7 +553,11 @@ async def concluir_inspecao(
     if inspecao.aeronave:
         inspecao.aeronave.status = StatusAeronave.DISPONIVEL.value
     await db.flush()
-    return inspecao
+    
+    inspecao_carregada = await buscar_inspecao(db, inspecao_id)
+    if not inspecao_carregada:
+        raise ValueError("Falha ao carregar inspecao concluida.")
+    return inspecao_carregada
 
 
 async def cancelar_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> Inspecao:
@@ -561,7 +569,11 @@ async def cancelar_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> Inspeca
     if inspecao.aeronave:
         inspecao.aeronave.status = StatusAeronave.DISPONIVEL.value
     await db.flush()
-    return inspecao
+    
+    inspecao_carregada = await buscar_inspecao(db, inspecao_id)
+    if not inspecao_carregada:
+        raise ValueError("Falha ao carregar inspecao cancelada.")
+    return inspecao_carregada
 
 
 def calcular_progresso(inspecao: Inspecao) -> tuple[int, int, int]:

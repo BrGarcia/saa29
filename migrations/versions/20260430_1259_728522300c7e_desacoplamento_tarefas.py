@@ -44,7 +44,7 @@ def upgrade() -> None:
         batch_op.drop_column('tarefa_template_id')
 
     with op.batch_alter_table('tarefas_template', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('tarefa_catalogo_id', sa.Uuid(), nullable=False))
+        batch_op.add_column(sa.Column('tarefa_catalogo_id', sa.Uuid(), nullable=True))
         batch_op.create_index(batch_op.f('ix_tarefas_template_tarefa_catalogo_id'), ['tarefa_catalogo_id'], unique=False)
         batch_op.create_unique_constraint('uq_tarefa_template_por_tipo', ['tipo_inspecao_id', 'tarefa_catalogo_id'])
         batch_op.create_foreign_key('fk_tarefas_template_tarefa_catalogo', 'tarefas_catalogo', ['tarefa_catalogo_id'], ['id'], ondelete='RESTRICT')

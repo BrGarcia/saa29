@@ -51,7 +51,7 @@ app/
 │   ├── auth/         -> autenticao, usuarios, JWT, blacklist e refresh token
 │   ├── aeronaves/    -> cadastro e status de aeronaves
 │   ├── equipamentos/ -> modelos, slots, itens, instalacoes e controles
-│   ├── inspecoes/    -> scaffold backend isolado, nao registrado no bootstrap
+│   ├── inspecoes/    -> tipos de inspeção, catálogo de tarefas e execução de inspeções
 │   └── panes/        -> panes, anexos e responsaveis
 ├── shared/
 │   ├── core/         -> enums, helpers, storage, validadores, limiter
@@ -84,7 +84,7 @@ Ele:
     - Executa o backup orientado a eventos para R2 quando configurado;
     - Garante o fechamento limpo do pool de conexões via `dispose_engine()` no shutdown.
 
-Nota: `app/modules/inspecoes` existe como scaffold isolado. Seus modelos e router nao sao importados nem registrados por `app/bootstrap/main.py` enquanto o modulo nao for ativado explicitamente com migration, bootstrap e frontend.
+Nota: O módulo `app/modules/inspecoes` está totalmente integrado, registrado no bootstrap e ativo no frontend.
 
 ## 4. Fluxo de Requisicao
 
@@ -154,6 +154,14 @@ equipamentos:
   itens_equipamento
   instalacoes
   controle_vencimentos
+
+inspecoes:
+  tipos_inspecao
+  tarefas_catalogo
+  tarefas_template
+  inspecoes
+  inspecao_evento_tipos
+  inspecao_tarefas
 ```
 
 ## 6. Relacionamentos Principais
@@ -181,6 +189,13 @@ erDiagram
     ITENS_EQUIPAMENTO ||--o{ CONTROLE_VENCIMENTOS : "possui"
 
     SLOTS_INVENTARIO ||--o{ INSTALACOES : "localiza"
+
+    AERONAVES ||--o{ INSPECOES : "sofre"
+    TIPOS_INSPECAO ||--o{ TAREFAS_TEMPLATE : "contém"
+    TAREFAS_CATALOGO ||--o{ TAREFAS_TEMPLATE : "origina"
+    INSPECOES ||--o{ INSPECAO_TAREFAS : "executa"
+    TAREFAS_CATALOGO ||--o{ INSPECAO_TAREFAS : "baseia"
+    INSPECAO_TAREFAS |o--o| PANES : "pode gerar"
 ```
 
 ## 7. Decisoes de Arquitetura

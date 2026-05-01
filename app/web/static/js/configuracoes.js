@@ -722,7 +722,7 @@ async function carregarListaTiposInspecao() {
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem;">Carregando...</td></tr>';
 
     try {
-        tiposInspecaoCache = await apiFetch('/inspecoes/tipos');
+        tiposInspecaoCache = await apiFetch('/inspecoes/tipos?incluir_inativos=true');
         tbody.innerHTML = '';
         
         if(tiposInspecaoCache.length === 0) {
@@ -935,7 +935,7 @@ async function removerTarefaTemplate(tarefaId) {
     if (!confirm("Remover esta tarefa? O histórico de inspeções já abertas não será afetado.")) return;
 
     try {
-        await apiFetch(`/inspecoes/tipos/${tipoInspecaoAtualId}/tarefas/${tarefaId}`, {
+        await apiFetch(`/inspecoes/tarefas-template/${tarefaId}`, {
             method: 'DELETE'
         });
         showToast("Tarefa removida.", "success");
