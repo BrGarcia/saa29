@@ -20,21 +20,20 @@ app:
 - modules/panes/: pane_flow_attachments_responsaveis
 - modules/equipamentos/: catalog_slots_physical_items_inventory
 - modules/vencimentos/: temporal_intelligence_maintenance_rules_extensions
-- modules/inspecoes/: isolated_backend_scaffold_not_bootstrapped
+- modules/inspecoes/: integrated_backend_active_with_task_catalog_decoupling
 - shared/core/: enums,helpers,storage,validators,limiter,exceptions
 - shared/middleware/: csrf
-- web/pages/router.py: html_routes (panes,frota,inventario,vencimentos,configuracoes,efetivo,inspecoes_placeholder)
-- web/templates/: jinja_templates (base,panes,aeronaves,inventario,vencimentos,configuracoes,efetivo,inspecoes_placeholder)
-- web/static/js/: configuracoes.js,vencimentos.js,inventario.js,panes.js,app.js,auth_check.js
+- web/pages/router.py: html_routes (panes,frota,inventario,vencimentos,configuracoes,efetivo,inspecoes)
+- web/templates/: jinja_templates (base,panes,aeronaves,inventario,vencimentos,configuracoes,efetivo,inspecoes)
+- web/static/js/: configuracoes.js,vencimentos.js,inventario.js,panes.js,app.js,auth_check.js,inspecoes.js,inspecao_detalhe.js
 - web/static/css/: index.css (design_system_tokens_and_components)
 
 app/modules/inspecoes:
-- __init__.py: passive_package_no_router_autoimport
-- models.py: TipoInspecao,TarefaTemplate,Inspecao,InspecaoTarefa
+- __init__.py: passive_package
+- models.py: TipoInspecao,TarefaCatalogo,TarefaTemplate,Inspecao,InspecaoTarefa
 - schemas.py: local_status_enums,pydantic_contracts
-- service.py: isolated_business_rules_crud_instantiation_completion
-- router.py: api_router_defined_not_registered
-- activation_required: bootstrap_model_import,include_router,migration,frontend_binding,tests
+- service.py: business_rules_crud_instantiation_completion_extras_audit
+- router.py: api_router_fully_registered_and_bootstrapped
 
 scripts:
 - db/init_db.py: bootstrap_admin_frota
@@ -52,7 +51,7 @@ tests:
 - architecture/: architecture_and_perf_guards
 
 docs:
-- architecture/: source_for_architecture
+- architecture/: source_for_architecture (Database.md, RBAC.md, overview.md)
 - api/: source_for_endpoints
 - development/: source_for_setup_tests_ops
 - requirements/: source_for_srs_specs

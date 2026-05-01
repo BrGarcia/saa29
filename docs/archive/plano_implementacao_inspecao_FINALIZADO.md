@@ -183,7 +183,7 @@ Adicionar novo card na grade do `configuracoes.html`:
 - [x] Criar `service.py` com lógica de negócio (CRUD + regras RN-I01 a RN-I07)
 - [x] Criar `router.py` com endpoints da API
 - [x] Registrar router no app principal (pendente por isolamento)
-- [ ] Testar endpoints via Swagger/docs
+- [x] Testar endpoints via Swagger/docs
 
 ### Fase 3 — Frontend: Navegação + Configurações (~3h)
 - [x] Adicionar ícone de Inspeções no `base.html` (nav)
@@ -246,7 +246,7 @@ Adicionar novo card na grade do `configuracoes.html`:
 
 ## 14. Inclusão de Tarefas Extras na Inspeção (Nova Funcionalidade)
 
-> **Status:** Backlog — Não implementado  
+> **Status:** Implementado
 > **Prioridade:** Alta  
 > **Referência:** RN-02 (Tarefas Manuais)  
 
@@ -324,17 +324,17 @@ Criar um novo modal no template `detalhe.html` (dentro do `{% block content %}`,
 
 ### 14.8. Faseamento
 
-- [ ] Adicionar HTML do botão e modal em `detalhe.html`
-- [ ] Implementar handlers em `inspecao_detalhe.js` (abrir/fechar/submit)
-- [ ] Adicionar badge `[MAN]` na renderização de tarefas manuais
-- [ ] Testar: adicionar tarefa → checklist atualizado → progresso recalculado
-- [ ] Testar: tarefa obrigatória manual bloqueia conclusão
+- [x] Adicionar HTML do botão e modal em `detalhe.html`
+- [x] Implementar handlers em `inspecao_detalhe.js` (abrir/fechar/submit)
+- [x] Adicionar badge `[MAN]` na renderização de tarefas manuais
+- [x] Testar: adicionar tarefa → checklist atualizado → progresso recalculado
+- [x] Testar: tarefa obrigatória manual bloqueia conclusão
 
 ---
 
 ## 15. Auditoria de Alterações no Checklist (Ajuste na Listagem)
 
-> **Status:** Backlog — Não implementado  
+> **Status:** Implementado
 > **Prioridade:** Média  
 > **Referência visual:** Coluna "Atualização/Trigrama" da página Inventário de Equipamentos (`inventario.js`, linhas 206, 235-249)  
 
@@ -423,10 +423,10 @@ Atualizar o cabeçalho da tabela em `detalhe.html` para incluir a nova coluna:
 
 ### 15.9. Faseamento
 
-- [ ] Atualizar `<thead>` em `detalhe.html` (adicionar coluna, ajustar colspan)
-- [ ] Atualizar `renderizarTarefas()` em `inspecao_detalhe.js` (nova `<td>` + limpar Status)
-- [ ] Testar: tarefas pendentes exibem `—`, tarefas concluídas exibem `DD/MM/AA HH:MM` + trigrama
-- [ ] Validar consistência visual com a coluna "Atualização/Trigrama" do Inventário
+- [x] Atualizar `<thead>` em `detalhe.html` (adicionar coluna, ajustar colspan)
+- [x] Atualizar `renderizarTarefas()` em `inspecao_detalhe.js` (nova `<td>` + limpar Status)
+- [x] Testar: tarefas pendentes exibem `—`, tarefas concluídas exibem `DD/MM/AA HH:MM` + trigrama
+- [x] Validar consistência visual com a coluna "Atualização/Trigrama" do Inventário
 
 
 ---

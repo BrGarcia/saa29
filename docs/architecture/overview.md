@@ -205,6 +205,7 @@ erDiagram
 | [ADR-001](./adr/001-stack-tecnologica.md) | Stack principal, bootstrap e persistencia |
 | [ADR-002](./adr/002-autenticacao-jwt.md) | Autenticacao JWT com refresh token e blacklist |
 | [ADR-003](./adr/003-heranca-controles-vencimento.md) | Heranca de controles de vencimento no service layer |
+| [RBAC](./RBAC.md) | Matriz de permissões e controle de acesso baseado em papéis |
 
 ## 8. Consideracoes Nao Funcionais
 

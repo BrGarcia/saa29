@@ -112,3 +112,4 @@ known_gaps_from_roadmap:
 - bug_fix_concluir_inspecao_missing_greenlet_resolved: true (refetch after flush in state transitions)
 - bug_fix_badge_man_trigrama_resolved: true (distinguish template vs manual via tarefa_catalogo_id)
 - feature_remove_req_column_from_inspections: completed
+- rbac_documentation_active: true (docs/architecture/RBAC.md)

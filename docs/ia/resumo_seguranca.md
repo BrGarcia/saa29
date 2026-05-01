@@ -33,6 +33,7 @@ security_docs:
 - docs/SECURITY.md
 - docs/development/cloudflare_r2.md
 - docs/api/referencia-api.md
+- docs/architecture/RBAC.md
 
 files_of_interest:
 - app/modules/auth/security.py
@@ -54,3 +55,4 @@ recent_actions:
 - 2026-05-01: Inspections module fully integrated, migrated and active.
 - 2026-05-01: Resolved HTTP 422 routing conflict in Task Catalog (priority of static routes over dynamic UUID path).
 - 2026-05-01: Resolved SQLAlchemy MissingGreenlet error in Task Catalog by enforcing await db.refresh() after flush on onupdate fields.
+- 2026-05-01: Created RBAC.md matrix to consolidate user roles and permissions documentation.

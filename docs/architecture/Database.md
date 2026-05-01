@@ -17,11 +17,13 @@ O banco de dados atual do SAA29 possui os seguintes domínios:
 | Dominio | Tabelas | Status |
 | :--- | :--- | :---: |
 | **1. Autenticacao** | `usuarios`, `token_blacklist`, `token_refresh` | Implementado |
-| **2. Efetivo** | `indisponibilidades` | Em Planejamento |
+| **2. Efetivo** | `indisponibilidades` | Implementado |
 | **3. Aeronaves** | `aeronaves` | Implementado |
 | **4. Equipamentos** | `modelos_equipamento`, `slots_inventario`, `itens_equipamento`, `instalacoes` | Implementado |
 | **5. Vencimentos** | `tipos_controle`, `equipamento_controles`, `controle_vencimentos`, `prorrogacoes_vencimento` | Implementado |
 | **6. Panes** | `panes`, `anexos`, `pane_responsaveis` | Implementado |
+| **7. Configuracoes** | (Configurações gerais do sistema) | Implementado |
+| **8. Inspecoes** | `tipos_inspecao`, `tarefas_catalogo`, `tarefas_template`, `inspecoes`, `inspecao_evento_tipos`, `inspecao_tarefas` | Implementado |
 
 ---
 
