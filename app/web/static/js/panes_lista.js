@@ -103,9 +103,23 @@ async function openSelecaoAeronaveModal() {
         
         gridAeronaves.innerHTML = '';
         frotaAtiva.forEach(f => {
-            const isOperacional = f.status === 'DISPONIVEL';
-            const colorVar = isOperacional ? 'var(--status-ok)' : 'var(--status-warning)';
-            const bgVar = isOperacional ? 'rgba(46, 204, 113, 0.1)' : 'rgba(243, 156, 18, 0.1)';
+            let colorVar = 'var(--status-warning)';
+            let bgVar = 'rgba(245, 158, 11, 0.1)';
+            let shadowColor = 'rgba(245, 158, 11, 0.2)';
+
+            if (f.status === 'DISPONIVEL' || f.status === 'OPERACIONAL') {
+                colorVar = 'var(--status-ok)';
+                bgVar = 'rgba(16, 185, 129, 0.1)';
+                shadowColor = 'rgba(16, 185, 129, 0.2)';
+            } else if (f.status === 'INSPEÇÃO' || f.status === 'INSPECAO') {
+                colorVar = 'var(--primary-color)';
+                bgVar = 'rgba(59, 130, 246, 0.1)';
+                shadowColor = 'rgba(59, 130, 246, 0.2)';
+            } else if (f.status === 'ESTOCADA') {
+                colorVar = 'var(--text-secondary)';
+                bgVar = 'rgba(100, 116, 139, 0.1)';
+                shadowColor = 'rgba(100, 116, 139, 0.2)';
+            }
 
             const btn = document.createElement("button");
             btn.className = "btn-icon";
@@ -116,22 +130,21 @@ async function openSelecaoAeronaveModal() {
                 transition: all 0.2s; color: var(--text-primary);
             `;
             btn.innerHTML = `<span style="font-weight: 700; font-family: monospace; font-size: 1.1rem; color: ${colorVar}">${f.matricula}</span>`;
-            
-            btn.addEventListener('mouseover', () => { 
+
+            btn.addEventListener('mouseover', () => {
                 btn.style.transform = 'translateY(-3px)';
-                btn.style.boxShadow = `0 4px 12px ${isOperacional ? 'rgba(46, 204, 113, 0.2)' : 'rgba(243, 156, 18, 0.2)'}`;
-                btn.style.background = isOperacional ? 'rgba(46, 204, 113, 0.2)' : 'rgba(243, 156, 18, 0.2)';
+                btn.style.boxShadow = `0 4px 12px ${shadowColor}`;
+                btn.style.background = bgVar.replace('0.1', '0.2');
             });
-            btn.addEventListener('mouseout', () => { 
+            btn.addEventListener('mouseout', () => {
                 btn.style.transform = 'translateY(0)';
                 btn.style.boxShadow = 'none';
                 btn.style.background = bgVar;
             });
-            
+
             btn.addEventListener('click', () => openNuevaPaneModal(f.id, f.matricula));
             gridAeronaves.appendChild(btn);
         });
-
         if (frotaAtiva.length === 0) {
             gridAeronaves.innerHTML = '<p style="grid-column: span 5; text-align: center; color: var(--text-secondary);">Nenhuma aeronave disponível.</p>';
         }
