@@ -76,7 +76,12 @@ async def db() -> AsyncSession:
 async def client(db: AsyncSession) -> AsyncClient:
     """AsyncClient com substituição de get_db pelo banco de testes."""
     async def override_get_db():
-        yield db
+        try:
+            yield db
+            await db.flush()
+        except Exception:
+            await db.rollback()
+            raise
 
     app.dependency_overrides[get_db] = override_get_db
     
