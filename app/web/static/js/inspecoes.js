@@ -13,6 +13,10 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('btn-close-modal-nova')?.addEventListener('click', closeModalNovaInspecao);
     document.getElementById('btn-cancel-modal-nova')?.addEventListener('click', closeModalNovaInspecao);
     document.getElementById('formNovaInspecao')?.addEventListener('submit', salvarNovaInspecao);
+
+    // Recalcular DPE ao mudar tipos ou data de início
+    document.getElementById('novaInspecaoTipos')?.addEventListener('change', recalcularDPE);
+    document.getElementById('novaInspecaoDataInicio')?.addEventListener('change', recalcularDPE);
 });
 
 async function carregarFiltros() {
@@ -41,7 +45,8 @@ async function carregarFiltros() {
         tipos.filter(t => t.ativo).forEach(t => {
             const opt = document.createElement('option');
             opt.value = t.id;
-            opt.text = `${t.codigo} - ${t.nome}`;
+            opt.text = `${t.codigo} - ${t.nome}${t.duracao_dias > 0 ? ` (${t.duracao_dias}d)` : ''}`;
+            opt.dataset.duracao = t.duracao_dias || 0;
             selectTipos.appendChild(opt);
         });
         
@@ -134,10 +139,40 @@ function openModalNovaInspecao() {
     document.getElementById('novaInspecaoAeronave').value = '';
     document.getElementById('novaInspecaoTipos').selectedIndex = -1;
     document.getElementById('novaInspecaoObs').value = '';
+
+    // Preencher data de início com hoje
+    const hoje = new Date().toISOString().split('T')[0];
+    document.getElementById('novaInspecaoDataInicio').value = hoje;
+    document.getElementById('novaInspecaoDPE').value = '';
 }
 
 function closeModalNovaInspecao() {
     document.getElementById('modal-nova-inspecao').style.display = 'none';
+}
+
+function recalcularDPE() {
+    const selectTipos = document.getElementById('novaInspecaoTipos');
+    const dataInicioInput = document.getElementById('novaInspecaoDataInicio');
+    const dpeInput = document.getElementById('novaInspecaoDPE');
+
+    const selectedOptions = Array.from(selectTipos.selectedOptions);
+    if (selectedOptions.length === 0 || !dataInicioInput.value) {
+        dpeInput.value = '';
+        return;
+    }
+
+    const maxDuracao = Math.max(...selectedOptions.map(o => parseInt(o.dataset.duracao, 10) || 0));
+    if (maxDuracao === 0) {
+        dpeInput.value = 'Sem duração cadastrada';
+        dpeInput.style.color = 'var(--status-danger)';
+        return;
+    }
+
+    const dataInicio = new Date(dataInicioInput.value + 'T00:00:00');
+    const dpe = new Date(dataInicio);
+    dpe.setDate(dpe.getDate() + maxDuracao);
+    dpeInput.value = dpe.toLocaleDateString('pt-BR');
+    dpeInput.style.color = 'var(--text-secondary)';
 }
 
 async function salvarNovaInspecao(e) {
@@ -149,6 +184,9 @@ async function salvarNovaInspecao(e) {
     const tiposSelect = document.getElementById('novaInspecaoTipos');
     const tipos_inspecao_ids = Array.from(tiposSelect.selectedOptions).map(o => o.value);
     const observacoes = document.getElementById('novaInspecaoObs').value.trim() || null;
+    const dataInicioRaw = document.getElementById('novaInspecaoDataInicio').value;
+    // Converter yyyy-MM-dd -> ISO 8601 com horário local em UTC (meio-dia para evitar drift de fuso)
+    const data_inicio = dataInicioRaw ? new Date(dataInicioRaw + 'T12:00:00').toISOString() : null;
 
     if (!aeronave_id || tipos_inspecao_ids.length === 0) {
         showToast("Selecione a aeronave e pelo menos 1 tipo de inspeção.", "error");
@@ -159,7 +197,7 @@ async function salvarNovaInspecao(e) {
     try {
         const resp = await apiFetch('/inspecoes/', {
             method: 'POST',
-            body: { aeronave_id, tipos_inspecao_ids, observacoes }
+            body: { aeronave_id, tipos_inspecao_ids, observacoes, data_inicio }
         });
         showToast("Inspeção aberta com sucesso!", "success");
         closeModalNovaInspecao();

@@ -72,6 +72,21 @@
                 <textarea id="novaInspecaoObs" class="form-input" rows="3" placeholder="Opcional"></textarea>
             </div>
 
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Data de Início *</label>
+                    <input type="date" id="novaInspecaoDataInicio" class="form-input" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">DPE (Previsão)</label>
+                    <input type="text" id="novaInspecaoDPE" class="form-input" readonly
+                           placeholder="—" style="background: rgba(0,0,0,0.05); cursor: default; color: var(--text-secondary);">
+                    <small style="display:block; margin-top:0.25rem; font-size:0.75rem; color:var(--text-secondary);">
+                        Calculado com base na maior duração dos tipos
+                    </small>
+                </div>
+            </div>
+
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
                 <button type="button" class="btn btn-outline" id="btn-cancel-modal-nova">Cancelar</button>
                 <button type="submit" class="btn btn-inspecao" id="btnSalvarInspecao">Criar Inspeção</button>

@@ -35,6 +35,41 @@ async function carregarDetalhesInspecao() {
     }
 }
 
+
+function renderizarLinhasDatas(inspecao) {
+    const fmtData = (iso) => iso ? new Date(iso).toLocaleDateString('pt-BR') : '—';
+
+    const dataInicio = inspecao.data_inicio ? fmtData(inspecao.data_inicio) : null;
+    const dpe = inspecao.data_fim_prevista;
+
+    let dpeLine = '';
+    if (dpe) {
+        const hoje = new Date();
+        const dpeDt = new Date(dpe);
+        const diffDias = Math.ceil((dpeDt - hoje) / (1000 * 60 * 60 * 24));
+
+        let dpeColor = 'var(--text-secondary)';
+        let dpeLabel = `DPE: ${fmtData(dpe)}`;
+        if (inspecao.status !== 'CONCLUIDA' && inspecao.status !== 'CANCELADA') {
+            if (diffDias < 0) {
+                dpeColor = 'var(--status-danger)';
+                dpeLabel += ` <span style="font-size:0.8rem; font-weight:600;">(VENCIDA há ${Math.abs(diffDias)}d)</span>`;
+            } else if (diffDias <= 7) {
+                dpeColor = 'var(--status-warning, #f39c12)';
+                dpeLabel += ` <span style="font-size:0.8rem; font-weight:600;">(${diffDias}d restantes)</span>`;
+            }
+        }
+        dpeLine = `<span style="color:${dpeColor};">${dpeLabel}</span>`;
+    }
+
+    const partes = [];
+    if (dataInicio) partes.push(`<span>Início: <strong>${dataInicio}</strong></span>`);
+    if (dpeLine)    partes.push(dpeLine);
+
+    if (partes.length === 0) return '';
+    return `<p style="margin: 0.25rem 0 0 0; font-size: 0.9rem; display: flex; gap: 1.5rem; flex-wrap: wrap;">${partes.join('')}</p>`;
+}
+
 function renderizarCabecalho() {
     const header = document.getElementById('inspecao-header');
     if (!inspecaoAtual) return;
@@ -87,6 +122,7 @@ function renderizarCabecalho() {
                 <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary); font-size: 0.9rem;">
                     Aberto em ${new Date(inspecaoAtual.data_abertura).toLocaleString()} por ${inspecaoAtual.aberto_por?.posto || ''} ${inspecaoAtual.aberto_por?.nome || 'Sistema'}
                 </p>
+                ${renderizarLinhasDatas(inspecaoAtual)}
                 ${inspecaoAtual.observacoes ? `<p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; background: rgba(0,0,0,0.05); padding: 0.5rem; border-radius: var(--radius-sm); border-left: 3px solid var(--primary-color);">Obs: ${escapeHtml(inspecaoAtual.observacoes)}</p>` : ''}
             </div>
             
