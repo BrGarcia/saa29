@@ -5,7 +5,7 @@ Regras de negocio do modulo isolado de inspecoes.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -57,6 +57,7 @@ async def criar_tipo_inspecao(db: AsyncSession, dados: schemas.TipoInspecaoCreat
         codigo=codigo,
         nome=dados.nome.strip(),
         descricao=dados.descricao,
+        duracao_dias=dados.duracao_dias,
     )
     db.add(tipo)
     await db.flush()
@@ -106,6 +107,8 @@ async def atualizar_tipo_inspecao(
         tipo.nome = changes["nome"].strip()
     if "descricao" in changes:
         tipo.descricao = changes["descricao"]
+    if "duracao_dias" in changes and changes["duracao_dias"] is not None:
+        tipo.duracao_dias = changes["duracao_dias"]
     if "ativo" in changes and changes["ativo"] is not None:
         tipo.ativo = changes["ativo"]
 
@@ -371,9 +374,15 @@ async def abrir_inspecao(
     inspecao = Inspecao(
         aeronave_id=dados.aeronave_id,
         status=StatusInspecao.ABERTA.value,
+        data_inicio=dados.data_inicio or datetime.now(timezone.utc),
         observacoes=dados.observacoes,
         aberto_por_id=aberto_por_id,
     )
+
+    # Calculo da DPE (Data Prevista de Encerramento)
+    duracao_maxima = max((t.duracao_dias for t in tipos), default=0)
+    if duracao_maxima > 0:
+        inspecao.data_fim_prevista = inspecao.data_inicio + timedelta(days=duracao_maxima)
     db.add(inspecao)
     await db.flush()
 

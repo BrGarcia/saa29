@@ -33,12 +33,14 @@ class TipoInspecaoCreate(BaseModel):
     codigo: str = Field(min_length=1, max_length=30)
     nome: str = Field(min_length=1, max_length=150)
     descricao: str | None = None
+    duracao_dias: int = Field(default=0, ge=0, le=180)
 
 
 class TipoInspecaoUpdate(BaseModel):
     codigo: str | None = Field(default=None, min_length=1, max_length=30)
     nome: str | None = Field(default=None, min_length=1, max_length=150)
     descricao: str | None = None
+    duracao_dias: int | None = Field(default=None, ge=0, le=180)
     ativo: bool | None = None
 
 
@@ -49,6 +51,7 @@ class TipoInspecaoOut(BaseModel):
     codigo: str
     nome: str
     descricao: str | None
+    duracao_dias: int
     ativo: bool
     created_at: datetime
     updated_at: datetime | None
@@ -115,6 +118,7 @@ class ReordenarTarefas(BaseModel):
 class InspecaoCreate(BaseModel):
     aeronave_id: uuid.UUID
     tipos_inspecao_ids: list[uuid.UUID] = Field(min_length=1)
+    data_inicio: datetime | None = None
     observacoes: str | None = None
 
 
@@ -175,6 +179,8 @@ class InspecaoOut(BaseModel):
     tipos_aplicados: list[TipoInspecaoOut] = []
     status: StatusInspecao
     data_abertura: datetime
+    data_inicio: datetime
+    data_fim_prevista: datetime | None
     data_conclusao: datetime | None
     observacoes: str | None
     aberto_por_id: uuid.UUID
@@ -195,6 +201,8 @@ class InspecaoListItem(BaseModel):
     tipos_aplicados: list[TipoInspecaoOut] = []
     status: StatusInspecao
     data_abertura: datetime
+    data_inicio: datetime
+    data_fim_prevista: datetime | None
     data_conclusao: datetime | None
     observacoes: str | None
     total_tarefas: int = 0

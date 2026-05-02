@@ -739,6 +739,9 @@ async function carregarListaTiposInspecao() {
                     <div style="font-weight: 500;">${escapeHtml(t.nome)}</div>
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHtml(t.descricao || '')}</div>
                 </td>
+                <td style="padding: 0.75rem; text-align: center; font-size: 0.9rem;">
+                    ${t.duracao_dias > 0 ? `<span title="Duração">${t.duracao_dias}d</span>` : '<span style="color:var(--text-secondary)">—</span>'}
+                </td>
                 <td style="padding: 0.75rem; text-align: center;">
                     <span style="display: inline-block; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600; background: ${t.ativo ? 'rgba(46, 204, 113, 0.1)' : 'rgba(231, 76, 60, 0.1)'}; color: ${t.ativo ? 'var(--status-ok)' : 'var(--status-danger)'};">${t.ativo ? 'Ativo' : 'Inativo'}</span>
                 </td>
@@ -774,6 +777,7 @@ function openModalFormTipoInspecao(id = null) {
             document.getElementById('codigoTipoInspecaoInput').value = t.codigo;
             document.getElementById('nomeTipoInspecaoInput').value = t.nome;
             document.getElementById('descTipoInspecaoInput').value = t.descricao || '';
+            document.getElementById('duracaoTipoInspecaoInput').value = t.duracao_dias ?? 0;
             document.getElementById('container-status-tipo-inspecao').style.display = 'block';
             document.getElementById('ativoTipoInspecaoInput').value = t.ativo ? 'true' : 'false';
         }
@@ -798,19 +802,20 @@ async function salvarTipoInspecao(e) {
     const codigo = document.getElementById('codigoTipoInspecaoInput').value.trim().toUpperCase();
     const nome = document.getElementById('nomeTipoInspecaoInput').value.trim();
     const descricao = document.getElementById('descTipoInspecaoInput').value.trim();
+    const duracao_dias = parseInt(document.getElementById('duracaoTipoInspecaoInput').value, 10) || 0;
     
     try {
         if (id) {
             const ativo = document.getElementById('ativoTipoInspecaoInput').value === 'true';
             await apiFetch(`/inspecoes/tipos/${id}`, {
                 method: 'PATCH',
-                body: { codigo, nome, descricao, ativo }
+                body: { codigo, nome, descricao, duracao_dias, ativo }
             });
             showToast("Tipo atualizado com sucesso!", "success");
         } else {
             await apiFetch('/inspecoes/tipos', {
                 method: 'POST',
-                body: { codigo, nome, descricao }
+                body: { codigo, nome, descricao, duracao_dias }
             });
             showToast("Tipo criado com sucesso!", "success");
         }

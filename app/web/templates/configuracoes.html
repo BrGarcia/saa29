@@ -421,6 +421,7 @@
                     <tr>
                         <th style="text-align: left; padding: 0.75rem; width: 100px;">Código</th>
                         <th style="text-align: left; padding: 0.75rem;">Nome / Descrição</th>
+                        <th style="text-align: center; padding: 0.75rem; width: 80px;">Duração</th>
                         <th style="text-align: center; padding: 0.75rem; width: 80px;">Status</th>
                         <th style="text-align: right; padding: 0.75rem; width: 120px;">Ações</th>
                     </tr>
@@ -458,6 +459,14 @@
             <div class="form-group">
                 <label class="form-label">Descrição</label>
                 <textarea id="descTipoInspecaoInput" class="form-input" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Duração (dias) *</label>
+                <input type="number" id="duracaoTipoInspecaoInput" class="form-input" required min="0" max="180" value="0"
+                       style="max-width: 160px;">
+                <small style="display:block; margin-top:0.25rem; color: var(--text-secondary); font-size: 0.8rem;">
+                    Usado para calcular a Data Prevista de Encerramento. Máx. 180 dias.
+                </small>
             </div>
             
             <div id="container-status-tipo-inspecao" class="form-group" style="display: none;">
