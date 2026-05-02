@@ -1,5 +1,7 @@
 # Plano de Implementação: Processamento e Otimização de Imagens (IMGDIET)
 
+**Status geral:** Etapas 1–3 concluídas. Etapas 4–5 em aberto (integração nos módulos de domínio).
+
 Este documento descreve o plano detalhado para integrar o serviço de processamento de imagens localizado em `app/shared/services/image` ao ecossistema do SAA29, com foco em eficiência de armazenamento, suporte a novos formatos (HEIC) e otimização automática.
 
 ## 1. Visão Geral do Módulo
@@ -15,18 +17,23 @@ O módulo é composto pelos seguintes componentes:
 ### Etapa 1: Configuração e Dependências (Concluído)
 - [x] Adicionar `Pillow`, `pillow-heif` e `imgdiet` ao `requirements.txt`.
 - [x] Criar `app/bootstrap/config/image.py` com as constantes de limite (MAX_WIDTH, MAX_HEIGHT, TARGET_PSNR).
+- [x] Validar ambiente local/docker com as novas bibliotecas.
 
-### Etapa 2: Refinamento do Pipeline
-- [ ] Ajustar `app/shared/services/image/pipeline.py` para lidar com buffers em memória (`bytes`) além de arquivos em disco, para evitar I/O desnecessário antes da persistência final.
-- [ ] Garantir que o `cleanup_intermediate_files` funcione corretamente em ambientes Docker (pastas temporárias).
+### Etapa 2: Validação e Testes Unitários (TDD - Concluído)
+- [x] Criar testes unitários em `tests/unit/shared/services/image/`.
+- [x] Validar `validator.py`, `converter.py`, `resizer.py`, `optimizer.py` e `pipeline.py`.
+- [x] Garantir que o pipeline limpa arquivos temporários corretamente (`test_process_image_cleans_up_temp_directory`: verifica que o `TemporaryDirectory` criado pelo pipeline é removido do disco após a execução).
 
-### Etapa 3: Integração no Módulo de Panes
+### Etapa 3: Refinamento do Pipeline (Concluído)
+- [x] Ajustar `app/shared/services/image/pipeline.py` para lidar com buffers em memória (`bytes`) além de arquivos em disco.
+- [x] Implementar uso de `tempfile.TemporaryDirectory` para isolamento total e cleanup garantido.
+- [x] Atualizar `validator.py` para validar buffers diretamente via `io.BytesIO`.
+- [x] Validar que o pipeline retorna `bytes` quando o input é `bytes`, facilitando a integração com serviços de storage.
+
+### Etapa 4: Integração no Módulo de Panes
 - [ ] Local: `app/modules/panes/service.py` -> função `upload_anexo`.
 - [ ] **Mudança**: Antes de chamar `storage_svc.upload`, os `arquivo_bytes` devem passar pelo `pipeline.process_image`.
 - [ ] **Lógica de Fallback**: Caso o processamento falhe, decidir se o sistema deve aceitar o original (com aviso) ou rejeitar o upload.
-
-### Etapa 4: Integração no Módulo de Inspeções (Se aplicável)
-- [ ] Verificar se há campos de evidência fotográfica nas tarefas de inspeção que se beneficiariam do pipeline.
 
 ### Etapa 5: Processamento em Background (Performance)
 - [ ] Integrar com `fastapi.BackgroundTasks` no `router.py` de panes para que o usuário não precise esperar a otimização do `imgdiet` (que é intensiva em CPU) para receber a confirmação de upload.
@@ -43,5 +50,20 @@ O módulo é composto pelos seguintes componentes:
 - **Perda de Qualidade**: Compressão agressiva. **Mitigação**: O alvo de PSNR 40 garante que a perda seja imperceptível ao olho humano.
 
 ## 5. Próximos Passos Imediatos
-1. Criar testes unitários para o pipeline em `tests/unit/shared/services/image/`.
-2. Realizar a primeira integração experimental no upload de anexos de Panes.
+1. Iniciar a **Integração no Módulo de Panes (Etapa 4)**.
+2. Configurar o **Processamento em Background (Etapa 5)** para manter a agilidade da UI.
+
+## 6. Estado Atual da Implementação (2026-05-02)
+
+| Componente | Arquivo | Status |
+|---|---|:---:|
+| Dependências | `requirements.txt` | ✅ |
+| Constantes de config | `app/bootstrap/config/image.py` | ✅ |
+| Validador | `app/shared/services/image/validator.py` | ✅ |
+| Conversor HEIC | `app/shared/services/image/converter.py` | ✅ |
+| Redimensionador | `app/shared/services/image/resizer.py` | ✅ |
+| Otimizador (imgdiet) | `app/shared/services/image/optimizer.py` | ✅ |
+| Pipeline principal | `app/shared/services/image/pipeline.py` | ✅ |
+| Testes unitários | `tests/unit/shared/services/image/` | ✅ |
+| Integração em Panes | `app/modules/panes/service.py` | ⏳ |
+| Processamento em background | `app/modules/panes/router.py` | ⏳ |

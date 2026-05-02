@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -36,49 +37,55 @@ class ImageValidationError(ValueError):
 
 
 def validate_image(
-    input_path: str | Path,
+    input_data: str | Path | bytes,
     *,
     allowed_extensions: frozenset[str] | None = None,
     max_file_size_bytes: int | None = None,
     min_file_size_bytes: int = 1,
-) -> Path:
+) -> Path | bytes:
     """
-    Valida se o arquivo existe, tem extensão suportada e é uma imagem legível.
+    Valida se o arquivo ou buffer existe, tem extensão suportada e é uma imagem legível.
 
-    Retorna o Path normalizado do arquivo quando estiver válido.
+    Retorna o Path ou bytes validado.
     """
-    path = Path(input_path).resolve()
+    if isinstance(input_data, bytes):
+        size = len(input_data)
+        source = io.BytesIO(input_data)
+        identifier = "buffer"
+    else:
+        path = Path(input_data).resolve()
+        if not path.exists():
+            raise FileNotFoundError(f"Arquivo não encontrado: {path}")
+        if not path.is_file():
+            raise ImageValidationError(f"O caminho não aponta para um arquivo válido: {path}")
 
-    if not path.exists():
-        raise FileNotFoundError(f"Arquivo não encontrado: {path}")
+        # Validar extensão apenas para arquivos
+        ext = path.suffix.lower()
+        allowed = allowed_extensions or ImageValidationConfig.allowed_extensions
+        if ext not in allowed:
+            raise ImageValidationError(
+                f"Extensão não suportada: {ext}. "
+                f"Permitidas: {', '.join(sorted(allowed))}"
+            )
+        
+        size = path.stat().st_size
+        source = path
+        identifier = str(path)
 
-    if not path.is_file():
-        raise ImageValidationError(f"O caminho não aponta para um arquivo válido: {path}")
-
-    ext = path.suffix.lower()
-    allowed = allowed_extensions or ImageValidationConfig.allowed_extensions
-
-    if ext not in allowed:
-        raise ImageValidationError(
-            f"Extensão não समर्थada: {ext}. "
-            f"Permitidas: {', '.join(sorted(allowed))}"
-        )
-
-    size = path.stat().st_size
     if size < min_file_size_bytes:
-        raise ImageValidationError(f"Arquivo vazio ou corrompido: {path}")
+        raise ImageValidationError(f"Arquivo vazio ou corrompido: {identifier}")
 
     if max_file_size_bytes is not None and size > max_file_size_bytes:
         raise ImageValidationError(
-            f"Arquivo excede o tamanho máximo permitido ({max_file_size_bytes} bytes): {path}"
+            f"Arquivo excede o tamanho máximo permitido ({max_file_size_bytes} bytes): {identifier}"
         )
 
     try:
-        with Image.open(path) as img:
+        with Image.open(source) as img:
             img.verify()
     except UnidentifiedImageError as exc:
-        raise ImageValidationError(f"Arquivo não parece ser uma imagem válida: {path}") from exc
+        raise ImageValidationError(f"Arquivo não parece ser uma imagem válida: {identifier}") from exc
     except Exception as exc:
-        raise ImageValidationError(f"Falha ao validar a imagem: {path}") from exc
+        raise ImageValidationError(f"Falha ao validar a imagem: {identifier}") from exc
 
-    return path
+    return input_data

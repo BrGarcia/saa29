@@ -23,6 +23,8 @@ app:
 - modules/inspecoes/: integrated_backend_active_with_task_catalog_decoupling
 - shared/core/: enums,helpers,storage,validators,limiter,exceptions
 - shared/middleware/: csrf
+- shared/services/image/: image_processing_pipeline (validator,converter,resizer,optimizer,pipeline)
+- bootstrap/config/: split_config_package (__init__.py=app_settings, image.py=image_pipeline_constants)
 - web/pages/router.py: html_routes (panes,frota,inventario,vencimentos,configuracoes,efetivo,inspecoes)
 - web/templates/: jinja_templates (base,panes,aeronaves,inventario,vencimentos,configuracoes,efetivo,inspecoes)
 - web/static/js/: configuracoes.js,vencimentos.js,inventario.js,panes.js,app.js,auth_check.js,inspecoes.js,inspecao_detalhe.js
@@ -47,6 +49,7 @@ scripts:
 tests:
 - unit/: feature_and_api_behavior
 - unit/test_inspecoes.py: isolated_inspections_service_router_security_tests
+- unit/shared/services/image/: image_pipeline_unit_tests (test_validator,test_converter,test_resizer,test_optimizer,test_pipeline)
 - security/: csrf_refresh
 - architecture/: architecture_and_perf_guards
 

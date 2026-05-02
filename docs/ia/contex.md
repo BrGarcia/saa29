@@ -47,7 +47,8 @@ domains:
 - equipamentos: modelo (PN), slot, item (SN), instalacao, inventario
 - vencimentos: tipo_controle, periodicidade_pn, matriz_vencimentos, prorrogacoes (OK, VENCENDO, VENCIDO, PRORROGADO)
 - configuracoes: admin_dashboard, gerenciamento_frota, administracao_efetivo, regras_vencimento
-- inspecoes: isolated_backend_scaffold_not_registered (tipos_inspecao,tarefas_template,inspecoes,inspecao_tarefas)
+- inspecoes: integrated_fully_active (tipos_inspecao,tarefas_catalogo,tarefas_template,inspecoes,inspecao_tarefas)
+- shared/image_pipeline: service_layer_for_image_processing (validator,converter,resizer,optimizer,pipeline)
 
 auth_state:
 - access_token: jwt_hs256
@@ -113,3 +114,7 @@ known_gaps_from_roadmap:
 - bug_fix_badge_man_trigrama_resolved: true (distinguish template vs manual via tarefa_catalogo_id)
 - feature_remove_req_column_from_inspections: completed
 - rbac_documentation_active: true (docs/architecture/RBAC.md)
+- image_pipeline_module_active: partial (shared/services/image pipeline + tests ready; integration in panes/service.py pending)
+- image_pipeline_integration_rule: all_image_uploads_must_call_process_image_before_storage
+- image_pipeline_config: app/bootstrap/config/image.py (MAX_WIDTH,MAX_HEIGHT,TARGET_PSNR,MIN_SIZE_SKIP)
+- image_pipeline_backlog: docs/BACKLOG/implamentacao_image_editor.md
