@@ -120,7 +120,7 @@ function renderizarCabecalho() {
                     <strong>Pacote(s):</strong> ${pacotes}
                 </p>
                 <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary); font-size: 0.9rem;">
-                    Aberto em ${new Date(inspecaoAtual.data_abertura).toLocaleString()} por ${inspecaoAtual.aberto_por?.posto || ''} ${inspecaoAtual.aberto_por?.nome || 'Sistema'}${inspecaoAtual.aberto_por?.trigrama ? ` <span style="font-family: monospace; font-size: 0.8rem; font-weight: 700; background: var(--bg-tertiary, rgba(0,0,0,0.08)); padding: 0.1rem 0.4rem; border-radius: 4px; letter-spacing: 0.05rem;">${escapeHtml(inspecaoAtual.aberto_por.trigrama)}</span>` : ''}
+                    Aberto em ${new Date(inspecaoAtual.data_abertura).toLocaleString()} por ${inspecaoAtual.aberto_por?.posto || ''} ${inspecaoAtual.aberto_por?.nome || 'Sistema'}${inspecaoAtual.aberto_por_trigrama ? ` <span style="font-family: monospace; font-size: 0.8rem; font-weight: 700; background: var(--bg-tertiary, rgba(0,0,0,0.08)); padding: 0.1rem 0.4rem; border-radius: 4px; letter-spacing: 0.05rem;">${escapeHtml(inspecaoAtual.aberto_por_trigrama)}</span>` : ''}
                 </p>
                 ${renderizarLinhasDatas(inspecaoAtual)}
                 ${inspecaoAtual.observacoes ? `<p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; background: rgba(0,0,0,0.05); padding: 0.5rem; border-radius: var(--radius-sm); border-left: 3px solid var(--primary-color);">Obs: ${escapeHtml(inspecaoAtual.observacoes)}</p>` : ''}

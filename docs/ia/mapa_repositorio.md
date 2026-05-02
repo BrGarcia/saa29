@@ -32,7 +32,7 @@ app:
 
 app/modules/inspecoes:
 - __init__.py: passive_package
-- models.py: TipoInspecao,TarefaCatalogo,TarefaTemplate,Inspecao,InspecaoTarefa
+- models.py: TipoInspecao,TarefaCatalogo,TarefaTemplate,Inspecao (with persistent audit),InspecaoTarefa
 - schemas.py: local_status_enums,pydantic_contracts
 - service.py: business_rules_crud_instantiation_completion_extras_audit
 - router.py: api_router_fully_registered_and_bootstrapped

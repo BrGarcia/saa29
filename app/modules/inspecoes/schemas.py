@@ -119,6 +119,7 @@ class InspecaoCreate(BaseModel):
     aeronave_id: uuid.UUID
     tipos_inspecao_ids: list[uuid.UUID] = Field(min_length=1)
     data_inicio: datetime | None = None
+    data_fim_prevista: datetime | None = None
     observacoes: str | None = None
 
 
@@ -184,8 +185,10 @@ class InspecaoOut(BaseModel):
     data_conclusao: datetime | None
     observacoes: str | None
     aberto_por_id: uuid.UUID
+    aberto_por_trigrama: str | None = None
     aberto_por: UsuarioResumo | None = None
     concluido_por_id: uuid.UUID | None
+    concluido_por_trigrama: str | None = None
     concluido_por: UsuarioResumo | None = None
     created_at: datetime
     updated_at: datetime | None
@@ -205,6 +208,8 @@ class InspecaoListItem(BaseModel):
     data_fim_prevista: datetime | None
     data_conclusao: datetime | None
     observacoes: str | None
+    aberto_por_trigrama: str | None = None
+    concluido_por_trigrama: str | None = None
     total_tarefas: int = 0
     tarefas_concluidas: int = 0
     progresso_percentual: int = 0

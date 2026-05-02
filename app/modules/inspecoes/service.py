@@ -377,12 +377,16 @@ async def abrir_inspecao(
         data_inicio=dados.data_inicio or datetime.now(timezone.utc),
         observacoes=dados.observacoes,
         aberto_por_id=aberto_por_id,
+        aberto_por_trigrama=usuario.trigrama,
     )
 
     # Calculo da DPE (Data Prevista de Encerramento)
-    duracao_maxima = max((t.duracao_dias for t in tipos), default=0)
-    if duracao_maxima > 0:
-        inspecao.data_fim_prevista = inspecao.data_inicio + timedelta(days=duracao_maxima)
+    if dados.data_fim_prevista:
+        inspecao.data_fim_prevista = dados.data_fim_prevista
+    else:
+        duracao_maxima = max((t.duracao_dias for t in tipos), default=0)
+        if duracao_maxima > 0:
+            inspecao.data_fim_prevista = inspecao.data_inicio + timedelta(days=duracao_maxima)
     db.add(inspecao)
     await db.flush()
 
@@ -559,6 +563,7 @@ async def concluir_inspecao(
     inspecao.status = StatusInspecao.CONCLUIDA.value
     inspecao.data_conclusao = datetime.now(timezone.utc)
     inspecao.concluido_por_id = concluido_por_id
+    inspecao.concluido_por_trigrama = usuario.trigrama
     if inspecao.aeronave:
         inspecao.aeronave.status = StatusAeronave.DISPONIVEL.value
     await db.flush()

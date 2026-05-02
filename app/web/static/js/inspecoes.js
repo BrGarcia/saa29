@@ -104,7 +104,7 @@ async function carregarInspecoes() {
                     <div style="font-size: 0.85rem; color: var(--text-secondary); display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
                         <span>Abertura: ${new Date(i.data_abertura).toLocaleDateString()}</span>
                         ${i.data_fim_prevista ? `<span style="color: ${_dpeCardColor(i)};">DPE: ${new Date(i.data_fim_prevista).toLocaleDateString('pt-BR')}</span>` : ''}
-                        ${i.aberto_por?.trigrama ? `<span style="font-family: monospace; font-size: 0.8rem; font-weight: 700; background: var(--bg-tertiary, rgba(0,0,0,0.08)); padding: 0.1rem 0.4rem; border-radius: 4px;" title="Aberto por">${escapeHtml(i.aberto_por.trigrama)}</span>` : ''}
+                        ${i.aberto_por_trigrama ? `<span style="font-family: monospace; font-size: 0.8rem; font-weight: 700; background: var(--bg-tertiary, rgba(0,0,0,0.08)); padding: 0.1rem 0.4rem; border-radius: 4px;" title="Aberto por">${escapeHtml(i.aberto_por_trigrama)}</span>` : ''}
                     </div>
                 </div>
 
@@ -156,6 +156,7 @@ function openModalNovaInspecao() {
     const hoje = new Date().toISOString().split('T')[0];
     document.getElementById('novaInspecaoDataInicio').value = hoje;
     document.getElementById('novaInspecaoDPE').value = '';
+    document.getElementById('novaInspecaoDPE').style.color = 'var(--text-color)';
 }
 
 function closeModalNovaInspecao() {
@@ -183,8 +184,10 @@ function recalcularDPE() {
     const dataInicio = new Date(dataInicioInput.value + 'T00:00:00');
     const dpe = new Date(dataInicio);
     dpe.setDate(dpe.getDate() + maxDuracao);
-    dpeInput.value = dpe.toLocaleDateString('pt-BR');
-    dpeInput.style.color = 'var(--text-secondary)';
+    
+    // Formato yyyy-mm-dd para input type="date"
+    dpeInput.value = dpe.toISOString().split('T')[0];
+    dpeInput.style.color = 'var(--text-color)';
 }
 
 async function salvarNovaInspecao(e) {
@@ -197,8 +200,11 @@ async function salvarNovaInspecao(e) {
     const tipos_inspecao_ids = Array.from(tiposSelect.selectedOptions).map(o => o.value);
     const observacoes = document.getElementById('novaInspecaoObs').value.trim() || null;
     const dataInicioRaw = document.getElementById('novaInspecaoDataInicio').value;
+    const dataDPERaw = document.getElementById('novaInspecaoDPE').value;
+
     // Converter yyyy-MM-dd -> ISO 8601 com horário local em UTC (meio-dia para evitar drift de fuso)
     const data_inicio = dataInicioRaw ? new Date(dataInicioRaw + 'T12:00:00').toISOString() : null;
+    const data_fim_prevista = dataDPERaw ? new Date(dataDPERaw + 'T12:00:00').toISOString() : null;
 
     if (!aeronave_id || tipos_inspecao_ids.length === 0) {
         showToast("Selecione a aeronave e pelo menos 1 tipo de inspeção.", "error");
@@ -209,7 +215,7 @@ async function salvarNovaInspecao(e) {
     try {
         const resp = await apiFetch('/inspecoes/', {
             method: 'POST',
-            body: { aeronave_id, tipos_inspecao_ids, observacoes, data_inicio }
+            body: { aeronave_id, tipos_inspecao_ids, observacoes, data_inicio, data_fim_prevista }
         });
         showToast("Inspeção aberta com sucesso!", "success");
         closeModalNovaInspecao();

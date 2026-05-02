@@ -130,7 +130,9 @@ class Inspecao(Base):
     data_conclusao: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     observacoes: Mapped[str | None] = mapped_column(Text, nullable=True)
     aberto_por_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=False)
+    aberto_por_trigrama: Mapped[str | None] = mapped_column(String(10), nullable=True)
     concluido_por_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=True)
+    concluido_por_trigrama: Mapped[str | None] = mapped_column(String(10), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 

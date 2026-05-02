@@ -16,6 +16,8 @@ tarefa_catalogo: global_task_catalog_for_inspections
 tarefa_template: reusable_task_template_for_inspection_type
 inspecao: aircraft_inspection_event
 inspecao_tarefa: instantiated_task_inside_inspection
+dpe: data_prevista_encerramento
+trigrama: user_audit_code
 status_inspecao: ABERTA_EM_ANDAMENTO_CONCLUIDA_CANCELADA
 status_tarefa_inspecao: PENDENTE_CONCLUIDA_NA
 rbac: role_based_access_control

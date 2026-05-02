@@ -1,7 +1,7 @@
 # ctx
 
 meta:
-- sync_date: 2026-05-01
+- sync_date: 2026-05-02
 - mode: machine
 - format: kv_short
 - truth: official_docs_first
@@ -76,6 +76,8 @@ core_rules:
 - RN-I08: tarefas_extras_manuais_via_frontend_completed
 - RN-I09: auditoria_checklist_coluna_atualizacao_trigrama_completed
 - RN-I10: desacoplamento_tarefas_catalogo_global_completed
+- RN-I11: DPE_calculada_pela_maior_duracao_dos_tipos (DPE = inicio + max_duracao_tipos, permite override manual)
+- RN-I12: captura_auditoria_trigrama_persistente_na_inspecao (aberto_por_trigrama, concluido_por_trigrama)
 
 current_focus:
 - docs_synced: true (IA updated for isolated inspections scaffold)
@@ -91,6 +93,7 @@ current_focus:
 - inspecoes_migration_created: true
 - inspecoes_frontend_integrated: completed
 - inspecoes_full_module_completed: true
+- inspecoes_dpe_and_audit_trigrama_completed: true
 - ddd_modularization_completed: true
 - frontend_csp_refactoring_completed: true (removed all inline scripts)
 - alembic_migrations_up_to_date: true
@@ -99,6 +102,8 @@ backlog_inspecoes:
 - feature_tarefas_extras: completed
 - feature_auditoria_checklist: completed
 - feature_desacoplamento_tarefas_catalogo: completed
+- feature_duracao_tipos_e_dpe: completed
+- feature_auditoria_trigrama_persistente: completed
 - csp_compliance: mandatory_for_all_new_UI (no_inline_scripts_no_onclick_attrs)
 
 known_gaps_from_roadmap:
