@@ -101,8 +101,10 @@ async function carregarInspecoes() {
                 
                 <div>
                     <div style="font-weight: 500; color: var(--text-color); margin-bottom: 0.25rem;">Pacote(s): ${pacotes}</div>
-                    <div style="font-size: 0.85rem; color: var(--text-secondary);">
-                        Abertura: ${new Date(i.data_abertura).toLocaleDateString()}
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                        <span>Abertura: ${new Date(i.data_abertura).toLocaleDateString()}</span>
+                        ${i.data_fim_prevista ? `<span style="color: ${_dpeCardColor(i)};">DPE: ${new Date(i.data_fim_prevista).toLocaleDateString('pt-BR')}</span>` : ''}
+                        ${i.aberto_por?.trigrama ? `<span style="font-family: monospace; font-size: 0.8rem; font-weight: 700; background: var(--bg-tertiary, rgba(0,0,0,0.08)); padding: 0.1rem 0.4rem; border-radius: 4px;" title="Aberto por">${escapeHtml(i.aberto_por.trigrama)}</span>` : ''}
                     </div>
                 </div>
 
@@ -132,6 +134,16 @@ function getStatusColor(status) {
         'CANCELADA': '#e74c3c'
     };
     return map[status] || 'var(--text-secondary)';
+}
+
+function _dpeCardColor(inspecao) {
+    if (!inspecao.data_fim_prevista || inspecao.status === 'CONCLUIDA' || inspecao.status === 'CANCELADA') {
+        return 'var(--text-secondary)';
+    }
+    const diff = Math.ceil((new Date(inspecao.data_fim_prevista) - new Date()) / (1000 * 60 * 60 * 24));
+    if (diff < 0)  return 'var(--status-danger, #e74c3c)';
+    if (diff <= 7) return '#f39c12';
+    return 'var(--text-secondary)';
 }
 
 function openModalNovaInspecao() {
