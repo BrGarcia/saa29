@@ -1,7 +1,7 @@
 # ctx
 
 meta:
-- sync_date: 2026-05-02
+- sync_date: 2026-05-03
 - mode: machine
 - format: kv_short
 - truth: official_docs_first

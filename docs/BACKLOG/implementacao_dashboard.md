@@ -40,7 +40,8 @@ A tela será dividida em "Cards" (ou widgets) responsivos. Cada card resume um d
 ## 4. UX e Trade-offs (Funcionalidade vs. Simplicidade)
 Como a prioridade é a **facilidade de uso**, o Dashboard deve ser primariamente **Informativo e Direcional**, e não um local de operação complexa. 
 
-**Decisão arquitetural sugerida:** Não colocaremos botões de edição complexa (ex: "Concluir Pane", "Realizar Inspeção") diretamente no Dashboard. Isso exigiria modais complexos e sobrecarregaria a interface. O fluxo será: *Ler o resumo no Dashboard -> Clicar no card -> Operar na tela específica do módulo*. Isso mantém a interface limpa e o código modular.
+**Decisão arquitetural sugerida:** Não colocaremos botões de edição complexa (ex: "Concluir Pane", "Realizar Inspeção") diretamente no Dashboard. Isso exigiria modais complexos e sobrecarregaria a interface. 
+O fluxo será: *Ler o resumo no Dashboard -> Clicar no card -> Operar na tela específica do módulo*. Isso mantém a interface limpa e o código modular.
 
 ---
 
@@ -49,5 +50,25 @@ Como a prioridade é a **facilidade de uso**, o Dashboard deve ser primariamente
 Para garantirmos que a implementação fique exatamente como você imagina, preciso da sua opinião nos seguintes pontos:
 
 1. **Página Inicial:** Você concorda que o Dashboard seja a página inicial padrão logo após o login, ou prefere que a tela inicial continue sendo alguma outra (ex: lista de panes) e o Dashboard seja acessado apenas ao clicar no botão superior?
+Resposta:SIM
 2. **Interatividade dos Cards:** Seguindo a regra da simplicidade, sugiro que clicar no Card leve o usuário para a página completa do módulo. Você prefere assim, ou gostaria de poder resolver pendências simples (como dar "OK" num vencimento) diretamente da tela do Dashboard sem mudar de página?
+Resposta: Sim, Clicar no Card direciona o usuário para a página do módulo
 3. **Prioridade Visual:** Dos 4 cards iniciais (Panes, Vencimentos, Aeronaves em Inspeção, Inventário), qual deles é o mais crítico no dia a dia e deve ter o maior destaque na tela (ex: ficar no topo ou ocupar a largura inteira)?
+Resposta: A Prioridade é Panes > Vencimentos > Inspeção > Inventário > Frota 
+    COMO SERA A EXIBIÇÃO:
+        Panes: 
+        Vencimentos: 
+        Inspeção: 
+        Inventário: 
+        Frota (Quantidade de Aeronaves DISPONIVEL, INDISPONIVEL, INSPEÇÃO, ESTOCADA, INATIVA)
+
+
+
+
+## 6. Estado Atual da Implementação (2026-05-02)
+
+| Componente | Arquivo | Status |
+|---|---|---:|
+| Estrutura e Layout | `app/modules/dashboard/` | ⏳ |
+| Conexão com banco | `app/modules/dashboard/service.py` | ⏳ |
+| Interface (Cards) | `app/modules/dashboard/router.py` | ⏳ |  

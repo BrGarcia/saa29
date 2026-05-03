@@ -25,9 +25,9 @@ supervisores possam acompanhar o status das panes sem risco de alterar dados.
 │  Navegador │ ──────► │  Railway (prod)  │ ──────► │  SQLite .db  │
 │  (Usuário) │         │  Docker + App    │         │  (efêmero)   │
 └────────────┘         └──────────────────┘         └──────┬───────┘
-                                                          │
+                                                           │
                                                     Backup periódico
-                                                          │
+                                                           │
                                                    ┌──────▼───────┐
                                                    │ Cloudflare R2│
                                                    │ (storage)    │
@@ -47,7 +47,7 @@ supervisores possam acompanhar o status das panes sem risco de alterar dados.
 │  MacBook (local) │              │  Railway (cloud) │
 │  Docker Desktop  │              │  Docker + App    │
 │  restart: always │              │  (sleep/standby) │
-│  localhost:8000   │              │  saa29.up.ry.app │
+│  localhost:8000  │              │  saa29.up.ry.app │
 │                  │              │                  │
 │  OPERAÇÃO DIÁRIA │              │  FALLBACK/REMOTO │
 │  (Administrador) │              │  (Inspetor, etc) │

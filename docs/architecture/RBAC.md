@@ -19,7 +19,8 @@ O sistema possui três níveis de acesso, definidos no enum `TipoPapel` (`app/sh
 | **Geral** 
 | | Login / Logout / Alterar própria senha 				| ✅ | ✅ | ✅ |
 
-| **Panes** | Registrar nova pane 						| ✅ | ✅ | ✅ |
+| **Panes** 
+| | Registrar nova pane 						        | ✅ | ✅ | ✅ |
 | | Visualizar listagem e detalhes 						| ✅ | ✅ | ✅ |
 | | Adicionar anexos e comentários 						| ✅ | ✅ | ✅ |
 | | Assumir responsabilidade (si mesmo) 				| ✅ | ✅ | ✅ |
@@ -28,30 +29,34 @@ O sistema possui três níveis de acesso, definidos no enum `TipoPapel` (`app/sh
 | | Remover anexos / Concluir pane 						| ✅ | ✅ | ✅ |
 | | Excluir (soft delete) / Restaurar pane 				| ❌ | ✅ | ✅ |
 
-| **Aeronaves** | Listar e detalhar frota 				| ✅ | ✅ | ✅ |
+| **Aeronaves** 
+| | Listar e detalhar frota 				            | ✅ | ✅ | ✅ |
 | | Alternar status operacional 						| ❌ | ✅ | ✅ |
 | | Atualizar dados técnicos 							| ❌ | ✅ | ✅ |
 | | Cadastrar nova aeronave								| ❌ | ❌ | ✅ |
 
-| **Equipamentos**| Consultar inventário e modelos 		| ✅ | ✅ | ✅ |
+| **Equipamentos**
+| | Consultar inventário e modelos 		                | ✅ | ✅ | ✅ |
 | | Consultar histórico de movimentações 				| ✅ | ✅ | ✅ |
 | | Cadastrar PN / Slot / Item físico 					| ❌ | ✅ | ✅ |
-| | Instalar / Remover equipamento						| ❌ | ✅ | ✅ |
-| | Ajustar S/N real (Sincronismo) 						| ❌ | ✅ | ✅ |
+| | Instalar / Remover equipamento						| ✅ | ✅ | ✅ |
+| | Ajustar S/N real (Sincronismo) 						| ✅ | ✅ | ✅ |
 
-| **Vencimentos** | Consultar matriz de vencimentos 	| ✅ | ✅ | ✅ |
+| **Vencimentos** 
+| | Consultar matriz de vencimentos 			        | ✅ | ✅ | ✅ |
 | | Registrar execução de tarefa 						| ✅ | ✅ | ✅ |
-| | Gerenciar regras de periodicidade 					| ❌ | ✅ | ✅ |
-| | Prorrogar vencimento (Engenharia) 			        | ✅ | ✅ | ✅ | * Verificar Nota abaixo.
+| | Gerenciar regras de periodicidade 					| ❌ | ❌ | ✅ |
+| | Prorrogar vencimento (Engenharia) 			        | ❌ | ✅ | ✅ | * Nota: A prorrogação de vencimento exige justificativa técnica (Acessoramento Técnico do parque)
 
-| **Inspeções** | Listar inspeções e catálogo 			| ✅ | ✅ | ✅ |
+| **Inspeções** 
+| | Listar inspeções e catálogo 			            | ✅ | ✅ | ✅ |
 | | Executar tarefa (marcar checklist) 					| ✅ | ✅ | ✅ |
 | | Abrir / Cancelar / Concluir inspeção	 			| ❌ | ✅ | ✅ |
 | | Gerenciar Tipos e Catálogo de Tarefas 				| ❌ | ✅ | ✅ |
-| **Administração**| Gerenciar Efetivo (Usuários) 		| ❌ | ❌ | ✅ |
-| | Acesso à página de Configurações 					| ❌ | ✅ | ✅ |
 
-*\* Nota: A prorrogação de vencimento exige justificativa técnica (Acessoramento Técnico do parque)e, embora permitida via API para Mantenedores em situações específicas, é monitorada por auditoria.*
+| **Administração**
+| | Gerenciar Efetivo (Usuários) 					    | ❌ | ❌ | ✅ |
+| | Acesso à página de Configurações 					| ❌ | ❌ | ✅ |
 
 ---
 
