@@ -43,13 +43,15 @@ class OrigemControle(str, enum.Enum):
 class TipoPapel(str, enum.Enum):
     """
     Papel/função de um usuário responsável por uma pane.
-    Perfis do sistema (v1.0):
+    Perfis do sistema (v2.0):
         - MANTENEDOR: execução de manutenção
         - ENCARREGADO: gestão operacional (+ permissões do mantenedor)
+        - INSPETOR: fiscalização e validação (não executa)
         - ADMINISTRADOR: gestão total do sistema (+ cadastro de aeronaves e efetivo)
     """
     MANTENEDOR = "MANTENEDOR"
     ENCARREGADO = "ENCARREGADO"
+    INSPETOR = "INSPETOR"
     ADMINISTRADOR = "ADMINISTRADOR"
 
 

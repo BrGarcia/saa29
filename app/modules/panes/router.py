@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException, File, UploadFile, Query, status
 from fastapi.responses import FileResponse, RedirectResponse
 
 from app.modules.panes import schemas, service
-from app.bootstrap.dependencies import DBSession, CurrentUser, ensure_role
+from app.bootstrap.dependencies import DBSession, CurrentUser, ensure_role, ExecucaoPermitida
 
 router = APIRouter()
 
@@ -180,7 +180,7 @@ async def concluir_pane(
 async def upload_anexo(
     pane_id: uuid.UUID,
     db: DBSession,
-    _: CurrentUser,
+    _: ExecucaoPermitida,
     arquivo: UploadFile = File(description="Imagem (jpg/png) ou documento"),
 ) -> schemas.AnexoOut:
     from app.shared.core.file_validators import validate_file_upload

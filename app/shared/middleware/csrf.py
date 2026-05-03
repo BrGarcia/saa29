@@ -13,6 +13,8 @@ class CsrfSettings(BaseModel):
     # O contrato exige que o token assinado fique no cookie
     # e o token bruto seja enviado pelo Header.
     cookie_name: str = "fastapi-csrf-token"
+    # Ensure PATCH is supported
+    methods: set[str] = {"POST", "PUT", "PATCH", "DELETE"}
 
 @CsrfProtect.load_config
 def get_csrf_config():

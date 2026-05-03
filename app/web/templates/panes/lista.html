@@ -20,7 +20,7 @@
             <option value="">TODOS STATUS</option>
             <option value="ABERTA" selected>ABERTA</option>
             <option value="RESOLVIDA">RESOLVIDA</option>
-            <option value="EXCLUIDAS">EXCLUIDAS (Lixeira)</option>
+            <option value="EXCLUIDAS" data-role="ENCARREGADO">EXCLUIDAS (Lixeira)</option>
         </select>
     </div>
 
@@ -90,7 +90,7 @@
                 <textarea id="descricaoInput" name="descricao" class="form-input" rows="3" placeholder="Detalhes do problema reportado..."></textarea>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" data-role="ENCARREGADO">
                 <label class="form-label">Responsável (Opcional)</label>
                 <select id="mantenedorResponsavelSelect" name="mantenedor_responsavel_id" class="form-input">
                     <option value="">-- Não atribuir responsável --</option>

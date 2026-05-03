@@ -6,6 +6,7 @@
 - RN-05: RBAC:
   - MANTENEDOR: Register Panes, Add Anexo, Execute Vencimentos/Inspections, Self-Assign responsibility.
   - ENCARREGADO: CRUD (most), Assign any responsibility, Manage Inspections, Extend Vencimentos.
+  - INSPETOR: Validate Inspections, Control Vencimentos, View Aircraft Status (No execution rights).
   - ADMINISTRADOR: Manage Efetivo (Users), Global Configs, Register Aircraft.
 - RN-06: Vencimentos: Extension requires technical justification; Execution resets counter and disables active extension.
 - RN-07: Inspecoes: Open instance generates tasks from templates; Conclusion requires mandatory tasks resolved; Persistent audit of open/close trigram.

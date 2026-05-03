@@ -6,7 +6,7 @@ Endpoints para a inteligência temporal de manutenções e vencimentos.
 import uuid
 from fastapi import APIRouter, HTTPException, status
 from app.modules.vencimentos import schemas, service
-from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin, AdminRequired
+from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin, AdminRequired, EncarregadoInspetorOuAdmin
 
 router = APIRouter()
 
@@ -129,7 +129,7 @@ async def registrar_execucao(
     vencimento_id: uuid.UUID,
     dados: schemas.ControleVencimentoUpdate,
     db: DBSession,
-    current_user: EncarregadoOuAdmin,
+    current_user: CurrentUser,
 ):
     vencimento = await service.registrar_execucao(
         db, vencimento_id, dados.data_ultima_exec, current_user.id

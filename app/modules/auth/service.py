@@ -246,6 +246,7 @@ async def garantir_usuarios_essenciais(db: AsyncSession) -> None:
     if settings.app_env == "development":
         usuarios_teste = [
             ("encarregado", "ENCARREGADO", "Chefe de Linha", "Cap"),
+            ("inspetor", "INSPETOR", "Inspetor de Qualidade", "SO"),
             ("mantenedor", "MANTENEDOR", "Técnico Especialista", "Sgt"),
         ]
         for user, role, nome, posto in usuarios_teste:

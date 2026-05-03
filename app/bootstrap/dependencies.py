@@ -141,6 +141,20 @@ def require_role(*roles: str):
 # Atalhos de RBAC para uso direto nos routers
 AdminRequired = Annotated[Usuario, Depends(require_role("ADMINISTRADOR"))]
 EncarregadoRequired = Annotated[Usuario, Depends(require_role("ENCARREGADO"))]
+InspetorRequired = Annotated[Usuario, Depends(require_role("INSPETOR"))]
+
 EncarregadoOuAdmin = Annotated[
     Usuario, Depends(require_role("ENCARREGADO", "ADMINISTRADOR"))
+]
+
+InspetorOuAdmin = Annotated[
+    Usuario, Depends(require_role("INSPETOR", "ADMINISTRADOR"))
+]
+
+EncarregadoInspetorOuAdmin = Annotated[
+    Usuario, Depends(require_role("ENCARREGADO", "INSPETOR", "ADMINISTRADOR"))
+]
+
+ExecucaoPermitida = Annotated[
+    Usuario, Depends(require_role("MANTENEDOR", "ENCARREGADO", "ADMINISTRADOR"))
 ]

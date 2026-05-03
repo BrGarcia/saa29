@@ -55,7 +55,7 @@ auth_state:
 - access_token: jwt_hs256
 - refresh_token: persisted_rotated
 - transport: authorization_header_or_cookie_saa29_token
-- roles: ADMINISTRADOR, ENCARREGADO, MANTENEDOR
+- roles: ADMINISTRADOR, ENCARREGADO, INSPETOR, MANTENEDOR
 
 core_rules:
 - RN-01: pane_requires_aeronave

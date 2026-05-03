@@ -13,8 +13,7 @@
         </select>
     </div>
 
-        <!-- Novo Membro (apenas ADMINISTRADOR) -->
-    <button class="btn btn-primary" id="btn-add-membro" style="display:none;">
+    <button class="btn btn-primary" id="btn-add-membro" data-role="ADMINISTRADOR">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-8 0v2M12 11a4 4 0 100-8 4 4 0 000 8zM20 8v6M23 11h-6"/></svg>
         Adicionar ao Sistema
     </button>
@@ -29,7 +28,7 @@
                 <th style="padding: 1rem; font-weight: 600;">Login NIP</th>
                 <th style="padding: 1rem; font-weight: 600;">Função (Perfil)</th>
                 <th style="padding: 1rem; font-weight: 600;">Ramal</th>
-                <th id="th-acoes" style="padding: 1rem; font-weight: 600; display:none;">Ações</th>
+                <th id="th-acoes" style="padding: 1rem; font-weight: 600;" data-role="ADMINISTRADOR">Ações</th>
             </tr>
         </thead>
         <tbody id="efetivo-table-body">

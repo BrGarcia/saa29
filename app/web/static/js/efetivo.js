@@ -191,16 +191,10 @@ window.closeEditarMembro = closeEditarMembro;
 window.loadEfetivo = loadEfetivo;
 
 document.addEventListener("DOMContentLoaded", () => {
-    const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
-    isAdmin = (user.funcao || '').toUpperCase() === 'ADMINISTRADOR';
+    isAdmin = window.hasPermission('ADMINISTRADOR');
     if(isAdmin) {
         const btnAdd = document.getElementById('btn-add-membro');
-        if(btnAdd) {
-            btnAdd.style.display = 'inline-flex';
-            btnAdd.addEventListener('click', openModalMembro);
-        }
-        const thAcoes = document.getElementById('th-acoes');
-        if(thAcoes) thAcoes.style.display = 'table-cell';
+        if(btnAdd) btnAdd.addEventListener('click', openModalMembro);
     }
     loadEfetivo();
 

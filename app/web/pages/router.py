@@ -6,7 +6,7 @@ Rotas do Frontend (Jinja2 Templates). Servindo o MVP de Interface.
 from fastapi import APIRouter, Request, Depends, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from app.bootstrap.dependencies import get_current_user, require_role, EncarregadoOuAdmin
+from app.bootstrap.dependencies import get_current_user, require_role, AdminRequired
 
 router = APIRouter(tags=["Frontend"])
 
@@ -51,8 +51,8 @@ async def frota_page(request: Request, _=Depends(get_current_user)):
 
 
 @router.get("/efetivo", response_class=HTMLResponse, include_in_schema=False)
-async def efetivo_page(request: Request, _=Depends(require_role("ADMINISTRADOR"))):
-    """Visualização da Gestão de Usuários e Efetivo (Militares) - Apenas Admin"""
+async def efetivo_page(request: Request, _=Depends(get_current_user)):
+    """Visualização da Gestão de Usuários e Efetivo (Militares) - Consulta livre, edição restrita"""
     return templates.TemplateResponse("efetivo.html", {"request": request})
 
 
@@ -81,7 +81,7 @@ async def vencimentos_page(request: Request, _=Depends(get_current_user)):
 
 
 @router.get("/configuracoes", response_class=HTMLResponse, include_in_schema=False)
-async def configuracoes_page(request: Request, _=Depends(require_role("ADMINISTRADOR"))):
-    """Página de Configurações do Sistema - Admin ou Encarregado"""
+async def configuracoes_page(request: Request, _=Depends(AdminRequired)):
+    """Página de Configurações do Sistema - Admin"""
     return templates.TemplateResponse("configuracoes.html", {"request": request})
 

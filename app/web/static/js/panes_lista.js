@@ -51,7 +51,7 @@ async function loadPanes() {
                 ? "--"
                 : `<span class="badge" style="background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); font-family: monospace; font-size: 0.75rem;">${escapeHtml(responsavelTrigrama)}</span>`;
             
-            const showAdminActions = (funcao === 'ENCARREGADO' || funcao === 'ADMINISTRADOR');
+            const showAdminActions = window.hasPermission('ENCARREGADO');
 
             const tr = document.createElement("tr");
             tr.style.borderBottom = "1px solid var(--border-color)";

@@ -8,7 +8,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, status
 
 from app.modules.equipamentos import schemas, service
-from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin, AdminRequired
+from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin, AdminRequired, ExecucaoPermitida
 
 router = APIRouter()
 
@@ -166,7 +166,7 @@ async def instalar_item(
     item_id: uuid.UUID,
     dados: schemas.InstalacaoCreate,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    _: CurrentUser,
 ):
     instalacao = await service.instalar_item(
         db, item_id, dados.aeronave_id, dados.slot_id, dados.data_instalacao
@@ -183,7 +183,7 @@ async def remover_item(
     instalacao_id: uuid.UUID,
     dados: schemas.InstalacaoRemocao,
     db: DBSession,
-    current_user: EncarregadoOuAdmin,
+    current_user: CurrentUser,
 ):
     instalacao = await service.remover_item(
         db, instalacao_id, dados.data_remocao, usuario_id=current_user.id
@@ -233,7 +233,7 @@ async def listar_inventario(
 async def ajustar_inventario(
     dados: schemas.AjusteInventarioCreate,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    _: CurrentUser,
 ):
     """
     Ajusta o número de série físico de um equipamento.

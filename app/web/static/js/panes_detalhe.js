@@ -69,7 +69,7 @@ async function carregarDetalhe() {
         comInput.disabled = false;
 
         const localUser = JSON.parse(localStorage.getItem("saa29_user") || '{}');
-        ehGestorGlobal = (localUser.funcao === 'ENCARREGADO' || localUser.funcao === 'ADMINISTRADOR');
+        ehGestorGlobal = window.hasPermission('ENCARREGADO');
 
         let bClass = "badge-aberta";
         let statusLabel = pane.status.replace("_", " ");

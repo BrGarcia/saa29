@@ -12,7 +12,7 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
 
-from app.bootstrap.dependencies import CurrentUser, DBSession, EncarregadoOuAdmin, AdminRequired
+from app.bootstrap.dependencies import CurrentUser, DBSession, EncarregadoOuAdmin, AdminRequired, ExecucaoPermitida, EncarregadoInspetorOuAdmin
 from app.modules.inspecoes import schemas, service
 from app.shared.core.enums import StatusInspecao
 
@@ -42,7 +42,7 @@ async def listar_tipos_inspecao(
 async def criar_tipo_inspecao(
     dados: schemas.TipoInspecaoCreate,
     db: DBSession,
-    _: AdminRequired,
+    _: EncarregadoOuAdmin,
 ) -> schemas.TipoInspecaoOut:
     try:
         tipo = await service.criar_tipo_inspecao(db, dados)
@@ -65,7 +65,7 @@ async def atualizar_tipo_inspecao(
     tipo_id: uuid.UUID,
     dados: schemas.TipoInspecaoUpdate,
     db: DBSession,
-    _: AdminRequired,
+    _: EncarregadoOuAdmin,
 ) -> schemas.TipoInspecaoOut:
     try:
         tipo = await service.atualizar_tipo_inspecao(db, tipo_id, dados)
@@ -84,7 +84,7 @@ async def atualizar_tipo_inspecao(
 async def desativar_tipo_inspecao(
     tipo_id: uuid.UUID,
     db: DBSession,
-    _: AdminRequired,
+    _: EncarregadoOuAdmin,
 ) -> None:
     try:
         await service.desativar_tipo_inspecao(db, tipo_id)
@@ -115,7 +115,7 @@ async def listar_tarefas_catalogo(
 async def criar_tarefa_catalogo(
     dados: schemas.TarefaCatalogoCreate,
     db: DBSession,
-    _: AdminRequired,
+    _: EncarregadoOuAdmin,
 ) -> schemas.TarefaCatalogoOut:
     try:
         tarefa = await service.criar_tarefa_catalogo(db, dados)
@@ -133,7 +133,7 @@ async def atualizar_tarefa_catalogo(
     tarefa_id: uuid.UUID,
     dados: schemas.TarefaCatalogoUpdate,
     db: DBSession,
-    _: AdminRequired,
+    _: EncarregadoOuAdmin,
 ) -> schemas.TarefaCatalogoOut:
     try:
         tarefa = await service.atualizar_tarefa_catalogo(db, tarefa_id, dados)
@@ -152,7 +152,7 @@ async def atualizar_tarefa_catalogo(
 async def desativar_tarefa_catalogo(
     tarefa_id: uuid.UUID,
     db: DBSession,
-    _: AdminRequired,
+    _: EncarregadoOuAdmin,
 ) -> None:
     try:
         await service.desativar_tarefa_catalogo(db, tarefa_id)
@@ -184,7 +184,7 @@ async def criar_tarefa_template(
     tipo_id: uuid.UUID,
     dados: schemas.TarefaTemplateCreate,
     db: DBSession,
-    _: AdminRequired,
+    _: EncarregadoOuAdmin,
 ) -> schemas.TarefaTemplateOut:
     try:
         tarefa = await service.criar_tarefa_template(db, tipo_id, dados)
@@ -202,7 +202,7 @@ async def atualizar_tarefa_template(
     tarefa_id: uuid.UUID,
     dados: schemas.TarefaTemplateUpdate,
     db: DBSession,
-    _: AdminRequired,
+    _: EncarregadoOuAdmin,
 ) -> schemas.TarefaTemplateOut:
     try:
         tarefa = await service.atualizar_tarefa_template(db, tarefa_id, dados)
@@ -221,7 +221,7 @@ async def atualizar_tarefa_template(
 async def remover_tarefa_template(
     tarefa_id: uuid.UUID,
     db: DBSession,
-    _: AdminRequired,
+    _: EncarregadoOuAdmin,
 ) -> None:
     try:
         await service.remover_tarefa_template(db, tarefa_id)
@@ -238,7 +238,7 @@ async def reordenar_tarefas_template(
     tipo_id: uuid.UUID,
     dados: schemas.ReordenarTarefas,
     db: DBSession,
-    _: AdminRequired,
+    _: EncarregadoOuAdmin,
 ) -> list[schemas.TarefaTemplateOut]:
     try:
         tarefas = await service.reordenar_tarefas_template(db, tipo_id, dados)
