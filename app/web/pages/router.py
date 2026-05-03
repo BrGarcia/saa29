@@ -81,7 +81,7 @@ async def vencimentos_page(request: Request, _=Depends(get_current_user)):
 
 
 @router.get("/configuracoes", response_class=HTMLResponse, include_in_schema=False)
-async def configuracoes_page(request: Request, _=Depends(AdminRequired)):
+async def configuracoes_page(request: Request, _: AdminRequired):
     """Página de Configurações do Sistema - Admin"""
     return templates.TemplateResponse("configuracoes.html", {"request": request})
 
