@@ -36,6 +36,15 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 
 ## [Unreleased]
 
+### Added
+- **RBAC v2:** Implementação do novo papel `INSPETOR`, focado exclusivamente em fiscalização e validação, sem permissões de execução. O Enum `TipoPapel`, matriz de permissões (`RBAC.md`) e dependências (`ExecucaoPermitida`, `InspetorOuAdmin`) foram devidamente atualizados.
+- Usuário de teste (`inspetor`) adicionado ao seed de desenvolvimento.
+
+### Fixed
+- **Segurança (CSRF):** Correção do erro 403 Forbidden ("Falha na sincronia de segurança") ao executar rotas com método `PATCH` (ex: execução de vencimentos) devido a configuração incompleta na biblioteca `fastapi-csrf-protect`.
+- **Frontend:** Atualizada a lógica de `apiFetch` em `app.js` para diferenciar corretamente os erros de permissão de RBAC dos erros genuínos de CSRF (ambos retornam 403), exibindo agora a mensagem correta retornada pela API.
+- **Frontend (RBAC):** Suporte a múltiplos papéis na tag HTML `data-role` (ex: `data-role="ENCARREGADO,INSPETOR"`) para controle preciso de visibilidade de botões.
+
 ---
 
 ## [1.0.1] - 2026-04-16
