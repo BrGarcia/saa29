@@ -97,11 +97,6 @@ async function apiFetch(endpoint, options = {}) {
             throw new Error("Sessão expirada.");
         }
 
-        if (response.status === 403) {
-            // 403 (Forbidden) é erro de CSRF, não desloga.
-            throw new Error("Falha na sincronia de segurança (CSRF). Por favor, recarregue a página (F5).");
-        }
-        
         let data;
         try {
             data = await response.json();
@@ -109,6 +104,13 @@ async function apiFetch(endpoint, options = {}) {
             data = null;
         }
 
+        if (response.status === 403) {
+            // 403 (Forbidden) pode ser erro de permissão (RBAC) ou CSRF.
+            let errMsg = data?.detail || "Falha na sincronia de segurança (CSRF). Por favor, recarregue a página (F5).";
+            if (typeof errMsg !== 'string') errMsg = JSON.stringify(errMsg);
+            throw new Error(errMsg);
+        }
+        
         if (!response.ok) {
             let errMsg = data?.detail || "Erro desconhecido na API";
             if (typeof errMsg !== 'string') errMsg = JSON.stringify(errMsg);
