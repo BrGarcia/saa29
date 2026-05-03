@@ -23,6 +23,7 @@ from scripts.seed import (
     seed_vencimentos,
     seed_inventario,
     seed_panes,
+    seed_tarefas,
     seed_inspecoes
 )
 
@@ -51,7 +52,10 @@ async def main():
             # 6. Panes (Dados aleatórios para dashboard)
             await seed_panes.run(session)
             
-            # 7. Inspeções (Tipos, tarefas, inspeções em frota)
+            # 7. Tarefas (Tipos, catálogo, templates)
+            await seed_tarefas.run(session)
+
+            # 8. Inspeções (Abertura de inspeções em frota)
             await seed_inspecoes.run(session)
             
             await session.commit()

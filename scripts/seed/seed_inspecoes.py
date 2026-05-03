@@ -1,154 +1,183 @@
 """
 scripts/seed/seed_inspecoes.py
-Popula dados de tipos de inspeção, catálogo de tarefas, templates e
-instâncias de inspeções ativas para a frota.
 
-Estrutura atual (desacoplada):
-    TarefaCatalogo  → catálogo global de tarefas
-    TarefaTemplate  → vínculo N:N entre TipoInspecao e TarefaCatalogo
-    Inspecao        → instância de inspeção para uma aeronave
+Define os tipos de inspeção e abre instâncias de inspeção na frota.
+
+Regras do modelo:
+- Y é calendarizada.
+- A e C são controladas por horas de voo.
+- Os sufixos numéricos representam ciclos acumulados:
+  Y, 2Y, 3Y...
+  A, 2A, 3A...
+  C, 2C, 3C...
+
+Este seed usa variáveis de ambiente para simular o estado da aeronave:
+- INSPECAO_HORAS_VOO_ATUAL: horas de voo atuais para cálculo das fases A/C.
+- INSPECAO_DATA_INICIO_OPERACAO: data de início da operação para cálculo das fases Y.
+- INSPECAO_DATA_REFERENCIA (opcional): data usada como "hoje" na simulação.
 """
+from __future__ import annotations
+
+import os
+import random
+from datetime import date, datetime, timedelta, timezone
+from typing import Iterable
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import uuid
 
 from app.modules.aeronaves.models import Aeronave
 from app.modules.auth.models import Usuario
-from app.modules.inspecoes.models import TipoInspecao, TarefaCatalogo, TarefaTemplate
-from app.modules.inspecoes.service import abrir_inspecao
+from app.modules.inspecoes.models import TipoInspecao
 from app.modules.inspecoes.schemas import InspecaoCreate
+from app.modules.inspecoes.service import abrir_inspecao
+from scripts.seed import seed_tarefas
 
-FROTA_ALVO = ["5902", "5905", "5906", "5912", "5914"]
+# ----------------------------------------------------------------------
+# Configuração da simulação
+# ----------------------------------------------------------------------
+FH_BASE_A = 700
+FH_BASE_C = 3000
+DIAS_BASE_A = 5
+DIAS_BASE_C = 10
+DIAS_BASE_Y = 7
+
+HORAS_VOO_ATUAL = float(os.getenv("INSPECAO_HORAS_VOO_ATUAL", "3500"))
+DATA_INICIO_OPERACAO = os.getenv("INSPECAO_DATA_INICIO_OPERACAO", "2020-01-01")
+DATA_REFERENCIA = os.getenv("INSPECAO_DATA_REFERENCIA")  # opcional
+
+FROTA_ALVO = ["5902", "5905", "5906", "5912", "5914", "5915", "5916", "5919"]
+
+# ----------------------------------------------------------------------
+# Tipos de Inspeção
+# ----------------------------------------------------------------------
+# Observação:
+# - duracao_dias = 0 nas inspeções controladas por horas de voo.
+# - O campo permanece apenas para compatibilidade com o modelo atual.
+TIPOS_DATA = [
+    # Calendárias
+    {"codigo": "Y",     "nome": "Inspeção Y",     "descricao": "Inspeção calendarizada base do ciclo Y",           "duracao_dias": DIAS_BASE_Y},
+    {"codigo": "2Y",    "nome": "Inspeção 2Y",    "descricao": "Inspeção calendarizada de 2 ciclos Y",             "duracao_dias": DIAS_BASE_Y * 2},
+    {"codigo": "3Y",    "nome": "Inspeção 3Y",    "descricao": "Inspeção calendarizada de 3 ciclos Y",             "duracao_dias": DIAS_BASE_Y * 3},
+    {"codigo": "4Y",    "nome": "Inspeção 4Y",    "descricao": "Inspeção calendarizada de 4 ciclos Y",             "duracao_dias": DIAS_BASE_Y * 4},
+
+    # Por horas de voo - fase A
+    {"codigo": "A",     "nome": "Inspeção A",     "descricao": "Inspeção por horas de voo do ciclo A",             "duracao_dias": DIAS_BASE_A},
+    {"codigo": "2A",    "nome": "Inspeção 2A",    "descricao": "Inspeção por horas de voo de 2 ciclos A",          "duracao_dias": DIAS_BASE_A * 2},
+    {"codigo": "3A",    "nome": "Inspeção 3A",    "descricao": "Inspeção por horas de voo de 3 ciclos A",          "duracao_dias": DIAS_BASE_A * 3},
+    {"codigo": "4A",    "nome": "Inspeção 4A",    "descricao": "Inspeção por horas de voo de 4 ciclos A",          "duracao_dias": DIAS_BASE_A * 4},
+    {"codigo": "5A",    "nome": "Inspeção 5A",    "descricao": "Inspeção por horas de voo de 5 ciclos A",          "duracao_dias": DIAS_BASE_A * 5},
+
+    # Por horas de voo - fase C
+    {"codigo": "C",     "nome": "Inspeção C",     "descricao": "Inspeção pesada por horas de voo do ciclo C",      "duracao_dias": DIAS_BASE_C},
+    {"codigo": "2C",    "nome": "Inspeção 2C",    "descricao": "Inspeção pesada por horas de voo de 2 ciclos C",   "duracao_dias": DIAS_BASE_C * 2},
+    {"codigo": "3C",    "nome": "Inspeção 3C",    "descricao": "Inspeção pesada por horas de voo de 3 ciclos C",   "duracao_dias": DIAS_BASE_C * 3},
+
+    # Não programadas
+    {"codigo": "ESP",   "nome": "Inspeção Especial",   "descricao": "Inspeção não programada ou sob demanda",                 "duracao_dias": 2},
+    {"codigo": "PMAINT","nome": "Pós-Manutenção",      "descricao": "Inspeção executada após manutenção relevante",           "duracao_dias": 2},
+    {"codigo": "PPANE", "nome": "Pós-Pane",            "descricao": "Inspeção executada após pane ou ocorrência técnica",     "duracao_dias": 1},
+    {"codigo": "ARMAZ", "nome": "Pós-Armazenamento",   "descricao": "Inspeção executada após armazenamento prolongado",       "duracao_dias": 5},
+]
+
+# ----------------------------------------------------------------------
+# Helpers
+# ----------------------------------------------------------------------
+def _parse_date(value: str) -> date:
+    return datetime.strptime(value, "%Y-%m-%d").date()
+
+
+def _add_years(base: date, years: int) -> date:
+    try:
+        return base.replace(year=base.year + years)
+    except ValueError:
+        # 29/02 -> 28/02 em anos não bissextos
+        return base.replace(month=2, day=28, year=base.year + years)
+
+
+def _normalize_codes(codes: Iterable[str]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for code in codes:
+        if code not in seen:
+            seen.add(code)
+            ordered.append(code)
+    return ordered
+
+
+def _calcular_tipos_aplicaveis(
+    horas_voo: float,
+    data_inicio_operacao: date,
+    data_referencia: date,
+) -> list[str]:
+    codigos: list[str] = []
+
+    # Y = calendarizada
+    for ciclo in range(1, 5):
+        if data_referencia >= _add_years(data_inicio_operacao, ciclo):
+            codigos.append("Y" if ciclo == 1 else f"{ciclo}Y")
+
+    # A = 700 FH por ciclo
+    for ciclo in range(1, 6):
+        if horas_voo >= FH_BASE_A * ciclo:
+            codigos.append("A" if ciclo == 1 else f"{ciclo}A")
+
+    # C = 3000 FH por ciclo
+    for ciclo in range(1, 4):
+        if horas_voo >= FH_BASE_C * ciclo:
+            codigos.append("C" if ciclo == 1 else f"{ciclo}C")
+
+    return _normalize_codes(codigos)
 
 
 async def run(session: AsyncSession):
-    print("🚀 [Inspeções] Populando Tipos, Templates e Instâncias de Inspeção...")
+    print("🚀 [Inspeções] Iniciando carga de tipos e instâncias...")
 
-    # 1. Obter usuário admin para autoria
+    data_inicio_operacao = _parse_date(DATA_INICIO_OPERACAO)
+    data_referencia = _parse_date(DATA_REFERENCIA) if DATA_REFERENCIA else datetime.now(timezone.utc).date()
+
+    print(
+        f"   > Simulação: horas_voo={HORAS_VOO_ATUAL}, "
+        f"início_operação={data_inicio_operacao.isoformat()}, "
+        f"referência={data_referencia.isoformat()}"
+    )
+
+    # 1. Obter usuário admin
     res_user = await session.execute(select(Usuario).limit(1))
     admin_user = res_user.scalars().first()
     if not admin_user:
-        print("   ! Nenhum usuário encontrado. Pulando seed de inspeções.")
+        print("   ! Admin não encontrado. Pulando.")
         return
 
-    # 2. Criar Tipos de Inspeção se não existirem
-    tipos_data = [
-        {"codigo": "BFT", "nome": "Before Flight - Pré Voo",       "descricao": "Inspeção antes do primeiro voo do dia"},
-        {"codigo": "PFI", "nome": "Post Flight - Pós Voo",          "descricao": "Inspeção após o último voo"},
-        {"codigo": "50H", "nome": "Inspeção de 50 Horas",           "descricao": "Inspeção periódica de fase 50h"},
-    ]
-
+    # 2. Popular/Atualizar Tipos de Inspeção
     tipos_dict: dict[str, TipoInspecao] = {}
-    for tdata in tipos_data:
-        res = await session.execute(
-            select(TipoInspecao).where(TipoInspecao.codigo == tdata["codigo"])
-        )
+    for tdata in TIPOS_DATA:
+        res = await session.execute(select(TipoInspecao).where(TipoInspecao.codigo == tdata["codigo"]))
         tipo = res.scalar_one_or_none()
         if not tipo:
             tipo = TipoInspecao(**tdata)
             session.add(tipo)
-            await session.flush()
+        else:
+            tipo.nome = tdata["nome"]
+            tipo.descricao = tdata["descricao"]
+            tipo.duracao_dias = tdata["duracao_dias"]
+        await session.flush()
         tipos_dict[tdata["codigo"]] = tipo
 
-    # 3. Criar Catálogo Global de Tarefas (se ainda não houver nenhuma)
-    res_cat = await session.execute(select(TarefaCatalogo).limit(1))
-    catalogo_vazio = res_cat.scalar_one_or_none() is None
+    # 3. Processar Templates de Tarefas (delegado ao seed_tarefas)
+    await seed_tarefas.run(session)
+    print("   + Tipos e Templates (via seed_tarefas) configurados.")
 
-    # Definição do catálogo: (título, descrição, sistema)
-    catalogo_raw = [
-        # BFT
-        ("Inspeção Externa Geral",        "Verificar ausência de danos na fuselagem",            "Fuselagem"),
-        ("Verificação de Pneus",          "Checar pressão e desgaste dos pneus",                 "Trem de Pouso"),
-        ("Fluidos Hidráulicos",           "Checar nível do reservatório principal e freios",      "Hidráulico"),
-        ("Nível de Óleo do Motor",        "Checar nível de óleo do motor PT6",                   "Motor"),
-        ("Tubo de Pitot e Estática",      "Remover capas e verificar desobstrução",              "Aviônicos"),
-        ("Cockpit Geral",                 "Verificar assentos, cintos e comandos",               "Cabine"),
-        ("Teste de Bateria (BFT)",        "Ligar bateria e checar voltagem mínima de 24V",       "Elétrica"),
-        # PFI
-        ("Instalação de Capas e Pinos",   "Colocar pinos de segurança e capas de pitot/AOA",    "Geral"),
-        ("Inspeção Motor Pós Voo",        "Verificar vazamentos de óleo pós corte",              "Motor"),
-        ("Superfícies de Controle",       "Verificar dobradiças e atuadores",                   "Fuselagem"),
-        ("Freios Pós Voo",                "Verificar temperatura e desgaste de pastilhas",       "Trem de Pouso"),
-        ("Canopy",                        "Limpar e inspecionar trincas",                        "Cabine"),
-        ("Bateria Pós Voo",               "Desligar e verificar disjuntores abertos",            "Elétrica"),
-        # 50H
-        ("Lubrificação do Trem de Pouso", "Graxa nas articulações conforme manual",              "Trem de Pouso"),
-        ("Filtro de Óleo 50H",            "Remover, inspecionar e limpar filtro de tela",        "Motor"),
-        ("Bateria Principal 50H",         "Remoção para teste de capacidade em bancada",         "Elétrica"),
-        ("Extintor de Incêndio",          "Verificar pressão do manômetro e validade",           "Emergência"),
-        ("Assento Ejetável",              "Inspeção visual dos cartuchos e pinos",               "Cabine"),
-        ("Filtro do Ar Condicionado",     "Inspecionar e limpar filtro ECS",                    "Pneumático"),
-        ("Teste Operacional de Luzes",    "Testar Landing/Taxi/Nav/Anti-Collision",              "Elétrica"),
-    ]
+    # 4. Determinar tipos aplicáveis pela simulação
+    tipos_aplicaveis = _calcular_tipos_aplicaveis(
+        horas_voo=HORAS_VOO_ATUAL,
+        data_inicio_operacao=data_inicio_operacao,
+        data_referencia=data_referencia,
+    )
 
-    catalogo_por_titulo: dict[str, TarefaCatalogo] = {}
+    print(f"   > Tipos aplicáveis calculados: {', '.join(tipos_aplicaveis) if tipos_aplicaveis else 'nenhum'}")
 
-    if catalogo_vazio:
-        for titulo, descricao, sistema in catalogo_raw:
-            tc = TarefaCatalogo(titulo=titulo, descricao=descricao, sistema=sistema)
-            session.add(tc)
-            catalogo_por_titulo[titulo] = tc
-        await session.flush()
-        print(f"   + {len(catalogo_raw)} Tarefas adicionadas ao Catálogo Global.")
-    else:
-        # Já existe catálogo — apenas carrega para referenciar nos templates
-        res_all = await session.execute(select(TarefaCatalogo))
-        for tc in res_all.scalars().all():
-            catalogo_por_titulo[tc.titulo] = tc
-
-    # 4. Vincular Tarefas ao Template de cada Tipo (se ainda não houver vínculos)
-    res_tmpl = await session.execute(select(TarefaTemplate).limit(1))
-    templates_vazios = res_tmpl.scalar_one_or_none() is None
-
-    if templates_vazios:
-        # BFT: tarefas 0-6 do catálogo_raw (índices 0 a 6), obrigatórias todas
-        bft_tarefas = [
-            ("Inspeção Externa Geral",    True),
-            ("Verificação de Pneus",      True),
-            ("Fluidos Hidráulicos",       True),
-            ("Nível de Óleo do Motor",    True),
-            ("Tubo de Pitot e Estática",  True),
-            ("Cockpit Geral",             True),
-            ("Teste de Bateria (BFT)",    True),
-        ]
-        # PFI: índices 7-12
-        pfi_tarefas = [
-            ("Instalação de Capas e Pinos", True),
-            ("Inspeção Motor Pós Voo",      True),
-            ("Superfícies de Controle",     True),
-            ("Freios Pós Voo",              True),
-            ("Canopy",                      False),
-            ("Bateria Pós Voo",             True),
-        ]
-        # 50H: índices 13-19
-        h50_tarefas = [
-            ("Lubrificação do Trem de Pouso", True),
-            ("Filtro de Óleo 50H",            True),
-            ("Bateria Principal 50H",          True),
-            ("Extintor de Incêndio",           True),
-            ("Assento Ejetável",               True),
-            ("Filtro do Ar Condicionado",      False),
-            ("Teste Operacional de Luzes",     True),
-        ]
-
-        def _vincular(tipo_obj: TipoInspecao, lista: list[tuple[str, bool]]) -> None:
-            for i, (titulo, obrig) in enumerate(lista, start=1):
-                tc = catalogo_por_titulo.get(titulo)
-                if tc:
-                    session.add(TarefaTemplate(
-                        tipo_inspecao_id=tipo_obj.id,
-                        tarefa_catalogo_id=tc.id,
-                        ordem=i,
-                        obrigatoria=obrig,
-                    ))
-
-        _vincular(tipos_dict["BFT"], bft_tarefas)
-        _vincular(tipos_dict["PFI"], pfi_tarefas)
-        _vincular(tipos_dict["50H"], h50_tarefas)
-        await session.flush()
-        print("   + Templates vinculados: BFT (7 tarefas), PFI (6), 50H (7).")
-
-    # 5. Abrir Inspeções para aeronaves alvo (se disponíveis)
+    # 5. Abrir Inspeções para aeronaves alvo
     res_acft = await session.execute(
         select(Aeronave).where(Aeronave.matricula.in_(FROTA_ALVO))
     )
@@ -157,26 +186,37 @@ async def run(session: AsyncSession):
     inspecoes_criadas = 0
     for acft in aeronaves_alvo:
         if acft.status != "DISPONIVEL":
-            continue  # já em inspeção ou outro status
+            continue
 
-        if acft.matricula in ["5902", "5905"]:
-            tipos_ids = [tipos_dict["BFT"].id]
-        elif acft.matricula in ["5906", "5912"]:
-            tipos_ids = [tipos_dict["PFI"].id]
-        else:  # 5914
-            tipos_ids = [tipos_dict["50H"].id, tipos_dict["BFT"].id]
+        # Selecionar aleatoriamente entre 2 e 4 tipos dos aplicáveis para diversificar o seed
+        n_sortear = min(len(tipos_aplicaveis), random.randint(2, 4))
+        tipos_sorteados = random.sample(tipos_aplicaveis, k=n_sortear)
+
+        tipos_ids = [
+            tipos_dict[codigo].id
+            for codigo in tipos_sorteados
+            if codigo in tipos_dict
+        ]
+
+        if not tipos_ids:
+            print(f"   - {acft.matricula}: nenhum tipo aplicável sorteado.")
+            continue
 
         dados = InspecaoCreate(
             aeronave_id=acft.id,
             tipos_inspecao_ids=tipos_ids,
-            observacoes=f"Inspeção automática de seed ({uuid.uuid4().hex[:6]})",
+            data_inicio=datetime.now(timezone.utc) - timedelta(days=1),
+            observacoes="Inspeção automática de seed baseada em horas de voo e data de início de operação.",
         )
         try:
             await abrir_inspecao(session, dados, admin_user.id)
             inspecoes_criadas += 1
+            print(f"   + {acft.matricula}: inspeção aberta com {len(tipos_ids)} tipo(s).")
         except Exception as e:
             print(f"   ! Falha ao abrir inspeção para {acft.matricula}: {e}")
 
     await session.flush()
     if inspecoes_criadas > 0:
-        print(f"   + {inspecoes_criadas} inspeções ativas abertas nas aeronaves.")
+        print(f"   + {inspecoes_criadas} inspeções ativas abertas.")
+    else:
+        print("   ! Nenhuma inspeção foi aberta.")

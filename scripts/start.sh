@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+export PYTHONPATH=$PYTHONPATH:.
 
 APP_ENV="${APP_ENV:-production}"
 ENABLE_DEV_SEEDS="${ENABLE_DEV_SEEDS:-false}"
