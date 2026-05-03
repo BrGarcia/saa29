@@ -12,6 +12,12 @@ Cobertura (ROADMAP Fase 2 – 2.1):
     - test_criar_usuario
     - test_criar_usuario_username_duplicado
     - test_listar_usuarios
+    - test_atualizar_usuario
+    - test_excluir_usuario
+    - test_restaurar_usuario
+    - test_alterar_senha
+    - test_logout
+    - test_rbac_protecao
 
 Padrão: Given / When / Then
 """
@@ -20,6 +26,8 @@ import uuid
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.modules.auth.models import Usuario
+from app.modules.auth.security import hash_senha, criar_token
 
 
 # ================================================================== #
@@ -27,6 +35,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # ================================================================== #
 
 LOGIN_URL = "/auth/login"
+LOGOUT_URL = "/auth/logout"
 USUARIOS_URL = "/auth/usuarios"
 ME_URL = "/auth/me"
 ROTA_PROTEGIDA = "/auth/usuarios"  # qualquer rota que exija auth
@@ -71,9 +80,6 @@ class TestLogin:
         QUANDO enviar username e senha corretos via form-data
         ENTÃO retornar token JWT e status 200.
         """
-        from app.modules.auth.models import Usuario
-        from app.modules.auth.security import hash_senha
-        
         # Criar usuário direto no banco para testar o login
         usuario = Usuario(
             nome=dados_usuario_valido["nome"],
@@ -105,9 +111,6 @@ class TestLogin:
         QUANDO enviar username 'JOAO.SILVA' ou 'Joao.Silva'
         ENTÃO retornar token JWT e status 200.
         """
-        from app.modules.auth.models import Usuario
-        from app.modules.auth.security import hash_senha
-        
         unique_username = f"user_{uuid.uuid4().hex[:6]}"
         usuario = Usuario(
             nome=dados_usuario_valido["nome"],
@@ -148,9 +151,6 @@ class TestLogin:
         QUANDO enviar senha incorreta
         ENTÃO retornar 401 Unauthorized.
         """
-        from app.modules.auth.models import Usuario
-        from app.modules.auth.security import hash_senha
-
         unique_username = f"user_{uuid.uuid4().hex[:6]}"
         usuario = Usuario(
             nome=dados_usuario_valido["nome"],
@@ -216,69 +216,127 @@ class TestRotasProtegidas:
 
 
 # ================================================================== #
-#  CRUD de Usuários
+#  CRUD de Usuários e RBAC
 # ================================================================== #
 
 class TestGestaoUsuarios:
 
     @pytest.mark.asyncio
-    async def test_criar_usuario(self, client: AsyncClient, dados_usuario_valido: dict):
+    async def test_criar_usuario_sucesso(self, client: AsyncClient, usuario_e_token: dict):
         """
-        DADO dados válidos de um novo usuário
-        QUANDO criar via POST /auth/usuarios (com token de admin)
-        ENTÃO retornar o usuário criado e status 201.
-
-        NOTA: O endpoint exige CurrentUser — será testado com token no Dia 4.
-        Este teste verifica que sem token retorna 401 (endpoint existe e está protegido).
-        """
-        response = await client.post(USUARIOS_URL, json=dados_usuario_valido)
-        # Sem token → 401; Com token e lógica → 201
-        assert response.status_code in (401, 201, 500)  # 500 = NotImplementedError esperado no Dia 3
-
-    @pytest.mark.asyncio
-    async def test_criar_usuario_campos_obrigatorios(self, client: AsyncClient):
-        """
-        DADO payload sem campos obrigatórios (nome, username, password)
-        QUANDO tentar criar usuário SEM token de autenticação
-        ENTÃO retornar 401 Unauthorized (auth executa antes da validação).
-        """
-        payload_invalido = {"posto": "Ten"}  # faltam nome, username, password, funcao
-        response = await client.post(USUARIOS_URL, json=payload_invalido)
-        assert response.status_code == 401
-
-    @pytest.mark.asyncio
-    async def test_criar_usuario_password_curta(self, client: AsyncClient):
-        """
-        DADO password com menos de 6 caracteres (mínimo definido no schema)
-        QUANDO criar usuário SEM token de autenticação
-        ENTÃO retornar 401 Unauthorized (auth executa antes da validação).
+        DADO um admin autenticado
+        QUANDO criar um novo usuário válido
+        ENTÃO retornar 201 e dados do usuário.
         """
         payload = {
-            "nome": "Ten Teste",
-            "posto": "Ten",
-            "funcao": "ADMINISTRADOR",
-            "username": "teste.usuario",
-            "password": "abc",   # < 6 chars
+            "nome": "Novo Usuario",
+            "posto": "Sgt",
+            "especialidade": "BMB",
+            "funcao": "MANTENEDOR",
+            "username": f"user.{uuid.uuid4().hex[:4]}",
+            "password": "password123",
+            "ramal": "1234"
         }
-        response = await client.post(USUARIOS_URL, json=payload)
-        assert response.status_code == 401
+        response = await client.post(USUARIOS_URL, json=payload, headers=usuario_e_token["headers"])
+        assert response.status_code == 201
+        assert response.json()["username"] == payload["username"]
 
     @pytest.mark.asyncio
-    async def test_listar_usuarios_requer_autenticacao(self, client: AsyncClient):
+    async def test_listar_usuarios_sucesso(self, client: AsyncClient, usuario_e_token: dict):
         """
-        DADO uma requisição sem token
-        QUANDO listar usuarios GET /auth/usuarios
-        ENTÃO retornar 401 Unauthorized.
+        DADO um usuário autenticado
+        QUANDO listar usuários
+        ENTÃO retornar 200 e uma lista.
         """
-        response = await client.get(USUARIOS_URL)
-        assert response.status_code == 401
+        response = await client.get(USUARIOS_URL, headers=usuario_e_token["headers"])
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
 
     @pytest.mark.asyncio
-    async def test_me_requer_autenticacao(self, client: AsyncClient):
+    async def test_atualizar_usuario(self, client: AsyncClient, db: AsyncSession, usuario_e_token: dict):
         """
-        DADO requisição sem token
-        QUANDO acessar GET /auth/me
-        ENTÃO retornar 401.
+        DADO um usuário existente e admin autenticado
+        QUANDO atualizar nome e ramal
+        ENTÃO retornar 200 e dados atualizados.
         """
-        response = await client.get(ME_URL)
-        assert response.status_code == 401
+        # Criar usuário alvo
+        u = Usuario(nome="Original", posto="Ten", funcao="MANTENEDOR", username=f"u.{uuid.uuid4().hex[:4]}", senha_hash="...")
+        db.add(u)
+        await db.flush()
+
+        payload = {"nome": "Nome Atualizado", "ramal": "9999"}
+        response = await client.put(f"{USUARIOS_URL}/{u.id}", json=payload, headers=usuario_e_token["headers"])
+        assert response.status_code == 200
+        assert response.json()["nome"] == "Nome Atualizado"
+        assert response.json()["ramal"] == "9999"
+
+    @pytest.mark.asyncio
+    async def test_excluir_e_restaurar_usuario(self, client: AsyncClient, db: AsyncSession, usuario_e_token: dict):
+        """
+        DADO um usuário existente
+        QUANDO deletar e depois restaurar
+        ENTÃO verificar os status codes 204 e 200.
+        """
+        u = Usuario(nome="Para Deletar", posto="Sgt", funcao="MANTENEDOR", username=f"del.{uuid.uuid4().hex[:4]}", senha_hash="...")
+        db.add(u)
+        await db.flush()
+
+        # Delete
+        res_del = await client.delete(f"{USUARIOS_URL}/{u.id}", headers=usuario_e_token["headers"])
+        assert res_del.status_code == 204
+
+        # Restaurar
+        res_rest = await client.post(f"{USUARIOS_URL}/{u.id}/restaurar", headers=usuario_e_token["headers"])
+        assert res_rest.status_code == 200
+        assert res_rest.json()["ativo"] is True
+
+    @pytest.mark.asyncio
+    async def test_alterar_senha(self, client: AsyncClient, db: AsyncSession, usuario_e_token: dict, dados_usuario_valido: dict):
+        """
+        DADO o usuário logado
+        QUANDO alterar a própria senha com a senha atual correta
+        ENTÃO retornar 204.
+        """
+        # A senha do usuario_e_token (fixture do conftest) é a da fixture dados_usuario_valido
+        payload = {
+            "senha_atual": dados_usuario_valido["password"],
+            "nova_senha": "nova_senha_678"
+        }
+        response = await client.put(f"/auth/usuarios/senha", json=payload, headers=usuario_e_token["headers"])
+        assert response.status_code == 204
+
+    @pytest.mark.asyncio
+    async def test_rbac_mantenedor_nao_pode_criar_usuario(self, client: AsyncClient, db: AsyncSession):
+        """
+        DADO um usuário MANTENEDOR autenticado
+        QUANDO tentar criar um usuário
+        ENTÃO retornar 403 Forbidden.
+        """
+        # Criar mantenedor
+        u_man = Usuario(
+            nome="Mantenedor", 
+            posto="Sgt", 
+            funcao="MANTENEDOR", 
+            username="man.teste", 
+            senha_hash=hash_senha("senha123")
+        )
+        db.add(u_man)
+        await db.flush()
+        
+        # Token manual - USANDO O USERNAME (conforme router.py cria_token(dados={"sub": usuario.username}))
+        token = criar_token({"sub": u_man.username})
+        headers = {"Authorization": f"Bearer {token}"}
+        
+        payload = {"nome": "Invasor", "posto": "Sgt", "funcao": "ADMINISTRADOR", "username": "hack", "password": "123", "ramal": "0"}
+        response = await client.post(USUARIOS_URL, json=payload, headers=headers)
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_logout_sucesso(self, client: AsyncClient, usuario_e_token: dict):
+        """
+        DADO um usuário logado
+        QUANDO fizer logout
+        ENTÃO retornar 204 No Content.
+        """
+        response = await client.post(LOGOUT_URL, headers=usuario_e_token["headers"])
+        assert response.status_code == 204
