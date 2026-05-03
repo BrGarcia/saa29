@@ -1,0 +1,7 @@
+# flows.ctx
+- Auth: login -> jwt_token -> refresh_rotated -> access_protected_routes
+- RBAC: ADMINISTRADOR (full), ENCARREGADO (ops), MANTENEDOR (tasks)
+- Panes: aircraft -> open_pane -> assign_mantenedor -> execute -> conclude
+- Vencimentos: track_pn_hours/months -> identify_due -> schedule_maintenance -> execute -> reset_counter
+- Inspecoes: select_types -> generate_tasks_from_templates -> audit_open_trigrama -> execute_tasks -> audit_completion_trigrama -> conclude
+- Image_Pipeline: upload -> validate -> convert_webp -> resize -> optimize -> store_r2/local

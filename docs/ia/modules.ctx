@@ -1,0 +1,14 @@
+# modules.ctx
+- app/bootstrap: config,database,dependencies,create_app
+- app/modules/auth: auth_users,jwt,refresh,blacklist
+- app/modules/efetivo: availability,absences,scales
+- app/modules/aeronaves: aircraft_crud,status
+- app/modules/panes: flow,attachments,responsaveis
+- app/modules/equipamentos: catalog,slots,physical_items,inventory
+- app/modules/vencimentos: temporal_intel,maint_rules,extensions
+- app/modules/inspecoes: active_backend,task_catalog,decoupling,audit_persistent
+- app/shared/core: enums,helpers,storage,validators,exceptions
+- app/shared/middleware: csrf
+- app/shared/services/image: pipeline,validator,converter,resizer,optimizer
+- app/web: router,jinja_templates,static_js_css
+- scripts: db_init,seed_base,inventory_seed,ops_maintenance

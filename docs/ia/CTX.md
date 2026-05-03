@@ -2,6 +2,7 @@
 
 meta:
 - sync_date: 2026-05-03
+- docs_structure: reorganized (core/, guides/, backlog/, summaries/, ia/*.ctx)
 - mode: machine
 - format: kv_short
 - truth: official_docs_first
@@ -122,4 +123,4 @@ known_gaps_from_roadmap:
 - image_pipeline_module_active: partial (shared/services/image pipeline + tests ready; integration in panes/service.py pending)
 - image_pipeline_integration_rule: all_image_uploads_must_call_process_image_before_storage
 - image_pipeline_config: app/bootstrap/config/image.py (MAX_WIDTH,MAX_HEIGHT,TARGET_PSNR,MIN_SIZE_SKIP)
-- image_pipeline_backlog: docs/BACKLOG/implamentacao_image_editor.md
+- image_pipeline_backlog: docs/backlog/implamentacao_image_editor.md

@@ -1,0 +1,11 @@
+# api.ctx
+# source: docs/architecture/referencia-api.md
+- Base: http://localhost:8000 (/docs for swagger)
+- Auth: JWT (Authorization: Bearer) or Cookie (saa29_token)
+- Endpoints:
+  - /auth: login, refresh, logout, me, usuarios (CRUD + pwd)
+  - /aeronaves: list, create, detail, update, toggle-status
+  - /panes: create, list, detail, update, concluir, anexos (CRUD), responsaveis (Add/Rem), restore
+  - /equipamentos: tipos-controle, modelos (CRUD), slots (CRUD), itens (CRUD), instalacao, remocao, exec-vencimento, inventario-historico, inventario-aeronave, ajuste-sinc
+  - /inspecoes: integrated (endpoints available in inspections router)
+- HTTP Status: 200/201 (OK/Created), 401 (Unauth), 403 (Forbidden), 404 (NotFound), 409 (Conflict), 422 (Pydantic Error)

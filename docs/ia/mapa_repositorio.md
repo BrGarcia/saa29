@@ -54,11 +54,16 @@ tests:
 - architecture/: architecture_and_perf_guards
 
 docs:
-- architecture/: source_for_architecture (Database.md, RBAC.md, overview.md)
-- api/: source_for_endpoints
-- development/: source_for_setup_tests_ops
-- requirements/: source_for_srs_specs
-- ia/: summarized_machine_docs
+- architecture/: source_for_architecture (Database.md, RBAC.md, overview.md, referencia-api.md)
+- core/: source_of_truth_specs (SRS.md, SPECS.md)
+- ia/: ai_context_layer (CTX.md, *.ctx files, glossario.md, mapa_repositorio.md, prompts_base.md)
+- summaries/: condensed_human_docs (PROJECT_SUMMARY.md, SRS_SUMMARY.md, SPECS_SUMMARY.md, MODEL_DB_SUMMARY.md)
+- guides/: operational_setup_docs (guia-desenvolvimento.md, guia-testes.md, cloudflare_r2.md, migracao_postgresql.md)
+- backlog/: planning_and_bugs (implementacoes pendentes, resolvidos/)
+- legacy/: historical_docs_and_archive
+- tdd/: test_planning
+- relatorio/: audit_reports
+- methodology/: AKITA.md
 
 ignore_likely:
 - .venv/

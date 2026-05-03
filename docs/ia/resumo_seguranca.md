@@ -31,8 +31,8 @@ sensitive_env:
 
 security_docs:
 - docs/SECURITY.md
-- docs/development/cloudflare_r2.md
-- docs/api/referencia-api.md
+- docs/guides/cloudflare_r2.md
+- docs/architecture/referencia-api.md
 - docs/architecture/RBAC.md
 
 files_of_interest:

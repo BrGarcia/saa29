@@ -1,0 +1,12 @@
+# rules.ctx
+- RN-01: Panes require Aircraft (aeronave_id).
+- RN-02: New Panes status = ABERTA.
+- RN-03: Edit Pane only if ABERTA.
+- RN-04: Conclude Pane sets data_conclusao.
+- RN-05: RBAC:
+  - MANTENEDOR: Register Panes, Add Anexo, Execute Vencimentos/Inspections, Self-Assign responsibility.
+  - ENCARREGADO: CRUD (most), Assign any responsibility, Manage Inspections, Extend Vencimentos.
+  - ADMINISTRADOR: Manage Efetivo (Users), Global Configs, Register Aircraft.
+- RN-06: Vencimentos: Extension requires technical justification; Execution resets counter and disables active extension.
+- RN-07: Inspecoes: Open instance generates tasks from templates; Conclusion requires mandatory tasks resolved; Persistent audit of open/close trigram.
+- RN-08: Inventory: S/N sync (Adjustment) requires matching slot/item; Item installation sets current location.
