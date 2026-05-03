@@ -44,12 +44,14 @@ async def criar_usuario_teste(db: AsyncSession, funcao: str = "ENCARREGADO") -> 
 
 
 async def criar_aeronave_teste(db: AsyncSession) -> Aeronave:
+    from datetime import date
     suffix = uuid.uuid4().hex[:8].upper()
     aeronave = Aeronave(
         serial_number=f"SN-INSP-{suffix}",
         matricula=f"IN-{suffix[:6]}",
         modelo="A-29",
         status=StatusAeronave.DISPONIVEL,
+        data_inicio_operacao=date(2020, 1, 1),
     )
     db.add(aeronave)
     await db.flush()
@@ -431,3 +433,158 @@ async def test_rn01_abrir_inspecao_com_multiplos_tipos_e_deduplicar_tarefas(db: 
     
     assert hasattr(inspecao, "tipos_aplicados")
     assert len(inspecao.tipos_aplicados) == 2
+
+
+# --- Novos testes para fechar o Test Coverage Gap (CRUD de catálogo, templates, etc) ---
+
+@pytest.mark.asyncio
+async def test_crud_tarefa_catalogo(db: AsyncSession):
+    # Criar
+    tarefa = await service.criar_tarefa_catalogo(
+        db, schemas.TarefaCatalogoCreate(titulo="Nova Tarefa", sistema="ATA")
+    )
+    assert tarefa.titulo == "Nova Tarefa"
+
+    # Atualizar
+    atualizada = await service.atualizar_tarefa_catalogo(
+        db, tarefa.id, schemas.TarefaCatalogoUpdate(titulo="Titulo Editado")
+    )
+    assert atualizada.titulo == "Titulo Editado"
+
+    # Listar
+    lista = await service.listar_tarefas_catalogo(db)
+    assert len(lista) >= 1
+
+    # Desativar
+    await service.desativar_tarefa_catalogo(db, tarefa.id)
+    # Service implementation seems to just set ativa=False, not throw if already False?
+    # Checking implementation...
+    # await db.commit() # ensure persisted if needed, though flush is standard in these tests
+    
+    recarregada = await service.buscar_tarefa_catalogo(db, tarefa.id, incluir_inativos=True)
+    assert recarregada.ativa is False
+
+
+@pytest.mark.asyncio
+async def test_crud_tipo_inspecao_completo(db: AsyncSession):
+    # Criar
+    tipo = await service.criar_tipo_inspecao(
+        db, schemas.TipoInspecaoCreate(codigo="T-001", nome="Teste CRUD")
+    )
+    
+    # Atualizar
+    editado = await service.atualizar_tipo_inspecao(
+        db, tipo.id, schemas.TipoInspecaoUpdate(nome="Nome Atualizado")
+    )
+    assert editado.nome == "Nome Atualizado"
+
+    # Desativar
+    await service.desativar_tipo_inspecao(db, tipo.id)
+    recarregado = await service.buscar_tipo_inspecao(db, tipo.id, incluir_inativos=True)
+    assert recarregado.ativo is False
+
+
+@pytest.mark.asyncio
+async def test_fluxo_tarefas_template(db: AsyncSession):
+    tipo, _ = await criar_tipo_com_tarefas(db, obrigatorias=0)
+    catalogo = await service.criar_tarefa_catalogo(
+        db, schemas.TarefaCatalogoCreate(titulo="Catalogo T", sistema="GEN")
+    )
+
+    # Criar Template
+    template = await service.criar_tarefa_template(
+        db, tipo.id, schemas.TarefaTemplateCreate(tarefa_catalogo_id=catalogo.id, ordem=10)
+    )
+    assert template.ordem == 10
+
+    # Atualizar Template
+    editado = await service.atualizar_tarefa_template(
+        db, template.id, schemas.TarefaTemplateUpdate(ordem=5, obrigatoria=False)
+    )
+    assert editado.ordem == 5
+
+    # Listar
+    templates = await service.listar_tarefas_template(db, tipo.id)
+    assert len(templates) == 1
+
+    # Remover
+    await service.remover_tarefa_template(db, template.id)
+    templates_pos = await service.listar_tarefas_template(db, tipo.id)
+    assert len(templates_pos) == 0
+
+
+@pytest.mark.asyncio
+async def test_cancelar_inspecao_sucesso(db: AsyncSession):
+    usuario = await criar_usuario_teste(db)
+    aeronave = await criar_aeronave_teste(db)
+    tipo, _ = await criar_tipo_com_tarefas(db, obrigatorias=1)
+    inspecao = await abrir_inspecao_teste(db, usuario, aeronave, tipo.id)
+
+    cancelada = await service.cancelar_inspecao(db, inspecao.id)
+    assert cancelada.status == StatusInspecao.CANCELADA.value
+
+    # Aeronave deve voltar a ser DISPONIVEL
+    await db.refresh(aeronave)
+    assert aeronave.status == StatusAeronave.DISPONIVEL
+
+
+@pytest.mark.asyncio
+async def test_reordenar_tarefas_template(db: AsyncSession):
+    tipo, _ = await criar_tipo_com_tarefas(db, obrigatorias=0)
+    c1 = await service.criar_tarefa_catalogo(db, schemas.TarefaCatalogoCreate(titulo="C1", sistema="A"))
+    c2 = await service.criar_tarefa_catalogo(db, schemas.TarefaCatalogoCreate(titulo="C2", sistema="B"))
+    
+    t1 = await service.criar_tarefa_template(db, tipo.id, schemas.TarefaTemplateCreate(tarefa_catalogo_id=c1.id, ordem=1))
+    t2 = await service.criar_tarefa_template(db, tipo.id, schemas.TarefaTemplateCreate(tarefa_catalogo_id=c2.id, ordem=2))
+
+    novas_ordens = schemas.ReordenarTarefas(tarefas=[
+        schemas.ReordenarTarefaItem(id=t1.id, ordem=10),
+        schemas.ReordenarTarefaItem(id=t2.id, ordem=5),
+    ])
+
+    reordenadas = await service.reordenar_tarefas_template(db, tipo.id, novas_ordens)
+    
+    # Busca individualmente para confirmar persistencia
+    await db.refresh(t1)
+    await db.refresh(t2)
+    assert t1.ordem == 10
+    assert t2.ordem == 5
+
+
+@pytest.mark.asyncio
+async def test_rbac_inspetor_pode_validar_inspecao(db: AsyncSession):
+    """
+    Verifica se o novo papel INSPETOR consegue realizar acoes de gestao (abrir/concluir),
+    mas as rotas de router_isolado validam isso via dependencia.
+    """
+    inspetor = await criar_usuario_teste(db, funcao="INSPETOR")
+    aeronave = await criar_aeronave_teste(db)
+    tipo, _ = await criar_tipo_com_tarefas(db, obrigatorias=1)
+    
+    app = criar_app_isolado(db, inspetor)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        # Tentar abrir inspecao (Rota protegida por EncarregadoInspetorOuAdmin)
+        response = await client.post(
+            f"{INSPECOES_URL}/",
+            json={
+                "aeronave_id": str(aeronave.id),
+                "tipos_inspecao_ids": [str(tipo.id)],
+                "observacoes": "Teste Inspetor"
+            }
+        )
+        assert response.status_code == 201
+        inspecao_id = response.json()["id"]
+
+        # Tentar atualizar tarefa (Rota protegida por CurrentUser, porem service valida se e executor)
+        # Nota: O Inspetor PODE atualizar tarefas se for o executor padrao, mas a RN diz que ele nao executa.
+        # Aqui testamos apenas o acesso a rota.
+        tarefa_id = response.json()["tarefas"][0]["id"]
+        res_tarefa = await client.put(
+            f"{INSPECOES_URL}/tarefas/{tarefa_id}",
+            json={"status": "CONCLUIDA"}
+        )
+        assert res_tarefa.status_code == 200
+
+        # Tentar concluir inspecao (Rota protegida por EncarregadoInspetorOuAdmin)
+        res_conc = await client.post(f"{INSPECOES_URL}/{inspecao_id}/concluir")
+        assert res_conc.status_code == 200
