@@ -4,7 +4,7 @@ Schemas Pydantic v2 para aeronaves.
 """
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -18,6 +18,9 @@ class AeronaveCreate(BaseModel):
     matricula: str = Field(..., max_length=20, examples=["5916"])
     modelo: str = Field(default="A-29", max_length=50)
     status: StatusAeronave = StatusAeronave.DISPONIVEL
+    horas_voo_total: float = Field(default=0.0, ge=0)
+    data_inicio_operacao: date
+    horas_atualizadas_em: datetime | None = None
 
 
 class AeronaveUpdate(BaseModel):
@@ -27,6 +30,9 @@ class AeronaveUpdate(BaseModel):
     matricula: str | None = Field(default=None, max_length=20, examples=["5916"])
     modelo: str | None = Field(default=None, max_length=50)
     status: StatusAeronave | None = None
+    horas_voo_total: float | None = Field(default=None, ge=0)
+    data_inicio_operacao: date | None = None
+    horas_atualizadas_em: datetime | None = None
 
 
 class AeronaveOut(BaseModel):
@@ -39,6 +45,9 @@ class AeronaveOut(BaseModel):
     matricula: str
     modelo: str
     status: StatusAeronave
+    horas_voo_total: float
+    data_inicio_operacao: date
+    horas_atualizadas_em: datetime | None
     created_at: datetime
 
 

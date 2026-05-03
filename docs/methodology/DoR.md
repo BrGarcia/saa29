@@ -50,7 +50,7 @@ Descreva o que deve acontecer (não como implementar).
 - [ ] Teste `test_criar_pane_sucesso` passando
 
 ### Referências
-- [01_SPECS.md §3 – Fluxo de Criação de Pane](../requirements/01_SPECS.md)
+- [SPECS.md §3 – Fluxo de Criação de Pane](../core/SPECS.md)
 - [Database.md §2.9 – Panes](../architecture/Database.md)
 ```
 

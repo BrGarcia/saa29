@@ -6,10 +6,10 @@ Modelo ORM para Aeronaves.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, DateTime, func, Enum
+from sqlalchemy import String, DateTime, Date, Float, func, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.bootstrap.database import Base
@@ -70,6 +70,24 @@ class Aeronave(Base):
         nullable=False,
         default=StatusAeronave.DISPONIVEL,
         comment="Status operacional: DISPONIVEL | INDISPONIVEL | INSPEÇÃO | ESTOCADA | INATIVA",
+    )
+
+    # --- Controle de Horas e Tempo ---
+    horas_voo_total: Mapped[float] = mapped_column(
+        Float,
+        default=0.0,
+        nullable=False,
+        comment="Horas totais acumuladas da aeronave",
+    )
+    data_inicio_operacao: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+        comment="Data de início de operação da aeronave",
+    )
+    horas_atualizadas_em: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Data e hora da última atualização das horas de voo",
     )
 
     # --- Auditoria ---

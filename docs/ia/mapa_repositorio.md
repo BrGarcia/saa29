@@ -63,7 +63,7 @@ docs:
 - legacy/: historical_docs_and_archive
 - tdd/: test_planning
 - relatorio/: audit_reports
-- methodology/: AKITA.md
+- methodology/: AKITA.md, DoD.md, DoR.md
 
 ignore_likely:
 - .venv/

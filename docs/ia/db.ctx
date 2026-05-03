@@ -1,7 +1,7 @@
 # db.ctx
 - Auth: usuarios (PK id, UNIQUE username, trigrama, funcao), token_blacklist, token_refresh
 - Efetivo: indisponibilidades (FK usuario_id, tipo, datas)
-- Aeronaves: aeronaves (PK id, UNIQUE serial_number, matricula, status)
+- Aeronaves: aeronaves (PK id, UNIQUE serial_number, matricula, status, horas_voo_total, data_inicio_operacao)
 - Equipamentos (Fisico): modelos_equipamento (PN), slots_inventario (posicao, FK modelo_id), itens_equipamento (SN, status), instalacoes (item_id, aeronave_id, slot_id)
 - Vencimentos (Temporal): tipos_controle (nome), equipamento_controles (template PN x Controle), controle_vencimentos (item_id, tipo_id, vencimento, status), prorrogacoes_vencimento
 - Panes: panes (aeronave_id, status ABERTA/RESOLVIDA, ativo), anexos (pane_id), pane_responsaveis

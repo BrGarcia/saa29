@@ -103,6 +103,8 @@ Fonte de verdade completa do sistema.
 | Arquivo | Função |
 |--------|-------|
 | `AKITA.md` | Diretrizes de desenvolvimento |
+| `DoD.md` | Definition of Done (Critérios de conclusão) |
+| `DoR.md` | Definition of Ready (Critérios para início) |
 
 ---
 

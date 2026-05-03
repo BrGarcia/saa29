@@ -89,6 +89,9 @@ O banco de dados atual do SAA29 possui os seguintes domínios:
 | `matricula` | String(20) | UNIQUE, NOT NULL, INDEX | Matricula operacional |
 | `modelo` | String(50) | NOT NULL, default `A-29` | Modelo da aeronave |
 | `status` | String(20) | NOT NULL, default `DISPONIVEL` | `DISPONIVEL` \| `INDISPONIVEL` \| `INSPEÇÃO` \| `ESTOCADA` \| `INATIVA` |
+| `horas_voo_total` | Float | NOT NULL, default `0.0` | Horas totais acumuladas |
+| `data_inicio_operacao`| Date | NOT NULL | Data de início de operação |
+| `horas_atualizadas_em`| DateTime tz | nullable | Última atualização de horas |
 | `created_at` | DateTime tz | NOT NULL, default `now()` | Auditoria |
 | `updated_at` | DateTime tz | nullable, onupdate `now()` | Auditoria |
 
