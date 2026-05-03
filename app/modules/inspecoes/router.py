@@ -333,7 +333,7 @@ async def buscar_inspecao(
 async def abrir_inspecao(
     dados: schemas.InspecaoCreate,
     db: DBSession,
-    usuario_atual: EncarregadoOuAdmin,
+    usuario_atual: EncarregadoInspetorOuAdmin,
 ) -> schemas.InspecaoOut:
     try:
         inspecao = await service.abrir_inspecao(db, dados, usuario_atual.id)
@@ -351,7 +351,7 @@ async def atualizar_inspecao(
     inspecao_id: uuid.UUID,
     dados: schemas.InspecaoUpdate,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    _: EncarregadoInspetorOuAdmin,
 ) -> schemas.InspecaoOut:
     try:
         inspecao = await service.atualizar_inspecao(db, inspecao_id, dados)
@@ -368,7 +368,7 @@ async def atualizar_inspecao(
 async def concluir_inspecao(
     inspecao_id: uuid.UUID,
     db: DBSession,
-    usuario_atual: EncarregadoOuAdmin,
+    usuario_atual: EncarregadoInspetorOuAdmin,
 ) -> schemas.InspecaoOut:
     try:
         inspecao = await service.concluir_inspecao(db, inspecao_id, usuario_atual.id)
@@ -385,7 +385,7 @@ async def concluir_inspecao(
 async def cancelar_inspecao(
     inspecao_id: uuid.UUID,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    _: EncarregadoInspetorOuAdmin,
 ) -> schemas.InspecaoOut:
     try:
         inspecao = await service.cancelar_inspecao(db, inspecao_id)

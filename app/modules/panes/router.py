@@ -144,7 +144,7 @@ async def concluir_pane(
     pane_id: uuid.UUID,
     dados: schemas.PaneConcluir,
     db: DBSession,
-    usuario_atual: CurrentUser,
+    usuario_atual: ExecucaoPermitida,
 ) -> schemas.PaneOut:
     """Conclui a pane. Preenche data_conclusao automaticamente (RN-04)."""
     try:
@@ -289,7 +289,7 @@ async def adicionar_responsavel(
     pane_id: uuid.UUID,
     dados: schemas.AdicionarResponsavel,
     db: DBSession,
-    usuario_atual: CurrentUser,
+    usuario_atual: ExecucaoPermitida,
 ) -> schemas.ResponsavelOut:
     # GESTORES podem atribuir qualquer um. MANTENEDORES podem atribuir apenas a si mesmos.
     if usuario_atual.funcao not in ["ENCARREGADO", "ADMINISTRADOR"]:

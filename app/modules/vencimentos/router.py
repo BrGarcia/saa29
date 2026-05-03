@@ -6,7 +6,7 @@ Endpoints para a inteligência temporal de manutenções e vencimentos.
 import uuid
 from fastapi import APIRouter, HTTPException, status
 from app.modules.vencimentos import schemas, service
-from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin, AdminRequired, EncarregadoInspetorOuAdmin
+from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin, AdminRequired, EncarregadoInspetorOuAdmin, ExecucaoPermitida
 
 router = APIRouter()
 
@@ -129,7 +129,7 @@ async def registrar_execucao(
     vencimento_id: uuid.UUID,
     dados: schemas.ControleVencimentoUpdate,
     db: DBSession,
-    current_user: CurrentUser,
+    current_user: ExecucaoPermitida,
 ):
     vencimento = await service.registrar_execucao(
         db, vencimento_id, dados.data_ultima_exec, current_user.id
@@ -145,7 +145,7 @@ async def prorrogar_prazo(
     vencimento_id: uuid.UUID,
     dados: schemas.ProrrogacaoVencimentoCreate,
     db: DBSession,
-    user: EncarregadoOuAdmin,
+    user: EncarregadoInspetorOuAdmin,
 ):
     prorrogacao = await service.prorrogar_vencimento(db, vencimento_id, dados, user.id)
     return schemas.ProrrogacaoVencimentoOut.model_validate(prorrogacao)
@@ -157,7 +157,7 @@ async def prorrogar_prazo(
 async def cancelar_prorrogacao(
     vencimento_id: uuid.UUID,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    _: EncarregadoInspetorOuAdmin,
 ):
     sucesso = await service.cancelar_prorrogacao(db, vencimento_id)
     return {"success": sucesso}
