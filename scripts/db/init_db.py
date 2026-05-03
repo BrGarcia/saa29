@@ -18,10 +18,10 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 try:
-    from scripts.seed import seed_equipamentos
+    from scripts.seed import seed_equipamentos, seed_aeronaves
 except (ImportError, ModuleNotFoundError):
     # Fallback para execução direta via python -m scripts.db.init_db
-    from scripts.seed import seed_equipamentos
+    from scripts.seed import seed_equipamentos, seed_aeronaves
 
 from app.bootstrap.database import get_session_factory
 from app.modules.auth.security import hash_senha
@@ -42,11 +42,7 @@ import app.modules.panes.models
 from app.modules.auth.models import Usuario
 from app.modules.aeronaves.models import Aeronave
 
-FROTA_PADRAO = [
-    "5902", "5905", "5906", "5912", "5914", "5915", "5916", "5919", "5937", "5941", "5945",
-    "5946", "5947", "5949", "5952", "5954", "5955", "5956", "5957", "5958", "5962",
-]
-
+# (Removido duplicidade de FROTA_PADRAO)
 
 def _env_flag(name: str, default: bool = False) -> bool:
     raw_value = os.getenv(name)
@@ -106,17 +102,8 @@ async def init_db():
         else:
             print("⏭️ Criação de usuários de teste desabilitada.")
 
-        # 2. Garantir Frota Padrão
-        for matricula in FROTA_PADRAO:
-            result = await session.execute(select(Aeronave).where(Aeronave.matricula == matricula))
-            if not result.scalar_one_or_none():
-                aeronave = Aeronave(
-                    matricula=matricula,
-                    serial_number=f"SN-{matricula}",
-                    modelo="A-29"
-                )
-                session.add(aeronave)
-                print(f"✅ Aeronave {matricula} adicionada.")
+        # 2. Garantir Frota Padrão (Chamando seed centralizado)
+        await seed_aeronaves.run(session)
 
         # 3. Garantir catálogo base de equipamentos (sem serial/instalação)
         await seed_equipamentos.run(session)

@@ -84,7 +84,7 @@ async def atualizar_aeronave(
     aeronave_id: uuid.UUID,
     dados: schemas.AeronaveUpdate,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    _: AdminRequired,
 ) -> schemas.AeronaveOut:
     try:
         aeronave = await service.atualizar_aeronave(db, aeronave_id, dados)

@@ -23,10 +23,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
             const user = JSON.parse(userJson);
             const funcao = user.funcao ? user.funcao.toUpperCase() : '';
-            if (funcao === 'ADMINISTRADOR' || funcao === 'ENCARREGADO') {
+            
+            // Mostrar navegação dos módulos para todos os perfis operacionais
+            if (['ADMINISTRADOR', 'ENCARREGADO', 'MANTENEDOR'].includes(funcao)) {
                 const adminNav = document.getElementById('admin-nav');
                 if (adminNav) adminNav.style.display = 'flex';
-                
+            }
+            
+            // Mostrar configurações apenas para Administradores
+            if (funcao === 'ADMINISTRADOR') {
                 const settingsNav = document.getElementById('settings-nav');
                 if (settingsNav) settingsNav.style.display = 'flex';
             }

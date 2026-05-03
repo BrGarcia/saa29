@@ -8,7 +8,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, status
 
 from app.modules.equipamentos import schemas, service
-from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin
+from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin, AdminRequired
 
 router = APIRouter()
 
@@ -30,7 +30,7 @@ async def listar_equipamentos(db: DBSession, _: CurrentUser):
 async def criar_equipamento(
     dados: schemas.ModeloEquipamentoCreate,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    _: AdminRequired,
 ):
     try:
         equipamento = await service.criar_modelo(db, dados)
@@ -63,7 +63,7 @@ async def atualizar_equipamento(
     equipamento_id: uuid.UUID,
     dados: schemas.ModeloEquipamentoUpdate,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    _: AdminRequired,
 ):
     try:
         from app.shared.core import exceptions as domain_exc
@@ -79,7 +79,7 @@ async def atualizar_equipamento(
 async def remover_equipamento(
     equipamento_id: uuid.UUID,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    _: AdminRequired,
 ):
     try:
         from app.shared.core import exceptions as domain_exc
@@ -114,7 +114,7 @@ async def listar_slots(db: DBSession, _: CurrentUser):
 async def criar_slot(
     dados: schemas.SlotInventarioCreate,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    _: AdminRequired,
 ):
     try:
         slot = await service.criar_slot(db, dados)
@@ -145,7 +145,7 @@ async def listar_itens(
 async def criar_item(
     dados: schemas.ItemEquipamentoCreate,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    _: AdminRequired,
 ):
     try:
         item = await service.criar_item_com_heranca(db, dados)

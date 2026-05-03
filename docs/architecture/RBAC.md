@@ -32,7 +32,7 @@ O sistema possui três níveis de acesso, definidos no enum `TipoPapel` (`app/sh
 | **Aeronaves** 
 | | Listar e detalhar frota 				            | ✅ | ✅ | ✅ |
 | | Alternar status operacional 						| ❌ | ✅ | ✅ |
-| | Atualizar dados técnicos 							| ❌ | ✅ | ✅ |
+| | Atualizar dados técnicos 							| ❌ | ❌ | ✅ |
 | | Cadastrar nova aeronave								| ❌ | ❌ | ✅ |
 
 | **Equipamentos**

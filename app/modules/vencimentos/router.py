@@ -6,7 +6,7 @@ Endpoints para a inteligência temporal de manutenções e vencimentos.
 import uuid
 from fastapi import APIRouter, HTTPException, status
 from app.modules.vencimentos import schemas, service
-from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin
+from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin, AdminRequired
 
 router = APIRouter()
 
@@ -30,7 +30,7 @@ async def listar_tipos_controle(db: DBSession, _: CurrentUser):
 async def criar_tipo_controle(
     dados: schemas.TipoControleCreate,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    _: AdminRequired,
 ):
     try:
         tipo = await service.criar_tipo_controle(db, dados)
@@ -47,7 +47,7 @@ async def atualizar_tipo_controle(
     tipo_id: uuid.UUID,
     dados: schemas.TipoControleUpdate,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    _: AdminRequired,
 ):
     try:
         tipo = await service.atualizar_tipo_controle(db, tipo_id, dados)
@@ -81,7 +81,7 @@ async def listar_regras_periodicidade(db: DBSession, _: CurrentUser):
 async def associar_controle(
     dados: schemas.EquipamentoControleCreate,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    _: AdminRequired,
 ):
     try:
         assoc = await service.associar_controle_a_equipamento(
@@ -100,7 +100,7 @@ async def remover_regra(
     modelo_id: uuid.UUID,
     tipo_controle_id: uuid.UUID,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    _: AdminRequired,
 ):
     await service.remover_controle_de_equipamento(db, modelo_id, tipo_controle_id)
     return {"success": True, "message": "Regra removida"}
@@ -145,7 +145,7 @@ async def prorrogar_prazo(
     vencimento_id: uuid.UUID,
     dados: schemas.ProrrogacaoVencimentoCreate,
     db: DBSession,
-    user: CurrentUser,
+    user: EncarregadoOuAdmin,
 ):
     prorrogacao = await service.prorrogar_vencimento(db, vencimento_id, dados, user.id)
     return schemas.ProrrogacaoVencimentoOut.model_validate(prorrogacao)
