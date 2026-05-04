@@ -292,13 +292,13 @@ async def test_dashboard_todos_roles_tem_acesso(client_autenticado):
 - [x] Marcar o link como ativo visualmente via JS/Jinja quando na página `/dashboard`
 - [x] Validar design: modo claro e escuro, cards responsivos (Glassmorphism aplicado)
 
-### Fase 4 — Polimento `[⏳ PRÓXIMA]`
+### Fase 4 — Polimento `[✅ CONCLUÍDA — 2026-05-04]`
 
-- [ ] Skeleton loaders nos cards enquanto dados carregam
-- [ ] Animações suaves de entrada (CSS `@keyframes`)
-- [ ] Auto-refresh a cada 5 minutos (`setInterval`)
-- [ ] Responsividade mobile (grid adaptável)
-- [ ] Acessibilidade: `aria-label` nos cards e botões
+- [x] Skeleton loaders nos cards enquanto dados carregam
+- [x] Animações suaves de entrada (CSS `@keyframes`)
+- [x] Auto-refresh a cada 5 minutos (`setInterval`)
+- [x] Responsividade mobile (grid adaptável)
+- [x] Acessibilidade: `aria-label` nos cards e botões
 
 ---
 
@@ -389,8 +389,8 @@ Ver `docs/BACKLOG/dashboard.ctx` — Intermediate Representation (IR) para uso e
 | Router API | `app/modules/dashboard/router.py` | ✅ Concluído |
 | Registro no App | `app/bootstrap/main.py` | ✅ Concluído |
 | Rota de Página + Redirect | `app/web/pages/router.py` | ✅ Concluído |
-| Template HTML | `app/web/templates/dashboard.html` | ✅ Concluído |
-| JavaScript | `app/web/static/js/dashboard.js` | ✅ Concluído |
+| Template HTML | `app/web/templates/dashboard.html` | ✅ Polido |
+| JavaScript | `app/web/static/js/dashboard.js` | ✅ Polido |
 | Link na Nav | `app/web/templates/base.html` | ✅ Concluído |
 | Arquivo IR (.ctx) | `docs/BACKLOG/dashboard.ctx` | ✅ Concluído |
 
@@ -408,3 +408,4 @@ Ver `docs/BACKLOG/dashboard.ctx` — Intermediate Representation (IR) para uso e
 | 2026-05-04 | Fase 1 | Commit na branch `feat/dashboard` | ✅ `9f7f064` |
 | 2026-05-04 | Fase 2 | Router API e rotas de página | ✅ 18/18 testes passando |
 | 2026-05-04 | Fase 3 | Interface (HTML/JS/Nav) | ✅ Dashboard funcional e responsivo |
+| 2026-05-04 | Fase 4 | Polimento e UX | ✅ Skeletons e animações adicionadas |

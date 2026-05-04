@@ -58,8 +58,15 @@ function renderPanes(data) {
     const valResolvidas = document.getElementById('val-panes-resolvidas');
     const listContainer = document.getElementById('panes-criticas-list');
 
-    if (valAbertas) valAbertas.textContent = data.total_abertas;
-    if (valResolvidas) valResolvidas.textContent = data.total_resolvidas_mes;
+    // Remove skeleton-text classes
+    if (valAbertas) {
+        valAbertas.classList.remove('skeleton-text');
+        valAbertas.textContent = data.total_abertas;
+    }
+    if (valResolvidas) {
+        valResolvidas.classList.remove('skeleton-text');
+        valResolvidas.textContent = data.total_resolvidas_mes;
+    }
 
     if (!listContainer) return;
 
@@ -84,6 +91,12 @@ function renderVencimentos(data) {
     const elWarning = document.getElementById('val-venc-avencer');
     const elDanger = document.getElementById('val-venc-vencido');
     const elProrrogado = document.getElementById('val-venc-prorrogado');
+
+    [elOk, elWarning, elDanger, elProrrogado].forEach(el => {
+        if (el) {
+            el.classList.remove('skeleton-text');
+        }
+    });
 
     if(elOk) elOk.textContent = data.ok || 0;
     if(elWarning) elWarning.textContent = data.vencendo || 0;

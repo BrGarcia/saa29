@@ -5,26 +5,26 @@
 {% block content %}
 <div class="dashboard-container">
     <!-- Card Principal: Panes (Prioridade Máxima) -->
-    <div class="glass-panel dashboard-card card-panes full-width">
+    <div class="glass-panel dashboard-card card-panes full-width" aria-label="Painel de Panes Operacionais">
         <div class="card-header">
             <div class="header-info">
-                <span class="card-icon" style="color: var(--status-danger);">🚨</span>
+                <span class="card-icon" aria-hidden="true" style="color: var(--status-danger);">🚨</span>
                 <h3 class="card-label">Panes Operacionais</h3>
             </div>
-            <button class="btn btn-primary btn-sm" id="btn-registrar-pane">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <button class="btn btn-primary btn-sm" id="btn-registrar-pane" aria-label="Registrar nova pane">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                 Registrar Pane
             </button>
         </div>
         <div class="card-body">
             <div class="stats-row">
-                <div class="stat-item clickable" id="stat-panes-abertas">
-                    <span class="stat-value" id="val-panes-abertas" style="color: var(--status-danger);">--</span>
+                <div class="stat-item clickable" id="stat-panes-abertas" aria-label="Ver todas as panes abertas">
+                    <span class="stat-value skeleton-text" id="val-panes-abertas" style="color: var(--status-danger);">--</span>
                     <span class="stat-label">Abertas</span>
                 </div>
                 <div class="stat-divider"></div>
-                <div class="stat-item clickable" id="stat-panes-resolvidas">
-                    <span class="stat-value" id="val-panes-resolvidas" style="color: var(--status-ok);">--</span>
+                <div class="stat-item clickable" id="stat-panes-resolvidas" aria-label="Ver panes resolvidas no mês">
+                    <span class="stat-value skeleton-text" id="val-panes-resolvidas" style="color: var(--status-ok);">--</span>
                     <span class="stat-label">Resolvidas (Mês)</span>
                 </div>
             </div>
@@ -32,7 +32,10 @@
             <div class="panes-list-container">
                 <h4 class="sub-title">Panes Críticas (Mais Antigas)</h4>
                 <div id="panes-criticas-list" class="mini-list">
-                    <div class="loading-placeholder">Carregando dados operacionais...</div>
+                    <!-- Skeletons -->
+                    <div class="skeleton list-item-skeleton"></div>
+                    <div class="skeleton list-item-skeleton"></div>
+                    <div class="skeleton list-item-skeleton"></div>
                 </div>
             </div>
         </div>
@@ -40,80 +43,84 @@
 
     <div class="dashboard-grid">
         <!-- Card: Vencimentos -->
-        <div class="glass-panel dashboard-card card-vencimentos clickable" id="card-vencimentos">
+        <div class="glass-panel dashboard-card card-vencimentos clickable" id="card-vencimentos" aria-label="Ver controle de vencimentos">
             <div class="card-header">
                 <div class="header-info">
-                    <span class="card-icon" style="color: var(--status-warning);">⚠️</span>
+                    <span class="card-icon" aria-hidden="true" style="color: var(--status-warning);">⚠️</span>
                     <h3 class="card-label">Vencimentos</h3>
                 </div>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </div>
             <div class="card-body">
                 <div class="vencimentos-summary">
                     <div class="v-stat ok">
                         <span class="v-label">OK</span>
-                        <span class="v-count" id="val-venc-ok">0</span>
+                        <span class="v-count skeleton-text" id="val-venc-ok">0</span>
                     </div>
                     <div class="v-stat warning">
                         <span class="v-label">A Vencer</span>
-                        <span class="v-count" id="val-venc-avencer">0</span>
+                        <span class="v-count skeleton-text" id="val-venc-avencer">0</span>
                     </div>
                     <div class="v-stat danger">
                         <span class="v-label">Vencido</span>
-                        <span class="v-count" id="val-venc-vencido">0</span>
+                        <span class="v-count skeleton-text" id="val-venc-vencido">0</span>
                     </div>
                     <div class="v-stat prorrogado">
                         <span class="v-label">Prorrogado</span>
-                        <span class="v-count" id="val-venc-prorrogado">0</span>
+                        <span class="v-count skeleton-text" id="val-venc-prorrogado">0</span>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Card: Inspeções em Andamento -->
-        <div class="glass-panel dashboard-card card-inspecoes" id="card-inspecoes">
+        <div class="glass-panel dashboard-card card-inspecoes" id="card-inspecoes" aria-label="Painel de Inspeções Ativas">
             <div class="card-header">
                 <div class="header-info">
-                    <span class="card-icon" style="color: #1abc9c;">🔍</span>
+                    <span class="card-icon" aria-hidden="true" style="color: #1abc9c;">🔍</span>
                     <h3 class="card-label">Inspeções Ativas</h3>
                 </div>
-                <a href="/inspecoes" class="btn-link">Ver todas</a>
+                <a href="/inspecoes" class="btn-link" aria-label="Ver todas as inspeções">Ver todas</a>
             </div>
             <div class="card-body">
                 <div id="inspecoes-list" class="chip-list">
-                    <div class="loading-placeholder">...</div>
+                    <div class="skeleton chip-skeleton"></div>
+                    <div class="skeleton chip-skeleton"></div>
                 </div>
             </div>
         </div>
 
         <!-- Card: Inventário (Mini-feed) -->
-        <div class="glass-panel dashboard-card card-inventario" id="card-inventario">
+        <div class="glass-panel dashboard-card card-inventario" id="card-inventario" aria-label="Últimas movimentações de inventário">
             <div class="card-header">
                 <div class="header-info">
-                    <span class="card-icon" style="color: var(--primary-color);">📦</span>
+                    <span class="card-icon" aria-hidden="true" style="color: var(--primary-color);">📦</span>
                     <h3 class="card-label">Últimas Instalações</h3>
                 </div>
-                <a href="/inventario" class="btn-link">Inventário</a>
+                <a href="/inventario" class="btn-link" aria-label="Ir para o módulo de inventário">Inventário</a>
             </div>
             <div class="card-body">
                 <div id="movimentacoes-list" class="mini-feed">
-                    <div class="loading-placeholder">...</div>
+                    <div class="skeleton feed-item-skeleton"></div>
+                    <div class="skeleton feed-item-skeleton"></div>
                 </div>
             </div>
         </div>
 
         <!-- Card: Frota -->
-        <div class="glass-panel dashboard-card card-frota clickable" id="card-frota">
+        <div class="glass-panel dashboard-card card-frota clickable" id="card-frota" aria-label="Ver status detalhado da frota">
             <div class="card-header">
                 <div class="header-info">
-                    <span class="card-icon" style="color: var(--status-ok);">✈️</span>
+                    <span class="card-icon" aria-hidden="true" style="color: var(--status-ok);">✈️</span>
                     <h3 class="card-label">Status da Frota</h3>
                 </div>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </div>
             <div class="card-body">
                 <div id="frota-stats" class="frota-badges">
-                    <div class="loading-placeholder">...</div>
+                    <div class="skeleton chip-skeleton"></div>
+                    <div class="skeleton chip-skeleton"></div>
+                    <div class="skeleton chip-skeleton"></div>
                 </div>
             </div>
         </div>
@@ -125,11 +132,11 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-    animation: fadeIn 0.5s ease-out;
+    animation: dashboardFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
+@keyframes dashboardFadeIn {
+    from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
@@ -138,7 +145,7 @@
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
 }
 
 .dashboard-card.clickable:hover {
@@ -416,6 +423,53 @@
     font-size: 0.875rem;
     padding: 1rem;
     text-align: center;
+}
+
+/* Skeleton Loading Effects */
+.skeleton {
+    background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--border-color) 50%, var(--bg-tertiary) 75%);
+    background-size: 200% 100%;
+    animation: skeletonLoading 1.5s infinite linear;
+    border-radius: 4px;
+}
+
+@keyframes skeletonLoading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.skeleton-text {
+    color: transparent !important;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+}
+
+.skeleton-text::after {
+    content: "";
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    100% { transform: translateX(100%); }
+}
+
+.list-item-skeleton { height: 48px; width: 100%; margin-bottom: 8px; }
+.chip-skeleton { height: 32px; width: 120px; border-radius: 20px; }
+.feed-item-skeleton { height: 40px; width: 100%; margin-bottom: 12px; }
+
+/* Micro-interactions */
+.stat-item.clickable:active {
+    transform: scale(0.95);
+}
+
+.btn-primary:active {
+    transform: scale(0.98);
 }
 </style>
 {% endblock %}
