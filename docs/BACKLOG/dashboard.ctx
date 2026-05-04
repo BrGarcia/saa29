@@ -1,0 +1,319 @@
+# SAA29 — Dashboard Module: Intermediate Representation (IR) for LLMs
+# Version: 1.0 | Date: 2026-05-04
+# Purpose: Context file for AI-assisted code generation of the Dashboard module.
+# Use this file as primary context when prompting any LLM for dashboard tasks.
+
+[META]
+project = "SAA29"
+module = "dashboard"
+language = "Python 3.12 + FastAPI + SQLAlchemy 2 (async) + Jinja2 + Vanilla JS"
+database = "SQLite (dev) / PostgreSQL (prod)"
+orm_style = "SQLAlchemy 2.0 declarative with Mapped[] annotations"
+async_pattern = "async/await with AsyncSession"
+test_framework = "pytest + pytest-asyncio + httpx AsyncClient"
+methodology = "TDD — tests written before implementation"
+constraint_zero_ddl = true
+constraint_module_isolation = true
+
+[PROJECT_STRUCTURE]
+# Existing modules (DO NOT MODIFY their internal logic)
+modules = [
+  "app/modules/auth",
+  "app/modules/aeronaves",
+  "app/modules/panes",
+  "app/modules/vencimentos",
+  "app/modules/inspecoes",
+  "app/modules/equipamentos",
+  "app/modules/efetivo",
+]
+
+# New module to create
+new_module = "app/modules/dashboard"
+new_files = [
+  "app/modules/dashboard/__init__.py",
+  "app/modules/dashboard/schemas.py",
+  "app/modules/dashboard/service.py",
+  "app/modules/dashboard/router.py",
+  "app/web/templates/dashboard.html",
+  "app/web/static/js/dashboard.js",
+  "tests/unit/test_dashboard.py",
+]
+
+# Files to modify (minimal changes only)
+files_to_modify = [
+  "app/bootstrap/main.py",        # register dashboard_router
+  "app/web/pages/router.py",      # add /dashboard page route, change / redirect
+  "app/web/templates/base.html",  # add Dashboard nav link
+]
+
+[DATABASE_TABLES]
+# All tables already exist. NO new tables or columns allowed.
+
+[[table]]
+name = "panes"
+model = "app.modules.panes.models.Pane"
+key_fields = ["id", "status", "ativo", "data_abertura", "data_conclusao", "aeronave_id", "sistema_subsistema"]
+status_values = ["ABERTA", "RESOLVIDA"]
+relationships = ["aeronave (Aeronave)", "responsaveis (PaneResponsavel)", "criador (Usuario)"]
+dashboard_queries = [
+  "COUNT(*) WHERE status='ABERTA' AND ativo=True  → total_abertas",
+  "COUNT(*) WHERE status='RESOLVIDA' AND data_conclusao >= first_day_of_month AND ativo=True → total_resolvidas_mes",
+  "SELECT * WHERE status='ABERTA' AND ativo=True ORDER BY data_abertura ASC LIMIT 5 → panes_criticas",
+]
+
+[[table]]
+name = "controle_vencimentos"
+model = "app.modules.vencimentos.models.ControleVencimento"
+key_fields = ["id", "status", "item_id", "tipo_controle_id", "data_vencimento"]
+status_values = ["OK", "VENCENDO", "VENCIDO", "PRORROGADO"]
+relationships = ["item (ItemEquipamento)", "tipo_controle (TipoControle)"]
+dashboard_queries = [
+  "GROUP BY status COUNT(*) → {ok, vencendo, vencido, prorrogado}",
+]
+
+[[table]]
+name = "inspecoes"
+model = "app.modules.inspecoes.models.Inspecao"
+key_fields = ["id", "status", "aeronave_id", "data_abertura", "data_fim_prevista"]
+status_values = ["ABERTA", "EM_ANDAMENTO", "CONCLUIDA", "CANCELADA"]
+relationships = [
+  "aeronave (Aeronave) — selectinload",
+  "tipos_aplicados (TipoInspecao via InspecaoEventoTipo) — selectinload",
+]
+dashboard_queries = [
+  "SELECT * WHERE status IN ('ABERTA', 'EM_ANDAMENTO') → inspecoes_ativas",
+  "Each result: {id, aeronave.matricula, [tipo.codigo for tipo in tipos_aplicados], status, data_fim_prevista}",
+]
+
+[[table]]
+name = "instalacoes"
+model = "app.modules.equipamentos.models.Instalacao"
+key_fields = ["id", "item_id", "aeronave_id", "slot_id", "data_instalacao", "created_at"]
+relationships = [
+  "item (ItemEquipamento) → modelo (ModeloEquipamento) — for nome_generico",
+  "aeronave (Aeronave) — for matricula",
+  "slot (SlotInventario) — for nome_posicao",
+]
+dashboard_queries = [
+  "SELECT * ORDER BY created_at DESC LIMIT 5 → movimentacoes_recentes",
+  "Each result: descricao='{slot.nome_posicao} ({item.modelo.nome_generico})', aeronave_matricula=aeronave.matricula, data=created_at",
+]
+note = "Instalacao records represent installs. Removals are tracked by item.status change to REMOVIDO. For the dashboard mini-feed, show only the 5 most recent Instalacao records."
+
+[[table]]
+name = "aeronaves"
+model = "app.modules.aeronaves.models.Aeronave"
+key_fields = ["id", "matricula", "status", "modelo"]
+status_values = ["DISPONIVEL", "OPERACIONAL", "INDISPONIVEL", "INSPEÇÃO", "ESTOCADA", "INATIVA"]
+dashboard_queries = [
+  "GROUP BY status COUNT(*) → {disponivel, operacional, indisponivel, inspecao, estocada, inativa}",
+]
+
+[SCHEMAS]
+# app/modules/dashboard/schemas.py
+# Use Pydantic BaseModel. All fields must have defaults for safety.
+
+PaneCritica = {
+  id: "str",
+  matricula: "str",
+  sistema: "str | None",
+  data_abertura: "str  # ISO 8601"
+}
+
+PanesSummary = {
+  total_abertas: "int",
+  total_resolvidas_mes: "int",
+  panes_criticas: "list[PaneCritica]"
+}
+
+VencimentosSummary = {
+  ok: "int",
+  vencendo: "int",
+  vencido: "int",
+  prorrogado: "int"
+}
+
+InspecaoAtiva = {
+  inspecao_id: "str",
+  matricula: "str",
+  tipos: "list[str]  # ex: ['50h', 'PS']",
+  status: "str",
+  data_fim_prevista: "str | None  # ISO date"
+}
+
+MovimentacaoRecente = {
+  descricao: "str  # ex: 'VUHF-1 (slot VUHF1)'",
+  aeronave_matricula: "str | None",
+  data: "str  # ISO date"
+}
+
+FrotaSummary = {
+  disponivel: "int",
+  operacional: "int",
+  indisponivel: "int",
+  inspecao: "int",
+  estocada: "int",
+  inativa: "int"
+}
+
+DashboardResumo = {
+  panes: "PanesSummary",
+  vencimentos: "VencimentosSummary",
+  inspecoes_ativas: "list[InspecaoAtiva]",
+  movimentacoes_recentes: "list[MovimentacaoRecente]",
+  frota: "FrotaSummary"
+}
+
+[SERVICE_FUNCTIONS]
+# app/modules/dashboard/service.py
+# Each function takes (db: AsyncSession) and returns the matching schema.
+# Use selectinload for relationships. Use func.count() for aggregation.
+# Import models directly — DO NOT call other modules' service functions.
+
+functions = [
+  "async def get_panes_summary(db: AsyncSession) -> PanesSummary",
+  "async def get_vencimentos_summary(db: AsyncSession) -> VencimentosSummary",
+  "async def get_inspecoes_ativas(db: AsyncSession) -> list[InspecaoAtiva]",
+  "async def get_movimentacoes_recentes(db: AsyncSession) -> list[MovimentacaoRecente]",
+  "async def get_frota_summary(db: AsyncSession) -> FrotaSummary",
+  "async def get_dashboard_resumo(db: AsyncSession) -> DashboardResumo  # orchestrator",
+]
+
+import_pattern = """
+from sqlalchemy import select, func, case
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from datetime import date, datetime, timezone
+from app.modules.panes.models import Pane
+from app.modules.vencimentos.models import ControleVencimento
+from app.modules.inspecoes.models import Inspecao
+from app.modules.equipamentos.models import Instalacao, ItemEquipamento, ModeloEquipamento, SlotInventario
+from app.modules.aeronaves.models import Aeronave
+from app.modules.dashboard.schemas import (
+    DashboardResumo, PanesSummary, PaneCritica,
+    VencimentosSummary, InspecaoAtiva,
+    MovimentacaoRecente, FrotaSummary
+)
+"""
+
+[ROUTER]
+# app/modules/dashboard/router.py
+endpoint = "GET /dashboard/resumo"
+auth = "CurrentUser  # any authenticated user, all roles"
+response_model = "DashboardResumo"
+tags = ["Dashboard"]
+
+registration_in_main_py = """
+# In app/bootstrap/main.py — add BEFORE pages_router:
+from app.modules.dashboard.router import router as dashboard_router
+app.include_router(dashboard_router, prefix="/dashboard", tags=["Dashboard"])
+"""
+
+[WEB_ROUTES]
+# app/web/pages/router.py — changes needed:
+changes = [
+  "GET /dashboard → render 'dashboard.html' (authenticated)",
+  "GET / → redirect to /dashboard (was /panes)",
+]
+
+[FRONTEND]
+template = "app/web/templates/dashboard.html"
+extends = "base.html"
+js_file = "app/web/static/js/dashboard.js"
+
+js_pattern = """
+// dashboard.js — fetch and render all cards
+document.addEventListener('DOMContentLoaded', async () => {
+    await carregarDashboard();
+    setInterval(carregarDashboard, 5 * 60 * 1000); // auto-refresh 5min
+});
+
+async function carregarDashboard() {
+    const data = await apiFetch('/dashboard/resumo');
+    renderPanes(data.panes);
+    renderVencimentos(data.vencimentos);
+    renderInspecoes(data.inspecoes_ativas);
+    renderInventario(data.movimentacoes_recentes);
+    renderFrota(data.frota);
+}
+"""
+
+card_colors = {
+  "panes": "--status-danger",
+  "vencimentos": "--status-warning",
+  "inspecoes": "#1abc9c",
+  "inventario": "--primary-color",
+  "frota": "--status-ok",
+}
+
+nav_link = """
+<!-- In base.html admin-nav, add FIRST (before /panes link): -->
+<a href="/dashboard" class="btn-icon" aria-label="Dashboard" title="Dashboard"
+   style="width: 38px; height: 38px; ...active style if path=='/dashboard'...">
+    <!-- grid/home SVG icon -->
+</a>
+"""
+
+[TESTS]
+# tests/unit/test_dashboard.py
+# Written BEFORE service.py (TDD — Red phase first)
+# Uses conftest fixtures: db (AsyncSession), client_autenticado (AsyncClient)
+
+test_functions = [
+  # Panes
+  "test_panes_summary_retorna_zeros_com_banco_vazio",
+  "test_panes_summary_contagem_abertas_correta",
+  "test_panes_summary_resolvidas_mes_nao_inclui_mes_anterior",
+  "test_panes_criticas_ordenadas_por_data_abertura_asc",
+  "test_panes_criticas_limite_5_itens",
+  # Vencimentos
+  "test_vencimentos_summary_banco_vazio_retorna_zeros",
+  "test_vencimentos_summary_agrupa_por_status_corretamente",
+  # Inspeções
+  "test_inspecoes_ativas_retorna_apenas_abertas_e_em_andamento",
+  "test_inspecoes_ativas_banco_vazio_retorna_lista_vazia",
+  "test_inspecoes_ativas_inclui_matricula_e_tipos",
+  # Frota
+  "test_frota_summary_conta_por_status",
+  "test_frota_summary_banco_vazio_retorna_zeros",
+  # Endpoint REST
+  "test_get_dashboard_resumo_retorna_200_para_usuario_autenticado",
+  "test_get_dashboard_resumo_retorna_401_sem_autenticacao",
+  "test_get_dashboard_resumo_estrutura_json_completa",
+]
+
+fixture_dependencies = [
+  "db  # AsyncSession with rollback",
+  "client_autenticado  # AsyncClient with get_current_user overridden",
+  "usuario_no_banco  # creates a Usuario ORM object",
+]
+
+[CONSTRAINTS]
+# Hard rules the LLM must follow during implementation:
+rules = [
+  "1. NEVER create new database tables or columns (zero DDL).",
+  "2. NEVER import dashboard service functions from other modules' services.",
+  "3. NEVER use synchronous SQLAlchemy patterns (no session.execute without await).",
+  "4. ALWAYS write tests before implementing service functions (TDD).",
+  "5. ALWAYS use selectinload() for relationship loading — never lazy load.",
+  "6. ALWAYS return Pydantic schemas from service functions, not ORM objects.",
+  "7. The endpoint GET /dashboard/resumo must accept ALL roles (CurrentUser only).",
+  "8. The dashboard page /dashboard must be accessible to ALL authenticated users.",
+  "9. Use escapeHtml() from app.js for all user-supplied text rendered in JS.",
+  "10. Keep dashboard.js isolated — do not modify other JS files.",
+]
+
+[IMPLEMENTATION_ORDER]
+# Strict TDD sequence:
+step_1 = "Create app/modules/dashboard/__init__.py (empty)"
+step_2 = "Create app/modules/dashboard/schemas.py"
+step_3 = "Create tests/unit/test_dashboard.py — run pytest → confirm RED"
+step_4 = "Implement app/modules/dashboard/service.py — run pytest → confirm GREEN"
+step_5 = "Create app/modules/dashboard/router.py"
+step_6 = "Modify app/bootstrap/main.py — register router"
+step_7 = "Modify app/web/pages/router.py — add /dashboard page, change / redirect"
+step_8 = "Create app/web/templates/dashboard.html"
+step_9 = "Create app/web/static/js/dashboard.js"
+step_10 = "Modify app/web/templates/base.html — add Dashboard nav link"
+step_11 = "Run full test suite: pytest tests/"
+step_12 = "Run init_local.py + start server + visual validation"
