@@ -5,8 +5,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
             const res = await fetch("/auth/me", { credentials: "same-origin" });
             if (res.ok) {
-                // Sessão válida no servidor — redireciona
-                window.location.href = "/panes";
+                // Sessão válida no servidor — redireciona para a landing page (Dashboard)
+                window.location.href = "/dashboard";
                 return;
             }
         } catch (e) { /* rede falhou, fica no login */ }
@@ -67,9 +67,9 @@ async function handleLogin(e) {
         if (typeof showToast === "function") showToast("Acesso autorizado. Carregando Painel...", "success");
         else alert("Acesso autorizado");
 
-        // Redireciona
+        // Redireciona para o Dashboard (Landing Page)
         setTimeout(() => {
-            window.location.href = "/panes";
+            window.location.href = "/dashboard";
         }, 800);
 
     } catch (err) {

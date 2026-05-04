@@ -13,11 +13,11 @@ document.addEventListener("DOMContentLoaded", () => {
             if (funcao !== 'ADMINISTRADOR' && funcao !== 'ENCARREGADO') {
                 showToast("Acesso Negado: Apenas administradores e encarregados podem acessar esta área.", "error");
                 setTimeout(() => {
-                    window.location.href = "/panes";
+                    window.location.href = "/dashboard";
                 }, 2000);
             }
         } catch (e) {
-            window.location.href = "/panes";
+            window.location.href = "/dashboard";
         }
     } else {
         window.location.href = "/login";
