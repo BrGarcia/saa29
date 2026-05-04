@@ -366,15 +366,15 @@ Ver `docs/BACKLOG/dashboard.ctx` — Intermediate Representation (IR) para uso e
 
 ## 10. Critérios de Aceite
 
-- [ ] `/` redireciona para `/dashboard` após login bem-sucedido
-- [ ] Dashboard carrega em < 1 segundo com banco populado
-- [ ] Todos os 5 cards exibem dados reais do banco
-- [ ] Clicar em qualquer card/elemento navega para o módulo correto
-- [ ] Botão "Registrar Pane" visível para todos os perfis
-- [ ] Suite `tests/unit/test_dashboard.py` passa com 100% das funções testadas
-- [ ] Zero novas tabelas ou colunas criadas no banco de dados
-- [ ] Funciona em modo escuro e claro
-- [ ] Aprovado visualmente com dados de seed (`init_local.py`)
+- [x] `/` redireciona para `/dashboard` após login bem-sucedido
+- [x] Dashboard carrega em < 1 segundo com banco populado
+- [x] Todos os 5 cards exibem dados reais do banco
+- [x] Clicar em qualquer card/elemento navega para o módulo correto
+- [x] Botão "Registrar Pane" visível para todos os perfis
+- [x] Suite `tests/unit/test_dashboard.py` passa com 100% das funções testadas
+- [x] Zero novas tabelas ou colunas criadas no banco de dados
+- [x] Funciona em modo escuro e claro
+- [x] Aprovado visualmente com dados de seed (`init_local.py`)
 
 ---
 
