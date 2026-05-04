@@ -264,23 +264,25 @@ async def test_dashboard_todos_roles_tem_acesso(client_autenticado):
 
 ## 6. Plano de Implementação em Fases
 
-### Fase 1 — Fundação e Testes (TDD) `[Sprint 1]`
+### Fase 1 — Fundação e Testes (TDD) `[✅ CONCLUÍDA — 2026-05-04]`
 
-- [ ] Criar branch `feat/dashboard` a partir de `development`
-- [ ] Criar `app/modules/dashboard/__init__.py`
-- [ ] Criar `app/modules/dashboard/schemas.py` (contratos primeiro)
-- [ ] Criar `tests/unit/test_dashboard.py` com **todos os testes** (estado RED)
-- [ ] Rodar `pytest tests/unit/test_dashboard.py` — confirmar falhas esperadas
-- [ ] Implementar `app/modules/dashboard/service.py` (tornar testes GREEN)
-- [ ] Rodar `pytest tests/unit/test_dashboard.py` — confirmar 100% passa
+- [x] Criar branch `feat/dashboard` a partir de `development`
+- [x] Criar `app/modules/dashboard/__init__.py`
+- [x] Criar `app/modules/dashboard/schemas.py` (contratos primeiro)
+- [x] Criar `tests/unit/test_dashboard.py` com **todos os testes** (estado RED confirmado: `ModuleNotFoundError`)
+- [x] Implementar `app/modules/dashboard/service.py` (tornar testes GREEN)
+- [x] Rodar `pytest tests/unit/test_dashboard.py -k "not endpoint"` — **15/15 PASSED** ✅
 
-### Fase 2 — Camada de API `[Sprint 1]`
+> **Resultado:** 15 testes de service passando. 3 testes de endpoint aguardam a Fase 2 (router inexistente → 404 esperado).
+> **Commit:** `feat(dashboard): Fase 1 — schemas, service e testes TDD (15/15 GREEN)`
+
+### Fase 2 — Camada de API `[⏳ PRÓXIMA]`
 
 - [ ] Criar `app/modules/dashboard/router.py` com `GET /dashboard/resumo`
 - [ ] Registrar o router em `app/bootstrap/main.py`
 - [ ] Adicionar rota de página `GET /dashboard` em `app/web/pages/router.py`
 - [ ] Alterar redirect de `/` para `/dashboard` (era `/panes`) em `app/web/pages/router.py`
-- [ ] Rodar testes de integração do endpoint
+- [ ] Rodar `pytest tests/unit/test_dashboard.py` — confirmar **18/18 PASSED** (incluindo os 3 testes de endpoint)
 
 ### Fase 3 — Interface (UI) `[Sprint 2]`
 
@@ -380,13 +382,27 @@ Ver `docs/BACKLOG/dashboard.ctx` — Intermediate Representation (IR) para uso e
 
 | Componente | Arquivo | Status |
 |---|---|---|
-| Testes TDD | `tests/unit/test_dashboard.py` | ⏳ Pendente |
-| Schemas | `app/modules/dashboard/schemas.py` | ⏳ Pendente |
-| Service | `app/modules/dashboard/service.py` | ⏳ Pendente |
-| Router API | `app/modules/dashboard/router.py` | ⏳ Pendente |
-| Registro no App | `app/bootstrap/main.py` | ⏳ Pendente |
-| Rota de Página + Redirect | `app/web/pages/router.py` | ⏳ Pendente |
-| Template HTML | `app/web/templates/dashboard.html` | ⏳ Pendente |
-| JavaScript | `app/web/static/js/dashboard.js` | ⏳ Pendente |
-| Link na Nav | `app/web/templates/base.html` | ⏳ Pendente |
-| Arquivo IR (.ctx) | `docs/BACKLOG/dashboard.ctx` | ⏳ Pendente |
+| Branch | `feat/dashboard` | ✅ Criada |
+| Testes TDD | `tests/unit/test_dashboard.py` | ✅ 15/15 GREEN (service) |
+| Schemas | `app/modules/dashboard/schemas.py` | ✅ Concluído |
+| Service | `app/modules/dashboard/service.py` | ✅ Concluído |
+| Router API | `app/modules/dashboard/router.py` | ⏳ Fase 2 |
+| Registro no App | `app/bootstrap/main.py` | ⏳ Fase 2 |
+| Rota de Página + Redirect | `app/web/pages/router.py` | ⏳ Fase 2 |
+| Template HTML | `app/web/templates/dashboard.html` | ⏳ Fase 3 |
+| JavaScript | `app/web/static/js/dashboard.js` | ⏳ Fase 3 |
+| Link na Nav | `app/web/templates/base.html` | ⏳ Fase 3 |
+| Arquivo IR (.ctx) | `docs/BACKLOG/dashboard.ctx` | ✅ Concluído |
+
+---
+
+## 12. Log de Execução
+
+| Data | Fase | Ação | Resultado |
+|---|---|---|---|
+| 2026-05-04 | Planejamento | Criação do plano e arquivo `.ctx` | ✅ Publicado em `development` |
+| 2026-05-04 | Fase 1 | Criação da branch `feat/dashboard` | ✅ |
+| 2026-05-04 | Fase 1 | Schemas Pydantic (`schemas.py`) | ✅ 6 schemas definidos |
+| 2026-05-04 | Fase 1 | Suite de testes TDD (`test_dashboard.py`) | ✅ RED confirmado |
+| 2026-05-04 | Fase 1 | Service layer (`service.py`) | ✅ GREEN: 15/15 passed |
+| 2026-05-04 | Fase 1 | Commit na branch `feat/dashboard` | ✅ `9f7f064` |
