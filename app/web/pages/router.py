@@ -16,13 +16,13 @@ templates = Jinja2Templates(directory="app/web/templates")
 
 @router.get("/", include_in_schema=False)
 async def root_page():
-    """Mantém a raiz apontando para a página principal de panes."""
-    return RedirectResponse(url="/panes", status_code=307)
+    """Redireciona a raiz para o Dashboard (página principal do sistema)."""
+    return RedirectResponse(url="/dashboard", status_code=307)
 
 
 @router.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
 async def dashboard_page(request: Request, _=Depends(get_current_user)):
-    """Mantém a dashboard disponível, porém sem navegação ativa."""
+    """Dashboard Central — página inicial do sistema para todos os perfis."""
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
 

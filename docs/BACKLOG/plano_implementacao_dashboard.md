@@ -276,15 +276,15 @@ async def test_dashboard_todos_roles_tem_acesso(client_autenticado):
 > **Resultado:** 15 testes de service passando. 3 testes de endpoint aguardam a Fase 2 (router inexistente → 404 esperado).
 > **Commit:** `feat(dashboard): Fase 1 — schemas, service e testes TDD (15/15 GREEN)`
 
-### Fase 2 — Camada de API `[⏳ PRÓXIMA]`
+### Fase 2 — Camada de API `[✅ CONCLUÍDA — 2026-05-04]`
 
-- [ ] Criar `app/modules/dashboard/router.py` com `GET /dashboard/resumo`
-- [ ] Registrar o router em `app/bootstrap/main.py`
-- [ ] Adicionar rota de página `GET /dashboard` em `app/web/pages/router.py`
-- [ ] Alterar redirect de `/` para `/dashboard` (era `/panes`) em `app/web/pages/router.py`
-- [ ] Rodar `pytest tests/unit/test_dashboard.py` — confirmar **18/18 PASSED** (incluindo os 3 testes de endpoint)
+- [x] Criar `app/modules/dashboard/router.py` com `GET /dashboard/resumo`
+- [x] Registrar o router em `app/bootstrap/main.py`
+- [x] Adicionar rota de página `GET /dashboard` em `app/web/pages/router.py`
+- [x] Alterar redirect de `/` para `/dashboard` (era `/panes`) em `app/web/pages/router.py`
+- [x] Rodar `pytest tests/unit/test_dashboard.py` — confirmar **18/18 PASSED** (incluindo os 3 testes de endpoint)
 
-### Fase 3 — Interface (UI) `[Sprint 2]`
+### Fase 3 — Interface (UI) `[⏳ PRÓXIMA]`
 
 - [ ] Criar `app/web/templates/dashboard.html` (extends `base.html`)
 - [ ] Criar `app/web/static/js/dashboard.js`
@@ -386,9 +386,9 @@ Ver `docs/BACKLOG/dashboard.ctx` — Intermediate Representation (IR) para uso e
 | Testes TDD | `tests/unit/test_dashboard.py` | ✅ 15/15 GREEN (service) |
 | Schemas | `app/modules/dashboard/schemas.py` | ✅ Concluído |
 | Service | `app/modules/dashboard/service.py` | ✅ Concluído |
-| Router API | `app/modules/dashboard/router.py` | ⏳ Fase 2 |
-| Registro no App | `app/bootstrap/main.py` | ⏳ Fase 2 |
-| Rota de Página + Redirect | `app/web/pages/router.py` | ⏳ Fase 2 |
+| Router API | `app/modules/dashboard/router.py` | ✅ Concluído |
+| Registro no App | `app/bootstrap/main.py` | ✅ Concluído |
+| Rota de Página + Redirect | `app/web/pages/router.py` | ✅ Concluído |
 | Template HTML | `app/web/templates/dashboard.html` | ⏳ Fase 3 |
 | JavaScript | `app/web/static/js/dashboard.js` | ⏳ Fase 3 |
 | Link na Nav | `app/web/templates/base.html` | ⏳ Fase 3 |
@@ -406,3 +406,4 @@ Ver `docs/BACKLOG/dashboard.ctx` — Intermediate Representation (IR) para uso e
 | 2026-05-04 | Fase 1 | Suite de testes TDD (`test_dashboard.py`) | ✅ RED confirmado |
 | 2026-05-04 | Fase 1 | Service layer (`service.py`) | ✅ GREEN: 15/15 passed |
 | 2026-05-04 | Fase 1 | Commit na branch `feat/dashboard` | ✅ `9f7f064` |
+| 2026-05-04 | Fase 2 | Router API e rotas de página | ✅ 18/18 testes passando |
