@@ -409,3 +409,4 @@ Ver `docs/BACKLOG/dashboard.ctx` — Intermediate Representation (IR) para uso e
 | 2026-05-04 | Fase 2 | Router API e rotas de página | ✅ 18/18 testes passando |
 | 2026-05-04 | Fase 3 | Interface (HTML/JS/Nav) | ✅ Dashboard funcional e responsivo |
 | 2026-05-04 | Fase 4 | Polimento e UX | ✅ Skeletons e animações adicionadas |
+| 2026-05-04 | Finalização | Merge em `development` e Push | ✅ Entregue conforme solicitação do dev |
