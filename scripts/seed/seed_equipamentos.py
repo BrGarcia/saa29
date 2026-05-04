@@ -1,6 +1,7 @@
 """
 scripts/seed/seed_equipamentos.py
 Popula o catálogo base: ModeloEquipamento (PN) e SlotInventario (Posição).
+Baseado em docs/legacy/inventario.md
 """
 import uuid
 from sqlalchemy import select
@@ -8,71 +9,83 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.equipamentos.models import ModeloEquipamento, SlotInventario
 
 EQUIPAMENTOS_FICHA = [
-    # 1P - POSTO DIANTEIRO
-    {"posicao": "AMPMIC", "nome": "AMPMIC", "pn": "263-000", "sistema": "1P"},
-    {"posicao": "PDU", "nome": "PDU", "pn": "4455-1000-01", "sistema": "1P"},
-    {"posicao": "UFCP", "nome": "UFCP", "pn": "4456-1000-02", "sistema": "1P"},
-    {"posicao": "CHVC", "nome": "CHVC", "pn": "VEC00054", "sistema": "1P"},
-    {"posicao": "CMFD", "nome": "COLOR MULTI-FUNCTION DISPLAY", "pn": "MB387B-01", "sistema": "1P"},
-    {"posicao": "CMFD", "nome": "COLOR MULTI-FUNCTION DISPLAY", "pn": "MB387B-01", "sistema": "1P"},
-    {"posicao": "ASP", "nome": "ASP", "pn": "343-001", "sistema": "1P"},
-    {"posicao": "GPS", "nome": "GPS RECEIVER", "pn": "066-04031-1622", "sistema": "1P"},
-    {"posicao": "PA CONTROL", "nome": "PA CONTROL", "pn": "449300-02-01", "sistema": "1P"},
-    {"posicao": "PIC/NAV", "nome": "PAINEL PIC/NAV", "pn": "314-04895-403", "sistema": "1P"},
-    {"posicao": "PUNHO DO MANCHE", "nome": "PUNHO DO MANCHE", "pn": "733-0402", "sistema": "1P"},
-    {"posicao": "DVR", "nome": "DVR", "pn": "MB211E-03", "sistema": "1P"},
+    # CEI - COMPARTIMENTO ELETRONICO INFERIOR
+    {"slot": "ADF", "equipamento": "ADF", "pn": "622-7382-101", "loc": "CEI"},
+    {"slot": "DME", "equipamento": "DME", "pn": "622-7309-101", "loc": "CEI"},
+    {"slot": "TDR", "equipamento": "TDR", "pn": "622-9352-004", "loc": "CEI"},
+    {"slot": "STORMSCOPE", "equipamento": "STORMSCOPE", "pn": "78-8060-6086-5", "loc": "CEI"},
+    {"slot": "EGIR", "equipamento": "EGIR", "pn": "34200802-80RB", "loc": "CEI"},
+    {"slot": "VOR", "equipamento": "VOR", "pn": "622-7194-201", "loc": "CEI"},
+    {"slot": "MDP1", "equipamento": "MDP", "pn": "MA902B-02", "loc": "CEI"},
+    {"slot": "MDP2", "equipamento": "MDP", "pn": "MA902B-02", "loc": "CEI"},
+    {"slot": "ARTU", "equipamento": "ARTU", "pn": "251-118-012-012", "loc": "CEI"},
+    {"slot": "AFDC", "equipamento": "AFDC", "pn": "449100-02-01", "loc": "CEI"},
+    {"slot": "VUHF1", "equipamento": "VUHF-1", "pn": "6110.3001.12", "loc": "CEI"},
+    {"slot": "VUHF2", "equipamento": "VUHF-2", "pn": "6106.7006.12", "loc": "CEI"},
 
-    # 2P - POSTO TRASEIRO
-    {"posicao": "AMPMIC", "nome": "AMPMIC", "pn": "263-000", "sistema": "2P"},
-    {"posicao": "PSU", "nome": "PSU", "pn": "4458-1000-00", "sistema": "2P"},
-    {"posicao": "CMFD", "nome": "COLOR MULTI-FUNCTION DISPLAY", "pn": "MB387B-01", "sistema": "2P"},
-    {"posicao": "CMFD", "nome": "COLOR MULTI-FUNCTION DISPLAY", "pn": "MB387B-01", "sistema": "2P"},
-    {"posicao": "ASP", "nome": "ASP", "pn": "343-001", "sistema": "2P"},
-    {"posicao": "PUNHO DO MANCHE", "nome": "PUNHO DO MANCHE", "pn": "733-0402", "sistema": "2P"},
+    # 1P - COMPARIMENTO DO 1P
+    {"slot": "AMPMIC-1P", "equipamento": "AMPMIC", "pn": "263-000", "loc": "1P"},
+    {"slot": "PDU", "equipamento": "PDU", "pn": "4455-1000-01", "loc": "1P"},
+    {"slot": "UFCP", "equipamento": "UFCP", "pn": "4456-1000-02", "loc": "1P"},
+    {"slot": "CHVC", "equipamento": "CHVC", "pn": "VEC00054", "loc": "1P"},
+    {"slot": "CMFD1", "equipamento": "CMFD", "pn": "MB387B-01", "loc": "1P"},
+    {"slot": "CMFD2", "equipamento": "CMFD", "pn": "MB387B-01", "loc": "1P"},
+    {"slot": "ASP-1P", "equipamento": "ASP", "pn": "343-001", "loc": "1P"},
+    {"slot": "GPS", "equipamento": "GPS STAND-ALONE", "pn": "066-04031-1622", "loc": "1P"},
+    {"slot": "PA CONTROL", "equipamento": "PA CONTROL", "pn": "449300-02-01", "loc": "1P"},
+    {"slot": "PIC/NAV", "equipamento": "PIC/NAV", "pn": "314-04895-403", "loc": "1P"},
+    {"slot": "STICKGRIP-1P", "equipamento": "STICKGRIP", "pn": "733-0402", "loc": "1P"},
+    {"slot": "DVR", "equipamento": "DVR", "pn": "MB211E-03", "loc": "1P"},
 
-    # CEI - COMPARTIMENTO ELETRÔNICO INFERIOR
-    {"posicao": "ADF", "nome": "ADF RECEIVER", "pn": "622-7382-101", "sistema": "CEI"},
-    {"posicao": "DME", "nome": "DME RECEIVER", "pn": "622-7309-101", "sistema": "CEI"},
-    {"posicao": "TDR", "nome": "TRANSPONDER", "pn": "622-9352-004", "sistema": "CEI"},
-    {"posicao": "STORMSCOPE", "nome": "STORMSCOPE", "pn": "78-8060-6086-5", "sistema": "CEI"},
-    {"posicao": "EGIR", "nome": "EGIR", "pn": "34200802-80RB", "sistema": "CEI"},
-    {"posicao": "VOR", "nome": "VOR RECEIVER", "pn": "622-7194-201", "sistema": "CEI"},
-    {"posicao": "MDP1", "nome": "MULTI-DISPLAY PROCESSOR", "pn": "MA902B-02", "sistema": "CEI"},
-    {"posicao": "MDP2", "nome": "MULTI-DISPLAY PROCESSOR", "pn": "MA902B-02", "sistema": "CEI"},
-    {"posicao": "ARTU", "nome": "ARTU", "pn": "251-118-012-012", "sistema": "CEI"},
-    {"posicao": "AFDC", "nome": "AFDC", "pn": "449100-02-01", "sistema": "CEI"},
-    {"posicao": "VUHF1", "nome": "VUHF-1", "pn": "6110.3001.12", "sistema": "CEI"},
-    {"posicao": "VUHF2", "nome": "VUHF-2", "pn": "6106.7006.12", "sistema": "CEI"},
+    # 2P - COMPARTIMENTO DO 2P
+    {"slot": "AMPMIC-2P", "equipamento": "AMPMIC", "pn": "263-000", "loc": "2P"},
+    {"slot": "PSU", "equipamento": "PSU", "pn": "4458-1000-00", "loc": "2P"},
+    {"slot": "CMFD3", "equipamento": "CMFD", "pn": "MB387B-01", "loc": "2P"},
+    {"slot": "CMFD4", "equipamento": "CMFD", "pn": "MB387B-01", "loc": "2P"},
+    {"slot": "ASP-2P", "equipamento": "ASP", "pn": "343-001", "loc": "2P"},
+    {"slot": "STICKGRIP-2P", "equipamento": "STICKGRIP", "pn": "733-0402", "loc": "2P"},
 
-    # CES - COMPARTIMENTO ELETRÔNICO SUPERIOR
-    {"posicao": "VADR", "nome": "VADR", "pn": "174521-10-01", "sistema": "CES"},
-    {"posicao": "ELT", "nome": "ELT", "pn": "453-5000-710", "sistema": "CES"},
-    {"posicao": "BEACON", "nome": "BEACON", "pn": "8888-8888", "sistema": "CES"},
+    # CES - COMPARIMENTO ELETRONICO SUPERIOR
+    {"slot": "VADR", "equipamento": "VADR", "pn": "174521-10-01", "loc": "CES"},
+    {"slot": "ELT", "equipamento": "ELT", "pn": "453-5000-710", "loc": "CES"},
+    {"slot": "BEACON", "equipamento": "BEACON", "pn": "DK120", "loc": "CES"},
 ]
 
 async def run(session: AsyncSession):
     print(f"🚀 [Equipamentos] Garantindo catálogo de {len(EQUIPAMENTOS_FICHA)} PNs e Slots...")
     
     for data in EQUIPAMENTOS_FICHA:
-        # Modelo (PN)
+        # 1. Garantir Modelo (PN)
         res_mod = await session.execute(select(ModeloEquipamento).where(ModeloEquipamento.part_number == data["pn"]))
         modelo = res_mod.scalar_one_or_none()
         if not modelo:
-            modelo = ModeloEquipamento(id=uuid.uuid4(), part_number=data["pn"], nome_generico=data["nome"])
+            modelo = ModeloEquipamento(
+                id=uuid.uuid4(), 
+                part_number=data["pn"], 
+                nome_generico=data["equipamento"]
+            )
             session.add(modelo)
             await session.flush()
-
-        # Slot
-        res_slot = await session.execute(select(SlotInventario).where(SlotInventario.nome_posicao == data["posicao"]))
+        
+        # 2. Garantir Slot (Identificado por Loc + Slot para evitar colisões futuras)
+        # Nota: Usamos o campo 'sistema' do modelo para armazenar a Localização ('loc')
+        res_slot = await session.execute(
+            select(SlotInventario).where(
+                SlotInventario.nome_posicao == data["slot"],
+                SlotInventario.sistema == data["loc"]
+            )
+        )
         slot = res_slot.scalar_one_or_none()
+        
         if not slot:
             slot = SlotInventario(
                 id=uuid.uuid4(),
-                nome_posicao=data["posicao"],
-                sistema=data["sistema"],
+                nome_posicao=data["slot"],
+                sistema=data["loc"],
                 modelo_id=modelo.id,
             )
             session.add(slot)
             await session.flush()
     
-    await session.flush()
+    await session.commit()
+    print("✅ Seed de equipamentos e slots concluído.")

@@ -199,8 +199,8 @@ function renderInventario(items) {
             <table style="width: 100%; border-collapse: collapse; text-align: center;">
                 <thead style="background-color: var(--bg-tertiary); border-bottom: 1px solid var(--border-color);">
                     <tr>
-                        <th style="padding: 1rem; width: 6%;">Loc.</th>
-                        <th style="padding: 1rem; width: 18%;">Item</th>
+                        <th style="padding: 1rem; width: 6%;">Loc</th>
+                        <th style="padding: 1rem; width: 14%;">Slot</th>
                         <th style="padding: 1rem; width: 12%;">P/N</th>
                         <th style="padding: 1rem; width: 14%;">S/N (SILOMS)</th>
                         <th style="padding: 1rem; width: 16%;">Atualização/Trigrama</th>
@@ -220,7 +220,7 @@ function renderInventario(items) {
         const sisA = a.sistema || 'ZZZ';
         const sisB = b.sistema || 'ZZZ';
         if(sisA !== sisB) return sisA.localeCompare(sisB);
-        return a.equipamento_nome.localeCompare(b.equipamento_nome);
+        return a.nome_posicao.localeCompare(b.nome_posicao);
     });
 
     items.forEach(item => {
@@ -250,7 +250,7 @@ function renderInventario(items) {
 
         tr.innerHTML = `
             <td style="padding: 0.8rem 1rem;"><span class="badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary-color); font-weight: 600; font-size: 0.75rem;">${item.sistema || '-'}</span></td>
-            <td style="padding: 0.8rem 1rem;"><div style="font-weight: 600;">${escapeHtml(item.equipamento_nome)}</div><div style="font-size: 0.75rem; color: var(--text-secondary);">${escapeHtml(item.status_item) || 'NÃO INSTALADO'}</div></td>
+            <td style="padding: 0.8rem 1rem;"><div style="font-weight: 600;">${escapeHtml(item.nome_posicao)}</div><div style="font-size: 0.75rem; color: var(--text-secondary);">${escapeHtml(item.status_item) || 'NÃO INSTALADO'}</div></td>
             <td style="padding: 0.8rem 1rem; font-family: monospace; font-size: 0.9rem;">${escapeHtml(item.part_number)}</td>
             <td style="padding: 0.8rem 1rem;" class="td-sn-siloms">${snSilomsHtml}</td>
             <td style="padding: 0.8rem 1rem;">${rastreabilidade}</td>
