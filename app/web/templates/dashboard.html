@@ -1,58 +1,423 @@
 {% extends "base.html" %}
 
-{% block page_title %}Dashboard Tática{% endblock %}
+{% block page_title %}Dashboard Central{% endblock %}
 
 {% block content %}
-<div class="grid-cards">
-    <!-- Card Panes Abertas -->
-    <div class="card glass-panel" style="border-left: 4px solid var(--status-danger);">
-        <div class="card-title">Situação de Risco</div>
-        <div class="card-value" id="count-abertas" style="color: var(--status-danger);">--</div>
-        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">Panes Pendentes (ABERTAS)</div>
+<div class="dashboard-container">
+    <!-- Card Principal: Panes (Prioridade Máxima) -->
+    <div class="glass-panel dashboard-card card-panes full-width">
+        <div class="card-header">
+            <div class="header-info">
+                <span class="card-icon" style="color: var(--status-danger);">🚨</span>
+                <h3 class="card-label">Panes Operacionais</h3>
+            </div>
+            <button class="btn btn-primary btn-sm" id="btn-registrar-pane">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Registrar Pane
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="stats-row">
+                <div class="stat-item clickable" id="stat-panes-abertas">
+                    <span class="stat-value" id="val-panes-abertas" style="color: var(--status-danger);">--</span>
+                    <span class="stat-label">Abertas</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item clickable" id="stat-panes-resolvidas">
+                    <span class="stat-value" id="val-panes-resolvidas" style="color: var(--status-ok);">--</span>
+                    <span class="stat-label">Resolvidas (Mês)</span>
+                </div>
+            </div>
+            
+            <div class="panes-list-container">
+                <h4 class="sub-title">Panes Críticas (Mais Antigas)</h4>
+                <div id="panes-criticas-list" class="mini-list">
+                    <div class="loading-placeholder">Carregando dados operacionais...</div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Card Resolvidas -->
-    <div class="card glass-panel" style="border-left: 4px solid var(--status-ok);">
-        <div class="card-title">Mitigadas (30 dias)</div>
-        <div class="card-value" id="count-resolvidas" style="color: var(--status-ok);">--</div>
-        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">Panes RESOLVIDAS</div>
-    </div>
-    
-    <!-- Aeronaves Frota -->
-    <div class="card glass-panel" style="border-left: 4px solid var(--primary-color);">
-        <div class="card-title">Cenário da Frota A-29</div>
-        <div class="card-value" id="count-aeronaves" style="color: var(--primary-color);">--</div>
-        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">Aeronaves Registradas</div>
+    <div class="dashboard-grid">
+        <!-- Card: Vencimentos -->
+        <div class="glass-panel dashboard-card card-vencimentos clickable" id="card-vencimentos">
+            <div class="card-header">
+                <div class="header-info">
+                    <span class="card-icon" style="color: var(--status-warning);">⚠️</span>
+                    <h3 class="card-label">Vencimentos</h3>
+                </div>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </div>
+            <div class="card-body">
+                <div class="vencimentos-summary">
+                    <div class="v-stat ok">
+                        <span class="v-label">OK</span>
+                        <span class="v-count" id="val-venc-ok">0</span>
+                    </div>
+                    <div class="v-stat warning">
+                        <span class="v-label">A Vencer</span>
+                        <span class="v-count" id="val-venc-avencer">0</span>
+                    </div>
+                    <div class="v-stat danger">
+                        <span class="v-label">Vencido</span>
+                        <span class="v-count" id="val-venc-vencido">0</span>
+                    </div>
+                    <div class="v-stat prorrogado">
+                        <span class="v-label">Prorrogado</span>
+                        <span class="v-count" id="val-venc-prorrogado">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card: Inspeções em Andamento -->
+        <div class="glass-panel dashboard-card card-inspecoes" id="card-inspecoes">
+            <div class="card-header">
+                <div class="header-info">
+                    <span class="card-icon" style="color: #1abc9c;">🔍</span>
+                    <h3 class="card-label">Inspeções Ativas</h3>
+                </div>
+                <a href="/inspecoes" class="btn-link">Ver todas</a>
+            </div>
+            <div class="card-body">
+                <div id="inspecoes-list" class="chip-list">
+                    <div class="loading-placeholder">...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card: Inventário (Mini-feed) -->
+        <div class="glass-panel dashboard-card card-inventario" id="card-inventario">
+            <div class="card-header">
+                <div class="header-info">
+                    <span class="card-icon" style="color: var(--primary-color);">📦</span>
+                    <h3 class="card-label">Últimas Instalações</h3>
+                </div>
+                <a href="/inventario" class="btn-link">Inventário</a>
+            </div>
+            <div class="card-body">
+                <div id="movimentacoes-list" class="mini-feed">
+                    <div class="loading-placeholder">...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card: Frota -->
+        <div class="glass-panel dashboard-card card-frota clickable" id="card-frota">
+            <div class="card-header">
+                <div class="header-info">
+                    <span class="card-icon" style="color: var(--status-ok);">✈️</span>
+                    <h3 class="card-label">Status da Frota</h3>
+                </div>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </div>
+            <div class="card-body">
+                <div id="frota-stats" class="frota-badges">
+                    <div class="loading-placeholder">...</div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="card glass-panel">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-        <h3 style="margin: 0; font-size: 1.1rem;">Visão Rápida: Últimas Panes (Criticidade Alta)</h3>
-        <a href="/panes" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background-color: var(--bg-tertiary); color: var(--text-primary);">Ver Todas</a>
-    </div>
+<style>
+.dashboard-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    animation: fadeIn 0.5s ease-out;
+}
 
-    <table style="width: 100%; border-collapse: collapse; text-align: left;">
-        <thead>
-            <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
-                <th style="padding: 0.75rem 0.5rem; font-weight: 500;">Aeronave</th>
-                <th style="padding: 0.75rem 0.5rem; font-weight: 500;">Data/Hora</th>
-                <th style="padding: 0.75rem 0.5rem; font-weight: 500;">Pane</th>
-                <th style="padding: 0.75rem 0.5rem; font-weight: 500;">Responsável</th>
-                <th style="padding: 0.75rem 0.5rem; font-weight: 500;">Status</th>
-                <th style="padding: 0.75rem 0.5rem; font-weight: 500;">Ação</th>
-            </tr>
-        </thead>
-        <tbody id="recent-panes-body">
-            <!-- Row Preloader -->
-            <tr>
-                <td colspan="4" style="padding: 1rem; text-align: center; color: var(--text-secondary);">
-                    Levantando dados de pista...
-                </td>
-            </tr>
-        </tbody>
-    </table>
-</div>
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.dashboard-card {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-card.clickable:hover {
+    transform: translateY(-4px);
+    cursor: pointer;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.card-icon {
+    font-size: 1.5rem;
+}
+
+.card-label {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.full-width {
+    grid-column: 1 / -1;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+@media (max-width: 992px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Stats Row - Panes */
+.stats-row {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.stat-divider {
+    width: 1px;
+    height: 40px;
+    background: var(--border-color);
+}
+
+.stat-item.clickable:hover .stat-value {
+    color: var(--primary-color);
+}
+
+/* Listas Minimalistas */
+.sub-title {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+}
+
+.mini-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--bg-primary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    transition: var(--transition);
+    text-decoration: none;
+    color: inherit;
+}
+
+.list-item:hover {
+    border-color: var(--primary-color);
+    background: var(--bg-tertiary);
+}
+
+.item-main {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.item-tag {
+    font-weight: 700;
+    color: var(--primary-color);
+    font-family: monospace;
+    font-size: 0.95rem;
+}
+
+.item-desc {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.item-meta {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* Vencimentos Grid */
+.vencimentos-summary {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.v-stat {
+    padding: 1rem;
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    border: 1px solid var(--border-color);
+}
+
+.v-stat.ok { border-left: 4px solid var(--status-ok); background: var(--status-ok-bg); }
+.v-stat.warning { border-left: 4px solid var(--status-warning); background: var(--status-warning-bg); }
+.v-stat.danger { border-left: 4px solid var(--status-danger); background: var(--status-danger-bg); }
+.v-stat.prorrogado { border-left: 4px solid var(--status-prorrogado); background: var(--status-prorrogado-bg); }
+
+.v-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); }
+.v-count { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+
+/* Chips */
+.chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: var(--transition);
+}
+
+.chip:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.chip-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+/* Feed */
+.mini-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.feed-item {
+    display: flex;
+    gap: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.feed-item:last-child {
+    border-bottom: none;
+}
+
+.feed-icon {
+    font-size: 1.1rem;
+    margin-top: 2px;
+}
+
+.feed-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.feed-title {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.feed-date {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* Frota Badges */
+.frota-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.f-badge {
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+}
+
+.f-badge .f-count {
+    background: var(--bg-secondary);
+    padding: 1px 6px;
+    border-radius: 4px;
+    min-width: 20px;
+    text-align: center;
+}
+
+.btn-link {
+    font-size: 0.8rem;
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.btn-link:hover {
+    text-decoration: underline;
+}
+
+.loading-placeholder {
+    color: var(--text-secondary);
+    font-style: italic;
+    font-size: 0.875rem;
+    padding: 1rem;
+    text-align: center;
+}
+</style>
 {% endblock %}
 
 {% block scripts %}

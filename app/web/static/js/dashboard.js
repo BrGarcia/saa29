@@ -1,99 +1,177 @@
-async function loadDashboard() {
-    const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
-    const ehGestor = (user.funcao === 'ENCARREGADO' || user.funcao === 'ADMINISTRADOR');
+/**
+ * app/web/static/js/dashboard.js
+ * Lógica de controle para o Dashboard Central.
+ * Consome o endpoint consolidado /dashboard/resumo.
+ */
 
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log("Dashboard inicializado.");
+    await carregarDashboard();
+    
+    // Auto-refresh a cada 5 minutos
+    setInterval(carregarDashboard, 5 * 60 * 1000);
+
+    // Event Listeners para navegação e ações
+    configurarEventos();
+});
+
+async function carregarDashboard() {
     try {
-        // 1. Fetch Panes List
-        const panes = await apiFetch("/panes/?limit=50");
+        const data = await apiFetch('/dashboard/resumo');
         
-        // Metricas
-        let abertas = 0, resolvidas = 0;
-        panes.forEach(p => {
-            if(p.status === 'ABERTA') abertas++;
-            else if(p.status === 'RESOLVIDA') resolvidas++;
+        if (!data) return;
+
+        renderPanes(data.panes);
+        renderVencimentos(data.vencimentos);
+        renderInspecoes(data.inspecoes_ativas);
+        renderInventario(data.movimentacoes_recentes);
+        renderFrota(data.frota);
+
+    } catch (error) {
+        console.error("Erro ao carregar dashboard:", error);
+    }
+}
+
+function configurarEventos() {
+    // Botão Registrar Pane
+    const btnRegistrar = document.getElementById('btn-registrar-pane');
+    if (btnRegistrar) {
+        btnRegistrar.addEventListener('click', (e) => {
+            e.stopPropagation(); // Evita clique no card
+            window.location.href = '/panes?action=new';
         });
-
-        document.getElementById("count-abertas").innerText = abertas;
-        document.getElementById("count-resolvidas").innerText = resolvidas;
-
-        // Renderizar na Dashboard APENAS panes ABERTAS
-        const recentPanesBody = document.getElementById("recent-panes-body");
-        if(recentPanesBody) {
-            recentPanesBody.innerHTML = "";
-
-            const activePanes = panes.filter(p => p.status === 'ABERTA');
-
-            if(activePanes.length === 0) {
-                recentPanesBody.innerHTML = `<tr><td colspan="6" style="padding: 1rem; text-align: center; color: var(--text-secondary);">Nenhuma pane pendente de resolução.</td></tr>`;
-            } else {
-                activePanes.forEach(pane => {
-                    let badgeClass = "badge-aberta";
-                    
-                    const dObj = new Date(pane.data_abertura);
-                    const shortDate = dObj.toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
-
-                    let responsavel = "--"; 
-                    if(pane.responsaveis && pane.responsaveis.length > 0) {
-                        responsavel = pane.responsaveis.map(r => 
-                            `<span class="badge" style="background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); font-family: monospace; font-size: 0.75rem;">${r.trigrama || "???"}</span>`
-                        ).join(" ");
-                    }
-
-                    const tr = document.createElement("tr");
-                    tr.style.borderBottom = "1px solid var(--border-color)";
-                    
-                    tr.innerHTML = `
-                        <td style="padding: 1rem 0.5rem; font-weight: 500;">${escapeHtml(pane.aeronave ? pane.aeronave.matricula : pane.aeronave_id.substring(0,8))}</td>
-                        <td style="padding: 1rem 0.5rem; color: var(--text-secondary);">${shortDate}</td>
-                        <td style="padding: 1rem 0.5rem; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(pane.descricao)}</td>
-                        <td style="padding: 1rem 0.5rem; color: var(--text-secondary);">${responsavel}</td>
-                        <td style="padding: 1rem 0.5rem;"><span class="badge ${badgeClass}">${escapeHtml(pane.status.replace("_", " "))}</span></td>
-                        <td style="padding: 1rem 0.5rem; display: flex; gap: 0.5rem; align-items: center;">
-                            <a href="/panes/${pane.id}/detalhes" class="btn-icon" style="color: var(--primary-color); display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; border: none; padding: 0.25rem;" title="Visualizar">
-                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                            </a>
-                            ${ehGestor ? `
-                                <a href="/panes/${pane.id}/detalhes?edit=true" class="btn-icon" style="color: var(--status-warning); display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; border: none; padding: 0.25rem;" title="Editar">
-                                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                </a>
-                                <button class="btn-icon btn-delete-dashboard" data-id="${pane.id}" style="color: var(--status-danger); display: flex; justify-content: center; align-items: center; cursor: pointer; background: transparent; border: none; padding: 0.25rem;" title="Excluir">
-                                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                </button>
-                            ` : ''}
-                        </td>
-                    `;
-                    const btnDelete = tr.querySelector('.btn-delete-dashboard');
-                    if(btnDelete) btnDelete.addEventListener('click', () => softDeletePaneDashboard(pane.id));
-                    
-                    recentPanesBody.appendChild(tr);
-                });
-            }
-        }
-
-        // 2. Fetch Aeronaves para metrica
-        try {
-            const aeronavesCount = document.getElementById("count-aeronaves");
-            if (aeronavesCount) {
-                const aeronaves = await apiFetch("/aeronaves/?limit=100&incluir_inativas=true");
-                aeronavesCount.innerText = aeronaves.length;
-            }
-        } catch(e) { /* ignora contagem se falhar isoladamente */ }
-
-    } catch (e) {
-        console.error("Falha ao montar dashboard:", e);
     }
+
+    // Cards Clicáveis (Navegação Direta)
+    document.getElementById('stat-panes-abertas')?.addEventListener('click', () => window.location.href = '/panes');
+    document.getElementById('stat-panes-resolvidas')?.addEventListener('click', () => window.location.href = '/panes');
+    document.getElementById('card-vencimentos')?.addEventListener('click', () => window.location.href = '/vencimentos');
+    document.getElementById('card-frota')?.addEventListener('click', () => window.location.href = '/frota');
 }
 
-async function softDeletePaneDashboard(id) {
-    if(!confirm("Atenção: A pane será inativada e constará na lixeira de Excluídas. Deseja prosseguir?")) return;
-    try {
-        await apiFetch(`/panes/${id}`, { method: 'DELETE' });
-        showToast("Pane removida com sucesso.", "success");
-        // Recarrega a página atual para atualizar o dashboard
-        setTimeout(() => window.location.reload(), 1500);
-    } catch(e) {
-        console.error("Falha ao excluir pane:", e);
+/** 
+ * Renderizadores 
+ */
+
+function renderPanes(data) {
+    const valAbertas = document.getElementById('val-panes-abertas');
+    const valResolvidas = document.getElementById('val-panes-resolvidas');
+    const listContainer = document.getElementById('panes-criticas-list');
+
+    if (valAbertas) valAbertas.textContent = data.total_abertas;
+    if (valResolvidas) valResolvidas.textContent = data.total_resolvidas_mes;
+
+    if (!listContainer) return;
+
+    if (!data.panes_criticas || data.panes_criticas.length === 0) {
+        listContainer.innerHTML = '<div class="loading-placeholder">Nenhuma pane aberta pendente. Operação limpa.</div>';
+        return;
     }
+
+    listContainer.innerHTML = data.panes_criticas.map(pane => `
+        <a href="/panes/${pane.id}/detalhes" class="list-item">
+            <div class="item-main">
+                <span class="item-tag">${escapeHtml(pane.matricula)}</span>
+                <span class="item-desc">${escapeHtml(pane.sistema || 'Geral')}</span>
+            </div>
+            <span class="item-meta">${formatarDataRelativa(pane.data_abertura)}</span>
+        </a>
+    `).join('');
 }
 
-document.addEventListener("DOMContentLoaded", loadDashboard);
+function renderVencimentos(data) {
+    const elOk = document.getElementById('val-venc-ok');
+    const elWarning = document.getElementById('val-venc-avencer');
+    const elDanger = document.getElementById('val-venc-vencido');
+    const elProrrogado = document.getElementById('val-venc-prorrogado');
+
+    if(elOk) elOk.textContent = data.ok || 0;
+    if(elWarning) elWarning.textContent = data.vencendo || 0;
+    if(elDanger) elDanger.textContent = data.vencido || 0;
+    if(elProrrogado) elProrrogado.textContent = data.prorrogado || 0;
+}
+
+function renderInspecoes(inspecoes) {
+    const list = document.getElementById('inspecoes-list');
+    if (!list) return;
+
+    if (!inspecoes || inspecoes.length === 0) {
+        list.innerHTML = '<div class="loading-placeholder">Sem inspeções em andamento.</div>';
+        return;
+    }
+
+    list.innerHTML = inspecoes.map(insp => {
+        const tipos = (insp.tipos && insp.tipos.length > 0) ? insp.tipos.join(' + ') : 'Inspeção';
+        const color = insp.status === 'EM_ANDAMENTO' ? 'var(--status-ok)' : 'var(--status-warning)';
+        return `
+            <a href="/inspecoes/${insp.inspecao_id}/detalhes" class="chip">
+                <span class="chip-status" style="background: ${color}"></span>
+                ${escapeHtml(insp.matricula)} — ${escapeHtml(tipos)}
+            </a>
+        `;
+    }).join('');
+}
+
+function renderInventario(movimentacoes) {
+    const list = document.getElementById('movimentacoes-list');
+    if (!list) return;
+
+    if (!movimentacoes || movimentacoes.length === 0) {
+        list.innerHTML = '<div class="loading-placeholder">Nenhuma movimentação recente.</div>';
+        return;
+    }
+
+    list.innerHTML = movimentacoes.map(mov => `
+        <div class="feed-item">
+            <span class="feed-icon">📥</span>
+            <div class="feed-content">
+                <span class="feed-title">
+                    <strong>${escapeHtml(mov.aeronave_matricula || 'Item')}</strong>: ${escapeHtml(mov.descricao)}
+                </span>
+                <span class="feed-date">${formatarDataSimples(mov.data)}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderFrota(data) {
+    const container = document.getElementById('frota-stats');
+    if (!container) return;
+
+    const statusMap = [
+        { key: 'disponivel', label: 'Disponível', color: 'var(--status-ok)' },
+        { key: 'operacional', label: 'Operacional', color: 'var(--primary-color)' },
+        { key: 'indisponivel', label: 'Indisponível', color: 'var(--status-danger)' },
+        { key: 'inspecao', label: 'Em Inspeção', color: '#1abc9c' }
+    ];
+
+    container.innerHTML = statusMap.map(st => `
+        <div class="f-badge">
+            <span class="chip-status" style="background: ${st.color}"></span>
+            ${st.label}
+            <span class="f-count">${data[st.key] || 0}</span>
+        </div>
+    `).join('');
+}
+
+/**
+ * Utilitários de Formatação
+ */
+
+function formatarDataRelativa(isoString) {
+    if (!isoString) return "";
+    const data = new Date(isoString);
+    const agora = new Date();
+    const diffMs = agora - data;
+    const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDias === 0) return "Hoje";
+    if (diffDias === 1) return "Ontem";
+    return `Há ${diffDias} dias`;
+}
+
+function formatarDataSimples(isoString) {
+    if (!isoString) return "";
+    const data = new Date(isoString);
+    return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}

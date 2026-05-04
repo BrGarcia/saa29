@@ -39,6 +39,15 @@
                     <!-- Navegação Administrativa (visível via JS) -->
                     <nav id="admin-nav"
                         style="display: none; align-items: center; gap: 0.5rem; margin-right: 0.5rem; border-right: 1px solid var(--border-color); padding-right: 1rem;">
+                        <a href="/dashboard" class="btn-icon" aria-label="Dashboard" title="Dashboard"
+                            style="width: 38px; height: 38px; {% if request.url.path == '/dashboard' %}color: var(--primary-color); background: var(--bg-tertiary); border-color: var(--primary-color);{% endif %}">
+                            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <rect x="3" y="3" width="7" height="7" rx="1" stroke-width="2"></rect>
+                                <rect x="14" y="3" width="7" height="7" rx="1" stroke-width="2"></rect>
+                                <rect x="14" y="14" width="7" height="7" rx="1" stroke-width="2"></rect>
+                                <rect x="3" y="14" width="7" height="7" rx="1" stroke-width="2"></rect>
+                            </svg>
+                        </a>
                         <a href="/panes" class="btn-icon" aria-label="Panes" title="Panes"
                             style="width: 38px; height: 38px; {% if request.url.path == '/panes' %}color: var(--primary-color); background: var(--bg-tertiary); border-color: var(--primary-color);{% endif %}">
                             <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">

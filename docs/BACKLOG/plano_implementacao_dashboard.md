@@ -284,15 +284,15 @@ async def test_dashboard_todos_roles_tem_acesso(client_autenticado):
 - [x] Alterar redirect de `/` para `/dashboard` (era `/panes`) em `app/web/pages/router.py`
 - [x] Rodar `pytest tests/unit/test_dashboard.py` — confirmar **18/18 PASSED** (incluindo os 3 testes de endpoint)
 
-### Fase 3 — Interface (UI) `[⏳ PRÓXIMA]`
+### Fase 3 — Interface (UI) `[✅ CONCLUÍDA — 2026-05-04]`
 
-- [ ] Criar `app/web/templates/dashboard.html` (extends `base.html`)
-- [ ] Criar `app/web/static/js/dashboard.js`
-- [ ] Adicionar link "Dashboard" na barra de navegação em `base.html`
-- [ ] Marcar o link como ativo visualmente via JS quando na página `/dashboard`
-- [ ] Validar design: modo claro e escuro, cards responsivos
+- [x] Criar `app/web/templates/dashboard.html` (extends `base.html`)
+- [x] Criar `app/web/static/js/dashboard.js`
+- [x] Adicionar link "Dashboard" na barra de navegação em `base.html`
+- [x] Marcar o link como ativo visualmente via JS/Jinja quando na página `/dashboard`
+- [x] Validar design: modo claro e escuro, cards responsivos (Glassmorphism aplicado)
 
-### Fase 4 — Polimento `[Sprint 2]`
+### Fase 4 — Polimento `[⏳ PRÓXIMA]`
 
 - [ ] Skeleton loaders nos cards enquanto dados carregam
 - [ ] Animações suaves de entrada (CSS `@keyframes`)
@@ -389,9 +389,9 @@ Ver `docs/BACKLOG/dashboard.ctx` — Intermediate Representation (IR) para uso e
 | Router API | `app/modules/dashboard/router.py` | ✅ Concluído |
 | Registro no App | `app/bootstrap/main.py` | ✅ Concluído |
 | Rota de Página + Redirect | `app/web/pages/router.py` | ✅ Concluído |
-| Template HTML | `app/web/templates/dashboard.html` | ⏳ Fase 3 |
-| JavaScript | `app/web/static/js/dashboard.js` | ⏳ Fase 3 |
-| Link na Nav | `app/web/templates/base.html` | ⏳ Fase 3 |
+| Template HTML | `app/web/templates/dashboard.html` | ✅ Concluído |
+| JavaScript | `app/web/static/js/dashboard.js` | ✅ Concluído |
+| Link na Nav | `app/web/templates/base.html` | ✅ Concluído |
 | Arquivo IR (.ctx) | `docs/BACKLOG/dashboard.ctx` | ✅ Concluído |
 
 ---
@@ -407,3 +407,4 @@ Ver `docs/BACKLOG/dashboard.ctx` — Intermediate Representation (IR) para uso e
 | 2026-05-04 | Fase 1 | Service layer (`service.py`) | ✅ GREEN: 15/15 passed |
 | 2026-05-04 | Fase 1 | Commit na branch `feat/dashboard` | ✅ `9f7f064` |
 | 2026-05-04 | Fase 2 | Router API e rotas de página | ✅ 18/18 testes passando |
+| 2026-05-04 | Fase 3 | Interface (HTML/JS/Nav) | ✅ Dashboard funcional e responsivo |
