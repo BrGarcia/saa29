@@ -32,7 +32,7 @@ async def main():
         print("🏗️ Sincronizando versão do Alembic (stamp head)...")
         env = os.environ.copy()
         env["PYTHONPATH"] = env.get("PYTHONPATH", "") + (":" if env.get("PYTHONPATH") else "") + os.getcwd()
-        subprocess.run(["python", "-m", "alembic", "stamp", "head"], check=True, env=env)
+        subprocess.run([sys.executable, "-m", "alembic", "stamp", "head"], check=True, env=env)
         print("✅ Banco de dados e Alembic sincronizados!")
         
         # 4. Rodar seeds

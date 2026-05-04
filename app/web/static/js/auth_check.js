@@ -28,16 +28,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             document.querySelectorAll('[data-role]').forEach(el => {
                 const requiredRoles = el.getAttribute('data-role').toUpperCase().split(',').map(r=>r.trim());
                 
-                let hasAccess = false;
-                if (funcao === 'ADMINISTRADOR') {
-                    hasAccess = true; // Admin acessa tudo
-                } else if (funcao === 'ENCARREGADO') {
-                    hasAccess = requiredRoles.includes('ENCARREGADO') || requiredRoles.includes('MANTENEDOR');
-                } else if (funcao === 'INSPETOR') {
-                    hasAccess = requiredRoles.includes('INSPETOR');
-                } else if (funcao === 'MANTENEDOR') {
-                    hasAccess = requiredRoles.includes('MANTENEDOR');
-                }
+                let hasAccess = requiredRoles.some(role => window.hasPermission(role));
 
                 if (!hasAccess) {
                     const currentDisplay = window.getComputedStyle(el).display;
@@ -83,10 +74,24 @@ window.hasPermission = function(requiredRole) {
         const user = JSON.parse(userJson);
         const funcao = user.funcao ? user.funcao.toUpperCase() : '';
         
+        const roles = ['MANTENEDOR', 'INSPETOR', 'ENCARREGADO', 'ADMINISTRADOR'];
+        const levels = {
+            'MANTENEDOR': 0,
+            'INSPETOR': 1,
+            'ENCARREGADO': 2,
+            'ADMINISTRADOR': 3
+        };
+
         if (funcao === 'ADMINISTRADOR') return true;
-        if (funcao === 'ENCARREGADO') return requiredRole === 'ENCARREGADO' || requiredRole === 'MANTENEDOR';
-        if (funcao === 'INSPETOR') return requiredRole === 'INSPETOR';
-        if (funcao === 'MANTENEDOR') return requiredRole === 'MANTENEDOR';
+        
+        // Se a role exigida for MANTENEDOR, todos os logados têm (base)
+        if (requiredRole === 'MANTENEDOR') return true;
+
+        // Caso contrário, verifica correspondência exata ou superior (exceto paralelo entre Insp/Enc)
+        if (funcao === requiredRole) return true;
+
+        // Encarregado tem permissões de Mantenedor (já tratado acima)
+        if (funcao === 'ENCARREGADO' && requiredRole === 'MANTENEDOR') return true;
         
         return false;
     } catch (e) {

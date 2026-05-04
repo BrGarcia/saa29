@@ -50,7 +50,7 @@ class Usuario(Base):
     funcao: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        comment="Função no sistema: ADMINISTRADOR | ENCARREGADO | MANTENEDOR",
+        comment="Função no sistema: ADMINISTRADOR | ENCARREGADO | INSPETOR | MANTENEDOR",
     )
     ramal: Mapped[str | None] = mapped_column(
         String(20),

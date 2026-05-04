@@ -38,6 +38,7 @@ async function loadEfetivo(forceRefresh = false) {
         let roleColor = "--text-secondary";
         if(u.funcao === "ADMINISTRADOR") roleColor = "--status-danger";
         else if(u.funcao === "ENCARREGADO") roleColor = "--status-warning";
+        else if(u.funcao === "INSPETOR") roleColor = "--status-ok";
         else if(u.funcao === "MANTENEDOR") roleColor = "--primary-color";
 
         const isSelf = u.id === currentUser.id;

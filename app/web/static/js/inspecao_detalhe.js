@@ -82,11 +82,12 @@ function renderizarCabecalho() {
     const concluidas = inspecaoAtual.tarefas.filter(t => t.status !== 'PENDENTE').length;
     const pct = total === 0 ? 0 : Math.round((concluidas / total) * 100);
     const todasObrigatoriasFeitas = inspecaoAtual.tarefas.filter(t => t.obrigatoria && t.status === 'PENDENTE').length === 0;
-    const canControl = window.hasPermission('ENCARREGADO');
+    const canAddTask = window.hasPermission('MANTENEDOR'); // Todos podem adicionar
+    const canControlInspecao = window.hasPermission('ENCARREGADO') || window.hasPermission('INSPETOR');
 
     const containerBtnAdd = document.getElementById('container-btn-add-tarefa');
     if (containerBtnAdd) {
-        if (canControl && (inspecaoAtual.status === 'ABERTA' || inspecaoAtual.status === 'EM_ANDAMENTO')) {
+        if (canAddTask && (inspecaoAtual.status === 'ABERTA' || inspecaoAtual.status === 'EM_ANDAMENTO')) {
             containerBtnAdd.style.display = 'block';
         } else {
             containerBtnAdd.style.display = 'none';
@@ -94,7 +95,7 @@ function renderizarCabecalho() {
     }
 
     let botoesAcao = '';
-    if (canControl && (inspecaoAtual.status === 'ABERTA' || inspecaoAtual.status === 'EM_ANDAMENTO')) {
+    if (canControlInspecao && (inspecaoAtual.status === 'ABERTA' || inspecaoAtual.status === 'EM_ANDAMENTO')) {
         botoesAcao = `
             <div style="display: flex; gap: 1rem;">
                 <button id="btn-cancelar-inspecao" class="btn btn-outline" style="color: var(--status-danger); border-color: var(--status-danger);">

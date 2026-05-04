@@ -420,7 +420,7 @@ async def adicionar_tarefa_avulsa(
     inspecao_id: uuid.UUID,
     dados: schemas.InspecaoTarefaCreate,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    _: CurrentUser,
 ) -> schemas.InspecaoTarefaOut:
     try:
         tarefa = await service.adicionar_tarefa_avulsa(db, inspecao_id, dados)

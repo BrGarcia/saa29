@@ -35,11 +35,11 @@ O sistema possui quatro níveis de acesso, definidos no enum `TipoPapel` (`app/s
 ### **Panes**
 | | Registrar nova pane                             | ✅ | ✅ | ✅ | ✅ |
 | | Visualizar listagem e detalhes                  | ✅ | ✅ | ✅ | ✅ |
-| | Adicionar anexos e comentários                  | ✅ | ✅ | ❌ | ✅ |
+| | Adicionar anexos e comentários                  | ✅ | ✅ | ✅ | ✅ |
 | | Assumir responsabilidade (si mesmo)             | ✅ | ✅ | ❌ | ✅ |
 | | Atribuir responsabilidade a terceiros           | ❌ | ✅ | ❌ | ✅ |
-| | Editar descrição / sistema (após criação)       | ❌ | ✅ | ❌ | ✅ |
-| | Concluir / fechar pane                          | ✅ | ✅ | ❌ | ✅ |
+| | Editar descrição / sistema (após criação)       | ❌ | ✅ | ✅ | ✅ |
+| | Concluir / fechar pane                          | ✅ | ✅ | ✅ | ✅ |
 | | Excluir (soft delete) / Restaurar pane          | ❌ | ✅ | ❌ | ✅ |
 
 ### **Aeronaves**
@@ -68,6 +68,7 @@ O sistema possui quatro níveis de acesso, definidos no enum `TipoPapel` (`app/s
 
 ### **Inspeções**
 | | Listar inspeções e catálogo                     | ✅ | ✅ | ✅ | ✅ |
+| | Adicionar tarefa extra (avulsa)                 | ✅ | ✅ | ✅ | ✅ |
 | | Executar tarefa (checklist)                     | ✅ | ✅ | ❌ | ✅ |
 | | Abrir inspeção                                  | ❌ | ✅ | ✅ | ✅ |
 | | Cancelar inspeção                               | ❌ | ✅ | ✅ | ✅ |
@@ -96,6 +97,8 @@ Utiliza injeção de dependência do FastAPI (`app/bootstrap/dependencies.py`):
 - `CurrentUser` → Usuário autenticado
 - `EncarregadoOuAdmin` → ENCARREGADO ou ADMINISTRADOR
 - `InspetorOuAdmin` → INSPETOR ou ADMINISTRADOR
+- `EncarregadoInspetorOuAdmin` → ENCARREGADO, INSPETOR ou ADMINISTRADOR
+- `ExecucaoPermitida` → MANTENEDOR, ENCARREGADO ou ADMINISTRADOR
 - `AdminRequired` → Apenas ADMINISTRADOR
 
 #### Exemplo:

@@ -112,7 +112,7 @@ async def editar_pane(
 ) -> schemas.PaneOut:
     """Edita descrição e/ou status. RN-03: apenas panes não resolvidas."""
     if dados.descricao is not None or dados.sistema_subsistema is not None:
-        ensure_role(usuario_atual, "ENCARREGADO", "ADMINISTRADOR")
+        ensure_role(usuario_atual, "ENCARREGADO", "INSPETOR", "ADMINISTRADOR")
     try:
         await service.editar_pane(db, pane_id, dados, usuario_atual.id)
         # Recarregar com ranking para devolver o código correto
@@ -144,8 +144,10 @@ async def concluir_pane(
     pane_id: uuid.UUID,
     dados: schemas.PaneConcluir,
     db: DBSession,
-    usuario_atual: ExecucaoPermitida,
+    usuario_atual: CurrentUser,
 ) -> schemas.PaneOut:
+    # RN: MANTENEDOR, ENCARREGADO, INSPETOR e ADMIN podem concluir.
+    ensure_role(usuario_atual, "MANTENEDOR", "ENCARREGADO", "INSPETOR", "ADMINISTRADOR")
     """Conclui a pane. Preenche data_conclusao automaticamente (RN-04)."""
     try:
         await service.concluir_pane(
@@ -180,9 +182,10 @@ async def concluir_pane(
 async def upload_anexo(
     pane_id: uuid.UUID,
     db: DBSession,
-    _: ExecucaoPermitida,
+    usuario_atual: CurrentUser,
     arquivo: UploadFile = File(description="Imagem (jpg/png) ou documento"),
 ) -> schemas.AnexoOut:
+    ensure_role(usuario_atual, "MANTENEDOR", "ENCARREGADO", "INSPETOR", "ADMINISTRADOR")
     from app.shared.core.file_validators import validate_file_upload
     await validate_file_upload(arquivo)
     
