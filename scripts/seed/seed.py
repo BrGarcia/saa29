@@ -39,14 +39,16 @@ async def main():
         try:
             # 1. Auth (Usuários base - Admin sempre, outros só em dev via service)
             await seed_auth.run(session)
+
+            # 2. Aeronaves (Frota - Essencial sempre conforme solicitado)
+            await seed_aeronaves.run(session)
             
-            # 2. Equipamentos (Catálogo/PNs/Slots - Sempre essencial para estrutura)
+            # 3. Equipamentos (Catálogo/PNs/Slots - Sempre essencial para estrutura)
             await seed_equipamentos.run(session)
 
             if settings.enable_dev_seeds:
                 print("🛠️  Modo Desenvolvimento: Carregando dados de teste...")
-                # 3. Aeronaves (Frota)
-                await seed_aeronaves.run(session)
+                # Remover redundância (Aeronaves já carregadas acima)
                 
                 # 4. Inventário (Instalação física de Itens)
                 await seed_inventario.run(session)
@@ -63,7 +65,7 @@ async def main():
                 # 8. Inspeções (Abertura de inspeções em frota)
                 await seed_inspecoes.run(session)
             else:
-                print("🚀 Modo Produção: Apenas usuários e estrutura (slots) carregados.")
+                print("🚀 Modo Produção: Usuários, Aeronaves e Estrutura (slots) carregados.")
             
             await session.commit()
             print("\n✅ Seed concluído com sucesso!")
