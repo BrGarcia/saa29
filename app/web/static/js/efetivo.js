@@ -51,7 +51,9 @@ async function loadEfetivo(forceRefresh = false) {
             <td style="padding: 1rem; font-family: monospace;">${escapeHtml(u.username)}</td>
             <td style="padding: 1rem;"><span style="color: var(${roleColor}); font-weight: 600; font-size: 0.85rem;">${escapeHtml(u.funcao)}</span></td>
             <td style="padding: 1rem; color: var(--text-secondary);">${escapeHtml(u.ramal) || '-'}</td>
-            <td class="td-acoes" style="padding: 0.75rem; white-space: nowrap;"></td>
+            <td style="padding: 0.75rem;">
+                <div class="td-acoes" style="display: flex; gap: 0.4rem; align-items: center;"></div>
+            </td>
         `;
 
         const tdAcoes = tr.querySelector('.td-acoes');
@@ -69,7 +71,6 @@ async function loadEfetivo(forceRefresh = false) {
                 btnPwd.className = 'btn-icon';
                 btnPwd.title = 'Alterar Senha';
                 btnPwd.style.color = 'var(--primary-color)';
-                btnPwd.style.marginLeft = '0.25rem';
                 btnPwd.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4v-3.828l7.257-7.257A6 6 0 1115 7h.01z"/></svg>`;
                 btnPwd.addEventListener('click', () => openResetarSenha(u));
                 tdAcoes.appendChild(btnPwd);
@@ -79,7 +80,6 @@ async function loadEfetivo(forceRefresh = false) {
                     btnDelete.className = 'btn-icon';
                     btnDelete.title = 'Desativar';
                     btnDelete.style.color = 'var(--status-danger)';
-                    btnDelete.style.marginLeft = '0.25rem';
                     btnDelete.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>`;
                     btnDelete.addEventListener('click', () => excluirMembro(u.id, u.nome));
                     tdAcoes.appendChild(btnDelete);
