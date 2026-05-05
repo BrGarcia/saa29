@@ -4,44 +4,9 @@
 
 {% block content %}
 <div class="dashboard-container">
-    <!-- Card Principal: Panes (Prioridade Máxima) -->
-    <div class="glass-panel dashboard-card card-panes full-width" aria-label="Painel de Panes Operacionais">
-        <div class="card-header">
-            <div class="header-info">
-                <span class="card-icon" aria-hidden="true" style="color: var(--status-danger);">🚨</span>
-                <h3 class="card-label">Panes Operacionais</h3>
-            </div>
-            <button class="btn btn-primary btn-sm" id="btn-registrar-pane" aria-label="Registrar nova pane">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                Registrar Pane
-            </button>
-        </div>
-        <div class="card-body">
-            <div class="stats-row">
-                <div class="stat-item clickable" id="stat-panes-abertas" aria-label="Ver todas as panes abertas">
-                    <span class="stat-value skeleton-text" id="val-panes-abertas" style="color: var(--status-danger);">--</span>
-                    <span class="stat-label">Abertas</span>
-                </div>
-                <div class="stat-divider"></div>
-                <div class="stat-item clickable" id="stat-panes-resolvidas" aria-label="Ver panes resolvidas no mês">
-                    <span class="stat-value skeleton-text" id="val-panes-resolvidas" style="color: var(--status-ok);">--</span>
-                    <span class="stat-label">Resolvidas (Mês)</span>
-                </div>
-            </div>
-            
-            <div class="panes-list-container">
-                <h4 class="sub-title">Panes Críticas (Mais Antigas)</h4>
-                <div id="panes-criticas-list" class="mini-list">
-                    <!-- Skeletons -->
-                    <div class="skeleton list-item-skeleton"></div>
-                    <div class="skeleton list-item-skeleton"></div>
-                    <div class="skeleton list-item-skeleton"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="dashboard-grid">
+    
+    <!-- PARTE SUPERIOR: 3 colunas (Vencimentos / Inspeções / Status da Frota) -->
+    <div class="dashboard-top-grid">
         <!-- Card: Vencimentos -->
         <div class="glass-panel dashboard-card card-vencimentos clickable" id="card-vencimentos" aria-label="Ver controle de vencimentos">
             <div class="card-header">
@@ -90,23 +55,6 @@
             </div>
         </div>
 
-        <!-- Card: Inventário (Mini-feed) -->
-        <div class="glass-panel dashboard-card card-inventario" id="card-inventario" aria-label="Últimas movimentações de inventário">
-            <div class="card-header">
-                <div class="header-info">
-                    <span class="card-icon" aria-hidden="true" style="color: var(--primary-color);">📦</span>
-                    <h3 class="card-label">Últimas Instalações</h3>
-                </div>
-                <a href="/inventario" class="btn-link" aria-label="Ir para o módulo de inventário">Inventário</a>
-            </div>
-            <div class="card-body">
-                <div id="movimentacoes-list" class="mini-feed">
-                    <div class="skeleton feed-item-skeleton"></div>
-                    <div class="skeleton feed-item-skeleton"></div>
-                </div>
-            </div>
-        </div>
-
         <!-- Card: Frota -->
         <div class="glass-panel dashboard-card card-frota clickable" id="card-frota" aria-label="Ver status detalhado da frota">
             <div class="card-header">
@@ -125,6 +73,60 @@
             </div>
         </div>
     </div>
+
+    <!-- CAMPO CENTRAL: Panes Operacionais -->
+    <div class="glass-panel dashboard-card card-panes full-width" aria-label="Painel de Panes Operacionais">
+        <div class="card-header">
+            <div class="header-info">
+                <span class="card-icon" aria-hidden="true" style="color: var(--status-danger);">🚨</span>
+                <h3 class="card-label">Panes Operacionais</h3>
+            </div>
+            <button class="btn btn-primary btn-sm" id="btn-registrar-pane" aria-label="Registrar nova pane">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Registrar Pane
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="stats-row">
+                <div class="stat-item clickable" id="stat-panes-abertas" aria-label="Ver todas as panes abertas">
+                    <span class="stat-value skeleton-text" id="val-panes-abertas" style="color: var(--status-danger);">--</span>
+                    <span class="stat-label">Abertas</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item clickable" id="stat-panes-resolvidas" aria-label="Ver panes resolvidas no mês">
+                    <span class="stat-value skeleton-text" id="val-panes-resolvidas" style="color: var(--status-ok);">--</span>
+                    <span class="stat-label">Resolvidas (Mês)</span>
+                </div>
+            </div>
+            
+            <div class="panes-list-container">
+                <h4 class="sub-title">Panes Críticas (Mais Antigas)</h4>
+                <div id="panes-criticas-list" class="mini-list">
+                    <div class="skeleton list-item-skeleton"></div>
+                    <div class="skeleton list-item-skeleton"></div>
+                    <div class="skeleton list-item-skeleton"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CAMPO INFERIOR: Últimas Instalações -->
+    <div class="glass-panel dashboard-card card-inventario full-width" id="card-inventario" aria-label="Últimas movimentações de inventário">
+        <div class="card-header">
+            <div class="header-info">
+                <span class="card-icon" aria-hidden="true" style="color: var(--primary-color);">📦</span>
+                <h3 class="card-label">Últimas Instalações</h3>
+            </div>
+            <a href="/inventario" class="btn-link" aria-label="Ir para o módulo de inventário">Inventário</a>
+        </div>
+        <div class="card-body">
+            <div id="movimentacoes-list" class="mini-feed">
+                <div class="skeleton feed-item-skeleton"></div>
+                <div class="skeleton feed-item-skeleton"></div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <style>
@@ -179,17 +181,23 @@
 }
 
 .full-width {
-    grid-column: 1 / -1;
+    width: 100%;
 }
 
-.dashboard-grid {
+.dashboard-top-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
 }
 
-@media (max-width: 992px) {
-    .dashboard-grid {
+@media (max-width: 1200px) {
+    .dashboard-top-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-top-grid {
         grid-template-columns: 1fr;
     }
 }
@@ -288,11 +296,11 @@
 .vencimentos-summary {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
+    gap: 0.75rem;
 }
 
 .v-stat {
-    padding: 1rem;
+    padding: 0.75rem;
     border-radius: var(--radius-md);
     display: flex;
     flex-direction: column;
@@ -305,8 +313,8 @@
 .v-stat.danger { border-left: 4px solid var(--status-danger); background: var(--status-danger-bg); }
 .v-stat.prorrogado { border-left: 4px solid var(--status-prorrogado); background: var(--status-prorrogado-bg); }
 
-.v-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); }
-.v-count { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+.v-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); }
+.v-count { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); }
 
 /* Chips */
 .chip-list {
