@@ -348,6 +348,27 @@ async def alterar_senha(
 
 
 @router.put(
+    "/usuarios/{usuario_id}/senha",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Redefinir senha de um usuário (Admin)",
+)
+async def admin_resetar_senha(
+    usuario_id: uuid.UUID,
+    dados: schemas.AdminSenhaUpdate,
+    db: DBSession,
+    _: AdminRequired,
+) -> None:
+    """Redefine a senha de um membro do efetivo sem precisar da senha atual. Restrito a Administradores."""
+    try:
+        await service.admin_resetar_senha(db, usuario_id, dados.nova_senha)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
+@router.put(
     "/usuarios/{usuario_id}",
     response_model=schemas.UsuarioOut,
     summary="Atualizar dados de um usuário (Admin)",

@@ -49,6 +49,11 @@ class SenhaUpdate(BaseModel):
     nova_senha: str = Field(..., min_length=6)
 
 
+class AdminSenhaUpdate(BaseModel):
+    """Payload para troca de senha de outro usuário por um Administrador."""
+    nova_senha: str = Field(..., min_length=6)
+
+
 class RefreshTokenRequest(BaseModel):
     """Payload para requisição de novo access token via refresh token."""
     refresh_token: str = Field(..., description="Refresh token recebido no login")

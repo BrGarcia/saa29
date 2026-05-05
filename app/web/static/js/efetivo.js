@@ -65,6 +65,15 @@ async function loadEfetivo(forceRefresh = false) {
                 btnEdit.addEventListener('click', () => openEditarMembro(u));
                 tdAcoes.appendChild(btnEdit);
 
+                const btnPwd = document.createElement('button');
+                btnPwd.className = 'btn-icon';
+                btnPwd.title = 'Alterar Senha';
+                btnPwd.style.color = 'var(--primary-color)';
+                btnPwd.style.marginLeft = '0.25rem';
+                btnPwd.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4v-3.828l7.257-7.257A6 6 0 1115 7h.01z"/></svg>`;
+                btnPwd.addEventListener('click', () => openResetarSenha(u));
+                tdAcoes.appendChild(btnPwd);
+
                 if(!isSelf) {
                     const btnDelete = document.createElement('button');
                     btnDelete.className = 'btn-icon';
@@ -142,6 +151,19 @@ function closeEditarMembro() {
     document.getElementById("modal-editar-membro").style.display = 'none';
 }
 
+function openResetarSenha(u) {
+    document.getElementById('resetSenhaUserId').value = u.id;
+    document.getElementById('resetSenhaUserName').textContent = u.nome;
+    document.getElementById('novaSenhaInput').value = '';
+    document.getElementById('modal-resetar-senha').style.display = 'flex';
+}
+
+function closeResetarSenha() {
+    document.getElementById('modal-resetar-senha').style.display = 'none';
+    const form = document.getElementById('formResetarSenha');
+    if (form) form.reset();
+}
+
 async function salvarEdicaoMembro(e) {
     e.preventDefault();
     const btn = document.getElementById('btnSalvarEdicao');
@@ -161,6 +183,27 @@ async function salvarEdicaoMembro(e) {
         usuariosCache = [];
         closeEditarMembro();
         loadEfetivo();
+    } catch(err) {
+        showToast(err.message, "error");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function salvarNovaSenha(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSalvarNovaSenha');
+    btn.disabled = true;
+    const id = document.getElementById('resetSenhaUserId').value;
+    const novaSenha = document.getElementById('novaSenhaInput').value;
+    
+    try {
+        await apiFetch(`/auth/usuarios/${id}/senha`, { 
+            method: 'PUT', 
+            body: { nova_senha: novaSenha } 
+        });
+        showToast('Senha alterada com sucesso!', 'success');
+        closeResetarSenha();
     } catch(err) {
         showToast(err.message, "error");
     } finally {
@@ -214,8 +257,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const formEditar = document.getElementById('formEditarMembro');
     if(formEditar) formEditar.addEventListener('submit', salvarEdicaoMembro);
+    
+    const formResetSenha = document.getElementById('formResetarSenha');
+    if(formResetSenha) formResetSenha.addEventListener('submit', salvarNovaSenha);
 
     // Handlers para fechar modais (CSP compliant)
     document.getElementById('btn-cancelar-membro')?.addEventListener('click', closeModalMembro);
     document.getElementById('btn-cancelar-edicao-membro')?.addEventListener('click', closeEditarMembro);
+    document.getElementById('btn-cancelar-reset-senha')?.addEventListener('click', closeResetarSenha);
 });

@@ -148,6 +148,27 @@
         </form>
     </div>
 </div>
+
+<!-- Modal Resetar Senha (apenas ADMINISTRADOR) -->
+<div id="modal-resetar-senha" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card glass-panel" style="width: 100%; max-width: 400px; margin: 1rem;">
+        <h3 style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">Alterar Senha</h3>
+        <p style="margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
+            Defina uma nova senha para o usuário <strong id="resetSenhaUserName"></strong>.
+        </p>
+        <form id="formResetarSenha">
+            <input type="hidden" id="resetSenhaUserId">
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label class="form-label">Nova Senha *</label>
+                <input type="password" id="novaSenhaInput" class="form-input" required minlength="6" placeholder="Mínimo 6 caracteres">
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button type="button" class="btn btn-outline" id="btn-cancelar-reset-senha">Cancelar</button>
+                <button type="submit" class="btn btn-primary" id="btnSalvarNovaSenha">Salvar Senha</button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}

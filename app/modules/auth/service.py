@@ -159,6 +159,22 @@ async def alterar_senha(
     usuario.senha_hash = hash_senha(nova_senha)
     await db.flush()
 
+async def admin_resetar_senha(
+    db: AsyncSession,
+    usuario_id: uuid.UUID,
+    nova_senha: str,
+) -> None:
+    """
+    Permite que um Administrador redefina a senha de qualquer usuário
+    sem precisar da senha atual.
+    """
+    usuario = await buscar_por_id(db, usuario_id)
+    if not usuario:
+        raise ValueError("Usuário não encontrado.")
+    
+    usuario.senha_hash = hash_senha(nova_senha)
+    await db.flush()
+
 
 async def excluir_usuario(
     db: AsyncSession,
