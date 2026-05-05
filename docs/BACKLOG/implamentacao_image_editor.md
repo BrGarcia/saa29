@@ -1,6 +1,6 @@
 # Plano de Implementação: Processamento e Otimização de Imagens (IMGDIET)
 
-**Status geral:** Etapas 1–3 concluídas. Etapas 4–5 em aberto (integração nos módulos de domínio).
+**Status geral:** Etapas 1–3 concluídas. Etapas 4–5 implementadas com gaps (ver seção 7).
 
 Este documento descreve o plano detalhado para integrar o serviço de processamento de imagens localizado em `app/shared/services/image` ao ecossistema do SAA29, com foco em eficiência de armazenamento, suporte a novos formatos (HEIC) e otimização automática.
 
@@ -35,13 +35,13 @@ O módulo é composto pelos seguintes componentes:
 - [x] **Mudança**: Antes de chamar `storage_svc.upload`, os `arquivo_bytes` devem passar pelo `pipeline.process_image`. (Modificado para usar o background processing da Etapa 5)
 - [x] **Lógica de Fallback**: Caso o processamento falhe, decidir se o sistema deve aceitar o original (com aviso) ou rejeitar o upload.
 
-### Etapa 5: Processamento em Background (Performance) (Concluído)
+### Etapa 5: Processamento em Background (Performance) (Parcialmente Concluído)
 - [x] Integrar com `fastapi.BackgroundTasks` no `router.py` de panes para que o usuário não precise esperar a otimização do `imgdiet` (que é intensiva em CPU) para receber a confirmação de upload.
-- [x] Implementar uma lógica de "placeholder" ou status de "processando" caso a imagem seja acessada imediatamente após o upload. (Implementado via `HTTPException` 409 caso a imagem ainda esteja como 'processando')
+- [ ] Implementar uma lógica de "placeholder" ou status de "processando" caso a imagem seja acessada imediatamente após o upload. (**GAP**: o placeholder `"processando"` é gravado no banco em `service.py`, mas o endpoint `baixar_anexo` em `router.py` não verifica esse valor — retorna 404 ao invés do 409 especificado.)
 
 ## 3. Benefícios Esperados
 1. **Redução de Armazenamento**: Imagens WebP otimizadas podem ser até 80% menores que JPEGs originais de smartphones.
-2. **Suporte a iPhones**: Conversão nativa de HEIC permite que mantenedores usem dispositivos Apple sem restrições.
+2. **Suporte a iPhones**: Conversão nativa de HEIC permite que mantenedores usem dispositivos Apple sem restrições. (**GAP**: não funcional — `_EXTENSOES_PERMITIDAS` e `_MIMES_PERMITIDOS` em `service.py` não incluem `.heic`/`.heif`/`image/heic`, bloqueando uploads antes de chegar ao converter.)
 3. **Performance de Carregamento**: Imagens redimensionadas para o tamanho da tela (Full HD) carregam instantaneamente no dashboard e detalhes de pane.
 4. **Padronização**: Todo anexo de imagem no sistema será servido como `.webp`.
 
@@ -66,4 +66,35 @@ O módulo é composto pelos seguintes componentes:
 | Pipeline principal | `app/shared/services/image/pipeline.py` | ✅ |
 | Testes unitários | `tests/unit/shared/services/image/` | ✅ |
 | Integração em Panes | `app/modules/panes/service.py` | ✅ |
-| Processamento em background | `app/modules/panes/router.py` | ✅ |
+| Processamento em background | `app/modules/panes/router.py` | ⚠️ |
+| 409 para imagem "processando" | `app/modules/panes/router.py` | ❌ |
+| Aceite de uploads HEIC/HEIF | `app/modules/panes/service.py` | ❌ |
+
+## 7. Gaps Identificados (Auditoria pós-implementação)
+
+### GAP-01 — 409 ausente no download de imagem em processamento
+**Arquivo:** `app/modules/panes/router.py` — endpoint `baixar_anexo`
+
+**Problema:** O `service.upload_anexo` grava `caminho_arquivo = "processando"` como placeholder quando `is_background=True`. Contudo, o endpoint `baixar_anexo` não verifica esse valor antes de tentar resolver o arquivo. O fluxo real resulta em um `Path("processando").resolve()` inexistente, devolvendo **404** ao cliente em vez do **409** especificado.
+
+**Correção esperada:** adicionar no início do endpoint, após `buscar_anexo`:
+```python
+if anexo.caminho_arquivo == "processando":
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail="Imagem ainda está sendo processada. Tente novamente em instantes.",
+    )
+```
+
+---
+
+### GAP-02 — Uploads HEIC/HEIF bloqueados antes de chegar ao pipeline
+**Arquivo:** `app/modules/panes/service.py` — constantes `_EXTENSOES_PERMITIDAS` e `_MIMES_PERMITIDOS`
+
+**Problema:** As listas de validação de upload não incluem `.heic`, `.heif` nem `image/heic`. Qualquer arquivo HEIC enviado por usuários de iPhone é rejeitado com 422 ("Tipo de arquivo não permitido") antes de atingir o `converter.py`, tornando o benefício "Suporte a iPhones" não funcional na prática, mesmo com `pillow-heif` instalado e o converter implementado.
+
+**Correção esperada:**
+```python
+_EXTENSOES_PERMITIDAS = {".jpg", ".jpeg", ".png", ".pdf", ".heic", ".heif"}
+_MIMES_PERMITIDOS = {"image/jpeg", "image/png", "application/pdf", "image/heic", "image/heif"}
+```
