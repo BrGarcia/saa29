@@ -18,11 +18,10 @@ echo "📦 Verificando/Instalando dependências (Auto-update)..."
 pip install --no-cache-dir -r requirements.txt
 
 # 0. Restaurar backup do R2 (se configurado)
-# (Desabilitado temporariamente para testes locais com banco zerado)
-# if [ -n "$R2_BUCKET_NAME" ]; then
-#     echo "🔄 Restaurando banco de dados do Cloudflare R2..."
-#     python scripts/maintenance/r2_manager.py restore
-# fi
+if [ -n "$R2_BUCKET_NAME" ]; then
+    echo "🔄 Restaurando banco de dados do Cloudflare R2..."
+    python scripts/maintenance/r2_manager.py restore
+fi
 
 # 1. Executar migrações do banco
 echo "🔄 Rodando migrações (Alembic)..."
@@ -38,6 +37,12 @@ if [ "$APP_ENV" != "production" ] && [ "$ENABLE_DEV_SEEDS" = "true" ]; then
     python -m scripts.seed.seed
 else
     echo "⏭️ Seed de desenvolvimento desabilitada."
+fi
+
+# 3.5 Realizar Backup para o R2 (Garante persistência após migrações/seeds iniciais)
+if [ -n "$R2_BUCKET_NAME" ]; then
+    echo "📤 Sincronizando banco de dados com Cloudflare R2..."
+    python scripts/maintenance/r2_manager.py backup
 fi
 
 # 4. Iniciar a aplicação
