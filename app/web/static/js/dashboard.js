@@ -7,7 +7,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("Dashboard inicializado.");
     await carregarDashboard();
-    
+
     // Auto-refresh a cada 5 minutos
     setInterval(carregarDashboard, 5 * 60 * 1000);
 
@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function carregarDashboard() {
     try {
         const data = await apiFetch('/dashboard/resumo');
-        
+
         if (!data) return;
 
         renderPanes(data.panes);
@@ -98,10 +98,10 @@ function renderVencimentos(data) {
         }
     });
 
-    if(elOk) elOk.textContent = data.ok || 0;
-    if(elWarning) elWarning.textContent = data.vencendo || 0;
-    if(elDanger) elDanger.textContent = data.vencido || 0;
-    if(elProrrogado) elProrrogado.textContent = data.prorrogado || 0;
+    if (elOk) elOk.textContent = data.ok || 0;
+    if (elWarning) elWarning.textContent = data.vencendo || 0;
+    if (elDanger) elDanger.textContent = data.vencido || 0;
+    if (elProrrogado) elProrrogado.textContent = data.prorrogado || 0;
 }
 
 function renderInspecoes(inspecoes) {
@@ -160,11 +160,11 @@ function renderFrota(data) {
         'DISPONIVEL': 'var(--status-ok)',
         'OPERACIONAL': 'var(--primary-color)',
         'INDISPONIVEL': 'var(--status-danger)',
-        'INSPEÇÃO': '#1abc9c',
-        'INSPECÃO': '#1abc9c',
-        'INSPECAO': '#1abc9c',
+        'INSPEÇÃO': '#3B83F6', // Laranja para diferenciar bem do verde
+        'INSPECÃO': '#3B83F6',
+        'INSPECAO': '#3B83F6',
         'ESTOCADA': '#95a5a6',
-        'INATIVA': '#34495e'
+        'INATIVA': '#11283eff'
     };
 
     container.innerHTML = data.aeronaves.map(a => {

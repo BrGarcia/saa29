@@ -208,7 +208,7 @@ async def get_frota_summary(db: AsyncSession) -> FrotaSummary:
     q_insp = select(Inspecao.aeronave_id).where(
         Inspecao.status.in_(["ABERTA", "EM_ANDAMENTO"])
     )
-    inspecoes_ativas = set((await db.execute(q_insp)).scalars().all())
+    inspecoes_ativas = {str(id_) for id_ in (await db.execute(q_insp)).scalars().all()}
 
     # 2. Identificar aeronaves com Panes Abertas
     q_panes = select(Pane.aeronave_id).where(
@@ -225,17 +225,20 @@ async def get_frota_summary(db: AsyncSession) -> FrotaSummary:
     lista_aeronaves = []
 
     for a in aeronaves_rows:
-        # Status base do banco
+        # Status base do banco - normalizado para string
         status_final = a.status.value if hasattr(a.status, 'value') else str(a.status)
-
-        # Lógica de Precedência Tática:
-        # 1. Inspeção ativa prevalece como status visual no dashboard
-        if a.id in inspecoes_ativas:
-            status_final = "INSPEÇÃO"
-        # 2. Se não está em inspeção mas tem pane aberta, está Indisponível
-        elif a.id in panes_ativas:
-            status_final = "INDISPONIVEL"
         
+        # Forçar string para comparação de ID (garante compatibilidade UUID vs UUID)
+        ac_id_str = str(a.id)
+
+        # 1. Se há inspeção ativa, o status é obrigatoriamente INSPEÇÃO no dashboard.
+        if ac_id_str in inspecoes_ativas:
+            status_final = "INSPEÇÃO"
+        
+        # Nota: Removemos o override automático de "INDISPONIVEL" para Panes.
+        # Agora o dashboard respeita o status definido pelo Encarregado no banco (Aeronave.status),
+        # a menos que a aeronave esteja em inspeção.
+
         # Incrementar contagem consolidada
         contagens[status_final] = contagens.get(status_final, 0) + 1
         
