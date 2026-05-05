@@ -79,7 +79,7 @@ function renderPanes(data) {
         <a href="/panes/${pane.id}/detalhes" class="list-item">
             <div class="item-main">
                 <span class="item-tag">${escapeHtml(pane.matricula)}</span>
-                <span class="item-desc">${escapeHtml(pane.sistema || 'Geral')}</span>
+                <span class="item-desc">${escapeHtml(pane.sistema_ata ? pane.sistema_ata.descricao : 'Geral')}</span>
             </div>
             <span class="item-meta">${formatarDataRelativa(pane.data_abertura)}</span>
         </a>

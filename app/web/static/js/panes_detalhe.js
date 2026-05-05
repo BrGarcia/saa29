@@ -13,7 +13,9 @@ async function carregarDetalhe() {
 
         // Textos base e Cabeçalho (Matrícula)
         document.getElementById("det-id").innerText = pane.codigo || "---/--";
-        document.getElementById("det-sistema").innerText = pane.sistema_subsistema;
+        document.getElementById("det-sistema").innerText = pane.sistema_ata ? pane.sistema_ata.descricao : "Não especificado";
+        // Guardamos o id para usar na edição se necessário
+        document.getElementById("det-sistema").dataset.id = pane.sistema_ata_id || "";
         document.getElementById("det-descricao").innerText = pane.descricao;
 
         // Relator
@@ -249,12 +251,27 @@ async function enviarDelegacao(e) {
     } catch (e) { }
 }
 
-function openEditarModal() {
+async function openEditarModal() {
     if (paneSomenteLeitura) {
         acaoBloqueadaPaneInativa();
         return;
     }
-    document.getElementById("editSistema").value = document.getElementById("det-sistema").innerText;
+    
+    const editSistema = document.getElementById("editSistema");
+    editSistema.innerHTML = '<option value="">Carregando...</option>';
+    
+    try {
+        const sistemas = await apiFetch("/panes/sistemas");
+        editSistema.innerHTML = '<option value="">-- Selecione o Sistema --</option>';
+        sistemas.forEach(s => {
+            const opt = document.createElement("option");
+            opt.value = s.id;
+            opt.innerText = `${s.codigo} - ${s.descricao}`;
+            editSistema.appendChild(opt);
+        });
+        editSistema.value = document.getElementById("det-sistema").dataset.id || "";
+    } catch(e) { console.error(e) }
+
     document.getElementById("editDescricao").value = document.getElementById("det-descricao").innerText;
     document.getElementById("modal-editar").style.display = "flex";
 }
@@ -272,7 +289,7 @@ async function salvarEdicao(e) {
     try {
         await apiFetch(`/panes/${PANE_ID}`, {
             method: "PUT",
-            body: { sistema_subsistema: sistema, descricao: descricao }
+            body: { sistema_ata_id: sistema || null, descricao: descricao }
         });
         showToast("Dados atualizados com sucesso.", "success");
         closeEditarModal();

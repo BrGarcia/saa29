@@ -76,6 +76,20 @@ async def listar_panes(
 
 
 @router.get(
+    "/sistemas",
+    response_model=list[schemas.SistemaAtaOut],
+    summary="Listar Sistemas ATA ativos",
+)
+async def listar_sistemas_ata(
+    db: DBSession,
+    _: CurrentUser,
+) -> list[schemas.SistemaAtaOut]:
+    """Retorna a lista de sistemas ATA para uso em formulários (Lookups)."""
+    sistemas = await service.listar_sistemas_ata(db)
+    return [schemas.SistemaAtaOut.model_validate(s) for s in sistemas]
+
+
+@router.get(
     "/{pane_id}",
     response_model=schemas.PaneOut,
     summary="Detalhar pane (RF-09)",

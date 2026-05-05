@@ -18,7 +18,7 @@ from sqlalchemy import select, or_, func, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.modules.panes.models import Pane, Anexo, PaneResponsavel
+from app.modules.panes.models import Pane, Anexo, PaneResponsavel, SistemaAta
 from app.modules.aeronaves.models import Aeronave # Importar aqui para evitar InvalidRequestError
 from app.modules.panes.schemas import PaneCreate, PaneUpdate, FiltroPane, AdicionarResponsavel
 from app.shared.core.enums import StatusPane, StatusAeronave
@@ -107,7 +107,7 @@ async def criar_pane(
     pane = Pane(
         aeronave_id=dados.aeronave_id,
         status=StatusPane.ABERTA.value,
-        sistema_subsistema=dados.sistema_subsistema,
+        sistema_ata_id=dados.sistema_ata_id,
         descricao=descricao,
         criado_por_id=criado_por_id,
     )
@@ -134,7 +134,7 @@ async def criar_pane(
     
     # Garantir que as coleções estejam inicializadas para evitar erro de lazy-load no router
     # Note: refresh(pane, ["responsaveis"]) carregará a lista, e o refresh(resp, ["usuario"]) acima garante o objeto interno
-    await db.refresh(pane, ["aeronave", "anexos", "responsaveis"])
+    await db.refresh(pane, ["aeronave", "anexos", "responsaveis", "sistema_ata"])
     
     return pane
 
@@ -193,10 +193,10 @@ async def listar_panes(
         if filtros.texto:
             from app.modules.aeronaves.models import Aeronave
             texto_like = f"%{_escape_like(filtros.texto.lower())}%"
-            query = query.outerjoin(Aeronave, Pane.aeronave_id == Aeronave.id).where(
+            query = query.outerjoin(Aeronave, Pane.aeronave_id == Aeronave.id).outerjoin(SistemaAta, Pane.sistema_ata_id == SistemaAta.id).where(
                 or_(
                     func.lower(Pane.descricao).like(texto_like),
-                    func.lower(Pane.sistema_subsistema).like(texto_like),
+                    func.lower(SistemaAta.descricao).like(texto_like),
                     func.lower(Aeronave.matricula).like(texto_like),
                 )
             )
@@ -216,6 +216,7 @@ async def listar_panes(
     query = query.options(
         selectinload(Pane.aeronave),
         selectinload(Pane.criador),
+        selectinload(Pane.sistema_ata),
         selectinload(Pane.responsaveis).selectinload(PaneResponsavel.usuario)
     )
 
@@ -255,6 +256,7 @@ async def buscar_pane(
             selectinload(Pane.aeronave),
             selectinload(Pane.criador),
             selectinload(Pane.responsavel_conclusao),
+            selectinload(Pane.sistema_ata),
         )
     )
     if not incluir_inativos:
@@ -285,6 +287,7 @@ async def _buscar_pane_por_id(
             selectinload(Pane.aeronave),
             selectinload(Pane.criador),
             selectinload(Pane.responsavel_conclusao),
+            selectinload(Pane.sistema_ata),
         )
     )
     if not incluir_inativos:
@@ -325,15 +328,15 @@ async def editar_pane(
         pane.comentarios = dados.comentarios
 
     # RN-03: apenas panes abertas podem ser editadas (exceto comentários)
-    if status_atual != StatusPane.ABERTA and (dados.descricao is not None or dados.sistema_subsistema is not None or dados.status is not None):
+    if status_atual != StatusPane.ABERTA and (dados.descricao is not None or dados.sistema_ata_id is not None or dados.status is not None):
         raise ValueError("Apenas panes abertas podem ter descrição ou status alterados.")
 
     # Atualizar campos
     if dados.descricao is not None:
         pane.descricao = dados.descricao
 
-    if dados.sistema_subsistema is not None:
-        pane.sistema_subsistema = dados.sistema_subsistema
+    if dados.sistema_ata_id is not None:
+        pane.sistema_ata_id = dados.sistema_ata_id
 
     # Validar transição de status
     if dados.status is not None:
@@ -616,3 +619,12 @@ async def adicionar_responsavel(
     await db.refresh(responsavel, ["usuario"])
     
     return responsavel
+
+
+async def listar_sistemas_ata(db: AsyncSession) -> list[SistemaAta]:
+    """Lista todos os Sistemas ATA ativos."""
+    result = await db.execute(
+        select(SistemaAta).where(SistemaAta.ativo == True).order_by(SistemaAta.codigo)
+    )
+    return list(result.scalars().all())
+

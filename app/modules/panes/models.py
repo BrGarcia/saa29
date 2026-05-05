@@ -24,6 +24,21 @@ if TYPE_CHECKING:
     from app.modules.auth.models import Usuario
 
 
+class SistemaAta(Base):
+    """
+    Tabela de Lookup para Sistemas ATA.
+    """
+    __tablename__ = "sistemas_ata"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    codigo: Mapped[str] = mapped_column(String(10), nullable=False, unique=True, index=True)
+    descricao: Mapped[str] = mapped_column(String(100), nullable=False)
+    ativo: Mapped[bool] = mapped_column(default=True)
+
+    panes: Mapped[list["Pane"]] = relationship(back_populates="sistema_ata", lazy="select")
+
+
+
 class Pane(Base):
     """
     Representa uma pane (ocorrência de falha) em uma aeronave.
@@ -59,10 +74,11 @@ class Pane(Base):
     )
 
     # --- Conteúdo ---
-    sistema_subsistema: Mapped[str | None] = mapped_column(
-        String(100),
+    sistema_ata_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("sistemas_ata.id", ondelete="RESTRICT"),
         nullable=True,
-        comment="Sistema/subsistema onde a pane foi identificada",
+        index=True,
+        comment="Sistema ATA referenciado",
     )
     descricao: Mapped[str] = mapped_column(
         Text,
@@ -127,6 +143,10 @@ class Pane(Base):
 
     # --- Relacionamentos ---
     aeronave: Mapped["Aeronave"] = relationship(  # type: ignore[name-defined]
+        back_populates="panes",
+        lazy="select",
+    )
+    sistema_ata: Mapped["SistemaAta | None"] = relationship(
         back_populates="panes",
         lazy="select",
     )

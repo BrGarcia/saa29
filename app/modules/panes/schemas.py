@@ -13,6 +13,16 @@ from app.modules.aeronaves.schemas import AeronaveListItem
 from app.modules.auth.schemas import UsuarioOut
 
 
+class SistemaAtaOut(BaseModel):
+    """Representação de um sistema ATA."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    codigo: str
+    descricao: str
+    ativo: bool
+
+
 # ============================================================
 # Filtros
 # ============================================================
@@ -36,7 +46,7 @@ class FiltroPane(BaseModel):
 class PaneCreate(BaseModel):
     """Payload para abertura de nova pane (RF-07, RF-08)."""
     aeronave_id: uuid.UUID
-    sistema_subsistema: str | None = Field(default=None, max_length=100)
+    sistema_ata_id: uuid.UUID | None = Field(default=None)
     descricao: str = Field(
         default="AGUARDANDO EDICAO",
         description="Descrição da pane. Se vazio, definir como 'AGUARDANDO EDICAO' (RN-05)",
@@ -50,7 +60,7 @@ class PaneCreate(BaseModel):
 
 class PaneUpdate(BaseModel):
     """Payload para edição de pane aberta (RF-10). RN-03: apenas panes abertas."""
-    sistema_subsistema: str | None = Field(default=None, max_length=100)
+    sistema_ata_id: uuid.UUID | None = Field(default=None)
     descricao: str | None = None
     comentarios: str | None = None
     status: StatusPane | None = Field(
@@ -95,7 +105,8 @@ class PaneOut(BaseModel):
     aeronave_id: uuid.UUID
     aeronave: AeronaveListItem | None = None
     status: StatusPane
-    sistema_subsistema: str | None
+    sistema_ata_id: uuid.UUID | None = None
+    sistema_ata: SistemaAtaOut | None = None
     descricao: str
     data_abertura: datetime
     data_conclusao: datetime | None
@@ -120,6 +131,8 @@ class PaneListItem(BaseModel):
     aeronave_id: uuid.UUID
     aeronave: AeronaveListItem | None = None
     status: StatusPane
+    sistema_ata_id: uuid.UUID | None = None
+    sistema_ata: SistemaAtaOut | None = None
     descricao: str
     data_abertura: datetime
     data_conclusao: datetime | None

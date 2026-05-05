@@ -18,10 +18,10 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 try:
-    from scripts.seed import seed_equipamentos, seed_aeronaves
+    from scripts.seed import seed_equipamentos, seed_aeronaves, seed_sistemas_ata
 except (ImportError, ModuleNotFoundError):
     # Fallback para execução direta via python -m scripts.db.init_db
-    from scripts.seed import seed_equipamentos, seed_aeronaves
+    from scripts.seed import seed_equipamentos, seed_aeronaves, seed_sistemas_ata
 
 from app.bootstrap.database import get_session_factory
 from app.modules.auth.security import hash_senha
@@ -107,6 +107,9 @@ async def init_db():
 
         # 3. Garantir catálogo base de equipamentos (sem serial/instalação)
         await seed_equipamentos.run(session)
+
+        # 4. Garantir catálogo de Sistemas ATA
+        await seed_sistemas_ata.run(session)
 
         await session.commit()
         print(f"🚀 Inicialização do Banco concluída!")

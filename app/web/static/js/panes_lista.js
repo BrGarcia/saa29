@@ -178,6 +178,19 @@ async function openNuevaPaneModal(aeronaveId, matricula) {
         });
     } catch(e) { console.error(e) }
 
+    // Hydrate Sistemas ATA
+    try {
+        const sistemasInput = document.getElementById('sistemaInput');
+        const sistemas = await apiFetch("/panes/sistemas");
+        sistemasInput.innerHTML = `<option value="">-- Selecione o Sistema --</option>`;
+        sistemas.forEach(s => {
+            const opt = document.createElement("option");
+            opt.value = s.id;
+            opt.innerText = `${s.codigo} - ${s.descricao}`;
+            sistemasInput.appendChild(opt);
+        });
+    } catch(e) { console.error("Falha ao carregar sistemas", e) }
+
     // Hydrate Mantenedores
     try {
         const usuarios = await apiFetch("/auth/usuarios");
@@ -202,8 +215,22 @@ function closeNovaPaneModal() {
 async function openEditPaneModal(paneId) {
     try {
         const pane = await apiFetch(`/panes/${paneId}`);
+        const editSelect = document.getElementById('editSistemaInput');
+        
+        // Load Sistemas
+        const sistemas = await apiFetch("/panes/sistemas");
+        editSelect.innerHTML = `<option value="">-- Selecione o Sistema --</option>`;
+        sistemas.forEach(s => {
+            const opt = document.createElement("option");
+            opt.value = s.id;
+            opt.innerText = `${s.codigo} - ${s.descricao}`;
+            editSelect.appendChild(opt);
+        });
+
+        const val = pane.sistema_ata_id || "";
+        editSelect.value = val;
+        
         document.getElementById('editPaneId').value = pane.id;
-        document.getElementById('editSistemaInput').value = pane.sistema_subsistema || "";
         document.getElementById('editDescricaoInput').value = pane.descricao || "";
         document.getElementById('modal-editar-pane').style.display = 'flex';
     } catch(e) {
@@ -222,7 +249,7 @@ async function handleSalvarEdicao(e) {
     const btn = document.getElementById('btnAtualizarPane');
     
     const payload = {
-        sistema_subsistema: document.getElementById('editSistemaInput').value.trim(),
+        sistema_ata_id: document.getElementById('editSistemaInput').value || null,
         descricao: document.getElementById('editDescricaoInput').value.trim()
     };
 
@@ -254,14 +281,13 @@ async function handleCriarPane(e) {
     btn.disabled = true;
     btn.innerText = "Registrando...";
 
-    let sistema = document.getElementById('sistemaInput').value.trim();
+    let sistema = document.getElementById('sistemaInput').value;
     let descricao = document.getElementById('descricaoInput').value.trim();
-    if(!sistema) sistema = "A ser definido";
     if(!descricao) descricao = "Aguardando relato.";
 
     const payload = {
         aeronave_id: aeronaveSelect.value,
-        sistema_subsistema: sistema,
+        sistema_ata_id: sistema || null,
         descricao: descricao
     };
     if (mantenedorResponsavelSelect.value) {
