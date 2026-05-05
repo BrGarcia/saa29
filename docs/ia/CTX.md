@@ -1,7 +1,7 @@
 # ctx
 
 meta:
-- sync_date: 2026-05-03
+- sync_date: 2026-05-05
 - docs_structure: reorganized (core/, guides/, backlog/, summaries/, ia/*.ctx)
 - mode: machine
 - format: kv_short
@@ -44,7 +44,7 @@ domains:
 - auth: usuarios, token_blacklist, token_refresh
 - efetivo: indisponibilidades, ferias, ausencias (Modulo Ativo)
 - aeronaves: cadastro, status (DISPONIVEL, INDISPONIVEL, ESTOCADA, INATIVA, INSPEÇÃO), toggle_status
-- panes: pane, anexo, responsavel, soft_delete, restore
+- panes: pane (FK sistema_ata_id), sistemas_ata (Lookup), anexo, responsavel, soft_delete, restore
 - equipamentos: modelo (PN), slot, item (SN), instalacao, inventario
 - vencimentos: tipo_controle, periodicidade_pn, matriz_vencimentos, prorrogacoes (OK, VENCENDO, VENCIDO, PRORROGADO)
 - configuracoes: admin_dashboard, gerenciamento_frota, administracao_efetivo, regras_vencimento
@@ -60,6 +60,7 @@ auth_state:
 core_rules:
 - RN-01: pane_requires_aeronave
 - RN-02: pane_default_status_ABERTA
+- RN-02b: sistema_ata_id_optional_but_standardized_lookup
 - RN-03: only_open_pane_can_be_edited
 - RN-04: conclude_sets_data_conclusao
 - RN-05: empty_desc_becomes_AGUARDANDO_EDICAO
@@ -98,6 +99,7 @@ current_focus:
 - ddd_modularization_completed: true
 - frontend_csp_refactoring_completed: true (removed all inline scripts)
 - alembic_migrations_up_to_date: true
+- lookup_table_sistemas_ata_completed: true
 
 backlog_inspecoes:
 - feature_tarefas_extras: completed

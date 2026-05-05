@@ -3,7 +3,7 @@
 - app/modules/auth: auth_users,jwt,refresh,blacklist
 - app/modules/efetivo: availability,absences,scales
 - app/modules/aeronaves: aircraft_crud,status
-- app/modules/panes: flow,attachments,responsaveis
+- app/modules/panes: flow,attachments,responsaveis,sistemas_ata_lookup
 - app/modules/equipamentos: catalog,slots,physical_items,inventory
 - app/modules/vencimentos: temporal_intel,maint_rules,extensions
 - app/modules/inspecoes: active_backend,task_catalog,decoupling,audit_persistent
