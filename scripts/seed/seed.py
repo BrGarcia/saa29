@@ -30,33 +30,40 @@ from scripts.seed import (
 async def main():
     print("🌟 Iniciando Carga de Dados (Seed)...")
     
+    from app.bootstrap.config import get_settings
+    settings = get_settings()
+    
     AsyncSessionLocal = get_session_factory()
     
     async with AsyncSessionLocal() as session:
         try:
-            # 1. Auth (Usuários base)
+            # 1. Auth (Usuários base - Admin sempre, outros só em dev via service)
             await seed_auth.run(session)
             
-            # 2. Aeronaves (Frota)
-            await seed_aeronaves.run(session)
-            
-            # 3. Equipamentos (Catálogo/PNs/Slots)
+            # 2. Equipamentos (Catálogo/PNs/Slots - Sempre essencial para estrutura)
             await seed_equipamentos.run(session)
-            
-            # 4. Inventário (Instalação física de Itens)
-            await seed_inventario.run(session)
-            
-            # 5. Vencimentos (Regras/Periodicidades)
-            await seed_vencimentos.run(session)
-            
-            # 6. Panes (Dados aleatórios para dashboard)
-            await seed_panes.run(session)
-            
-            # 7. Tarefas (Tipos, catálogo, templates)
-            await seed_tarefas.run(session)
 
-            # 8. Inspeções (Abertura de inspeções em frota)
-            await seed_inspecoes.run(session)
+            if settings.enable_dev_seeds:
+                print("🛠️  Modo Desenvolvimento: Carregando dados de teste...")
+                # 3. Aeronaves (Frota)
+                await seed_aeronaves.run(session)
+                
+                # 4. Inventário (Instalação física de Itens)
+                await seed_inventario.run(session)
+                
+                # 5. Vencimentos (Regras/Periodicidades)
+                await seed_vencimentos.run(session)
+                
+                # 6. Panes (Dados aleatórios para dashboard)
+                await seed_panes.run(session)
+                
+                # 7. Tarefas (Tipos, catálogo, templates)
+                await seed_tarefas.run(session)
+
+                # 8. Inspeções (Abertura de inspeções em frota)
+                await seed_inspecoes.run(session)
+            else:
+                print("🚀 Modo Produção: Apenas usuários e estrutura (slots) carregados.")
             
             await session.commit()
             print("\n✅ Seed concluído com sucesso!")

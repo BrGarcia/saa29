@@ -66,6 +66,12 @@ class Settings(BaseSettings):
     allowed_origins: list[str] | str = ["*"]
     allowed_hosts: list[str] | str = ["*"]
 
+    # --- Seed / Desenvolvimento ---
+    enable_dev_seeds: bool = Field(
+        default=False,
+        description="Permite carregar dados de teste (panes, inspeções, etc) durante o seed."
+    )
+
     @model_validator(mode="after")
     def validate_origins_and_hosts(self) -> "Settings":
         """Converte strings separadas por vírgula em listas, se necessário."""
