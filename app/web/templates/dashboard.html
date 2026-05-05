@@ -394,24 +394,29 @@
     gap: 0.5rem;
 }
 
-.f-badge {
-    padding: 0.4rem 0.8rem;
+.f-pill {
+    padding: 0.35rem 0.75rem;
     border-radius: 6px;
-    font-size: 0.8rem;
-    font-weight: 600;
+    font-size: 0.85rem;
+    font-weight: 700;
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    background: var(--bg-tertiary);
+    background: var(--bg-primary);
     border: 1px solid var(--border-color);
+    transition: var(--transition);
+    font-family: monospace;
 }
 
-.f-badge .f-count {
-    background: var(--bg-secondary);
-    padding: 1px 6px;
-    border-radius: 4px;
-    min-width: 20px;
-    text-align: center;
+.f-pill:hover {
+    background: var(--bg-tertiary);
+    transform: translateY(-2px);
+}
+
+.f-pill-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
 }
 
 .btn-link {

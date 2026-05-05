@@ -46,14 +46,21 @@ class MovimentacaoRecente(BaseModel):
     data: str                   # ISO date string
 
 
+class AeronaveStatus(BaseModel):
+    """Estado individual de uma aeronave na frota."""
+    matricula: str
+    status: str
+
+
 class FrotaSummary(BaseModel):
-    """Contagem de aeronaves agrupadas por status operacional."""
+    """Resumo da frota com contagens e estado individual de cada aeronave."""
     disponivel: int = 0
     operacional: int = 0
     indisponivel: int = 0
     inspecao: int = 0
     estocada: int = 0
     inativa: int = 0
+    aeronaves: list[AeronaveStatus] = []
 
 
 class DashboardResumo(BaseModel):

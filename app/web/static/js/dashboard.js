@@ -151,20 +151,31 @@ function renderFrota(data) {
     const container = document.getElementById('frota-stats');
     if (!container) return;
 
-    const statusMap = [
-        { key: 'disponivel', label: 'Disponível', color: 'var(--status-ok)' },
-        { key: 'operacional', label: 'Operacional', color: 'var(--primary-color)' },
-        { key: 'indisponivel', label: 'Indisponível', color: 'var(--status-danger)' },
-        { key: 'inspecao', label: 'Em Inspeção', color: '#1abc9c' }
-    ];
+    if (!data.aeronaves || data.aeronaves.length === 0) {
+        container.innerHTML = '<div class="loading-placeholder">Sem aeronaves na frota.</div>';
+        return;
+    }
 
-    container.innerHTML = statusMap.map(st => `
-        <div class="f-badge">
-            <span class="chip-status" style="background: ${st.color}"></span>
-            ${st.label}
-            <span class="f-count">${data[st.key] || 0}</span>
-        </div>
-    `).join('');
+    const colorMap = {
+        'DISPONIVEL': 'var(--status-ok)',
+        'OPERACIONAL': 'var(--primary-color)',
+        'INDISPONIVEL': 'var(--status-danger)',
+        'INSPEÇÃO': '#1abc9c',
+        'INSPECÃO': '#1abc9c',
+        'INSPECAO': '#1abc9c',
+        'ESTOCADA': '#95a5a6',
+        'INATIVA': '#34495e'
+    };
+
+    container.innerHTML = data.aeronaves.map(a => {
+        const color = colorMap[a.status.toUpperCase()] || 'var(--bg-tertiary)';
+        return `
+            <div class="f-pill" style="border-left: 3px solid ${color}" title="Status: ${a.status}">
+                <span class="f-pill-dot" style="background: ${color}"></span>
+                ${escapeHtml(a.matricula)}
+            </div>
+        `;
+    }).join('');
 }
 
 /**

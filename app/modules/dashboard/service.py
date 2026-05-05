@@ -195,14 +195,27 @@ async def get_movimentacoes_recentes(db: AsyncSession) -> list[MovimentacaoRecen
 # ---------------------------------------------------------------------------
 
 async def get_frota_summary(db: AsyncSession) -> FrotaSummary:
-    """Retorna contagem de aeronaves agrupadas por status operacional."""
-    q = select(
-        Aeronave.status,
-        func.count().label("total"),
-    ).group_by(Aeronave.status)
+    """Retorna contagem de aeronaves e lista individual com status para os 'pills'."""
+    from app.modules.dashboard.schemas import AeronaveStatus
 
-    rows = (await db.execute(q)).all()
-    contagens = {row[0]: row[1] for row in rows}
+    # 1. Buscar todas as aeronaves (ordenadas por matrícula para exibição limpa)
+    q = select(Aeronave).order_by(Aeronave.matricula.asc())
+    aeronaves_rows = (await db.execute(q)).scalars().all()
+
+    # 2. Processar lista e contagens simultaneamente
+    contagens = {}
+    lista_aeronaves = []
+
+    for a in aeronaves_rows:
+        status = a.status or "DISPONIVEL"
+        # Padronização interna para contagem (sem acentos para chaves estáveis se necessário,
+        # mas mantendo o padrão do modelo original: "INSPEÇÃO")
+        contagens[status] = contagens.get(status, 0) + 1
+        
+        lista_aeronaves.append(AeronaveStatus(
+            matricula=a.matricula,
+            status=status
+        ))
 
     return FrotaSummary(
         disponivel=contagens.get("DISPONIVEL", 0),
@@ -211,6 +224,7 @@ async def get_frota_summary(db: AsyncSession) -> FrotaSummary:
         inspecao=contagens.get("INSPEÇÃO", 0),
         estocada=contagens.get("ESTOCADA", 0),
         inativa=contagens.get("INATIVA", 0),
+        aeronaves=lista_aeronaves
     )
 
 

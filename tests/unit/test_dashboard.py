@@ -325,6 +325,20 @@ async def test_frota_summary_conta_por_status(db: AsyncSession):
     assert resultado.estocada >= 1
 
 
+@pytest.mark.asyncio
+async def test_frota_summary_inclui_lista_individual(db: AsyncSession):
+    """Deve retornar a lista individual de aeronaves com matrícula e status."""
+    matricula = f"A{uuid.uuid4().hex[:3].upper()}"
+    await _criar_aeronave(db, matricula, "DISPONIVEL")
+
+    resultado = await service.get_frota_summary(db)
+
+    assert len(resultado.aeronaves) >= 1
+    aeronave_res = next((a for a in resultado.aeronaves if a.matricula == matricula), None)
+    assert aeronave_res is not None
+    assert aeronave_res.status == "DISPONIVEL"
+
+
 # ===========================================================================
 # BLOCO 5: Orquestrador e Endpoint REST
 # ===========================================================================
