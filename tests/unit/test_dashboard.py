@@ -339,6 +339,19 @@ async def test_frota_summary_inclui_lista_individual(db: AsyncSession):
     assert aeronave_res.status == "DISPONIVEL"
 
 
+@pytest.mark.asyncio
+async def test_frota_summary_override_status_inspecao_ativa(db: AsyncSession):
+    """O Dashboard deve mostrar INSPEÇÃO se houver inspeção ativa, mesmo que o status da aeronave seja DISPONIVEL."""
+    aeronave = await _criar_aeronave(db, "T-INS", "DISPONIVEL")
+    usuario = await _criar_usuario(db)
+    await _criar_inspecao(db, aeronave.id, usuario.id, status="EM_ANDAMENTO")
+
+    resultado = await service.get_frota_summary(db)
+
+    a_res = next(a for a in resultado.aeronaves if a.matricula == "T-INS")
+    assert a_res.status == "INSPEÇÃO"
+
+
 # ===========================================================================
 # BLOCO 5: Orquestrador e Endpoint REST
 # ===========================================================================

@@ -195,26 +195,53 @@ async def get_movimentacoes_recentes(db: AsyncSession) -> list[MovimentacaoRecen
 # ---------------------------------------------------------------------------
 
 async def get_frota_summary(db: AsyncSession) -> FrotaSummary:
-    """Retorna contagem de aeronaves e lista individual com status para os 'pills'."""
+    """
+    Retorna contagem de aeronaves e lista individual com status dinâmico.
+    O status é calculado em tempo real para garantir que o Dashboard reflita
+    a realidade operacional (ex: se há inspeção aberta, status é INSPEÇÃO).
+    """
     from app.modules.dashboard.schemas import AeronaveStatus
+    from app.modules.inspecoes.models import Inspecao
+    from app.modules.panes.models import Pane
 
-    # 1. Buscar todas as aeronaves (ordenadas por matrícula para exibição limpa)
+    # 1. Identificar aeronaves com Inspeções Ativas
+    q_insp = select(Inspecao.aeronave_id).where(
+        Inspecao.status.in_(["ABERTA", "EM_ANDAMENTO"])
+    )
+    inspecoes_ativas = set((await db.execute(q_insp)).scalars().all())
+
+    # 2. Identificar aeronaves com Panes Abertas
+    q_panes = select(Pane.aeronave_id).where(
+        Pane.status == "ABERTA",
+        Pane.ativo == True  # noqa: E712
+    )
+    panes_ativas = set((await db.execute(q_panes)).scalars().all())
+
+    # 3. Buscar todas as aeronaves
     q = select(Aeronave).order_by(Aeronave.matricula.asc())
     aeronaves_rows = (await db.execute(q)).scalars().all()
 
-    # 2. Processar lista e contagens simultaneamente
     contagens = {}
     lista_aeronaves = []
 
     for a in aeronaves_rows:
-        status = a.status or "DISPONIVEL"
-        # Padronização interna para contagem (sem acentos para chaves estáveis se necessário,
-        # mas mantendo o padrão do modelo original: "INSPEÇÃO")
-        contagens[status] = contagens.get(status, 0) + 1
+        # Status base do banco
+        status_final = a.status.value if hasattr(a.status, 'value') else str(a.status)
+
+        # Lógica de Precedência Tática:
+        # 1. Inspeção ativa prevalece como status visual no dashboard
+        if a.id in inspecoes_ativas:
+            status_final = "INSPEÇÃO"
+        # 2. Se não está em inspeção mas tem pane aberta, está Indisponível
+        elif a.id in panes_ativas:
+            status_final = "INDISPONIVEL"
+        
+        # Incrementar contagem consolidada
+        contagens[status_final] = contagens.get(status_final, 0) + 1
         
         lista_aeronaves.append(AeronaveStatus(
             matricula=a.matricula,
-            status=status
+            status=status_final
         ))
 
     return FrotaSummary(
