@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, File, UploadFile, Query, status
+from fastapi import APIRouter, HTTPException, File, UploadFile, Query, status, BackgroundTasks
 from fastapi.responses import FileResponse, RedirectResponse
 
 from app.modules.panes import schemas, service
@@ -191,12 +191,13 @@ async def concluir_pane(
     "/{pane_id}/anexos",
     response_model=schemas.AnexoOut,
     status_code=status.HTTP_201_CREATED,
-    summary="Upload de anexo (RF-11)",
+    summary="Upload de anexo com processamento em background (RF-11)",
 )
 async def upload_anexo(
     pane_id: uuid.UUID,
     db: DBSession,
     usuario_atual: CurrentUser,
+    background_tasks: BackgroundTasks,
     arquivo: UploadFile = File(description="Imagem (jpg/png) ou documento"),
 ) -> schemas.AnexoOut:
     ensure_role(usuario_atual, "MANTENEDOR", "ENCARREGADO", "INSPETOR", "ADMINISTRADOR")
@@ -207,9 +208,17 @@ async def upload_anexo(
     filename = arquivo.filename or "unknown"
     content_type = arquivo.content_type or "application/octet-stream"
     try:
-        anexo = await service.upload_anexo(
-            db, pane_id, conteudo, filename, content_type
+        anexo, precisa_bg = await service.upload_anexo(
+            db, pane_id, conteudo, filename, content_type, is_background=True
         )
+        if precisa_bg:
+            background_tasks.add_task(
+                service.processar_imagem_background,
+                anexo.id,
+                conteudo,
+                filename,
+                content_type
+            )
         return schemas.AnexoOut.model_validate(anexo)
     except ValueError as e:
         raise HTTPException(

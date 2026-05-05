@@ -453,7 +453,9 @@ async def upload_anexo(
     arquivo_bytes: bytes,
     nome_original: str,
     tipo_mime: str,
-) -> Anexo:
+    *,
+    is_background: bool = False,
+) -> tuple[Anexo, bool]:
     """
     Faz upload e registra um anexo em uma pane.
 
@@ -463,6 +465,9 @@ async def upload_anexo(
         3. Gerar nome único (UUID + extensão)
         4. Armazenar no diretório de uploads
         5. Criar registro em anexos
+
+    Se is_background=True e for uma imagem, registra "processando" e retorna
+    (anexo, True) para que o chamador execute a otimização em background.
 
     Raises:
         ValueError: se tipo ou tamanho inválidos.
@@ -500,9 +505,22 @@ async def upload_anexo(
             f"Arquivo excede o tamanho máximo de {settings.max_upload_size_mb} MB."
         )
 
-    # Determinar tipo do anexo
     from app.shared.core.enums import TipoAnexo
-    tipo_anexo = TipoAnexo.IMAGEM if extensao in {".jpg", ".jpeg", ".png"} else TipoAnexo.DOCUMENTO
+    is_image = extensao in {".jpg", ".jpeg", ".png"} or mime_real in {"image/jpeg", "image/png"}
+    
+    if is_image and is_background:
+        # Retorna placeholder para processamento em background (Etapa 5)
+        anexo = Anexo(
+            pane_id=pane_id,
+            caminho_arquivo="processando",
+            tipo=TipoAnexo.IMAGEM.value,
+        )
+        db.add(anexo)
+        await db.flush()
+        return anexo, True
+
+    # Determinar tipo do anexo para arquivos normais / processamento síncrono
+    tipo_anexo = TipoAnexo.IMAGEM if is_image else TipoAnexo.DOCUMENTO
 
     # Gerar nome único e salvar arquivo através do StorageService
     storage_svc = get_storage_service()
@@ -516,7 +534,62 @@ async def upload_anexo(
     )
     db.add(anexo)
     await db.flush()
-    return anexo
+    return anexo, False
+
+
+async def processar_imagem_background(
+    anexo_id: uuid.UUID,
+    arquivo_bytes: bytes,
+    nome_original: str,
+    mime_real: str,
+) -> None:
+    """
+    Tarefa em background para otimização de imagem via imgdiet. (IMGDIET - Etapa 4 e 5)
+    Processa e salva o arquivo otimizado no Storage, atualizando o Anexo.
+    """
+    import asyncio
+    import logging
+    from sqlalchemy import select
+    from app.bootstrap.database import get_session_factory
+    from app.shared.services.image.pipeline import process_image
+
+    try:
+        # 1. Processar a imagem (CPU intensive, rodar em threadpool)
+        loop = asyncio.get_running_loop()
+        webp_bytes = await loop.run_in_executor(
+            None, 
+            lambda: process_image(arquivo_bytes, filename_hint=nome_original)
+        )
+
+        # 2. Upload para Storage do arquivo otimizado
+        storage_svc = get_storage_service()
+        novo_nome = os.path.splitext(nome_original)[0] + ".webp"
+        caminho_salvo = await storage_svc.upload(webp_bytes, novo_nome, "image/webp")
+
+        # 3. Atualizar caminho no banco de dados
+        SessionMaker = get_session_factory()
+        async with SessionMaker() as session:
+            result = await session.execute(select(Anexo).where(Anexo.id == anexo_id))
+            anexo = result.scalar_one_or_none()
+            if anexo:
+                anexo.caminho_arquivo = caminho_salvo
+                await session.commit()
+    except Exception as exc:
+        logging.error("Falha ao processar imagem %s em background: %s", nome_original, exc)
+        # Lógica de Fallback (Etapa 4): salva a original em caso de erro
+        try:
+            storage_svc = get_storage_service()
+            caminho_salvo = await storage_svc.upload(arquivo_bytes, nome_original, mime_real)
+            
+            SessionMaker = get_session_factory()
+            async with SessionMaker() as session:
+                result = await session.execute(select(Anexo).where(Anexo.id == anexo_id))
+                anexo = result.scalar_one_or_none()
+                if anexo:
+                    anexo.caminho_arquivo = caminho_salvo
+                    await session.commit()
+        except Exception as fallback_exc:
+            logging.error("Falha no fallback de upload da imagem %s: %s", nome_original, fallback_exc)
 
 
 async def listar_anexos(db: AsyncSession, pane_id: uuid.UUID) -> list[Anexo]:

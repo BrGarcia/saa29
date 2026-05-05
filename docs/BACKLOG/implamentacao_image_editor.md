@@ -30,14 +30,14 @@ O módulo é composto pelos seguintes componentes:
 - [x] Atualizar `validator.py` para validar buffers diretamente via `io.BytesIO`.
 - [x] Validar que o pipeline retorna `bytes` quando o input é `bytes`, facilitando a integração com serviços de storage.
 
-### Etapa 4: Integração no Módulo de Panes
-- [ ] Local: `app/modules/panes/service.py` -> função `upload_anexo`.
-- [ ] **Mudança**: Antes de chamar `storage_svc.upload`, os `arquivo_bytes` devem passar pelo `pipeline.process_image`.
-- [ ] **Lógica de Fallback**: Caso o processamento falhe, decidir se o sistema deve aceitar o original (com aviso) ou rejeitar o upload.
+### Etapa 4: Integração no Módulo de Panes (Concluído)
+- [x] Local: `app/modules/panes/service.py` -> função `upload_anexo`.
+- [x] **Mudança**: Antes de chamar `storage_svc.upload`, os `arquivo_bytes` devem passar pelo `pipeline.process_image`. (Modificado para usar o background processing da Etapa 5)
+- [x] **Lógica de Fallback**: Caso o processamento falhe, decidir se o sistema deve aceitar o original (com aviso) ou rejeitar o upload.
 
-### Etapa 5: Processamento em Background (Performance)
-- [ ] Integrar com `fastapi.BackgroundTasks` no `router.py` de panes para que o usuário não precise esperar a otimização do `imgdiet` (que é intensiva em CPU) para receber a confirmação de upload.
-- [ ] Implementar uma lógica de "placeholder" ou status de "processando" caso a imagem seja acessada imediatamente após o upload.
+### Etapa 5: Processamento em Background (Performance) (Concluído)
+- [x] Integrar com `fastapi.BackgroundTasks` no `router.py` de panes para que o usuário não precise esperar a otimização do `imgdiet` (que é intensiva em CPU) para receber a confirmação de upload.
+- [x] Implementar uma lógica de "placeholder" ou status de "processando" caso a imagem seja acessada imediatamente após o upload. (Implementado via `HTTPException` 409 caso a imagem ainda esteja como 'processando')
 
 ## 3. Benefícios Esperados
 1. **Redução de Armazenamento**: Imagens WebP otimizadas podem ser até 80% menores que JPEGs originais de smartphones.
@@ -50,10 +50,10 @@ O módulo é composto pelos seguintes componentes:
 - **Perda de Qualidade**: Compressão agressiva. **Mitigação**: O alvo de PSNR 40 garante que a perda seja imperceptível ao olho humano.
 
 ## 5. Próximos Passos Imediatos
-1. Iniciar a **Integração no Módulo de Panes (Etapa 4)**.
-2. Configurar o **Processamento em Background (Etapa 5)** para manter a agilidade da UI.
+1. ~~Iniciar a **Integração no Módulo de Panes (Etapa 4)**.~~ (Concluído)
+2. ~~Configurar o **Processamento em Background (Etapa 5)** para manter a agilidade da UI.~~ (Concluído)
 
-## 6. Estado Atual da Implementação (2026-05-02)
+## 6. Estado Atual da Implementação (Atualizado)
 
 | Componente | Arquivo | Status |
 |---|---|:---:|
@@ -65,5 +65,5 @@ O módulo é composto pelos seguintes componentes:
 | Otimizador (imgdiet) | `app/shared/services/image/optimizer.py` | ✅ |
 | Pipeline principal | `app/shared/services/image/pipeline.py` | ✅ |
 | Testes unitários | `tests/unit/shared/services/image/` | ✅ |
-| Integração em Panes | `app/modules/panes/service.py` | ⏳ |
-| Processamento em background | `app/modules/panes/router.py` | ⏳ |
+| Integração em Panes | `app/modules/panes/service.py` | ✅ |
+| Processamento em background | `app/modules/panes/router.py` | ✅ |
