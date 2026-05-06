@@ -2,7 +2,8 @@
 
 ## Nosso Compromisso
 
-Este projeto é desenvolvido em ambiente militar operacional. Esperamos de todos os colaboradores conduta profissional, técnica e respeitosa.
+Este projeto é desenvolvido em ambiente militar operacional. 
+Esperamos de todos os colaboradores conduta profissional, técnica e respeitosa.
 
 ## Padrões Esperados
 
