@@ -3,6 +3,7 @@
 
 Este documento detalha o plano de ação para corrigir as vulnerabilidades e bugs identificados no relatório de auditoria `docs/relatorio/claude.md`. Todas as correções propostas respeitam estritamente as diretrizes de segurança (Zero Inline Scripts / CSP) e o contexto arquitetural do SAA29 (DDD, SQLAlchemy async).
 
+ATENCAO: Após realizar as correceos atualize o arquivo `docs/relatorio/claude.md` com os problemas corrigidos
 
 ## Visão Geral das Correções
 

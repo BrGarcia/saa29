@@ -214,10 +214,12 @@ function closeNovaPaneModal() {
 
 async function openEditPaneModal(paneId) {
     try {
+        // Primeiro carregamos os dados da pane (específico)
         const pane = await apiFetch(`/panes/${paneId}`);
+        
         const editSelect = document.getElementById('editSistemaInput');
         
-        // Load Sistemas
+        // Depois carregamos a lista de Sistemas (geral)
         const sistemas = await apiFetch("/panes/sistemas");
         editSelect.innerHTML = `<option value="">-- Selecione o Sistema --</option>`;
         sistemas.forEach(s => {
@@ -234,6 +236,7 @@ async function openEditPaneModal(paneId) {
         document.getElementById('editDescricaoInput').value = pane.descricao || "";
         document.getElementById('modal-editar-pane').style.display = 'flex';
     } catch(e) {
+        console.error("Erro ao abrir modal de edição:", e);
         showToast("Falha ao buscar dados da pane.", "error");
     }
 }

@@ -1,7 +1,7 @@
 # INICIO.md
 
 ## 1. CONTEXTO DO PROJETO
-Sistema backend baseado em FastAPI para [DESCREVA EM 1 LINHA].
+Sistema backend baseado em FastAPI para manutenção aeronáutica.
 Arquitetura orientada a serviços modulares com persistência relacional.
 
 Stack:

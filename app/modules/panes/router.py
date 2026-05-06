@@ -16,6 +16,20 @@ from app.bootstrap.dependencies import DBSession, CurrentUser, ensure_role, Exec
 router = APIRouter()
 
 
+@router.get(
+    "/sistemas",
+    response_model=list[schemas.SistemaAtaOut],
+    summary="Listar Sistemas ATA ativos",
+)
+async def listar_sistemas_ata(
+    db: DBSession,
+    _: CurrentUser,
+) -> list[schemas.SistemaAtaOut]:
+    """Retorna a lista de sistemas ATA para uso em formulários (Lookups)."""
+    sistemas = await service.listar_sistemas_ata(db)
+    return [schemas.SistemaAtaOut.model_validate(s) for s in sistemas]
+
+
 @router.post(
     "/",
     response_model=schemas.PaneOut,
@@ -73,20 +87,6 @@ async def listar_panes(
         item["codigo"] = f"{sequencia:03d}/{str(ano)[-2:]}"
         resposta.append(schemas.PaneListItem(**item))
     return resposta
-
-
-@router.get(
-    "/sistemas",
-    response_model=list[schemas.SistemaAtaOut],
-    summary="Listar Sistemas ATA ativos",
-)
-async def listar_sistemas_ata(
-    db: DBSession,
-    _: CurrentUser,
-) -> list[schemas.SistemaAtaOut]:
-    """Retorna a lista de sistemas ATA para uso em formulários (Lookups)."""
-    sistemas = await service.listar_sistemas_ata(db)
-    return [schemas.SistemaAtaOut.model_validate(s) for s in sistemas]
 
 
 @router.get(

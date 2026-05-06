@@ -99,3 +99,55 @@
 - **Impacto:** Indisponibilidade pode ser persistida mesmo se uma operação subsequente do request falhar; impossibilita transações compostas (ex.: criar indisponibilidade + log de quem registrou) e quebra a uniformidade do padrão de sessão, dificultando manutenção.
 - **Sugestão:** Substituir `await db.commit()` por `await db.flush()` nas duas funções e remover o `await db.refresh(indisp)` (que continuará funcionando após flush — o objeto já está na sessão). Deixar o commit para `get_db()`.
 - **Hash:** `f3b7e9`
+
+---
+
+## 2026-05-06 (rodada 2)
+
+### BUG - `alternar_status_aeronave` força INATIVA em aeronave sob inspeção
+
+- **Local:** `app/modules/aeronaves/service.py` — função `alternar_status_aeronave`, linhas 48–52
+- **Descrição:** O `else` do toggle aplica `StatusAeronave.INATIVA` a **qualquer** status que não seja `INATIVA`, incluindo `INSPECAO`. Um Encarregado que acione o toggle em uma aeronave atualmente em inspeção irá sobrepor o status `INSPECAO` para `INATIVA` sem cancelar a inspeção no banco. Quando a inspeção for concluída ou cancelada, o módulo de inspeções reverte para `DISPONIVEL`, ignorando a inativação.
+- **Impacto:** Estado da aeronave fica inconsistente com a inspeção em andamento. Aeronave inativa aparece como sob inspeção no módulo de inspeções, podendo mascarar o encerramento da inspeção ou liberá-la prematuramente.
+- **Sugestão:** Adicionar guarda antes do `else`: `if aeronave.status == StatusAeronave.INSPECAO: raise ValueError("Aeronave está sob inspeção ativa. Cancele ou conclua a inspeção antes de alterar o status.")`. Ou restringir o toggle apenas ao par `DISPONIVEL ↔ INATIVA`.
+- **Hash:** `2c9d5f`
+
+---
+
+### BUG - `registrar_execucao` usa periodicidade hardcoded de 12 meses quando a regra está ausente
+
+- **Local:** `app/modules/vencimentos/service.py` — função `registrar_execucao`, linha 147
+- **Descrição:** `periodicidade = regra.periodicidade_meses if regra else 12` — se o `EquipamentoControle` associado ao item não for encontrado (deleção posterior, item criado pelo bug `4d9c1b`, inconsistência de dados), a execução é registrada com 12 meses de periodicidade sem qualquer aviso, log ou exceção. O próximo `data_vencimento` é calculado incorretamente para itens com periodicidade diferente (ex.: calibração semestral de 6 meses vira 12 meses).
+- **Impacto:** Datas de vencimento incorretas ficam registradas com aparência de dados válidos. Em sistema aeronáutico, prazos de calibração e inspeção incorretos representam risco operacional direto e podem passar por auditorias sem detecção.
+- **Sugestão:** Substituir o fallback silencioso por uma exceção explícita: `if not regra: raise domain_exc.EntidadeNaoEncontradaError("Regra de periodicidade não encontrada para este item/controle.")`. O operador é forçado a corrigir os dados antes de registrar a execução.
+- **Hash:** `8e3b7a`
+
+---
+
+### ARQUITETURA - `atualizar_aeronave` aceita `status = INSPECAO` diretamente via PUT
+
+- **Local:** `app/modules/aeronaves/service.py` — função `atualizar_aeronave`, linhas 89–97
+- **Descrição:** O campo `status` do schema de atualização não é filtrado em `atualizar_aeronave`. Um administrador pode enviar `{"status": "INSPECAO"}` via `PUT /aeronaves/{id}` sem criar nenhum registro em `Inspecao`, sem tarefas, sem rastreabilidade de abertura. O comentário no código (`# Removida a trava que impedia definir como INATIVA via PUT`) confirma que a guarda foi intencionalmente removida, mas sem restringir os valores permitidos.
+- **Impacto:** Aeronave fica com `status = INSPECAO` sem inspeção correspondente no banco, corrompendo a lógica de `abrir_inspecao` (que bloqueia abertura se já houver status `INSPECAO` via join) e impedindo a criação de novas inspeções legítimas.
+- **Sugestão:** Remover `status` dos campos atualizáveis via `atualizar_aeronave` (ou restringir a `{DISPONIVEL, INATIVA}`). Transições para `INSPECAO` devem ocorrer exclusivamente pelo módulo de inspeções.
+- **Hash:** `5f1c4d`
+
+---
+
+### BUG - Alterar periodicidade de `EquipamentoControle` não recalcula `data_vencimento` dos itens existentes
+
+- **Local:** `app/modules/vencimentos/service.py` — função `associar_controle_a_equipamento`, linhas 69–72
+- **Descrição:** Quando uma regra de periodicidade já existente é atualizada (`existing.periodicidade_meses = periodicidade`), os registros `ControleVencimento` de todos os itens daquele modelo **não** têm seu `data_vencimento` recalculado. O novo prazo só passa a valer na próxima chamada a `registrar_execucao`. Enquanto isso, todos os itens exibem datas calculadas com a periodicidade antiga.
+- **Impacto:** Uma redução de periodicidade (ex.: 12 → 6 meses) não é refletida imediatamente na matriz de vencimentos. Itens que deveriam aparecer como `VENCENDO` continuam como `OK` até o próximo registro de execução, criando uma janela de falsa conformidade na frota.
+- **Sugestão:** Após atualizar `existing.periodicidade_meses`, recalcular `data_vencimento` para todos os `ControleVencimento` cujo `data_ultima_exec` não é nulo: `novo_vencimento = cv.data_ultima_exec + relativedelta(months=periodicidade)`. Itens sem `data_ultima_exec` permanecem com status `VENCIDO` como já ocorre.
+- **Hash:** `a2e6c8`
+
+---
+
+### BUG - Bulk UPDATEs via `__table__.update()` em `vencimentos/service.py` ficam defasados no identity map da sessão
+
+- **Local:** `app/modules/vencimentos/service.py` — funções `registrar_execucao` (linha 153), `prorrogar_vencimento` (linha 340) e `cancelar_prorrogacao` (linha 369)
+- **Descrição:** As três funções desativam `ProrrogacaoVencimento` ativa usando SQL bruto via `__table__.update()`. Esse mecanismo atualiza o banco diretamente mas **não sincroniza o identity map da sessão SQLAlchemy**: instâncias de `ProrrogacaoVencimento` já carregadas na sessão (ex.: via `selectinload(ControleVencimento.prorrogacoes)`) permanecem com `ativo=True` em memória. Se a mesma sessão serializar a resposta logo após (como ocorre em `registrar_execucao` que retorna o `vencimento` cujas `prorrogacoes` podem já estar no cache), o JSON de resposta retornará a prorrogação como ainda ativa, contradizendo o que foi gravado.
+- **Impacto:** Resposta da API pode divergir do estado real do banco na mesma requisição. Em `prorrogar_vencimento`, a prorrogação anterior aparecerá como ativa na resposta mesmo tendo sido revogada, confundindo o frontend e quebrando a exibição do histórico de prorrogações.
+- **Sugestão:** Após cada `__table__.update()`, invalidar o cache da sessão com `await db.execute(select(1))` + `session.expire_all()`, ou reescrever usando ORM: buscar as instâncias ativas, setar `.ativo = False` individualmente e usar `flush()`. A abordagem ORM é mais segura e alinhada ao padrão do projeto.
+- **Hash:** `9b4f1e`
