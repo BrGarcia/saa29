@@ -74,8 +74,10 @@
         </div>
     </div>
 
-    <!-- CAMPO CENTRAL: Panes Operacionais -->
-    <div class="glass-panel dashboard-card card-panes full-width" aria-label="Painel de Panes Operacionais">
+    <!-- LINHA INFERIOR: Panes e Inventário lado a lado -->
+    <div class="dashboard-bottom-grid">
+        <!-- CAMPO CENTRAL: Panes Operacionais -->
+        <div class="glass-panel dashboard-card card-panes" aria-label="Painel de Panes Operacionais">
         <div class="card-header">
             <div class="header-info">
                 <span class="card-icon" aria-hidden="true" style="color: var(--status-danger);">🚨</span>
@@ -110,8 +112,8 @@
         </div>
     </div>
 
-    <!-- CAMPO INFERIOR: Últimas Instalações -->
-    <div class="glass-panel dashboard-card card-inventario full-width" id="card-inventario" aria-label="Últimas movimentações de inventário">
+        <!-- CAMPO INFERIOR: Últimas Instalações -->
+        <div class="glass-panel dashboard-card card-inventario" id="card-inventario" aria-label="Últimas movimentações de inventário">
         <div class="card-header">
             <div class="header-info">
                 <span class="card-icon" aria-hidden="true" style="color: var(--primary-color);">📦</span>
@@ -125,6 +127,7 @@
                 <div class="skeleton feed-item-skeleton"></div>
             </div>
         </div>
+    </div>
     </div>
 
 </div>
@@ -190,9 +193,18 @@
     gap: 1.5rem;
 }
 
+.dashboard-bottom-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
 @media (max-width: 1200px) {
     .dashboard-top-grid {
         grid-template-columns: repeat(2, 1fr);
+    }
+    .dashboard-bottom-grid {
+        grid-template-columns: 1fr;
     }
 }
 
