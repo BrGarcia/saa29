@@ -67,13 +67,16 @@ async def get_panes_summary(db: AsyncSession) -> PanesSummary:
     )
     total_resolvidas_mes = (await db.execute(q_resolvidas)).scalar_one() or 0
 
-    # 5 panes abertas mais antigas — eager-load aeronave para a matrícula
+    # 5 panes abertas mais antigas — eager-load aeronave e sistema_ata
     q_criticas = (
         select(Pane)
         .where(Pane.status == "ABERTA", Pane.ativo == True)  # noqa: E712
         .order_by(Pane.data_abertura.asc())
         .limit(5)
-        .options(selectinload(Pane.aeronave))
+        .options(
+            selectinload(Pane.aeronave),
+            selectinload(Pane.sistema_ata)
+        )
     )
     rows = (await db.execute(q_criticas)).scalars().all()
 
@@ -81,7 +84,7 @@ async def get_panes_summary(db: AsyncSession) -> PanesSummary:
         PaneCritica(
             id=str(p.id),
             matricula=p.aeronave.matricula if p.aeronave else "—",
-            sistema=p.sistema_subsistema,
+            sistema=p.descricao[:40] + ("..." if len(p.descricao) > 40 else ""),
             data_abertura=p.data_abertura.isoformat(),
         )
         for p in rows

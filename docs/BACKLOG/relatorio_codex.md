@@ -74,6 +74,6 @@ Nenhuma das implementações exige alterações no frontend. Tratam-se de refato
 
 
 ## Próximos Passos
-*   [ ] Revisar/Implementar o item 1.1 e 1.3 (Sessão de Auth e Refresh Token).
-*   [ ] Implementar item 1.2 (Soft-delete).
-*   [ ] Corrigir as funções de Inspeção (2.1 e 2.2).
+*   [x] Revisar/Implementar o item 1.1 e 1.3 (Sessão de Auth e Refresh Token).
+*   [x] Implementar item 1.2 (Soft-delete).
+*   [x] Corrigir as funções de Inspeção (2.1 e 2.2).

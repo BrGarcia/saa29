@@ -63,7 +63,6 @@ async def _criar_pane(db: AsyncSession, aeronave_id, criado_por_id,
     pane = Pane(
         aeronave_id=aeronave_id,
         status=status,
-        sistema_subsistema="AVIÔNICA",
         descricao="Falha de teste",
         criado_por_id=criado_por_id,
         data_abertura=data,

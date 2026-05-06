@@ -24,7 +24,8 @@ from scripts.seed import (
     seed_inventario,
     seed_panes,
     seed_tarefas,
-    seed_inspecoes
+    seed_inspecoes,
+    seed_sistemas_ata
 )
 
 async def main():
@@ -45,6 +46,9 @@ async def main():
             
             # 3. Equipamentos (Catálogo/PNs/Slots - Sempre essencial para estrutura)
             await seed_equipamentos.run(session)
+
+            # 3.1 Sistemas ATA (Sempre essencial para categorização)
+            await seed_sistemas_ata.run(session)
 
             if settings.enable_dev_seeds:
                 print("🛠️  Modo Desenvolvimento: Carregando dados de teste...")

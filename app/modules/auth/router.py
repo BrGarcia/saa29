@@ -44,6 +44,8 @@ async def login(
         db, form_data.username, form_data.password
     )
     if not usuario:
+        # Commit manual para persistir o incremento de falhas (feito via flush no service)
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credenciais inválidas.",
@@ -244,6 +246,7 @@ async def refresh_access_token(
     summary="Logout de usuário",
 )
 async def logout(
+    request: Request,
     usuario_atual: CurrentUser,
     db: DBSession,
     response: Response,
@@ -251,10 +254,13 @@ async def logout(
 ) -> None:
     """
     Invalida a sessão do usuário via blacklist do JTI e expurga o Cookie (HttpOnly).
-    A blacklist é persistida no banco, sobrevivendo a restarts e escalonamento.
+    Também revoga o Refresh Token se presente.
     """
-    # Deleta cookie do lado do client
+    # Deleta cookies do lado do client
     response.delete_cookie(key="saa29_token")
+    response.delete_cookie(key="saa29_refresh_token", path="/auth/refresh")
+
+    # 1. Invalida Access Token (Blacklist)
     try:
         payload = decodificar_token(token)
         jti = payload.get("jti")
@@ -266,10 +272,29 @@ async def logout(
                 jti=jti,
                 expira_em=datetime.fromtimestamp(exp, tz=timezone.utc)
             ))
-            # O commit é feito automaticamente pela dependência get_db ao final do request
     except Exception:
-        # Se o token já for inválido, logout é considerado ok.
         pass
+
+    # 2. Revoga Refresh Token no Banco
+    refresh_token = request.cookies.get("saa29_refresh_token")
+    if refresh_token:
+        try:
+            from app.modules.auth.models import TokenRefresh
+            from sqlalchemy import select
+            from datetime import datetime, timezone
+            
+            rt_payload = decodificar_token(refresh_token)
+            rt_jti = rt_payload.get("jti")
+            if rt_jti:
+                result = await db.execute(
+                    select(TokenRefresh).where(TokenRefresh.jti == rt_jti)
+                )
+                stored_rt = result.scalar_one_or_none()
+                if stored_rt:
+                    stored_rt.revogado_em = datetime.now(timezone.utc)
+        except Exception:
+            pass
+
     return None
 
 

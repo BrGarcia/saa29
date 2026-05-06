@@ -79,7 +79,7 @@ function renderPanes(data) {
         <a href="/panes/${pane.id}/detalhes" class="list-item">
             <div class="item-main">
                 <span class="item-tag">${escapeHtml(pane.matricula)}</span>
-                <span class="item-desc">${escapeHtml(pane.sistema_ata ? pane.sistema_ata.descricao : 'Geral')}</span>
+                <span class="item-desc">${escapeHtml(pane.sistema || 'Geral')}</span>
             </div>
             <span class="item-meta">${formatarDataRelativa(pane.data_abertura)}</span>
         </a>
@@ -186,10 +186,15 @@ function formatarDataRelativa(isoString) {
     if (!isoString) return "";
     const data = new Date(isoString);
     const agora = new Date();
-    const diffMs = agora - data;
+    
+    // Zera as horas para comparação apenas de dias
+    const d1 = new Date(data.getFullYear(), data.getMonth(), data.getDate());
+    const d2 = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    
+    const diffMs = d2 - d1;
     const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffDias === 0) return "Hoje";
+    if (diffDias <= 0) return "Hoje";
     if (diffDias === 1) return "Ontem";
     return `Há ${diffDias} dias`;
 }

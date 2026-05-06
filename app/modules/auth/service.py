@@ -53,13 +53,13 @@ async def autenticar_usuario(
         if usuario.failed_login_attempts >= 5:
             usuario.locked_until = agora + timedelta(minutes=15)
         
-        await db.commit()
+        await db.flush()
         return None
 
     # Sucesso: Resetar contador
     usuario.failed_login_attempts = 0
     usuario.locked_until = None
-    await db.commit()
+    await db.flush()
     
     return usuario
 

@@ -402,15 +402,19 @@ async def abrir_inspecao(
     if not templates:
         raise ValueError("Os tipos de inspecao nao possuem tarefas template cadastradas.")
 
-    vistos = set()
-    templates_deduplicados = []
+    vistos = {}  # chave -> {'template': t, 'obrigatoria': bool}
     for t in templates:
         chave = t.tarefa_catalogo.titulo.strip().lower()
         if chave not in vistos:
-            vistos.add(chave)
-            templates_deduplicados.append(t)
+            vistos[chave] = {
+                "template": t,
+                "obrigatoria": t.obrigatoria
+            }
+        else:
+            vistos[chave]["obrigatoria"] = vistos[chave]["obrigatoria"] or t.obrigatoria
 
-    for i, template in enumerate(templates_deduplicados, start=1):
+    for i, item in enumerate(vistos.values(), start=1):
+        template = item["template"]
         db.add(
             InspecaoTarefa(
                 inspecao_id=inspecao.id,
@@ -419,7 +423,7 @@ async def abrir_inspecao(
                 titulo=template.tarefa_catalogo.titulo,
                 descricao=template.tarefa_catalogo.descricao,
                 sistema=template.tarefa_catalogo.sistema,
-                obrigatoria=template.obrigatoria,
+                obrigatoria=item["obrigatoria"],
                 status=StatusTarefaInspecao.PENDENTE.value,
             )
         )
@@ -564,8 +568,17 @@ async def concluir_inspecao(
     inspecao.data_conclusao = datetime.now(timezone.utc)
     inspecao.concluido_por_id = concluido_por_id
     inspecao.concluido_por_trigrama = usuario.trigrama
-    if inspecao.aeronave:
+
+    # Verifica se existem outras inspeções ativas para a mesma aeronave
+    query_ativas = select(func.count(Inspecao.id)).where(
+        Inspecao.aeronave_id == inspecao.aeronave_id,
+        Inspecao.status.in_(STATUS_ATIVOS),
+        Inspecao.id != inspecao.id
+    )
+    result_ativas = await db.execute(query_ativas)
+    if result_ativas.scalar() == 0 and inspecao.aeronave:
         inspecao.aeronave.status = StatusAeronave.DISPONIVEL.value
+
     await db.flush()
     
     inspecao_carregada = await buscar_inspecao(db, inspecao_id)
@@ -580,8 +593,17 @@ async def cancelar_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> Inspeca
         raise ValueError("Inspecao nao encontrada.")
     _garantir_inspecao_editavel(inspecao)
     inspecao.status = StatusInspecao.CANCELADA.value
-    if inspecao.aeronave:
+
+    # Verifica se existem outras inspeções ativas para a mesma aeronave
+    query_ativas = select(func.count(Inspecao.id)).where(
+        Inspecao.aeronave_id == inspecao.aeronave_id,
+        Inspecao.status.in_(STATUS_ATIVOS),
+        Inspecao.id != inspecao.id
+    )
+    result_ativas = await db.execute(query_ativas)
+    if result_ativas.scalar() == 0 and inspecao.aeronave:
         inspecao.aeronave.status = StatusAeronave.DISPONIVEL.value
+
     await db.flush()
     
     inspecao_carregada = await buscar_inspecao(db, inspecao_id)

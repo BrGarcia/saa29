@@ -96,7 +96,7 @@ async def get_current_user(
 
     from app.modules.auth.service import buscar_por_username
     usuario = await buscar_por_username(db, username)
-    if usuario is None:
+    if usuario is None or not usuario.ativo:
         raise credentials_exception
 
     return usuario
