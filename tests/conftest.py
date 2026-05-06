@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 
 # Forçar storage local durante os testes
 os.environ["STORAGE_BACKEND"] = "local"
+os.environ["APP_ENV"] = "testing"
 
 from app.bootstrap.main import app
 from app.bootstrap.database import Base
@@ -150,6 +151,7 @@ def dados_aeronave_valida() -> dict:
         "matricula": "5916",
         "modelo": "A-29",
         "status": "DISPONIVEL",
+        "data_inicio_operacao": "2020-01-01",
     }
 
 
@@ -160,6 +162,7 @@ def dados_aeronave_secundaria() -> dict:
         "matricula": "5901",
         "modelo": "A-29",
         "status": "DISPONIVEL",
+        "data_inicio_operacao": "2020-01-01",
     }
 
 

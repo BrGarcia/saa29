@@ -360,6 +360,23 @@ async def _obter_ou_criar_item_por_pn(db: AsyncSession, modelo_id: uuid.UUID, sn
         item = ItemEquipamento(id=uuid.uuid4(), modelo_id=modelo_id, numero_serie=sn, status=StatusItem.ATIVO)
         db.add(item)
         await db.flush()
+
+        # Herdar controles do Modelo (EquipamentoControle -> ControleVencimento)
+        res_ctrl = await db.execute(
+            select(EquipamentoControle).where(EquipamentoControle.modelo_id == item.modelo_id)
+        )
+        controles = res_ctrl.scalars().all()
+
+        for ctrl in controles:
+            vencimento = ControleVencimento(
+                id=uuid.uuid4(),
+                item_id=item.id,
+                tipo_controle_id=ctrl.tipo_controle_id,
+                status=StatusVencimento.VENCIDO.value
+            )
+            db.add(vencimento)
+
+        await db.flush()
     return item
 
 async def _validar_e_resolver_conflitos(

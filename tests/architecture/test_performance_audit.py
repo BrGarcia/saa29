@@ -13,7 +13,8 @@ async def test_n_plus_one_inventario(client: AsyncClient, db: AsyncSession, usua
     TESTE DE N+1: Valida se a listagem de inventário faz carregamento antecipado (eager loading).
     """
     # 1. Setup: Criar 1 Aeronave, 1 Modelo, 5 Slots e 5 Itens instalados
-    aeronave = Aeronave(id=uuid.uuid4(), matricula="5999", serial_number="SN999", modelo="A-29")
+    from datetime import date
+    aeronave = Aeronave(id=uuid.uuid4(), matricula="5999", serial_number="SN999", modelo="A-29", data_inicio_operacao=date(2020, 1, 1))
     db.add(aeronave)
     
     modelo = ModeloEquipamento(id=uuid.uuid4(), part_number="PN-PERF", nome_generico="TEST-PERF")
@@ -75,7 +76,7 @@ async def test_paginacao_historico_funcional(client: AsyncClient, db: AsyncSessi
     """
     from datetime import date
     # 1. Setup: Criar 5 instalações (eventos de histórico)
-    aeronave = Aeronave(id=uuid.uuid4(), matricula="5998", serial_number="SN998", modelo="A-29")
+    aeronave = Aeronave(id=uuid.uuid4(), matricula="5998", serial_number="SN998", modelo="A-29", data_inicio_operacao=date(2020, 1, 1))
     db.add(aeronave)
     modelo = ModeloEquipamento(id=uuid.uuid4(), part_number="PN-HIST", nome_generico="TEST-HIST")
     db.add(modelo)

@@ -21,6 +21,7 @@ Cobertura (ROADMAP Fase 2 – 2.3):
 import uuid
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 PANES_URL = "/panes/"
@@ -656,6 +657,7 @@ class TestUploadAnexo:
         client: AsyncClient,
         dados_aeronave_valida: dict,
         usuario_e_token: dict,
+        db: AsyncSession,
     ):
         headers = usuario_e_token["headers"]
         aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
@@ -668,21 +670,34 @@ class TestUploadAnexo:
             b"\x1f\x1e\x1d\x1a\x1c\x1c $.' \",#\x1c\x1c(7),01444\x1f'9=82<.342\x1e"
             b"\xff\xd9"
         )
-        upload = await client.post(
-            f"{PANES_URL}{pane['id']}/anexos",
-            headers=headers,
-            files={"arquivo": ("foto.jpg", jpeg_minimal, "image/jpeg")},
-        )
-        assert upload.status_code == 201
-        anexo_id = upload.json()["id"]
+        
+        from unittest.mock import patch
+        with patch("app.modules.panes.router.BackgroundTasks.add_task"):
+            upload = await client.post(
+                f"{PANES_URL}{pane['id']}/anexos",
+                headers=headers,
+                files={"arquivo": ("foto.jpg", jpeg_minimal, "image/jpeg")},
+            )
+            assert upload.status_code == 201
+            anexo_id = upload.json()["id"]
 
-        response = await client.get(
-            f"{PANES_URL}{pane['id']}/anexos/{anexo_id}/download",
-            headers=headers,
-            follow_redirects=True
-        )
-        assert response.status_code == 200
-        assert response.content
+            # Simula a conclusão do background task na mesma transação de teste
+            from sqlalchemy import select
+            from app.modules.panes.models import Anexo
+            from app.shared.core.storage import get_storage_service
+            anexo = (await db.execute(select(Anexo).where(Anexo.id == uuid.UUID(anexo_id)))).scalar_one()
+            storage_svc = get_storage_service()
+            caminho_salvo = await storage_svc.upload(jpeg_minimal, "foto.jpg", "image/jpeg")
+            anexo.caminho_arquivo = caminho_salvo
+            await db.flush()
+
+            response = await client.get(
+                f"{PANES_URL}{pane['id']}/anexos/{anexo_id}/download",
+                headers=headers,
+                follow_redirects=True
+            )
+            assert response.status_code == 200
+            assert response.content
 
 
 class TestAutorizacaoPanes:

@@ -79,11 +79,13 @@ async def _ensure_default_aeronaves() -> None:
             if faltantes:
                 print(f"Adicionando {len(faltantes)} aeronaves à frota padrão...")
                 for matricula in faltantes:
+                    from datetime import date
                     session.add(
                         Aeronave(
                             matricula=matricula,
                             serial_number=f"SN-{matricula}",
                             modelo="A-29",
+                            data_inicio_operacao=date(2020, 1, 1)
                         )
                     )
                 await session.commit()
@@ -100,6 +102,7 @@ async def _ensure_default_aeronaves() -> None:
 _db_dirty: bool = False          # True quando há escrita não salva no R2
 _backup_task = None              # asyncio.Task do debounce em andamento
 _BACKUP_DEBOUNCE_SECONDS = 120   # aguarda 2 min após última escrita antes de enviar
+_main_loop = None                # Guarda referência ao event loop principal
 
 
 def _mark_db_dirty(*args, **kwargs) -> None:
@@ -110,19 +113,19 @@ def _mark_db_dirty(*args, **kwargs) -> None:
 
 
 def _schedule_debounced_backup() -> None:
-    """Cancela qualquer backup pendente e agenda um novo após DEBOUNCE segundos."""
-    import asyncio
-    global _backup_task
+    """Cancela qualquer backup pendente e agenda um novo após DEBOUNCE segundos (thread-safe)."""
+    global _main_loop
 
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        return  # Fora de um contexto async, ignora
+    if _main_loop is None or _main_loop.is_closed():
+        return
 
-    if _backup_task and not _backup_task.done():
-        _backup_task.cancel()
+    def _schedule():
+        global _backup_task
+        if _backup_task and not _backup_task.done():
+            _backup_task.cancel()
+        _backup_task = _main_loop.create_task(_debounced_backup())
 
-    _backup_task = loop.create_task(_debounced_backup())
+    _main_loop.call_soon_threadsafe(_schedule)
 
 
 async def _debounced_backup() -> None:
@@ -240,6 +243,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     - startup: inicializar conexões, registrar listener de backup, criar uploads/
     - shutdown: backup final (se houver dados não salvos) + fechar conexões
     """
+    global _main_loop
+    _main_loop = asyncio.get_running_loop()
+
     from app.bootstrap.config import get_settings
     current_settings = get_settings()
 
@@ -265,10 +271,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     cleanup_task.cancel()
 
     # Shutdown: backup final se houver dados não persistidos no R2
-    # (Desabilitado temporariamente para testes locais com banco zerado)
-    # if _db_dirty and current_settings.storage_backend.lower() == "r2" and current_settings.r2_bucket_name:
-    #     logging.info("[R2 Backup] Shutdown com dados não salvos — executando backup final...")
-    #     _run_r2_backup()
+    if _db_dirty and current_settings.storage_backend.lower() == "r2" and current_settings.r2_bucket_name:
+        logging.info("[R2 Backup] Shutdown com dados não salvos — executando backup final...")
+        await _run_r2_backup()
 
     # Fechar engine de banco de dados
     from app.bootstrap.database import dispose_engine

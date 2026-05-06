@@ -32,8 +32,7 @@ async def registrar_indisponibilidade(db: AsyncSession, dados: Indisponibilidade
 
     indisp = Indisponibilidade(**dados.model_dump())
     db.add(indisp)
-    await db.commit()
-    await db.refresh(indisp)
+    await db.flush()
     return indisp
 
 async def listar_indisponibilidades_ativas(db: AsyncSession, data_ref: date | None = None) -> list[Indisponibilidade]:
@@ -59,6 +58,6 @@ async def remover_indisponibilidade(db: AsyncSession, indisp_id: uuid.UUID) -> b
     indisp = await db.get(Indisponibilidade, indisp_id)
     if indisp:
         await db.delete(indisp)
-        await db.commit()
+        await db.flush()
         return True
     return False

@@ -59,7 +59,13 @@ async def _ajustar_inventario(client: AsyncClient, headers: dict, aeronave_id: s
 
 async def _criar_aeronave(client: AsyncClient, headers: dict, matricula: str, serial: str) -> dict:
     """Helper: cria uma aeronave."""
-    payload = {"serial_number": serial, "matricula": matricula, "modelo": "A-29", "status": "DISPONIVEL"}
+    payload = {
+        "serial_number": serial, 
+        "matricula": matricula, 
+        "modelo": "A-29", 
+        "status": "DISPONIVEL",
+        "data_inicio_operacao": "2020-01-01"
+    }
     resp = await client.post(AERONAVES_URL, json=payload, headers=headers)
     assert resp.status_code == 201
     return resp.json()

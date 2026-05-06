@@ -22,6 +22,7 @@ def _nova_aeronave_payload() -> dict:
         "matricula": f"CS-{sufixo}",
         "modelo": "A-29",
         "status": "DISPONIVEL",
+        "data_inicio_operacao": "2020-01-01"
     }
 
 

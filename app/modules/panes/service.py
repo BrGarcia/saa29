@@ -634,13 +634,21 @@ async def excluir_anexo(
     if not anexo:
         raise ValueError("Anexo não encontrado.")
 
+    caminho_arquivo = anexo.caminho_arquivo
+
+    # Deletar arquivo físico/R2 via StorageService
+    try:
+        storage_svc = get_storage_service()
+        if caminho_arquivo and caminho_arquivo not in ["processando", "ERRO"]:
+            await storage_svc.delete(caminho_arquivo)
+    except Exception as e:
+        import logging
+        logging.error("Falha ao deletar arquivo %s do storage: %s", caminho_arquivo, e)
+        raise ValueError("Não foi possível excluir o arquivo no storage.")
+
     # Deletar do banco
     await db.delete(anexo)
     await db.flush()
-
-    # Deletar arquivo físico/R2 via StorageService
-    storage_svc = get_storage_service()
-    await storage_svc.delete(anexo.caminho_arquivo)
 
     return True
 

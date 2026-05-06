@@ -29,7 +29,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         # Isso permite que a suite de testes de lógica funcione enquanto test_csrf.py testa a trava real.
         settings = get_settings()
         skip_csrf = (
-            settings.app_env != "production" 
+            settings.app_env == "testing" 
             and request.headers.get("X-Skip-CSRF") == "true"
         )
 

@@ -125,7 +125,7 @@ async def editar_pane(
     usuario_atual: CurrentUser,
 ) -> schemas.PaneOut:
     """Edita descrição e/ou status. RN-03: apenas panes não resolvidas."""
-    if dados.descricao is not None or dados.sistema_subsistema is not None:
+    if dados.descricao is not None or dados.sistema_ata_id is not None:
         ensure_role(usuario_atual, "ENCARREGADO", "INSPETOR", "ADMINISTRADOR")
     try:
         await service.editar_pane(db, pane_id, dados, usuario_atual.id)

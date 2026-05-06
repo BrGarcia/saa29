@@ -3,7 +3,7 @@
 meta:
 - purpose: low_token_machine_context
 - scope: summarized_mirror_of_official_docs
-- source_of_truth: docs/README.md, docs/architecture/, docs/core/, docs/guides/, docs/backlog/, docs/summaries/, docs/SECURITY.md, docs/ROADMAP.md, docs/CHANGELOG.md
+- source_of_truth: docs/README.md, docs/architecture/, docs/core/, docs/guides/, docs/backlog/, docs/summaries/, docs/SECURITY.md, docs/ROADMAP.md, docs/CHANGELOG.md, docs/methodology/merge_main.md
 - rule: if_conflict_use_official_docs
 
 read_order:
@@ -24,6 +24,7 @@ operational_rules:
 - preserve_existing_pane_records: mandatory
 - before_db_schema_or_data_change: create_backup_of_original_db
 - never_assume: active_db_can_be_reset_recreated_or_reseeded
+- merge_to_main_workflow: follow docs/methodology/merge_main.md strictly
 
 files:
 - CTX.md: project_state_and_current_focus

@@ -11,3 +11,4 @@
 - RN-06: Vencimentos: Extension requires technical justification; Execution resets counter and disables active extension.
 - RN-07: Inspecoes: Open instance generates tasks from templates; Conclusion requires mandatory tasks resolved; Persistent audit of open/close trigram.
 - RN-08: Inventory: S/N sync (Adjustment) requires matching slot/item; Item installation sets current location.
+- RN-09: Merge/Deploy Workflow: All promotions to `main` must follow `docs/methodology/merge_main.md` to ensure R2 backup persistence.

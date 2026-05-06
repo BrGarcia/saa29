@@ -16,7 +16,8 @@ async def test_helper_buscar_aeronave_por_matricula(db: AsyncSession):
     from app.shared.core import helpers
     
     # Setup
-    anv = Aeronave(id=uuid.uuid4(), matricula="5900", serial_number="SN5900", modelo="A-29")
+    from datetime import date
+    anv = Aeronave(id=uuid.uuid4(), matricula="5900", serial_number="SN5900", modelo="A-29", data_inicio_operacao=date(2020, 1, 1))
     db.add(anv)
     await db.commit()
 
