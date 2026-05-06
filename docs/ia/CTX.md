@@ -1,7 +1,7 @@
 # ctx
 
 meta:
-- sync_date: 2026-05-05
+- sync_date: 2026-05-06
 - docs_structure: reorganized (core/, guides/, backlog/, summaries/, ia/*.ctx)
 - mode: machine
 - format: kv_short
@@ -12,7 +12,7 @@ project:
 - type: web_monolith_modular_ddd
 - domain: panes_aeronaves_inventario_a29
 - status: architecture_stabilized_ddd_active
-- test_status: unit_pass_after_inspecoes_tests (88 tests)
+- test_status: passing with recent additions (133 tests collected)
 - db_state: active_db_preserve_no_schema_change_for_inspecoes
 
 operational_constraints:
@@ -38,7 +38,7 @@ entrypoints:
 - app: app/bootstrap/main.py
 - run_local: scripts/run_app.py
 - db_init: scripts/db/init_db.py
-- db_seed: scripts/seed/seed.py (Single Entry Point)
+- db_seed: scripts/seed/seed.py (Single Entry Point - Conditional Dev Seeds)
 
 domains:
 - auth: usuarios, token_blacklist, token_refresh
@@ -80,6 +80,8 @@ core_rules:
 - RN-I10: desacoplamento_tarefas_catalogo_global_completed
 - RN-I11: DPE_calculada_pela_maior_duracao_dos_tipos (DPE = inicio + max_duracao_tipos, permite override manual)
 - RN-I12: captura_auditoria_trigrama_persistente_na_inspecao (aberto_por_trigrama, concluido_por_trigrama)
+- RN-D01: dashboard_tactical_override (Active Inspection status overrides persisted aircraft status)
+- RN-A02: admin_password_reset_authorized (Admins can reset passwords for other users)
 
 current_focus:
 - docs_synced: true (IA updated for isolated inspections scaffold)
@@ -100,6 +102,7 @@ current_focus:
 - frontend_csp_refactoring_completed: true (removed all inline scripts)
 - alembic_migrations_up_to_date: true
 - lookup_table_sistemas_ata_completed: true
+- r2_persistence_startup_sync_active: true
 
 backlog_inspecoes:
 - feature_tarefas_extras: completed

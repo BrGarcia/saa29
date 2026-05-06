@@ -1,5 +1,5 @@
 # SAA29 — Dashboard Module: Intermediate Representation (IR) for LLMs
-# Version: 1.0 | Date: 2026-05-04
+# Version: 1.1 | Date: 2026-05-06
 # Purpose: Context file for AI-assisted code generation of the Dashboard module.
 # Use this file as primary context when prompting any LLM for dashboard tasks.
 
@@ -52,7 +52,7 @@ files_to_modify = [
 [[table]]
 name = "panes"
 model = "app.modules.panes.models.Pane"
-key_fields = ["id", "status", "ativo", "data_abertura", "data_conclusao", "aeronave_id", "sistema_subsistema"]
+key_fields = ["id", "status", "ativo", "data_abertura", "data_conclusao", "aeronave_id", "sistema_ata_id"]
 status_values = ["ABERTA", "RESOLVIDA"]
 relationships = ["aeronave (Aeronave)", "responsaveis (PaneResponsavel)", "criador (Usuario)"]
 dashboard_queries = [
@@ -108,6 +108,7 @@ status_values = ["DISPONIVEL", "OPERACIONAL", "INDISPONIVEL", "INSPEÇÃO", "EST
 dashboard_queries = [
   "GROUP BY status COUNT(*) → {disponivel, operacional, indisponivel, inspecao, estocada, inativa}",
 ]
+note = "STATUS TÁTICO: get_frota_summary deve priorizar status 'INSPEÇÃO' se a aeronave possuir inspeções ativas, sobrepondo o status persistido no banco."
 
 [SCHEMAS]
 # app/modules/dashboard/schemas.py

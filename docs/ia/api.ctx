@@ -3,7 +3,7 @@
 - Base: http://localhost:8000 (/docs for swagger)
 - Auth: JWT (Authorization: Bearer) or Cookie (saa29_token)
 - Endpoints:
-  - /auth: login, refresh, logout, me, usuarios (CRUD + pwd)
+  - /auth: login, refresh, logout, me, usuarios (CRUD + pwd + admin-reset-pwd)
   - /aeronaves: list, create, detail, update, toggle-status
   - /panes: create, list, detail, update, concluir, anexos (CRUD), responsaveis (Add/Rem), restore, sistemas (Lookup List)
   - /equipamentos: tipos-controle, modelos (CRUD), slots (CRUD), itens (CRUD), instalacao, remocao, exec-vencimento, inventario-historico, inventario-aeronave, ajuste-sinc
