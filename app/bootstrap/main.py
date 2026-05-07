@@ -1,26 +1,16 @@
 """
 app/main.py
 Factory da aplicação FastAPI para o SAA29.
+Orquestrador central seguindo o Princípio da Responsabilidade Única (SRP).
 """
 
 import os
-import logging
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
-import asyncio
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-
-# Importar TODOS os modelos explicitamente para o SQLAlchemy Registry (SEC-02/COR-01)
-# ATENÇÃO: a ordem importa — equipamentos.models deve vir antes de aeronaves.models
-# pois Aeronave tem relationship("Instalacao") e o mapper precisa que Instalacao já esteja registrada.
+# --- Registro do SQLAlchemy (Ordem importa) ---
 import app.modules.inspecoes.models
 import app.modules.auth.models
 import app.modules.equipamentos.models
@@ -29,9 +19,12 @@ import app.modules.aeronaves.models
 import app.modules.panes.models
 import app.modules.efetivo.models
 
+# --- Configurações e Ciclo de Vida ---
 from app.bootstrap.config import get_settings
+from app.bootstrap.events import lifespan
+from app.shared.core.limiter import limiter
 
-# Importação dos routers (serão registrados no create_app)
+# --- Routers ---
 from app.modules.auth.router import router as auth_router
 from app.modules.efetivo.router import router as efetivo_router
 from app.modules.aeronaves.router import router as aeronaves_router
@@ -41,255 +34,14 @@ from app.modules.panes.router import router as panes_router
 from app.modules.inspecoes.router import router as inspecoes_router
 from app.modules.dashboard.router import router as dashboard_router
 from app.web.pages.router import router as pages_router
-from app.shared.core.limiter import limiter
-
-
-# Configuração do Rate Limiting
-# Removido daqui e movido para app.core.limiter para evitar circularidade
-
-
-
-settings = get_settings()
-FROTA_PADRAO = (
-    "5902", "5905", "5906", "5912", "5914", "5915", "5919", "5937", "5941", "5945",
-    "5946", "5947", "5949", "5952", "5954", "5955", "5956", "5957", "5958", "5962",
-)
-
-
-async def _ensure_default_aeronaves() -> None:
-    """
-    Garante a frota padrão no banco de dados.
-    Otimizado para realizar apenas uma query de verificação inicial.
-    """
-    from sqlalchemy import select
-    from app.modules.aeronaves.models import Aeronave
-    from app.bootstrap.database import get_session_factory
-
-    async with get_session_factory()() as session:
-        try:
-            # 1. Buscar todas as matrículas existentes da frota padrão
-            result = await session.execute(
-                select(Aeronave.matricula).where(Aeronave.matricula.in_(FROTA_PADRAO))
-            )
-            existentes = {row[0] for row in result.all()}
-
-            # 2. Identificar quais faltam e adicionar
-            faltantes = [m for m in FROTA_PADRAO if m not in existentes]
-            
-            if faltantes:
-                print(f"Adicionando {len(faltantes)} aeronaves à frota padrão...")
-                for matricula in faltantes:
-                    from datetime import date
-                    session.add(
-                        Aeronave(
-                            matricula=matricula,
-                            serial_number=f"SN-{matricula}",
-                            modelo="A-29",
-                            data_inicio_operacao=date(2020, 1, 1)
-                        )
-                    )
-                await session.commit()
-        except Exception as e:
-            print(f"Erro ao inicializar frota: {e}")
-            await session.rollback()
-            raise
-
-
-# ---------------------------------------------------------------------------
-# Backup orientado a eventos (event-driven) — sem timer periódico
-# ---------------------------------------------------------------------------
-
-_db_dirty: bool = False          # True quando há escrita não salva no R2
-_backup_task = None              # asyncio.Task do debounce em andamento
-_BACKUP_DEBOUNCE_SECONDS = 120   # aguarda 2 min após última escrita antes de enviar
-_main_loop = None                # Guarda referência ao event loop principal
-
-
-def _mark_db_dirty(*args, **kwargs) -> None:
-    """Chamado pelo SQLAlchemy after_commit. Agenda o backup com debounce."""
-    global _db_dirty
-    _db_dirty = True
-    _schedule_debounced_backup()
-
-
-def _schedule_debounced_backup() -> None:
-    """Cancela qualquer backup pendente e agenda um novo após DEBOUNCE segundos (thread-safe)."""
-    global _main_loop
-
-    if _main_loop is None or _main_loop.is_closed():
-        return
-
-    def _schedule():
-        global _backup_task
-        if _backup_task and not _backup_task.done():
-            _backup_task.cancel()
-        _backup_task = _main_loop.create_task(_debounced_backup())
-
-    _main_loop.call_soon_threadsafe(_schedule)
-
-
-async def _debounced_backup() -> None:
-    """Aguarda o debounce e executa o backup se o banco estiver sujo."""
-    import asyncio
-    global _db_dirty
-
-    try:
-        await asyncio.sleep(_BACKUP_DEBOUNCE_SECONDS)
-        if _db_dirty:
-            await _run_r2_backup()
-            _db_dirty = False
-    except asyncio.CancelledError:
-        pass  # Nova escrita chegou — será reagendado pelo próximo commit
-
-
-async def _run_r2_backup() -> None:
-    """Executa backup assíncrono do banco SQLite para o Cloudflare R2."""
-    import sys
-    import asyncio
-    try:
-        process = await asyncio.create_subprocess_exec(
-            sys.executable, "scripts/maintenance/r2_manager.py", "backup",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        
-        # Add timeout to avoid hanging indefinitely
-        try:
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=60.0)
-            if process.returncode == 0:
-                logging.info("[R2 Backup] %s", stdout.decode().strip())
-            else:
-                logging.warning("[R2 Backup] Falha: %s", stderr.decode().strip())
-        except asyncio.TimeoutError:
-            process.kill()
-            await process.communicate()
-            logging.error("[R2 Backup] Timeout após 60 segundos.")
-    except Exception as exc:
-        logging.error("[R2 Backup] Erro inesperado: %s", exc)
-
-
-# ---------------------------------------------------------------------------
-# Background Task para limpeza de tokens expirados
-# ---------------------------------------------------------------------------
-
-async def _token_cleanup_task() -> None:
-    """Executa a limpeza de tokens expirados a cada hora."""
-    import asyncio
-    from app.bootstrap.database import get_session_factory
-    from app.modules.auth.service import limpar_tokens_expirados
-    
-    while True:
-        try:
-            async with get_session_factory()() as session:
-                await limpar_tokens_expirados(session)
-                await session.commit()
-            logging.info("[Token Cleanup] Limpeza de tokens executada com sucesso.")
-        except asyncio.CancelledError:
-            break
-        except Exception as exc:
-            logging.error("[Token Cleanup] Erro na limpeza: %s", exc)
-        await asyncio.sleep(3600)  # Roda a cada 1 hora
-
-
-# -------- Security Headers Middleware (Sprint 2.2) --------
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-
-
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """
-    Adiciona headers de segurança globais:
-    - X-Content-Type-Options: nosniff (previne MIME-sniffing)
-    - X-Frame-Options: DENY (previne clickjacking)
-    - X-XSS-Protection: 1; mode=block (legacy XSS protection)
-    - Strict-Transport-Security: enable HSTS em produção
-    """
-    
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
-        
-        # Previne MIME-sniffing attacks
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        
-        # Previne clickjacking
-        response.headers["X-Frame-Options"] = "DENY"
-        
-        # Legacy XSS protection (newer: use CSP)
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        
-        # Content Security Policy (Ajustada para permitir Google Fonts, R2 storage e banner styles)
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-            "font-src 'self' https://fonts.gstatic.com; "
-            "script-src 'self'; "
-            "img-src 'self' data: https://*.r2.cloudflarestorage.com; "
-            "connect-src 'self' https://*.r2.cloudflarestorage.com; "
-            "frame-src 'self' https://*.r2.cloudflarestorage.com;"
-        )
-        
-        # HSTS em produção (se usando HTTPS)
-        settings = get_settings()
-        if settings.app_env == "production":
-            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        
-        return response
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """
-    Gerenciador de ciclo de vida da aplicação.
-    - startup: inicializar conexões, registrar listener de backup, criar uploads/
-    - shutdown: backup final (se houver dados não salvos) + fechar conexões
-    """
-    global _main_loop
-    _main_loop = asyncio.get_running_loop()
-
-    from app.bootstrap.config import get_settings
-    current_settings = get_settings()
-
-    # Startup: criar diretório de uploads se não existir
-    os.makedirs(current_settings.upload_dir, exist_ok=True)
-    await _ensure_default_aeronaves()
-
-    # Registrar listener de escrita no banco (event-driven backup)
-    # Nota: AsyncSession não suporta after_commit diretamente.
-    # O evento deve ser registrado no Session síncrono subjacente.
-    if current_settings.storage_backend.lower() == "r2" and current_settings.r2_bucket_name:
-        from sqlalchemy import event as sa_event
-        from sqlalchemy.orm import Session
-        sa_event.listen(Session, "after_commit", _mark_db_dirty)
-        logging.info("[R2 Backup] Backup orientado a eventos ativo (debounce: %ds).", _BACKUP_DEBOUNCE_SECONDS)
-
-    # Iniciar task de limpeza de tokens
-    cleanup_task = asyncio.create_task(_token_cleanup_task())
-
-    yield
-
-    # Cancelar tasks de background
-    cleanup_task.cancel()
-
-    # Shutdown: backup final se houver dados não persistidos no R2
-    if _db_dirty and current_settings.storage_backend.lower() == "r2" and current_settings.r2_bucket_name:
-        logging.info("[R2 Backup] Shutdown com dados não salvos — executando backup final...")
-        await _run_r2_backup()
-
-    # Fechar engine de banco de dados
-    from app.bootstrap.database import dispose_engine
-    await dispose_engine()
 
 
 def create_app() -> FastAPI:
     """
     Factory da aplicação FastAPI.
-    Configura middlewares, routers e eventos de ciclo de vida.
-
-    Retorna:
-        FastAPI: instância configurada e pronta para uso.
+    Configura middlewares, routers, exception handlers e ciclo de vida.
     """
-    from app.bootstrap.config import get_settings
-    current_settings = get_settings()
+    settings = get_settings()
 
     app = FastAPI(
         title="SAA29 – Sistema de Gestão de Panes",
@@ -298,40 +50,19 @@ def create_app() -> FastAPI:
             "com foco na Eletrônica da aeronave A-29."
         ),
         version="1.0.0",
-        docs_url="/docs" if current_settings.app_debug else None,
-        redoc_url="/redoc" if current_settings.app_debug else None,
+        docs_url="/docs" if settings.app_debug else None,
+        redoc_url="/redoc" if settings.app_debug else None,
         lifespan=lifespan,
     )
 
-    # Configura o estado do limiter no app e o manipulador de exceção
+    # 1. Estado do Limiter
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-    # Redirect unauthorized/forbidden HTML requests to login (M-06)
-    from fastapi import Request, HTTPException
-    from fastapi.responses import RedirectResponse
+    # 2. Exception Handlers (Redirects UI e Rate Limits)
+    from app.shared.core.exceptions import setup_exception_handlers
+    setup_exception_handlers(app)
 
-    @app.exception_handler(HTTPException)
-    async def custom_http_exception_handler(request: Request, exc: HTTPException):
-        # Se for um erro 401 ou 403 em uma rota de PÁGINA (não API), redireciona
-        if exc.status_code in [401, 403]:
-            path = request.url.path
-            accept = request.headers.get("accept", "").lower()
-            
-            # Lista de prefixos que são EXCLUSIVAMENTE API (JSON)
-            api_prefixes = ["/auth/", "/efetivo/", "/aeronaves/", "/equipamentos/", "/vencimentos/", "/panes/"]
-            is_api = any(path.startswith(p) for p in api_prefixes)
-            
-            # Se for navegação via browser (HTML) e não for API, redireciona pro login
-            # Mas NUNCA redireciona se já estivermos no /login (evita loop infinito)
-            if "text/html" in accept and not is_api and path != "/login":
-                logging.warning(f"[Auth Redirect] Redirecionando {path} para /login (Erro {exc.status_code})")
-                return RedirectResponse(url="/login")
-        
-        # Fallback para o handler padrão
-        from fastapi.exception_handlers import http_exception_handler
-        return await http_exception_handler(request, exc)
-
+    # 3. Middlewares e Rotas
     _register_middlewares(app)
     _register_routers(app)
     _mount_static(app)
@@ -341,49 +72,34 @@ def create_app() -> FastAPI:
 
 def _register_middlewares(app: FastAPI) -> None:
     """Registra os middlewares globais da aplicação."""
-    from app.bootstrap.config import get_settings
-    current_settings = get_settings()
+    settings = get_settings()
 
-    # Add Security Headers Middleware (Sprint 2.2)
-    app.add_middleware(
-        SecurityHeadersMiddleware
-    )
+    # Security Headers (MIME, Clickjacking, CSP, HSTS)
+    from app.shared.middleware.security import SecurityHeadersMiddleware
+    app.add_middleware(SecurityHeadersMiddleware)
 
-    # Add CSRF Middleware (Sprint 2.3)
+    # Proteção CSRF
     from app.shared.middleware.csrf import CSRFMiddleware
     app.add_middleware(CSRFMiddleware)
 
-    # Trusted Hosts (Ajuste para seu domínio real em produção) (AUD-07)
-    # No Railway, o host muda dinamicamente. Se estiver como "*", permitimos todos.
-    if "*" not in current_settings.allowed_hosts:
+    # Trusted Hosts
+    if "*" not in settings.allowed_hosts:
         app.add_middleware(
             TrustedHostMiddleware, 
-            allowed_hosts=["localhost", "127.0.0.1", "testserver"] + current_settings.allowed_hosts
+            allowed_hosts=["localhost", "127.0.0.1", "testserver"] + settings.allowed_hosts
         )
 
-    # CORS (Sprint 2.2: More restrictive)
-    # O navegador proíbe allow_origins=["*"] com allow_credentials=True.
-    # Como o frontend e a API estão no mesmo app, as chamadas são na mesma origem.
-    # Vamos definir explicitamente as origens, métodos e headers permitidos.
-    cors_origins = current_settings.allowed_origins
+    # CORS Configuration
+    cors_origins = settings.allowed_origins
     if "*" in cors_origins:
-        # Se for "*", permitimos as origens comuns de dev (não usar "*" em CORS com credentials)
-        cors_origins = [
-            "http://localhost:8000",
-            "http://127.0.0.1:8000",
-            "http://localhost:3000",
-        ]
+        cors_origins = ["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:3000"]
 
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],  # Explicit methods (was "*")
-        allow_headers=[
-            "Content-Type",
-            "Authorization",
-            "X-CSRF-Token",  # For CSRF protection
-        ],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization", "X-CSRF-Token"],
     )
 
 
@@ -398,18 +114,15 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(inspecoes_router,    prefix="/inspecoes",    tags=["Inspeções"])
     app.include_router(dashboard_router,    prefix="/dashboard",    tags=["Dashboard"])
     
-    # Frontend Pages (sem prefixo de API explícito - Root)
+    # Frontend Pages (Root / UI)
     app.include_router(pages_router)
 
 
 def _mount_static(app: FastAPI) -> None:
-    """
-    Monta os arquivos estáticos públicos da aplicação.
-    """
-    # Cria pasta static caso não exista (para os CSS/JS)
-    os.makedirs("static", exist_ok=True)
+    """Monta os arquivos estáticos públicos da aplicação."""
+    os.makedirs("app/web/static", exist_ok=True)
     app.mount("/static", StaticFiles(directory="app/web/static"), name="static")
 
 
-# Instância da aplicação (usada pelo uvicorn: app.main:app)
+# Instância global para o servidor ASGI
 app = create_app()

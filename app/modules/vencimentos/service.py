@@ -67,7 +67,46 @@ async def associar_controle_a_equipamento(
     )
     existing = res.scalar_one_or_none()
     if existing:
+        old_periodicidade = existing.periodicidade_meses
         existing.periodicidade_meses = periodicidade
+        
+        # Bug 137: Se a periodicidade mudou, recalcular vencimentos dos itens existentes que já tenham sido executados
+        if old_periodicidade != periodicidade:
+            from sqlalchemy import update
+            # Seleciona todos os vencimentos deste modelo e tipo de controle que já tenham uma data de última execução
+            stmt_update = (
+                update(ControleVencimento)
+                .where(
+                    ControleVencimento.tipo_controle_id == tipo_controle_id,
+                    ControleVencimento.item_id.in_(
+                        select(ItemEquipamento.id).where(ItemEquipamento.modelo_id == modelo_id)
+                    ),
+                    ControleVencimento.data_ultima_exec.is_not(None)
+                )
+                .values(
+                    # Nota: SQLite não suporta bem adição de meses complexa via SQL puro de forma portável, 
+                    # então em sistemas reais faríamos via ORM ou helper específico.
+                    # Mas para o SAA29, seguiremos a sugestão do auditor Claude.
+                    data_vencimento = func.date(ControleVencimento.data_ultima_exec, f'+{periodicidade} months')
+                )
+            )
+            # Como o cálculo de data no SQLite via string formatada é chato e o projeto usa SQLAlchemy async,
+            # vamos fazer via ORM para garantir precisão e portabilidade (conforme sugestão de segurança 152).
+            res_vencs = await db.execute(
+                select(ControleVencimento)
+                .where(
+                    ControleVencimento.tipo_controle_id == tipo_controle_id,
+                    ControleVencimento.item_id.in_(
+                        select(ItemEquipamento.id).where(ItemEquipamento.modelo_id == modelo_id)
+                    ),
+                    ControleVencimento.data_ultima_exec.is_not(None)
+                )
+            )
+            vencs_to_fix = res_vencs.scalars().all()
+            for v in vencs_to_fix:
+                v.data_vencimento = v.data_ultima_exec + relativedelta(months=periodicidade)
+                # O status será recalculado na próxima visualização da matriz ou podemos forçar aqui
+        
         await db.flush()
         return existing
 
@@ -144,7 +183,13 @@ async def registrar_execucao(db: AsyncSession, vencimento_id: uuid.UUID, data_ex
     )
     regra = res_regra.scalar_one_or_none()
     
-    periodicidade = regra.periodicidade_meses if regra else 12
+    if not regra:
+        raise domain_exc.EntidadeNaoEncontradaError(
+            f"Regra de periodicidade não encontrada para o modelo {vencimento.item.modelo_id}. "
+            "Configure o controle para este equipamento antes de registrar a execução."
+        )
+    
+    periodicidade = regra.periodicidade_meses
     
     vencimento.data_ultima_exec = data_exec
     vencimento.data_vencimento = data_exec + relativedelta(months=periodicidade)
@@ -160,6 +205,8 @@ async def registrar_execucao(db: AsyncSession, vencimento_id: uuid.UUID, data_ex
         )
         .values(ativo=False)
     )
+    # Bug 147: Sincronizar cache da sessão após update via SQL puro
+    db.expire(vencimento, ["prorrogacoes"])
 
     hoje = date.today()
     if not vencimento.data_ultima_exec:
@@ -347,6 +394,8 @@ async def prorrogar_vencimento(
         )
         .values(ativo=False)
     )
+    # Bug 147: Sincronizar cache
+    db.expire(vencimento, ["prorrogacoes"])
     
     nova_prorrogacao = ProrrogacaoVencimento(
         controle_id=vencimento_id,
@@ -376,5 +425,9 @@ async def cancelar_prorrogacao(db: AsyncSession, vencimento_id: uuid.UUID) -> bo
         )
         .values(ativo=False)
     )
+    # Bug 147: Sincronizar cache
+    vencimento = await db.get(ControleVencimento, vencimento_id)
+    if vencimento:
+        db.expire(vencimento, ["prorrogacoes"])
     await db.flush()
     return result.rowcount > 0

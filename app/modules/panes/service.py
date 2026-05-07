@@ -590,6 +590,17 @@ async def processar_imagem_background(
                     await session.commit()
         except Exception as fallback_exc:
             logging.error("Falha no fallback de upload da imagem %s: %s", nome_original, fallback_exc)
+            # Etapa 6: Se tudo falhar, marcar como ERRO para não travar a UI em "processando"
+            try:
+                SessionMaker = get_session_factory()
+                async with SessionMaker() as session:
+                    result = await session.execute(select(Anexo).where(Anexo.id == anexo_id))
+                    anexo = result.scalar_one_or_none()
+                    if anexo:
+                        anexo.caminho_arquivo = "ERRO"
+                        await session.commit()
+            except Exception as final_exc:
+                logging.error("Erro crítico: não foi possível nem marcar o anexo %s como ERRO: %s", anexo_id, final_exc)
 
 
 async def listar_anexos(db: AsyncSession, pane_id: uuid.UUID) -> list[Anexo]:

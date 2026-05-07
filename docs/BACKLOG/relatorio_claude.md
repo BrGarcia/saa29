@@ -145,3 +145,55 @@ Nenhuma das implementações exige alterações no frontend. Tratam-se de refato
 *   [x] Corrigir bug de herança no inventário (4.1).
 *   [x] Corrigir bugs de ordem de exclusão e estado de anexos (5.1 e 5.2).
 *   [x] Refatorar commits do módulo de Efetivo (6.1).
+*   [x] Corrigir bugs da Rodada 2 (Status Aeronave, Periodicidade, Session Sync).
+
+---
+
+## Verificação de Implementação (2026-05-06)
+
+Auditoria completa realizada lendo os arquivos-fonte. **Todos os 10 itens do plano foram implementados corretamente.** Resumo por seção:
+
+| Hash | Local | Status |
+| :--- | :--- | :---: |
+| `e3a1f7` | `auth/router.py` – logout revoga refresh token no banco e apaga cookie | ✅ |
+| `b2c9d4` | `dependencies.py:99` – `get_current_user` barra `usuario.ativo == False` | ✅ |
+| `a9f2b1` | `auth/service.py:56,62` – `autenticar_usuario` usa `flush()`, commit delegado ao router | ✅ |
+| `f1a3e8` | `inspecoes/service.py:573-604` – conclusão/cancelamento verifica inspeções paralelas antes de setar DISPONIVEL | ✅ |
+| `d7b5c2` | `inspecoes/service.py:414` – deduplicação faz `or` no campo `obrigatoria` | ✅ |
+| `c8e4a2` | `csrf.py:32-34` – bypass `X-Skip-CSRF` só aceito quando `app_env == "testing"` | ✅ |
+| `4d9c1b` | `equipamentos/service.py:364-379` – `_obter_ou_criar_item_por_pn` herda `ControleVencimento` do modelo | ✅ |
+| `7e2f50` | `panes/service.py:651-661` – `excluir_anexo` apaga storage ANTES do banco | ✅ |
+| `b6a8d3` | `panes/service.py:593-603` – falha total marca `caminho_arquivo = "ERRO"` | ✅ |
+| `f3b7e9` | `efetivo/service.py:35,61` – `registrar/remover_indisponibilidade` usam `flush()` | ✅ |
+| `2c9d5f` | `aeronaves/service.py:48-50` – `alternar_status` bloqueia aeronave em INSPECAO | ✅ |
+| `8e3b7a` | `vencimentos/service.py:186-191` – `registrar_execucao` levanta erro se regra não existe | ✅ |
+| `5f1c4d` | `aeronaves/service.py:92-98` – `atualizar_aeronave` bloqueia `status=INSPECAO` via PUT | ✅ |
+| `a2e6c8` | `vencimentos/service.py:74-107` – mudança de periodicidade recalcula `data_vencimento` existentes via ORM | ✅ |
+| `9b4f1e` | `vencimentos/service.py:209,398,431` – `db.expire()` sincroniza cache após `__table__.update()` | ✅ |
+
+---
+
+## Itens Pendentes Fora do Escopo Deste Plano
+
+Os itens abaixo foram identificados em `docs/BACKLOG/implamentacao_image_editor.md` mas **não foram incluídos neste plano e permanecem sem correção**:
+
+### GAP-01 – Download de anexo em processamento retorna 404 em vez de 409
+*   **Localização:** `app/modules/panes/router.py` – endpoint `baixar_anexo` (linha ~277)
+*   **Problema:** Quando `anexo.caminho_arquivo == "processando"`, o endpoint chama `storage_svc.get_url("processando")` e retorna 404 (arquivo não encontrado). O correto seria retornar 409 Conflict com mensagem "Anexo ainda está sendo processado."
+*   **Correção:**
+    ```python
+    # Adicionar ANTES da chamada a obter_url_anexo:
+    if anexo.caminho_arquivo in ("processando", "ERRO"):
+        status_detail = "Anexo ainda está sendo processado." if anexo.caminho_arquivo == "processando" else "Falha no processamento do anexo."
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=status_detail)
+    ```
+
+### GAP-02 – Extensões HEIC/HEIF bloqueadas na camada de validação do service
+*   **Localização:** `app/modules/panes/service.py` – linhas 46-49
+*   **Problema:** `_EXTENSOES_PERMITIDAS` e `_MIMES_PERMITIDOS` não incluem `.heic`, `.heif` e `image/heic`. O pipeline de imagem (`pipeline.py`) suporta HEIC via `pillow-heif`, mas o upload é rejeitado antes de chegar ao pipeline.
+*   **Correção:**
+    ```python
+    _EXTENSOES_PERMITIDAS = {".jpg", ".jpeg", ".png", ".pdf", ".heic", ".heif"}
+    _MIMES_PERMITIDOS = {"image/jpeg", "image/png", "application/pdf", "image/heic", "image/heif"}
+    ```
+    E atualizar a detecção `is_image` na linha ~509 para incluir `".heic", ".heif"` e `"image/heic", "image/heif"`.

@@ -52,7 +52,7 @@
 
 ## 2026-05-06
 
-### SEGURANÇA - Bypass de CSRF via header em qualquer ambiente que não seja `"production"`
+### [CORRIGIDO] SEGURANÇA - Bypass de CSRF via header em qualquer ambiente que não seja `"production"`
 
 - **Local:** `app/shared/middleware/csrf.py` — linhas 31–34 (variável `skip_csrf`)
 - **Descrição:** A guarda CSRF é desativada quando `settings.app_env != "production"` E o cliente envia `X-Skip-CSRF: true`. Qualquer ambiente cujo `APP_ENV` seja `"staging"`, `"homolog"`, `"qa"`, `"dev"` etc. aceita esse bypass. Como o header é trivialmente forjável, basta um atacante saber dessa convenção para emitir POST/PUT/PATCH/DELETE sem token CSRF contra esses ambientes — incluindo CSRF clássico via formulário cross-origin se cookies de sessão forem enviados (o `samesite="lax"` reduz mas não elimina, p.ex. em navegação top-level POST/POSTs invertidos via técnicas conhecidas).
@@ -62,7 +62,7 @@
 
 ---
 
-### BUG - `_obter_ou_criar_item_por_pn` cria `ItemEquipamento` sem herdar controles de vencimento
+### [CORRIGIDO] BUG - `_obter_ou_criar_item_por_pn` cria `ItemEquipamento` sem herdar controles de vencimento
 
 - **Local:** `app/modules/equipamentos/service.py` — função `_obter_ou_criar_item_por_pn`, linhas 351–363
 - **Descrição:** Quando o operador ajusta o inventário informando um S/N inexistente (`ajustar_inventario_item`), o helper instancia um novo `ItemEquipamento` e faz `db.flush()` sem replicar os controles definidos em `EquipamentoControle` para aquele modelo. Isso diverge do fluxo oficial `criar_item_com_heranca` (linhas 112–144), que itera sobre os templates e cria um `ControleVencimento` por tipo. Assim, S/Ns nascidos pela rota de ajuste de inventário ficam sem nenhum registro de vencimento — ausentes da matriz de vencimentos e dos alertas.
@@ -72,7 +72,7 @@
 
 ---
 
-### BUG - `excluir_anexo` apaga o registro do banco antes de remover o arquivo do storage
+### [CORRIGIDO] BUG - `excluir_anexo` apaga o registro do banco antes de remover o arquivo do storage
 
 - **Local:** `app/modules/panes/service.py` — função `excluir_anexo`, linhas 625–645
 - **Descrição:** A função executa `await db.delete(anexo); await db.flush()` e só então chama `await storage_svc.delete(anexo.caminho_arquivo)`. Se o storage falhar (R2 indisponível, permissão, rede), o arquivo permanece no bucket sem nenhum registro no banco que aponte para ele — torna-se órfão e indelével pela aplicação. Inversamente, o flush não confirma a transação: o commit só ocorre em `get_db()` ao final do request; se o `storage_svc.delete` levantar e propagar, a transação faz rollback (o anexo "volta") mas o caminho `anexo.caminho_arquivo` foi lido em memória — arquivo ainda intacto, mas a ordem cria janelas de inconsistência difíceis de raciocinar.
@@ -82,7 +82,7 @@
 
 ---
 
-### BUG - `processar_imagem_background` deixa anexos com `caminho_arquivo="processando"` permanentemente em caso de falha total
+### [CORRIGIDO] BUG - `processar_imagem_background` deixa anexos com `caminho_arquivo="processando"` permanentemente em caso de falha total
 
 - **Local:** `app/modules/panes/service.py` — funções `upload_anexo` (linhas 511–520) e `processar_imagem_background` (linhas 540–592)
 - **Descrição:** Quando `is_background=True`, `upload_anexo` cria o `Anexo` com placeholder `"processando"`. Se tanto o `process_image` quanto o fallback de upload original falharem (bloco `except Exception as fallback_exc`), o erro é apenas logado e o registro permanece com `caminho_arquivo="processando"` para sempre. Não há retry, marcação de erro, ou expurgo. Tentativas posteriores de servir esse anexo via `obter_url_anexo("processando")` chamarão o storage com um caminho inexistente.
@@ -104,7 +104,7 @@
 
 ## 2026-05-06 (rodada 2)
 
-### BUG - `alternar_status_aeronave` força INATIVA em aeronave sob inspeção
+### [CORRIGIDO] BUG - `alternar_status_aeronave` força INATIVA em aeronave sob inspeção
 
 - **Local:** `app/modules/aeronaves/service.py` — função `alternar_status_aeronave`, linhas 48–52
 - **Descrição:** O `else` do toggle aplica `StatusAeronave.INATIVA` a **qualquer** status que não seja `INATIVA`, incluindo `INSPECAO`. Um Encarregado que acione o toggle em uma aeronave atualmente em inspeção irá sobrepor o status `INSPECAO` para `INATIVA` sem cancelar a inspeção no banco. Quando a inspeção for concluída ou cancelada, o módulo de inspeções reverte para `DISPONIVEL`, ignorando a inativação.
@@ -114,7 +114,7 @@
 
 ---
 
-### BUG - `registrar_execucao` usa periodicidade hardcoded de 12 meses quando a regra está ausente
+### [CORRIGIDO] BUG - `registrar_execucao` usa periodicidade hardcoded de 12 meses quando a regra está ausente
 
 - **Local:** `app/modules/vencimentos/service.py` — função `registrar_execucao`, linha 147
 - **Descrição:** `periodicidade = regra.periodicidade_meses if regra else 12` — se o `EquipamentoControle` associado ao item não for encontrado (deleção posterior, item criado pelo bug `4d9c1b`, inconsistência de dados), a execução é registrada com 12 meses de periodicidade sem qualquer aviso, log ou exceção. O próximo `data_vencimento` é calculado incorretamente para itens com periodicidade diferente (ex.: calibração semestral de 6 meses vira 12 meses).
@@ -124,7 +124,7 @@
 
 ---
 
-### ARQUITETURA - `atualizar_aeronave` aceita `status = INSPECAO` diretamente via PUT
+### [CORRIGIDO] ARQUITETURA - `atualizar_aeronave` aceita `status = INSPECAO` diretamente via PUT
 
 - **Local:** `app/modules/aeronaves/service.py` — função `atualizar_aeronave`, linhas 89–97
 - **Descrição:** O campo `status` do schema de atualização não é filtrado em `atualizar_aeronave`. Um administrador pode enviar `{"status": "INSPECAO"}` via `PUT /aeronaves/{id}` sem criar nenhum registro em `Inspecao`, sem tarefas, sem rastreabilidade de abertura. O comentário no código (`# Removida a trava que impedia definir como INATIVA via PUT`) confirma que a guarda foi intencionalmente removida, mas sem restringir os valores permitidos.
@@ -134,7 +134,7 @@
 
 ---
 
-### BUG - Alterar periodicidade de `EquipamentoControle` não recalcula `data_vencimento` dos itens existentes
+### [CORRIGIDO] BUG - Alterar periodicidade de `EquipamentoControle` não recalcula `data_vencimento` dos itens existentes
 
 - **Local:** `app/modules/vencimentos/service.py` — função `associar_controle_a_equipamento`, linhas 69–72
 - **Descrição:** Quando uma regra de periodicidade já existente é atualizada (`existing.periodicidade_meses = periodicidade`), os registros `ControleVencimento` de todos os itens daquele modelo **não** têm seu `data_vencimento` recalculado. O novo prazo só passa a valer na próxima chamada a `registrar_execucao`. Enquanto isso, todos os itens exibem datas calculadas com a periodicidade antiga.
@@ -144,7 +144,7 @@
 
 ---
 
-### BUG - Bulk UPDATEs via `__table__.update()` em `vencimentos/service.py` ficam defasados no identity map da sessão
+### [CORRIGIDO] BUG - Bulk UPDATEs via `__table__.update()` em `vencimentos/service.py` ficam defasados no identity map da sessão
 
 - **Local:** `app/modules/vencimentos/service.py` — funções `registrar_execucao` (linha 153), `prorrogar_vencimento` (linha 340) e `cancelar_prorrogacao` (linha 369)
 - **Descrição:** As três funções desativam `ProrrogacaoVencimento` ativa usando SQL bruto via `__table__.update()`. Esse mecanismo atualiza o banco diretamente mas **não sincroniza o identity map da sessão SQLAlchemy**: instâncias de `ProrrogacaoVencimento` já carregadas na sessão (ex.: via `selectinload(ControleVencimento.prorrogacoes)`) permanecem com `ativo=True` em memória. Se a mesma sessão serializar a resposta logo após (como ocorre em `registrar_execucao` que retorna o `vencimento` cujas `prorrogacoes` podem já estar no cache), o JSON de resposta retornará a prorrogação como ainda ativa, contradizendo o que foi gravado.

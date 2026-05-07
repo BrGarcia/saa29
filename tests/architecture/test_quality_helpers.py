@@ -32,22 +32,20 @@ async def test_ensure_default_aeronaves_bulk_efficiency(db: AsyncSession):
     TESTE DE PERFORMANCE: Valida se a inicialização da frota é eficiente.
     (Otimização de loop N queries -> 1 query)
     """
-    from app.bootstrap.main import _ensure_default_aeronaves, FROTA_PADRAO
+    from app.bootstrap.seed import ensure_default_aeronaves, FROTA_PADRAO
     from sqlalchemy import select, func
     
     # 1. Executar a inicialização
-    # Patch get_session_factory to return a factory that produces our test session
+    # Patch get_session_factory onde ele é USADO (no seed.py)
     from unittest.mock import patch, MagicMock
-    from app.bootstrap.database import get_session_factory
     
-    with patch("app.bootstrap.database.get_session_factory") as mock_factory:
+    with patch("app.bootstrap.seed.get_session_factory") as mock_factory:
         # Mocking the async session factory
-        mock_session = MagicMock()
         # We need to mock the async context manager behavior
         mock_factory.return_value.return_value.__aenter__.return_value = db
         mock_factory.return_value.return_value.__aexit__.return_value = MagicMock()
         
-        await _ensure_default_aeronaves()
+        await ensure_default_aeronaves()
     
     # 2. Verificar se os dados foram persistidos
     result = await db.execute(select(func.count(Aeronave.id)).where(Aeronave.matricula.in_(FROTA_PADRAO)))

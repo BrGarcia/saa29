@@ -45,6 +45,9 @@ async def alternar_status_aeronave(
     if not aeronave:
         raise ValueError("Aeronave não encontrada.")
     
+    if aeronave.status == StatusAeronave.INSPECAO:
+        raise ValueError("Aeronave está sob inspeção ativa. Cancele ou conclua a inspeção antes de alterar o status para INATIVA.")
+        
     if aeronave.status == StatusAeronave.INATIVA:
         aeronave.status = StatusAeronave.DISPONIVEL
     else:
@@ -88,13 +91,11 @@ async def atualizar_aeronave(
 
     if "status" in changes:
         novo_status = changes["status"]
-        if aeronave.status == StatusAeronave.INATIVA and novo_status != StatusAeronave.INATIVA:
-            # Se já está inativa e quer mudar para outro, forçamos o uso do toggle/reativar? 
-            # Na verdade, se o usuário tem permissão para PUT, ele pode reativar aqui também se desejado.
-            # Mas vamos manter a restrição de que reativação requer atenção.
-            # No entanto, para simplificar o painel de configurações, vamos permitir se for uma mudança válida.
-            pass 
-        # Removida a trava que impedia definir como INATIVA via PUT
+        if novo_status == StatusAeronave.INSPECAO and aeronave.status != StatusAeronave.INSPECAO:
+             raise ValueError("Não é possível definir o status como INSPEÇÃO via edição manual. Use o módulo de Inspeções.")
+        
+        if aeronave.status == StatusAeronave.INSPECAO and novo_status != StatusAeronave.INSPECAO:
+             raise ValueError("Aeronave em inspeção ativa. Conclua a inspeção para alterar o status.")
 
     if "matricula" in changes and changes["matricula"] != aeronave.matricula:
         if await helpers.buscar_aeronave_por_matricula(db, changes["matricula"]):
