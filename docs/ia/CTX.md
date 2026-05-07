@@ -1,7 +1,7 @@
 # ctx
 
 meta:
-- sync_date: 2026-05-06
+- sync_date: 2026-05-07
 - docs_structure: reorganized (core/, guides/, backlog/, summaries/, ia/*.ctx)
 - mode: machine
 - format: kv_short
@@ -114,7 +114,8 @@ backlog_inspecoes:
 - csp_compliance: mandatory_for_all_new_UI (no_inline_scripts_no_onclick_attrs)
 
 known_gaps_from_roadmap:
-- none (last audit gaps resolved)
+- audit_2026-05-07_resolved: true (storage masking, aeronave inativa, token reuse, rbac inventario, singleton storage)
+- feature_modo_calendario_idealizacao: docs/BACKLOG/idela_modo_calendario.md
 - bug_fix_inativar_anv_config_verified: true
 - logout_frontend_backend_alignment_verified: true
 - database_url_consistency_verified: true

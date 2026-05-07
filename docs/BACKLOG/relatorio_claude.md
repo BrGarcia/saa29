@@ -137,6 +137,50 @@ A segunda auditoria (06/05/2026) identificou 5 novos achados: 1 de segurança (C
 Nenhuma das implementações exige alterações no frontend. Tratam-se de refatorações no backend (Python), logo a **Conformidade com a CSP** (`docs/methodology/CSP.md`) permanece intacta (Zero Inline Scripts). O banco de dados não sofrerá migrações (DDL), mantendo o `CTX.md`.
 
 
+## 8. Correções da Auditoria de 2026-05-07
+
+### 8.1 Bug/Segurança: `R2StorageService.delete()` falha silenciosamente (Hash: `c1a8b9`)
+*   **Problema:** O método de deleção do `R2StorageService` captura qualquer exceção e retorna `False` em vez de propagá-la. Em produção, se houver falha de remoção no bucket, a aplicação apaga do banco de dados ignorando que a remoção do S3 falhou, deixando arquivos órfãos.
+*   **Plano de Ação (`app/shared/core/storage.py` e `app/modules/panes/service.py`):**
+    1.  Em `app/shared/core/storage.py` (`R2StorageService.delete`), não engolir exceções. Deixar a exceção propagar para relatar que a exclusão falhou, ou tratar unicamente o erro de chave inexistente (404/`NoSuchKey`) para tratar como sucesso idempotente.
+    2.  Em `app/modules/panes/service.py` (`excluir_anexo`), tratar explicitamente o retorno falso: `if not await storage_svc.delete(...): raise ValueError("Falha ao remover do storage")`.
+*   **Testes (TDD):**
+    1.  Teste unitário validando que se a deleção falha no mock do storage, a chamada a `excluir_anexo` levanta exceção e não faz commit de `db.delete()`.
+
+### 8.2 Bug: `abrir_inspecao` "reativa" aeronave INATIVA (Hash: `b4d7e6`)
+*   **Problema:** A função `abrir_inspecao` altera o `status` para `INSPECAO` sem validar se a aeronave está atualmente `INATIVA`, reativando-a incondicionalmente de forma equivocada e invisível no log de reativações.
+*   **Plano de Ação (`app/modules/inspecoes/service.py`):**
+    1.  Em `abrir_inspecao`, adicionar uma verificação do status logo após a consulta.
+    2.  `if aeronave.status == StatusAeronave.INATIVA.value: raise ValueError(...)`.
+*   **Testes (TDD):**
+    1.  Teste de integração/service verificando que abrir inspeção para aeronave INATIVA lança a devida exceção de negócio.
+
+### 8.3 Segurança: Detecção de reuso de refresh token (Hash: `8a2f31`)
+*   **Problema:** O reuso de um refresh token já revogado (situação típica de tokens roubados ou vazados) apenas retorna `401`, não revogando toda a cadeia de tokens do usuário para interromper o comprometimento, como exige o OAuth 2.0 Security BCP.
+*   **Plano de Ação (`app/modules/auth/router.py`):**
+    1.  Na rota `POST /auth/refresh`, antes de responder com `401`, identificar se o `jti` fornecido existe mas está com a data `revogado_em` preenchida.
+    2.  Se for detectado o reuso, rodar `UPDATE token_refresh SET revogado_em = NOW() WHERE usuario_id = :uid AND revogado_em IS NULL` revogando toda a família de tokens ativa daquele usuário.
+*   **Testes (TDD):**
+    1.  Teste de integração comprovando o cenário de reuso (usar o token que já sofreu rotação antes). O usuário legítimo deve ter todo o seu conjunto de access/refresh tokens revogado e um novo login será exigido.
+
+### 8.4 Segurança: Endpoints de inventário sem validação RBAC (Hash: `e9c0a4`)
+*   **Problema:** Rotas de instalação e movimentação de inventário exigem apenas que o solicitante seja o `CurrentUser`, ou seja, que esteja logado, permitindo que qualquer papel altere rastreabilidade sem o devido controle de privilégio.
+*   **Plano de Ação (`app/modules/equipamentos/router.py`):**
+    1.  Atualizar as injeções de dependência (`Depends`) nos endpoints:
+    2.  `instalar_item` e `remover_item` passam a usar `ExecucaoPermitida` (que valida roles como MANTENEDOR, ENCARREGADO, ADMIN).
+    3.  `ajustar_inventario` passa a usar `EncarregadoOuAdmin` (pois altera registros de S/N globais).
+*   **Testes (TDD):**
+    1.  Testes de integração injetando papel de usuário simples (ex.: `INSPETOR` ou não listado) na rota de instalação de item, devendo retornar HTTP 403.
+
+### 8.5 Arquitetura: Instanciação repetida de `R2StorageService` (Hash: `7d52cb`)
+*   **Problema:** A fábrica `get_storage_service` instancia um novo `R2StorageService` e, por consequência, um novo cliente `boto3` para cada solicitação injetada, gerando atraso e latência na rede.
+*   **Plano de Ação (`app/shared/core/storage.py`):**
+    1.  Decorar a função `get_storage_service` com `@functools.lru_cache(maxsize=1)`.
+    2.  Como o cliente `boto3` é thread-safe, a utilização do singleton poupa criação redundante da sessão.
+*   **Testes (TDD):**
+    1.  Teste no escopo unitário que verifica se requisições sucessivas a `get_storage_service` retornam exatamente o mesmo objeto na memória (`is`).
+
+
 ## Próximos Passos
 *   [x] Revisar/Implementar o item 1.1 e 1.3 (Sessão de Auth e Refresh Token).
 *   [x] Implementar item 1.2 (Soft-delete).
@@ -146,6 +190,11 @@ Nenhuma das implementações exige alterações no frontend. Tratam-se de refato
 *   [x] Corrigir bugs de ordem de exclusão e estado de anexos (5.1 e 5.2).
 *   [x] Refatorar commits do módulo de Efetivo (6.1).
 *   [x] Corrigir bugs da Rodada 2 (Status Aeronave, Periodicidade, Session Sync).
+*   [x] Implementar TDD e correção 8.1 (Storage error masking).
+*   [x] Implementar TDD e correção 8.2 (Aeronave INATIVA e Inspeções).
+*   [x] Implementar TDD e correção 8.3 (Segurança Refresh Token).
+*   [x] Implementar TDD e correção 8.4 (RBAC no Inventário).
+*   [x] Implementar TDD e correção 8.5 (Singleton do R2StorageService).
 
 ---
 
@@ -170,6 +219,57 @@ Auditoria completa realizada lendo os arquivos-fonte. **Todos os 10 itens do pla
 | `5f1c4d` | `aeronaves/service.py:92-98` – `atualizar_aeronave` bloqueia `status=INSPECAO` via PUT | ✅ |
 | `a2e6c8` | `vencimentos/service.py:74-107` – mudança de periodicidade recalcula `data_vencimento` existentes via ORM | ✅ |
 | `9b4f1e` | `vencimentos/service.py:209,398,431` – `db.expire()` sincroniza cache após `__table__.update()` | ✅ |
+| `c1a8b9` | `storage.py` e `panes/service.py` – deleção do storage propaga exceções / aborta no banco | ✅ |
+| `b4d7e6` | `inspecoes/service.py` – `abrir_inspecao` bloqueia status INATIVA | ✅ |
+| `8a2f31` | `auth/router.py` – endpoint `refresh` revoga todos os tokens na detecção de reuso | ✅ |
+| `e9c0a4` | `equipamentos/router.py` – rotas de inventário restritas via RBAC correto | ✅ |
+| `7d52cb` | `storage.py` – `get_storage_service` decorado com `@functools.lru_cache(maxsize=1)` | ✅ |
+---
+
+## 9. Correções da Auditoria de 2026-05-07 (Rodada 2)
+
+### 9.1 Segurança: Validação de papel em `adicionar_responsavel` (Hash: `f5d2a7`)
+*   **Problema:** O endpoint permite que um usuário envie um `papel` arbitrário no payload (ex: um mantenedor se adicionando como administrador), afetando a rastreabilidade aeronáutica.
+*   **Plano de Ação (`app/modules/panes/service.py`):**
+    1.  Em `adicionar_responsavel`, buscar o usuário correspondente ao `usuario_id`.
+    2.  Forçar o papel do registro `PaneResponsavel` para ser o papel real do banco (`usuario.funcao`), ignorando o payload.
+*   **Testes (TDD):**
+    1.  Testar requisição onde um MANTENEDOR tenta se associar com papel de ADMINISTRADOR, validando que o sistema o registra como MANTENEDOR (ou rejeita).
+
+### 9.2 Bug: `instalar_item` perdendo rastreabilidade (`usuario_id=NULL`) (Hash: `d4b8f1`)
+*   **Problema:** O endpoint descarta o usuário autenticado e a chamada ao service não informa quem realizou a instalação, gravando `usuario_id=NULL`.
+*   **Plano de Ação (`app/modules/equipamentos/router.py` e `app/modules/equipamentos/service.py`):**
+    1.  No router, usar `current_user: ExecucaoPermitida` e passar `usuario_id=current_user.id` para o service.
+    2.  No service, receber `usuario_id` e incluí-lo na instância `Instalacao`.
+*   **Testes (TDD):**
+    1.  Verificar no banco se o registro de instalação criado via rota da API possui o `usuario_id` preenchido.
+
+### 9.3 Arquitetura: `db.rollback()` direto em `ajustar_inventario_item` (Hash: `e0c4d3`)
+*   **Problema:** O service executa rollback diretamente antes do final da requisição, rompendo o padrão de transação do projeto.
+*   **Plano de Ação (`app/modules/equipamentos/service.py`):**
+    1.  Remover o `try/except + await db.rollback()` no final do `ajustar_inventario_item`.
+    2.  Tratar as exceções de banco no router (ou deixar o global error handler/dependency atuar) para gerenciar o rollback corretamente.
+*   **Testes (TDD):**
+    1.  Validar se erro de chave estrangeira ao ajustar inventário resulta na falha esperada e rollback sem comprometer a arquitetura.
+
+### 9.4 Bug: Truncamento de senha por caracteres (Hash: `7b3f9a`)
+*   **Problema:** O truncamento atual `[:72]` é baseado em caracteres. Bcrypt tem limite de 72 bytes. Caracteres multibyte no truncamento em caracteres podem estourar o limite de bytes do bcrypt.
+*   **Plano de Ação (`app/modules/auth/security.py`):**
+    1.  Alterar `hash_senha` e `verificar_senha` para realizar um pré-hash SHA-256 e converter para Base64 (`base64.b64encode(hashlib.sha256(senha_plana.encode()).digest())`).
+*   **Testes (TDD):**
+    1.  Testar o fluxo de hash e verificação utilizando senhas com emojis e outros caracteres multibyte longos (ex: "manutenção_aeronáutica🛩️").
+
+### 9.5 Falso Positivo: `adicionar_tarefa_avulsa` (Hash: `3a9c8e`)
+*   **Ação:** O comportamento atual (MANTENEDOR poder adicionar tarefa avulsa) é o correto pela regra de segurança de voo. Nenhuma alteração no código. Atualizar o documento `docs/architecture/RBAC.md` explicitando a regra.
+
+---
+
+## Próximos Passos
+*   [ ] Implementar TDD e correção 9.1 (Validação Papel Pane).
+*   [ ] Implementar TDD e correção 9.2 (Rastreabilidade Instalação).
+*   [ ] Implementar TDD e correção 9.3 (Remoção db.rollback).
+*   [ ] Implementar TDD e correção 9.4 (Fix bcrypt byte limit).
+*   [ ] Atualizar doc RBAC (9.5).
 
 ---
 

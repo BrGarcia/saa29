@@ -149,18 +149,29 @@ async def refresh_access_token(
         
         # Buscar no banco para verificar se não foi revogado
         result = await db.execute(
-            select(TokenRefresh).where(
-                (TokenRefresh.jti == jti) &
-                (TokenRefresh.revogado_em.is_(None)) &
-                (TokenRefresh.expira_em > datetime.now(timezone.utc))
-            )
+            select(TokenRefresh).where(TokenRefresh.jti == jti)
         )
         stored_token = result.scalar_one_or_none()
         
-        if not stored_token:
+        if not stored_token or stored_token.expira_em < datetime.now(timezone.utc):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Refresh token expirado ou revogado",
+                detail="Refresh token expirado ou inválido",
+            )
+            
+        if stored_token.revogado_em is not None:
+            from sqlalchemy import update
+            await db.execute(
+                update(TokenRefresh)
+                .where(
+                    (TokenRefresh.usuario_id == stored_token.usuario_id) &
+                    (TokenRefresh.revogado_em.is_(None))
+                )
+                .values(revogado_em=datetime.now(timezone.utc))
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Reuso de token detectado. Todos os tokens foram revogados por segurança.",
             )
         
         # Buscar usuário

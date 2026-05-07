@@ -3,6 +3,7 @@
 controls:
 - jwt_access_token
 - persisted_refresh_token_with_rotation
+- refresh_token_family_revocation_on_reuse
 - token_blacklist_on_logout
 - csrf_middleware
 - rate_limit_login
@@ -56,3 +57,4 @@ recent_actions:
 - 2026-05-01: Resolved HTTP 422 routing conflict in Task Catalog (priority of static routes over dynamic UUID path).
 - 2026-05-01: Resolved SQLAlchemy MissingGreenlet error in Task Catalog by enforcing await db.refresh() after flush on onupdate fields.
 - 2026-05-01: Created RBAC.md matrix to consolidate user roles and permissions documentation.
+- 2026-05-07: Added token reuse protection, fixed storage error masking, secured inventory RBAC.

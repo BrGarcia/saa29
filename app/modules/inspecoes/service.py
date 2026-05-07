@@ -346,6 +346,8 @@ async def abrir_inspecao(
     aeronave = await _buscar_aeronave(db, dados.aeronave_id)
     if not aeronave:
         raise ValueError("Aeronave nao encontrada.")
+    if aeronave.status == StatusAeronave.INATIVA.value:
+        raise ValueError("Aeronave inativa. Reative a aeronave antes de registrar uma inspecao.")
 
     tipos = []
     for tipo_id in dados.tipos_inspecao_ids:

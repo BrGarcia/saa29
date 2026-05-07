@@ -1,0 +1,44 @@
+# Tarefas Pendentes - Auditoria 2026-05-07
+
+- [x] **8.1 Storage Error Masking:**
+  - **Targets:** `app/shared/core/storage.py` (R2StorageService.delete), `app/modules/panes/service.py` (excluir_anexo).
+  - **Ação:** Não engolir exceções no R2 delete (tratar 404 como sucesso). Lançar `ValueError` se retorno falso em `excluir_anexo`.
+  - **TDD:** Mock storage falhando -> `excluir_anexo` não faz commit de `db.delete()`.
+- [x] **8.2 Bloqueio Aeronave INATIVA:**
+  - **Targets:** `app/modules/inspecoes/service.py` (abrir_inspecao).
+  - **Ação:** Lançar `ValueError` se `aeronave.status == StatusAeronave.INATIVA.value`.
+  - **TDD:** Garantir exceção ao tentar inspecionar INATIVA.
+- [x] **8.3 Refresh Token Reuse:**
+  - **Targets:** `app/modules/auth/router.py` (POST /auth/refresh).
+  - **Ação:** Se `jti` for reutilizado (já revogado), revogar família de tokens (`UPDATE token_refresh SET revogado_em = NOW() WHERE usuario_id = :uid AND revogado_em IS NULL`).
+  - **TDD:** Simular reuso e checar se todos tokens do user foram revogados.
+- [x] **8.4 RBAC Inventário:**
+  - **Targets:** `app/modules/equipamentos/router.py`.
+  - **Ação:** `instalar_item`/`remover_item` -> `Depends(ExecucaoPermitida)`. `ajustar_inventario` -> `Depends(EncarregadoOuAdmin)`.
+  - **TDD:** Injetar perfil não autorizado (ex: INSPETOR) -> retornar 403.
+- [x] **8.5 Singleton Storage:**
+  - **Targets:** `app/shared/core/storage.py` (get_storage_service).
+  - **Ação:** Decorar com `@functools.lru_cache(maxsize=1)`.
+  - **TDD:** Chamadas sucessivas devem retornar o mesmo objeto na memória (`is`).
+
+# Tarefas Pendentes - Auditoria 2026-05-07 (Rodada 2)
+
+- [ ] **9.1 Validação de Papel:**
+  - **Targets:** `app/modules/panes/service.py` (adicionar_responsavel).
+  - **Ação:** Ignorar payload. Gravar `PaneResponsavel.papel = usuario.funcao` (banco).
+  - **TDD:** Tentar forjar papel ADMIN sendo MANTENEDOR -> grava como MANTENEDOR.
+- [ ] **9.2 Rastreabilidade Instalação:**
+  - **Targets:** `app/modules/equipamentos/router.py`, `app/modules/equipamentos/service.py` (instalar_item).
+  - **Ação:** Repassar `current_user.id` do router e gravar em `Instalacao.usuario_id`.
+  - **TDD:** Validar coluna `usuario_id` preenchida no BD pós-instalação.
+- [ ] **9.3 Rollback Prematuro:**
+  - **Targets:** `app/modules/equipamentos/service.py` (ajustar_inventario_item).
+  - **Ação:** Remover `db.rollback()` e tratar no router.
+  - **TDD:** Erro de banco propaga, não "engolindo" a transação.
+- [ ] **9.4 Bcrypt Byte Limit:**
+  - **Targets:** `app/modules/auth/security.py` (hash_senha, verificar_senha).
+  - **Ação:** Aplicar pré-hash: `base64.b64encode(hashlib.sha256(senha.encode()).digest())`.
+  - **TDD:** Teste com senha contendo chars multibyte/emojis.
+- [ ] **9.5 Doc RBAC Tarefas Avulsas:**
+  - **Targets:** `docs/architecture/RBAC.md`.
+  - **Ação:** Documentar que MANTENEDOR pode criar tarefa avulsa na inspeção. (Sem mudança de código).

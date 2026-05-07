@@ -5,6 +5,7 @@ Serviço de abstração de armazenamento de arquivos (Local ou R2).
 
 import os
 import uuid
+import functools
 import boto3
 import asyncio
 from abc import ABC, abstractmethod
@@ -136,12 +137,16 @@ class R2StorageService(StorageService):
             try:
                 self.s3_client.delete_object(Bucket=self.bucket_name, Key=file_path)
                 return True
-            except Exception:
-                return False
+            except Exception as e:
+                import botocore.exceptions
+                if isinstance(e, botocore.exceptions.ClientError) and e.response.get('Error', {}).get('Code') in ['NoSuchKey', '404']:
+                    return True
+                raise
                 
         return await self._run_in_executor(perform_delete)
 
 
+@functools.lru_cache(maxsize=1)
 def get_storage_service() -> StorageService:
     """Fábrica de Storage: Retorna Local ou R2 dependendo da configuração."""
     settings = get_settings()

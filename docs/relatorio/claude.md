@@ -156,7 +156,7 @@
 
 ## 2026-05-07
 
-### BUG/SEGURANÇA - `R2StorageService.delete()` engole exceções e neutraliza a correção `7e2f50` em produção
+### [CORRIGIDO] BUG/SEGURANÇA - `R2StorageService.delete()` engole exceções e neutraliza a correção `7e2f50` em produção
 
 - **Local:** `app/shared/core/storage.py` — método `R2StorageService.delete`, linhas 134–142, em conjunto com `app/modules/panes/service.py:651–664` (`excluir_anexo`)
 - **Descrição:** A correção `7e2f50` (rodada anterior) inverteu a ordem de remoção em `excluir_anexo` para tentar apagar do storage *antes* do banco, esperando que uma exceção do storage abortasse o `db.delete(anexo)`. Porém, o método `R2StorageService.delete` envolve `s3_client.delete_object` em `try/except Exception: return False` — qualquer falha (rede, credencial, 5xx do R2, AccessDenied) é silenciada e devolvida como `False`. O chamador em `excluir_anexo` **não inspeciona o booleano de retorno**: ele apenas espera por exceção. Logo, em qualquer falha real do R2, o fluxo prossegue, executa `db.delete(anexo)` e o registro é apagado, deixando o objeto órfão no bucket. Localmente (`LocalStorageService.delete`) a falha é menos provável e a função não engole exceções, mas o backend padrão de produção é R2.
@@ -166,7 +166,7 @@
 
 ---
 
-### BUG - `abrir_inspecao` aceita aeronave INATIVA e a "reativa" silenciosamente sobrescrevendo `aeronave.status`
+### [CORRIGIDO] BUG - `abrir_inspecao` aceita aeronave INATIVA e a "reativa" silenciosamente sobrescrevendo `aeronave.status`
 
 - **Local:** `app/modules/aeronaves/...` e `app/modules/inspecoes/service.py` — função `abrir_inspecao`, linhas 346–396
 - **Descrição:** A função busca a aeronave (linhas 346–348) mas não valida `aeronave.status`. Mais adiante, executa incondicionalmente `aeronave.status = StatusAeronave.INSPECAO.value` (linha 396). Isso permite que uma aeronave em `INATIVA` (deliberadamente removida de serviço pelo Encarregado) seja reaberta de fato via abertura de inspeção, contornando o fluxo correto: reativar → inspecionar. Trata-se da contraparte simétrica das correções `5f1c4d` (PUT direto para INSPECAO) e `2c9d5f` (toggle force INATIVA em INSPECAO): a entrada `INATIVA → INSPECAO` permaneceu desprotegida.
@@ -176,7 +176,7 @@
 
 ---
 
-### SEGURANÇA - `refresh_access_token` não detecta reuso de refresh token revogado (RFC 6849 BCP §10.4)
+### [CORRIGIDO] SEGURANÇA - `refresh_access_token` não detecta reuso de refresh token revogado (RFC 6849 BCP §10.4)
 
 - **Local:** `app/modules/auth/router.py` — endpoint `POST /auth/refresh`, linhas 110–240
 - **Descrição:** A rota faz rotação de refresh token (gera novo, revoga antigo) corretamente em fluxo legítimo. Porém, ao receber um refresh token cujo `jti` existe na tabela `TokenRefresh` mas com `revogado_em IS NOT NULL` (já consumido), o código apenas devolve 401 e segue: o filtro `(TokenRefresh.revogado_em.is_(None))` na linha 154 simplesmente exclui a linha do resultado e cai no `if not stored_token: raise 401`. Isso descumpre o OAuth 2.0 Security BCP §10.4 (RFC 6749/6819): se um refresh token já revogado aparece de novo, é forte evidência de cópia/roubo do cookie e a família inteira de tokens emitidos para aquele usuário deveria ser invalidada (revoke-all-active-tokens-for-user) — caso contrário, o atacante e o usuário legítimo continuam conseguindo refrescar enquanto se revezam.
@@ -186,7 +186,7 @@
 
 ---
 
-### SEGURANÇA - Endpoints de inventário/instalação aceitam qualquer usuário autenticado (sem RBAC)
+### [CORRIGIDO] SEGURANÇA - Endpoints de inventário/instalação aceitam qualquer usuário autenticado (sem RBAC)
 
 - **Local:** `app/modules/equipamentos/router.py` — `instalar_item` (linha 165), `remover_item` (linha 182), `ajustar_inventario` (linha 233)
 - **Descrição:** Os três endpoints declaram apenas `_: CurrentUser` ou `current_user: CurrentUser` como dependência, sem `ensure_role(...)` nem uso de aliases como `ExecucaoPermitida`/`EncarregadoOuAdmin`. Como `CurrentUser` exige somente JWT válido, **qualquer perfil cadastrado** (incluindo INSPETOR — cuja função é vistoriar, não movimentar — ou novos perfis "VIEWER" futuros) consegue: instalar item em slot, registrar remoção, e ajustar S/N de inventário (com `forcar_transferencia` inclusive). Fluxos análogos do mesmo módulo já aplicam papel (`AdminRequired` para criar PN/SN, slots), e em `panes/router.py` o padrão é `ensure_role("MANTENEDOR", "ENCARREGADO", "INSPETOR", "ADMINISTRADOR")` para mutações.
@@ -196,10 +196,62 @@
 
 ---
 
-### ARQUITETURA - `R2StorageService` instanciado a cada chamada cria novo cliente boto3 por request
+### [CORRIGIDO] ARQUITETURA - `R2StorageService` instanciado a cada chamada cria novo cliente boto3 por request
 
 - **Local:** `app/shared/core/storage.py` — `get_storage_service` (linhas 145–150) e `R2StorageService.__init__` (linhas 78–93); chamadores em `app/modules/panes/service.py` (linhas 526, 565, 581, 652, 671)
 - **Descrição:** A factory devolve `R2StorageService()` novo em cada invocação. O `__init__` chama `boto3.client("s3", ...)` — operação cara: resolução de credencial, configuração de assinatura SigV4, alocação de pool HTTPS, instanciação de `botocore.session`. Cada upload, download, ou delete dispara essa criação (5 chamadas em `panes/service.py` para o mesmo request de upload com fallback). Em paralelo, um `BackgroundTasks` de processamento de imagem cria *outras* instâncias dentro de `processar_imagem_background` (linhas 565 e 581).
 - **Impacto:** Latência adicional perceptível por request com anexo (handshake TLS adicional + setup botocore), pressão maior no pool de conexões/file descriptors e custos elevados em janelas de upload em massa. Em ambiente Cloud Run/serverless onde há risco de cold-start, agrava p99. Não há leak permanente, mas há desperdício consistente. `LocalStorageService` sofre do mesmo problema em menor escala (recriação de `Path` e `mkdir`).
 - **Sugestão:** Tornar `get_storage_service` um singleton via `@functools.lru_cache(maxsize=1)` (mesmo padrão de `get_settings`) ou armazenar a instância em `app.state` na inicialização do FastAPI (`bootstrap/events.py`). Cliente boto3 é thread-safe e reutilizável; pode ser compartilhado em todo o processo. Cuidar para invalidar o cache em testes que mockam `settings`.
 - **Hash:** `7d52cb`
+
+---
+
+## 2026-05-07 (rodada 2)
+
+### SEGURANÇA - `adicionar_responsavel` aceita `papel` arbitrário enviado pelo cliente
+
+- **Local:** `app/modules/panes/router.py:319-340` em conjunto com `app/modules/panes/service.py:698-701`
+- **Descrição:** O endpoint `POST /panes/{pane_id}/responsaveis` valida apenas que MANTENEDOR/INSPETOR só podem adicionar a si mesmos (`usuario_id == current_user.id`), mas **não valida o campo `papel` do payload**. O service grava `papel=dados.papel.value` literalmente, sem cruzar com `Usuario.funcao`. Assim, um MANTENEDOR pode chamar a rota com `{"usuario_id": <ele mesmo>, "papel": "ADMINISTRADOR"}` e ficar registrado na pane com papel ADMINISTRADOR. Compare com `concluir_pane` (`panes/service.py:402-405`), onde o papel armazenado é forçado para `usuario.funcao` (papel real do banco), demonstrando que o padrão do projeto é não confiar no cliente.
+- **Impacto:** Corrupção dos registros de responsabilidade aeronáutica. Auditorias e relatórios sobre uma pane podem exibir "ADMIN: Sgt Fulano" mesmo o usuário sendo MANTENEDOR. Embora hoje `PaneResponsavel.papel` seja apenas exibido, qualquer futura regra (filtros tipo "panes resolvidas por ENCARREGADO", export para SAA/QA) que confie nesse campo aplicará privilégio errado. Quebra explícita de rastreabilidade.
+- **Sugestão:** No `service.adicionar_responsavel`, buscar o `Usuario` por `dados.usuario_id` e gravar `papel=usuario.funcao`, ignorando o que veio no payload (espelhando `concluir_pane`). Como alternativa, validar no router: `if dados.papel.value != current_user.funcao and current_user.funcao not in {"ENCARREGADO","ADMINISTRADOR"}: raise 403`. Idealmente remover o campo `papel` do schema `AdicionarResponsavel`.
+- **Hash:** `f5d2a7`
+
+---
+
+### [FALSO POSITIVO] SEGURANÇA - `adicionar_tarefa_avulsa` aceita perfil MANTENEDOR
+
+- **Local:** `app/modules/inspecoes/router.py:419-429` — endpoint `POST /inspecoes/{inspecao_id}/tarefas`
+- **Descrição:** A auditoria anterior apontou que o endpoint exige apenas `_: CurrentUser`, permitindo que um MANTENEDOR adicione tarefas avulsas a uma inspeção, diferindo do restante do módulo que restringe mutações a `EncarregadoInspetorOuAdmin`. A auditoria interpretou isso como quebra de segregação de funções.
+- **Análise do Setor (Regra de Negócio Real):** A premissa da auditoria estava equivocada em relação ao fluxo de trabalho real. Na prática da manutenção aeronáutica, **todo mantenedor pode e DEVE relatar falhas identificadas**, inserindo-as como tarefas extras na inspeção. Isso é um princípio basilar da **SEGURANÇA DE VOO**. Retirar esse privilégio criaria um gargalo perigoso.
+- **Sugestão/Ação:** Nenhuma restrição no código deve ser feita. O comportamento atual está **CORRETO**. Recomenda-se atualizar a documentação de RBAC para explicitar que a inserção de tarefas avulsas em inspeções é permitida a todos os mantenedores.
+- **Hash:** `3a9c8e`
+
+---
+
+### BUG/RASTREABILIDADE - `instalar_item` grava `Instalacao` com `usuario_id=NULL`
+
+- **Local:** `app/modules/equipamentos/router.py:165-174` e `app/modules/equipamentos/service.py:424-444`
+- **Descrição:** O router `instalar_item` declara `_: ExecucaoPermitida` e **descarta** o usuário autenticado — não o passa para o service. O service `instalar_item(db, item_id, aeronave_id, slot_id, data_instalacao)` instancia `Instalacao(...)` sem incluir o campo `usuario_id`, gerando o registro com `usuario_id=NULL`. Compare com `remover_item` (linha 446), que aceita e atribui `usuario_id=current_user.id`, e com `_efetivar_troca_no_slot` (linha 405), que utiliza `dados.usuario_id`. A coluna `Instalacao.usuario_id` existe justamente para auditar quem efetuou a movimentação.
+- **Impacto:** Toda instalação registrada via `POST /equipamentos/itens/{item_id}/instalar` perde a rastreabilidade do executor. Em sistema aeronáutico, cada movimentação de S/N precisa ter usuário responsável identificado para auditoria. O Dashboard ("Movimentações Recentes" — `dashboard/service.py:160-193`) e o `listar_historico_recente` (`equipamentos/service.py:460-522`) exibirão `usuario_trigrama=NULL` para essas instalações, deixando "buracos" no histórico de inventário. A correção `e9c0a4` (RBAC) controla *quem pode chamar*; este bug invalida o registro *de quem chamou*.
+- **Sugestão:** No router, trocar `_: ExecucaoPermitida` por `current_user: ExecucaoPermitida` e passar `usuario_id=current_user.id` ao service. No service, adicionar parâmetro `usuario_id: uuid.UUID` à assinatura e atribuir em `Instalacao(..., usuario_id=usuario_id)`. Adicionar teste que verifica `instalacao.usuario_id == current_user.id` após a chamada.
+- **Hash:** `d4b8f1`
+
+---
+
+### ARQUITETURA - `ajustar_inventario_item` executa `db.rollback()` direto no service
+
+- **Local:** `app/modules/equipamentos/service.py:321-330`
+- **Descrição:** O service captura exceções do `flush` e chama `await db.rollback()` antes de devolver mensagem polida. O padrão do projeto é deixar a dependência `get_db()` (`bootstrap/dependencies.py:30-38`) gerenciar `commit/rollback` via try/except no generator. Um `rollback()` no meio do request descarta também qualquer escrita anterior feita na mesma transação e deixa a sessão SQLAlchemy em estado parcialmente inválido para operações subsequentes. Hoje a função é chamada isoladamente, mas o anti-padrão repete o problema já corrigido em `auth/service.py` (hash `a9f2b1`) e `efetivo/service.py` (hash `f3b7e9`).
+- **Impacto:** Acoplamento do service à infraestrutura de transação. Se um futuro endpoint compor `ajustar_inventario_item` com outras escritas (ex.: log de auditoria, criação de evento), o rollback "engole" silenciosamente o trabalho anterior. Inconsistência de padrão dificulta manutenção e revisão.
+- **Sugestão:** Remover o `try/except + rollback`. Para distinguir `"FOREIGN KEY constraint failed"`, deixar a `IntegrityError` propagar e tratá-la no router (ou converter em exceção de domínio levantada *após* o flush bem-sucedido). `get_db()` cuida do rollback ao detectar a exceção propagada.
+- **Hash:** `e0c4d3`
+
+---
+
+### BUG - `hash_senha` trunca por caracteres em vez de bytes (bcrypt 72-byte limit)
+
+- **Local:** `app/modules/auth/security.py:22-37` — funções `hash_senha` e `verificar_senha`
+- **Descrição:** Para contornar o limite de 72 **bytes** do bcrypt, ambas as funções fazem `senha_plana[:72]`. Em Python, `[:72]` opera em **pontos de código (caracteres)**, não em bytes. Para senhas com caracteres não-ASCII (acentuação portuguesa, emojis, símbolos UTF-8 multibyte), 72 caracteres podem ocupar de 73 até ~288 bytes — passlib/bcrypt pode rejeitar (versões recentes com `truncate_error=True`) ou truncar internamente em ponto diferente. Como `verificar_senha` aplica o mesmo `[:72]` por caracteres, o cadastro e o login podem divergir após upgrades do passlib.
+- **Impacto:** Usuário cuja senha contenha "ção", "á", emojis ou qualquer caractere multibyte pode (a) ter `_pwd_context.hash` levantando exceção mascarada como erro 500 no cadastro, (b) cadastrar com sucesso mas falhar autenticação após upgrade do passlib (mismatch entre o byte-truncate interno do passlib e o char-truncate da aplicação), ou (c) ter sua senha silenciosamente encurtada — reduzindo a entropia que o usuário acreditava ter. Risco de bloqueio em massa de contas após upgrade de dependência.
+- **Sugestão:** Truncar em bytes preservando UTF-8 válido: `senha_bytes = senha_plana.encode("utf-8")[:72]; senha_ajustada = senha_bytes.decode("utf-8", errors="ignore")`. Aplicar idêntico em `hash_senha` e `verificar_senha`. Alternativamente (mais robusto), pré-hashear com SHA-256 antes do bcrypt: `bcrypt_input = base64.b64encode(hashlib.sha256(senha_plana.encode("utf-8")).digest())` (32 bytes raw → 44 bytes b64, sempre < 72) — elimina o limite e padroniza o tamanho. Adicionar teste com senha contendo "manutenção_aeronáutica🛩️" e ≥40 caracteres.
+- **Hash:** `7b3f9a`

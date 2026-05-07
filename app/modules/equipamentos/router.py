@@ -166,7 +166,7 @@ async def instalar_item(
     item_id: uuid.UUID,
     dados: schemas.InstalacaoCreate,
     db: DBSession,
-    _: CurrentUser,
+    _: ExecucaoPermitida,
 ):
     instalacao = await service.instalar_item(
         db, item_id, dados.aeronave_id, dados.slot_id, dados.data_instalacao
@@ -183,7 +183,7 @@ async def remover_item(
     instalacao_id: uuid.UUID,
     dados: schemas.InstalacaoRemocao,
     db: DBSession,
-    current_user: CurrentUser,
+    current_user: ExecucaoPermitida,
 ):
     instalacao = await service.remover_item(
         db, instalacao_id, dados.data_remocao, usuario_id=current_user.id
@@ -233,7 +233,7 @@ async def listar_inventario(
 async def ajustar_inventario(
     dados: schemas.AjusteInventarioCreate,
     db: DBSession,
-    _: CurrentUser,
+    _: EncarregadoOuAdmin,
 ):
     """
     Ajusta o número de série físico de um equipamento.
