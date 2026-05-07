@@ -153,10 +153,22 @@ async def refresh_access_token(
         )
         stored_token = result.scalar_one_or_none()
         
-        if not stored_token or stored_token.expira_em < datetime.now(timezone.utc):
+        # Garantir comparação segura de timezone (especialmente para SQLite)
+        agora = datetime.now(timezone.utc)
+        if stored_token:
+            expira_em = stored_token.expira_em
+            if expira_em.tzinfo is None:
+                expira_em = expira_em.replace(tzinfo=timezone.utc)
+            
+            if expira_em < agora:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Refresh token expirado",
+                )
+        else:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Refresh token expirado ou inválido",
+                detail="Refresh token inválido",
             )
             
         if stored_token.revogado_em is not None:
@@ -167,7 +179,7 @@ async def refresh_access_token(
                     (TokenRefresh.usuario_id == stored_token.usuario_id) &
                     (TokenRefresh.revogado_em.is_(None))
                 )
-                .values(revogado_em=datetime.now(timezone.utc))
+                .values(revogado_em=agora)
             )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -204,12 +216,12 @@ async def refresh_access_token(
         new_token_model = TokenRefresh(
             usuario_id=usuario.id,
             jti=str(new_jti),
-            expira_em=datetime.now(timezone.utc) + timedelta(days=7)
+            expira_em=agora + timedelta(days=7)
         )
         db.add(new_token_model)
         
         # Revogar refresh token antigo (opcional, mas mais seguro)
-        stored_token.revogado_em = datetime.now(timezone.utc)
+        stored_token.revogado_em = agora
         
         # O commit é feito automaticamente pela dependência get_db ao final do request
         
