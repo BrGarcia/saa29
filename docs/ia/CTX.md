@@ -114,7 +114,7 @@ backlog_inspecoes:
 - csp_compliance: mandatory_for_all_new_UI (no_inline_scripts_no_onclick_attrs)
 
 known_gaps_from_roadmap:
-- audit_2026-05-07_resolved: true (storage masking, aeronave inativa, token reuse, rbac inventario, singleton storage)
+- audit_2026-05-07_resolved: true (storage masking, aeronave inativa, token reuse, rbac inventario, singleton storage, pane role validation, inventory traceability, bcrypt limit)
 - feature_modo_calendario_idealizacao: docs/BACKLOG/idela_modo_calendario.md
 - bug_fix_inativar_anv_config_verified: true
 - logout_frontend_backend_alignment_verified: true

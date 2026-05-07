@@ -166,10 +166,10 @@ async def instalar_item(
     item_id: uuid.UUID,
     dados: schemas.InstalacaoCreate,
     db: DBSession,
-    _: ExecucaoPermitida,
+    current_user: ExecucaoPermitida,
 ):
     instalacao = await service.instalar_item(
-        db, item_id, dados.aeronave_id, dados.slot_id, dados.data_instalacao
+        db, item_id, dados.aeronave_id, dados.slot_id, dados.data_instalacao, current_user.id
     )
     return schemas.InstalacaoOut.model_validate(instalacao)
 
@@ -239,4 +239,13 @@ async def ajustar_inventario(
     Ajusta o número de série físico de um equipamento.
     Lida com transferências e criação de novos itens.
     """
-    return await service.ajustar_inventario_item(db, dados)
+    from sqlalchemy.exc import IntegrityError
+    try:
+        return await service.ajustar_inventario_item(db, dados)
+    except IntegrityError as e:
+        if "FOREIGN KEY constraint failed" in str(e):
+            return schemas.AjusteInventarioResponse(
+                sucesso=False, 
+                mensagem="Erro de integridade: Usuário ou Aeronave não encontrados. Tente fazer logoff e login novamente."
+            )
+        raise e

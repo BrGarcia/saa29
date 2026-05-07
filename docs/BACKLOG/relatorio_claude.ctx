@@ -23,22 +23,22 @@
 
 # Tarefas Pendentes - Auditoria 2026-05-07 (Rodada 2)
 
-- [ ] **9.1 Validação de Papel:**
+- [x] **9.1 Validação de Papel:**
   - **Targets:** `app/modules/panes/service.py` (adicionar_responsavel).
   - **Ação:** Ignorar payload. Gravar `PaneResponsavel.papel = usuario.funcao` (banco).
   - **TDD:** Tentar forjar papel ADMIN sendo MANTENEDOR -> grava como MANTENEDOR.
-- [ ] **9.2 Rastreabilidade Instalação:**
+- [x] **9.2 Rastreabilidade Instalação:**
   - **Targets:** `app/modules/equipamentos/router.py`, `app/modules/equipamentos/service.py` (instalar_item).
   - **Ação:** Repassar `current_user.id` do router e gravar em `Instalacao.usuario_id`.
   - **TDD:** Validar coluna `usuario_id` preenchida no BD pós-instalação.
-- [ ] **9.3 Rollback Prematuro:**
+- [x] **9.3 Rollback Prematuro:**
   - **Targets:** `app/modules/equipamentos/service.py` (ajustar_inventario_item).
   - **Ação:** Remover `db.rollback()` e tratar no router.
   - **TDD:** Erro de banco propaga, não "engolindo" a transação.
-- [ ] **9.4 Bcrypt Byte Limit:**
+- [x] **9.4 Bcrypt Byte Limit:**
   - **Targets:** `app/modules/auth/security.py` (hash_senha, verificar_senha).
   - **Ação:** Aplicar pré-hash: `base64.b64encode(hashlib.sha256(senha.encode()).digest())`.
   - **TDD:** Teste com senha contendo chars multibyte/emojis.
-- [ ] **9.5 Doc RBAC Tarefas Avulsas:**
+- [x] **9.5 Doc RBAC Tarefas Avulsas:**
   - **Targets:** `docs/architecture/RBAC.md`.
   - **Ação:** Documentar que MANTENEDOR pode criar tarefa avulsa na inspeção. (Sem mudança de código).

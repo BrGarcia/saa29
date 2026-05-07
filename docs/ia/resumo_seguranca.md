@@ -13,6 +13,7 @@ controls:
 - strict_csp_script_src_self_no_inline
 - upload_type_and_size_validation
 - local_or_r2_storage_abstraction
+- bcrypt_sha256_pre_hash_protection
 
 transport_rules:
 - api_auth: Authorization_Bearer_supported
@@ -58,3 +59,4 @@ recent_actions:
 - 2026-05-01: Resolved SQLAlchemy MissingGreenlet error in Task Catalog by enforcing await db.refresh() after flush on onupdate fields.
 - 2026-05-01: Created RBAC.md matrix to consolidate user roles and permissions documentation.
 - 2026-05-07: Added token reuse protection, fixed storage error masking, secured inventory RBAC.
+- 2026-05-07 (Rodada 2): Secured pane responsibility role, fixed inventory traceability, removed direct service rollbacks, fixed bcrypt byte limit.

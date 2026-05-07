@@ -208,7 +208,7 @@
 
 ## 2026-05-07 (rodada 2)
 
-### SEGURANÇA - `adicionar_responsavel` aceita `papel` arbitrário enviado pelo cliente
+### [CORRIGIDO] SEGURANÇA - `adicionar_responsavel` aceita `papel` arbitrário enviado pelo cliente
 
 - **Local:** `app/modules/panes/router.py:319-340` em conjunto com `app/modules/panes/service.py:698-701`
 - **Descrição:** O endpoint `POST /panes/{pane_id}/responsaveis` valida apenas que MANTENEDOR/INSPETOR só podem adicionar a si mesmos (`usuario_id == current_user.id`), mas **não valida o campo `papel` do payload**. O service grava `papel=dados.papel.value` literalmente, sem cruzar com `Usuario.funcao`. Assim, um MANTENEDOR pode chamar a rota com `{"usuario_id": <ele mesmo>, "papel": "ADMINISTRADOR"}` e ficar registrado na pane com papel ADMINISTRADOR. Compare com `concluir_pane` (`panes/service.py:402-405`), onde o papel armazenado é forçado para `usuario.funcao` (papel real do banco), demonstrando que o padrão do projeto é não confiar no cliente.
@@ -228,7 +228,7 @@
 
 ---
 
-### BUG/RASTREABILIDADE - `instalar_item` grava `Instalacao` com `usuario_id=NULL`
+### [CORRIGIDO] BUG/RASTREABILIDADE - `instalar_item` grava `Instalacao` com `usuario_id=NULL`
 
 - **Local:** `app/modules/equipamentos/router.py:165-174` e `app/modules/equipamentos/service.py:424-444`
 - **Descrição:** O router `instalar_item` declara `_: ExecucaoPermitida` e **descarta** o usuário autenticado — não o passa para o service. O service `instalar_item(db, item_id, aeronave_id, slot_id, data_instalacao)` instancia `Instalacao(...)` sem incluir o campo `usuario_id`, gerando o registro com `usuario_id=NULL`. Compare com `remover_item` (linha 446), que aceita e atribui `usuario_id=current_user.id`, e com `_efetivar_troca_no_slot` (linha 405), que utiliza `dados.usuario_id`. A coluna `Instalacao.usuario_id` existe justamente para auditar quem efetuou a movimentação.
@@ -238,7 +238,7 @@
 
 ---
 
-### ARQUITETURA - `ajustar_inventario_item` executa `db.rollback()` direto no service
+### [CORRIGIDO] ARQUITETURA - `ajustar_inventario_item` executa `db.rollback()` direto no service
 
 - **Local:** `app/modules/equipamentos/service.py:321-330`
 - **Descrição:** O service captura exceções do `flush` e chama `await db.rollback()` antes de devolver mensagem polida. O padrão do projeto é deixar a dependência `get_db()` (`bootstrap/dependencies.py:30-38`) gerenciar `commit/rollback` via try/except no generator. Um `rollback()` no meio do request descarta também qualquer escrita anterior feita na mesma transação e deixa a sessão SQLAlchemy em estado parcialmente inválido para operações subsequentes. Hoje a função é chamada isoladamente, mas o anti-padrão repete o problema já corrigido em `auth/service.py` (hash `a9f2b1`) e `efetivo/service.py` (hash `f3b7e9`).
@@ -248,7 +248,7 @@
 
 ---
 
-### BUG - `hash_senha` trunca por caracteres em vez de bytes (bcrypt 72-byte limit)
+### [CORRIGIDO] BUG - `hash_senha` trunca por caracteres em vez de bytes (bcrypt 72-byte limit)
 
 - **Local:** `app/modules/auth/security.py:22-37` — funções `hash_senha` e `verificar_senha`
 - **Descrição:** Para contornar o limite de 72 **bytes** do bcrypt, ambas as funções fazem `senha_plana[:72]`. Em Python, `[:72]` opera em **pontos de código (caracteres)**, não em bytes. Para senhas com caracteres não-ASCII (acentuação portuguesa, emojis, símbolos UTF-8 multibyte), 72 caracteres podem ocupar de 73 até ~288 bytes — passlib/bcrypt pode rejeitar (versões recentes com `truncate_error=True`) ou truncar internamente em ponto diferente. Como `verificar_senha` aplica o mesmo `[:72]` por caracteres, o cadastro e o login podem divergir após upgrades do passlib.

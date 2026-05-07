@@ -5,6 +5,8 @@ Funções de segurança: hashing de senha e operações JWT.
 
 import uuid
 from datetime import datetime, timedelta, timezone
+import hashlib
+import base64
 
 from jose import jwt, JWTError
 from passlib.context import CryptContext
@@ -22,19 +24,22 @@ _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def hash_senha(senha_plana: str) -> str:
     """
     Gera o hash bcrypt de uma senha em texto plano.
-    Bcrypt limita a entrada a 72 bytes.
+    Utiliza SHA-256 prévio para evitar o limite de 72 bytes do bcrypt.
     """
-    # Truncate to 72 chars to avoid ValueError (SEC-18)
-    senha_ajustada = senha_plana[:72]
-    return _pwd_context.hash(senha_ajustada)
+    senha_bytes = senha_plana.encode("utf-8")
+    hash_sha256 = hashlib.sha256(senha_bytes).digest()
+    bcrypt_input = base64.b64encode(hash_sha256).decode("utf-8")
+    return _pwd_context.hash(bcrypt_input)
 
 
 def verificar_senha(senha_plana: str, senha_hash: str) -> bool:
     """
     Compara a senha em texto plano com o hash armazenado.
     """
-    senha_ajustada = senha_plana[:72]
-    return _pwd_context.verify(senha_ajustada, senha_hash)
+    senha_bytes = senha_plana.encode("utf-8")
+    hash_sha256 = hashlib.sha256(senha_bytes).digest()
+    bcrypt_input = base64.b64encode(hash_sha256).decode("utf-8")
+    return _pwd_context.verify(bcrypt_input, senha_hash)
 
 
 def criar_token(dados: dict) -> str:

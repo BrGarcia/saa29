@@ -318,16 +318,7 @@ async def ajustar_inventario_item(
 
     await _efetivar_troca_no_slot(db, inst_atual, item_real, dados)
     
-    try:
-        await db.flush()
-    except Exception as e:
-        await db.rollback()
-        if "FOREIGN KEY constraint failed" in str(e):
-            return AjusteInventarioResponse(
-                sucesso=False, 
-                mensagem="Erro de integridade: Usuário ou Aeronave não encontrados. Tente fazer logoff e login novamente."
-            )
-        raise e
+    await db.flush()
 
     return AjusteInventarioResponse(sucesso=True, mensagem="Inventário ajustado com sucesso.")
 
@@ -422,7 +413,7 @@ async def _efetivar_troca_no_slot(
 
 
 async def instalar_item(
-    db: AsyncSession, item_id: uuid.UUID, aeronave_id: uuid.UUID, slot_id: uuid.UUID, data_instalacao: date
+    db: AsyncSession, item_id: uuid.UUID, aeronave_id: uuid.UUID, slot_id: uuid.UUID, data_instalacao: date, usuario_id: uuid.UUID
 ) -> Instalacao:
     stmt_old = select(Instalacao).where(Instalacao.item_id == item_id, Instalacao.data_remocao.is_(None))
     res_old = await db.execute(stmt_old)
@@ -436,6 +427,7 @@ async def instalar_item(
         item_id=item_id,
         aeronave_id=aeronave_id,
         slot_id=slot_id,
+        usuario_id=usuario_id,
         data_instalacao=data_instalacao,
         created_at=func.now()
     )

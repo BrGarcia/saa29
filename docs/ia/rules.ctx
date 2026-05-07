@@ -14,3 +14,5 @@
 - RN-09: Merge/Deploy Workflow: All promotions to `main` must follow `docs/methodology/merge_main.md` to ensure R2 backup persistence.
 - RN-10: Aeronaves INATIVA não podem ter inspeções abertas.
 - RN-11: Reuso de Refresh Token causa revogação da família inteira de tokens do usuário.
+- RN-12: Senhas utilizam pré-hash SHA256 para evitar limite de 72 bytes do bcrypt.
+- RN-13: Responsabilidade em pane (adicionar_responsavel) força papel real do banco.

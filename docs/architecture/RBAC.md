@@ -63,6 +63,7 @@ O sistema possui quatro níveis de acesso, definidos no enum `TipoPapel` (`app/s
 | | Gerenciar regras de periodicidade               | ❌ | ❌ | ❌ | ✅ |
 
 > Nota: A prorrogação de vencimento exige justificativa técnica (assessoramento técnico).
+> Nota: A adição de tarefa extra (avulsa) em inspeções é liberada para MANTENEDOR por ser um requisito crítico de Segurança de Voo.
 
 ---
 

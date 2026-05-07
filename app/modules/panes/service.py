@@ -695,10 +695,15 @@ async def adicionar_responsavel(
     if result.scalar_one_or_none():
         raise ValueError("Usuário já é responsável por esta pane.")
 
+    from app.modules.auth.service import buscar_por_id
+    usuario = await buscar_por_id(db, dados.usuario_id)
+    if not usuario:
+        raise ValueError("Usuário não encontrado.")
+
     responsavel = PaneResponsavel(
         pane_id=pane_id,
         usuario_id=dados.usuario_id,
-        papel=dados.papel.value,
+        papel=usuario.funcao,
     )
     db.add(responsavel)
     await db.flush()

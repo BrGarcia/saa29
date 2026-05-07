@@ -224,6 +224,11 @@ Auditoria completa realizada lendo os arquivos-fonte. **Todos os 10 itens do pla
 | `8a2f31` | `auth/router.py` – endpoint `refresh` revoga todos os tokens na detecção de reuso | ✅ |
 | `e9c0a4` | `equipamentos/router.py` – rotas de inventário restritas via RBAC correto | ✅ |
 | `7d52cb` | `storage.py` – `get_storage_service` decorado com `@functools.lru_cache(maxsize=1)` | ✅ |
+| `f5d2a7` | `panes/service.py` – validação de papel real no banco em `adicionar_responsavel` | ✅ |
+| `d4b8f1` | `equipamentos` – `instalar_item` agora grava `usuario_id` para rastreabilidade | ✅ |
+| `e0c4d3` | `equipamentos` – removido `db.rollback()` do service, tratado no router | ✅ |
+| `7b3f9a` | `auth/security.py` – aplicado pré-hash SHA-256 para evitar limite de bytes do bcrypt | ✅ |
+| `3a9c8e` | `docs/architecture/RBAC.md` – documentada regra de Segurança de Voo para tarefas avulsas | ✅ |
 ---
 
 ## 9. Correções da Auditoria de 2026-05-07 (Rodada 2)
@@ -265,11 +270,11 @@ Auditoria completa realizada lendo os arquivos-fonte. **Todos os 10 itens do pla
 ---
 
 ## Próximos Passos
-*   [ ] Implementar TDD e correção 9.1 (Validação Papel Pane).
-*   [ ] Implementar TDD e correção 9.2 (Rastreabilidade Instalação).
-*   [ ] Implementar TDD e correção 9.3 (Remoção db.rollback).
-*   [ ] Implementar TDD e correção 9.4 (Fix bcrypt byte limit).
-*   [ ] Atualizar doc RBAC (9.5).
+*   [x] Implementar TDD e correção 9.1 (Validação Papel Pane).
+*   [x] Implementar TDD e correção 9.2 (Rastreabilidade Instalação).
+*   [x] Implementar TDD e correção 9.3 (Remoção db.rollback).
+*   [x] Implementar TDD e correção 9.4 (Fix bcrypt byte limit).
+*   [x] Atualizar doc RBAC (9.5).
 
 ---
 
