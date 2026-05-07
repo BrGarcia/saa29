@@ -151,3 +151,55 @@
 - **Impacto:** Resposta da API pode divergir do estado real do banco na mesma requisição. Em `prorrogar_vencimento`, a prorrogação anterior aparecerá como ativa na resposta mesmo tendo sido revogada, confundindo o frontend e quebrando a exibição do histórico de prorrogações.
 - **Sugestão:** Após cada `__table__.update()`, invalidar o cache da sessão com `await db.execute(select(1))` + `session.expire_all()`, ou reescrever usando ORM: buscar as instâncias ativas, setar `.ativo = False` individualmente e usar `flush()`. A abordagem ORM é mais segura e alinhada ao padrão do projeto.
 - **Hash:** `9b4f1e`
+
+---
+
+## 2026-05-07
+
+### BUG/SEGURANÇA - `R2StorageService.delete()` engole exceções e neutraliza a correção `7e2f50` em produção
+
+- **Local:** `app/shared/core/storage.py` — método `R2StorageService.delete`, linhas 134–142, em conjunto com `app/modules/panes/service.py:651–664` (`excluir_anexo`)
+- **Descrição:** A correção `7e2f50` (rodada anterior) inverteu a ordem de remoção em `excluir_anexo` para tentar apagar do storage *antes* do banco, esperando que uma exceção do storage abortasse o `db.delete(anexo)`. Porém, o método `R2StorageService.delete` envolve `s3_client.delete_object` em `try/except Exception: return False` — qualquer falha (rede, credencial, 5xx do R2, AccessDenied) é silenciada e devolvida como `False`. O chamador em `excluir_anexo` **não inspeciona o booleano de retorno**: ele apenas espera por exceção. Logo, em qualquer falha real do R2, o fluxo prossegue, executa `db.delete(anexo)` e o registro é apagado, deixando o objeto órfão no bucket. Localmente (`LocalStorageService.delete`) a falha é menos provável e a função não engole exceções, mas o backend padrão de produção é R2.
+- **Impacto:** A garantia documentada do hash `7e2f50` ("apaga storage ANTES do banco") deixa de existir em produção. Volta a haver acúmulo silencioso de PDFs/fotos órfãs no R2, com custo crescente e risco LGPD/sigilo aeronáutico (anexos de panes podem conter evidência fotográfica sensível). Pior: a UI mostra sucesso, e o operador acredita que o anexo foi totalmente expurgado.
+- **Sugestão:** Em `R2StorageService.delete`, deixar a exceção propagar (ou re-erguer como `RuntimeError` com contexto) em vez de devolver `False` silencioso. Em `excluir_anexo`, além disso, tratar explicitamente o booleano: `if not await storage_svc.delete(...): raise ValueError("Falha ao remover do storage.")`. Tratar 404/`NoSuchKey` do R2 como sucesso idempotente (caminho já não existe). Considerar também enfileirar caminhos a expurgar em `AnexoExpurgo` para reconciliação assíncrona.
+- **Hash:** `c1a8b9`
+
+---
+
+### BUG - `abrir_inspecao` aceita aeronave INATIVA e a "reativa" silenciosamente sobrescrevendo `aeronave.status`
+
+- **Local:** `app/modules/aeronaves/...` e `app/modules/inspecoes/service.py` — função `abrir_inspecao`, linhas 346–396
+- **Descrição:** A função busca a aeronave (linhas 346–348) mas não valida `aeronave.status`. Mais adiante, executa incondicionalmente `aeronave.status = StatusAeronave.INSPECAO.value` (linha 396). Isso permite que uma aeronave em `INATIVA` (deliberadamente removida de serviço pelo Encarregado) seja reaberta de fato via abertura de inspeção, contornando o fluxo correto: reativar → inspecionar. Trata-se da contraparte simétrica das correções `5f1c4d` (PUT direto para INSPECAO) e `2c9d5f` (toggle force INATIVA em INSPECAO): a entrada `INATIVA → INSPECAO` permaneceu desprotegida.
+- **Impacto:** Estado da frota deixa de refletir decisões operacionais. Uma aeronave inativada (p.ex. por dano estrutural, aguardando aprovação para retorno) pode ser tirada do limbo administrativo por qualquer ENCARREGADO/INSPETOR/ADMIN ao abrir uma inspeção, sem nenhum log de reativação. Quebra o princípio de transição explícita de status em sistema aeronáutico.
+- **Sugestão:** Após buscar a aeronave em `abrir_inspecao`, antes de qualquer outra validação, adicionar: `if aeronave.status == StatusAeronave.INATIVA.value: raise ValueError("Aeronave inativa. Reative a aeronave antes de abrir inspeção.")`. Padrão idêntico ao já adotado em `criar_pane` (`panes/service.py:99–100`).
+- **Hash:** `b4d7e6`
+
+---
+
+### SEGURANÇA - `refresh_access_token` não detecta reuso de refresh token revogado (RFC 6849 BCP §10.4)
+
+- **Local:** `app/modules/auth/router.py` — endpoint `POST /auth/refresh`, linhas 110–240
+- **Descrição:** A rota faz rotação de refresh token (gera novo, revoga antigo) corretamente em fluxo legítimo. Porém, ao receber um refresh token cujo `jti` existe na tabela `TokenRefresh` mas com `revogado_em IS NOT NULL` (já consumido), o código apenas devolve 401 e segue: o filtro `(TokenRefresh.revogado_em.is_(None))` na linha 154 simplesmente exclui a linha do resultado e cai no `if not stored_token: raise 401`. Isso descumpre o OAuth 2.0 Security BCP §10.4 (RFC 6749/6819): se um refresh token já revogado aparece de novo, é forte evidência de cópia/roubo do cookie e a família inteira de tokens emitidos para aquele usuário deveria ser invalidada (revoke-all-active-tokens-for-user) — caso contrário, o atacante e o usuário legítimo continuam conseguindo refrescar enquanto se revezam.
+- **Impacto:** Em sistema aeronáutico com perfis privilegiados (ENCARREGADO, ADMIN), um refresh token vazado por XSS futuro, log indevido ou cookie copiado em estação compartilhada permite ao atacante manter acesso por 7 dias mesmo após o usuário legítimo refrescar (e vice-versa), sem qualquer detecção. Não há trilha de "sessão suspeita" para o ADMIN reagir.
+- **Sugestão:** No bloco que hoje retorna 401 quando `stored_token` é `None`, antes de devolver, fazer uma segunda consulta sem o filtro de `revogado_em` para o mesmo `jti`. Se a linha existir e estiver revogada, executar `UPDATE token_refresh SET revogado_em = NOW() WHERE usuario_id = :uid AND revogado_em IS NULL` (revoga toda a família ativa do usuário) e gravar evento de segurança em log. Resposta continua 401, mas todos os tokens daquele usuário são invalidados — usuário legítimo é forçado a re-autenticar e o atacante perde o acesso.
+- **Hash:** `8a2f31`
+
+---
+
+### SEGURANÇA - Endpoints de inventário/instalação aceitam qualquer usuário autenticado (sem RBAC)
+
+- **Local:** `app/modules/equipamentos/router.py` — `instalar_item` (linha 165), `remover_item` (linha 182), `ajustar_inventario` (linha 233)
+- **Descrição:** Os três endpoints declaram apenas `_: CurrentUser` ou `current_user: CurrentUser` como dependência, sem `ensure_role(...)` nem uso de aliases como `ExecucaoPermitida`/`EncarregadoOuAdmin`. Como `CurrentUser` exige somente JWT válido, **qualquer perfil cadastrado** (incluindo INSPETOR — cuja função é vistoriar, não movimentar — ou novos perfis "VIEWER" futuros) consegue: instalar item em slot, registrar remoção, e ajustar S/N de inventário (com `forcar_transferencia` inclusive). Fluxos análogos do mesmo módulo já aplicam papel (`AdminRequired` para criar PN/SN, slots), e em `panes/router.py` o padrão é `ensure_role("MANTENEDOR", "ENCARREGADO", "INSPETOR", "ADMINISTRADOR")` para mutações.
+- **Impacto:** Segregação de funções (separation of duties) é quebrada justamente nas rotas que mais demandam rastreabilidade aeronáutica — quem instala/remove material aviônico fica gravado na `Instalacao.usuario_id`, mas não há controle de papel. Um INSPETOR pode mover SNs sem autorização operacional; um perfil novo de baixo privilégio adicionado no futuro herdaria automaticamente esse acesso.
+- **Sugestão:** Trocar a dependência: em `instalar_item` e `remover_item`, usar `ExecucaoPermitida` (MANTENEDOR/ENCARREGADO/ADMINISTRADOR); em `ajustar_inventario`, usar `EncarregadoOuAdmin` (mais restritivo, dado o `forcar_transferencia`). Auditar testes para garantir cobertura dos 403 esperados.
+- **Hash:** `e9c0a4`
+
+---
+
+### ARQUITETURA - `R2StorageService` instanciado a cada chamada cria novo cliente boto3 por request
+
+- **Local:** `app/shared/core/storage.py` — `get_storage_service` (linhas 145–150) e `R2StorageService.__init__` (linhas 78–93); chamadores em `app/modules/panes/service.py` (linhas 526, 565, 581, 652, 671)
+- **Descrição:** A factory devolve `R2StorageService()` novo em cada invocação. O `__init__` chama `boto3.client("s3", ...)` — operação cara: resolução de credencial, configuração de assinatura SigV4, alocação de pool HTTPS, instanciação de `botocore.session`. Cada upload, download, ou delete dispara essa criação (5 chamadas em `panes/service.py` para o mesmo request de upload com fallback). Em paralelo, um `BackgroundTasks` de processamento de imagem cria *outras* instâncias dentro de `processar_imagem_background` (linhas 565 e 581).
+- **Impacto:** Latência adicional perceptível por request com anexo (handshake TLS adicional + setup botocore), pressão maior no pool de conexões/file descriptors e custos elevados em janelas de upload em massa. Em ambiente Cloud Run/serverless onde há risco de cold-start, agrava p99. Não há leak permanente, mas há desperdício consistente. `LocalStorageService` sofre do mesmo problema em menor escala (recriação de `Path` e `mkdir`).
+- **Sugestão:** Tornar `get_storage_service` um singleton via `@functools.lru_cache(maxsize=1)` (mesmo padrão de `get_settings`) ou armazenar a instância em `app.state` na inicialização do FastAPI (`bootstrap/events.py`). Cliente boto3 é thread-safe e reutilizável; pode ser compartilhado em todo o processo. Cuidar para invalidar o cache em testes que mockam `settings`.
+- **Hash:** `7d52cb`

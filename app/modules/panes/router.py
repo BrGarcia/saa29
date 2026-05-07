@@ -280,6 +280,11 @@ async def baixar_anexo(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Anexo não encontrado.",
         )
+
+    if anexo.caminho_arquivo in ("processando", "ERRO"):
+        status_detail = "Anexo ainda está sendo processado." if anexo.caminho_arquivo == "processando" else "Falha no processamento do anexo."
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=status_detail)
+
     try:
         url_or_path = await service.obter_url_anexo(anexo.caminho_arquivo)
     except ValueError as exc:

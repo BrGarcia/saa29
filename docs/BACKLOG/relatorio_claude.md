@@ -177,23 +177,12 @@ Auditoria completa realizada lendo os arquivos-fonte. **Todos os 10 itens do pla
 
 Os itens abaixo foram identificados em `docs/BACKLOG/implamentacao_image_editor.md` mas **não foram incluídos neste plano e permanecem sem correção**:
 
-### GAP-01 – Download de anexo em processamento retorna 404 em vez de 409
+### ✅ GAP-01 – Download de anexo em processamento retorna 404 em vez de 409
 *   **Localização:** `app/modules/panes/router.py` – endpoint `baixar_anexo` (linha ~277)
 *   **Problema:** Quando `anexo.caminho_arquivo == "processando"`, o endpoint chama `storage_svc.get_url("processando")` e retorna 404 (arquivo não encontrado). O correto seria retornar 409 Conflict com mensagem "Anexo ainda está sendo processado."
-*   **Correção:**
-    ```python
-    # Adicionar ANTES da chamada a obter_url_anexo:
-    if anexo.caminho_arquivo in ("processando", "ERRO"):
-        status_detail = "Anexo ainda está sendo processado." if anexo.caminho_arquivo == "processando" else "Falha no processamento do anexo."
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=status_detail)
-    ```
+*   **Correção:** (Implementada)
 
-### GAP-02 – Extensões HEIC/HEIF bloqueadas na camada de validação do service
+### ✅ GAP-02 – Extensões HEIC/HEIF bloqueadas na camada de validação do service
 *   **Localização:** `app/modules/panes/service.py` – linhas 46-49
 *   **Problema:** `_EXTENSOES_PERMITIDAS` e `_MIMES_PERMITIDOS` não incluem `.heic`, `.heif` e `image/heic`. O pipeline de imagem (`pipeline.py`) suporta HEIC via `pillow-heif`, mas o upload é rejeitado antes de chegar ao pipeline.
-*   **Correção:**
-    ```python
-    _EXTENSOES_PERMITIDAS = {".jpg", ".jpeg", ".png", ".pdf", ".heic", ".heif"}
-    _MIMES_PERMITIDOS = {"image/jpeg", "image/png", "application/pdf", "image/heic", "image/heif"}
-    ```
-    E atualizar a detecção `is_image` na linha ~509 para incluir `".heic", ".heif"` e `"image/heic", "image/heif"`.
+*   **Correção:** (Implementada)

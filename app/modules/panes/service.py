@@ -43,10 +43,10 @@ _TRANSICOES_VALIDAS = {
 }
 
 # Extensões permitidas para upload
-_EXTENSOES_PERMITIDAS = {".jpg", ".jpeg", ".png", ".pdf"}
+_EXTENSOES_PERMITIDAS = {".jpg", ".jpeg", ".png", ".pdf", ".heic", ".heif"}
 
 # MIME types reais permitidos (SEC-05: validação por conteúdo, não só extensão)
-_MIMES_PERMITIDOS = {"image/jpeg", "image/png", "application/pdf"}
+_MIMES_PERMITIDOS = {"image/jpeg", "image/png", "application/pdf", "image/heic", "image/heif"}
 
 
 def _escape_like(text: str) -> str:
@@ -506,10 +506,9 @@ async def upload_anexo(
         )
 
     from app.shared.core.enums import TipoAnexo
-    is_image = extensao in {".jpg", ".jpeg", ".png"} or mime_real in {"image/jpeg", "image/png"}
-    
-    if is_image and is_background:
-        # Retorna placeholder para processamento em background (Etapa 5)
+    is_image = extensao in {".jpg", ".jpeg", ".png", ".heic", ".heif"} or mime_real in {"image/jpeg", "image/png", "image/heic", "image/heif"}
+
+    if is_image and is_background:        # Retorna placeholder para processamento em background (Etapa 5)
         anexo = Anexo(
             pane_id=pane_id,
             caminho_arquivo="processando",
