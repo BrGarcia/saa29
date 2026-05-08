@@ -36,6 +36,8 @@ def should_censor(event: CalendarEvent, current_user: Usuario) -> bool:
 
 def format_event_for_user(event: CalendarEvent, current_user: Usuario) -> schemas.CalendarEventPayload:
     owner_trigram = event.owner.trigrama if event.owner else None
+    can_edit = is_owner(event, current_user) or has_privilege(current_user)
+    can_delete = current_user.funcao in ADMIN_ROLES
 
     if should_censor(event, current_user):
         return schemas.CalendarEventPayload(
@@ -47,6 +49,10 @@ def format_event_for_user(event: CalendarEvent, current_user: Usuario) -> schema
             icon="L",
             owner_trigram=owner_trigram,
             notes=None,
+            source="calendario",
+            owner_user_id=event.owner_user_id,
+            can_edit=False,
+            can_delete=False,
         )
 
     return schemas.CalendarEventPayload(
@@ -58,6 +64,11 @@ def format_event_for_user(event: CalendarEvent, current_user: Usuario) -> schema
         icon=event.event_type.icon,
         owner_trigram=owner_trigram,
         notes=event.notes,
+        source="calendario",
+        event_type_id=event.event_type_id,
+        owner_user_id=event.owner_user_id,
+        can_edit=can_edit,
+        can_delete=can_delete,
     )
 
 
@@ -84,6 +95,15 @@ async def get_events(
     result = await db.execute(stmt)
     events = list(result.scalars().all())
     return [format_event_for_user(event, current_user) for event in events]
+
+
+async def list_event_types(db: AsyncSession) -> list[EventType]:
+    result = await db.execute(
+        select(EventType)
+        .where(EventType.active == True)  # noqa: E712
+        .order_by(EventType.name.asc())
+    )
+    return list(result.scalars().all())
 
 
 async def create_event(
@@ -180,4 +200,3 @@ async def _get_event_or_raise(db: AsyncSession, event_id: uuid.UUID) -> Calendar
     if event is None:
         raise LookupError("Evento nao encontrado.")
     return event
-

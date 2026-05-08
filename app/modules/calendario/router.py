@@ -14,6 +14,11 @@ from app.modules.calendario import schemas, service
 router = APIRouter()
 
 
+@router.get("/tipos", response_model=list[schemas.EventTypeOut])
+async def listar_tipos_evento(db: DBSession, _: CurrentUser):
+    return await service.list_event_types(db)
+
+
 @router.get("/eventos", response_model=list[schemas.CalendarEventPayload])
 async def listar_eventos(
     db: DBSession,
@@ -73,4 +78,3 @@ async def remover_evento(
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evento nao encontrado.")
     return None
-

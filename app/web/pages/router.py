@@ -80,6 +80,12 @@ async def vencimentos_page(request: Request, _=Depends(get_current_user)):
     return templates.TemplateResponse("vencimentos.html", {"request": request})
 
 
+@router.get("/calendario", response_class=HTMLResponse, include_in_schema=False)
+async def calendario_page(request: Request, _=Depends(get_current_user)):
+    """Calendario operacional do SAA29."""
+    return templates.TemplateResponse("calendario.html", {"request": request})
+
+
 @router.get("/configuracoes", response_class=HTMLResponse, include_in_schema=False)
 async def configuracoes_page(request: Request, _: AdminRequired):
     """Página de Configurações do Sistema - Admin"""

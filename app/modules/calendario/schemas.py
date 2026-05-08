@@ -104,4 +104,8 @@ class CalendarEventPayload(BaseModel):
     icon: str
     owner_trigram: str | None
     notes: str | None = None
-
+    source: str = "calendario"
+    event_type_id: uuid.UUID | None = None
+    owner_user_id: uuid.UUID | None = None
+    can_edit: bool = False
+    can_delete: bool = False
