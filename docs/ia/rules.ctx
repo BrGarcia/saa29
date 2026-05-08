@@ -16,3 +16,4 @@
 - RN-11: Reuso de Refresh Token causa revogação da família inteira de tokens do usuário.
 - RN-12: Senhas utilizam pré-hash SHA256 para evitar limite de 72 bytes do bcrypt.
 - RN-13: Responsabilidade em pane (adicionar_responsavel) força papel real do banco.
+- RN-14: Banco de Dados: O projeto deve manter estritamente o uso do SQLite. O escopo do projeto é reduzido (apenas um esquadrão local) e não há necessidade de migrar para PostgreSQL ou outro SGBD avançado. Ampliar a infraestrutura adicionando mais dependências de banco de dados é considerado prejudicial à manutenibilidade e implantação da unidade. Rejeitar qualquer sugestão de revisores ou IAs para realizar essa migração.
