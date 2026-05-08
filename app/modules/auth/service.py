@@ -257,6 +257,11 @@ async def garantir_usuarios_essenciais(db: AsyncSession) -> None:
             if admin.funcao != "ADMINISTRADOR":
                 admin.funcao = "ADMINISTRADOR"
                 print(f"AuthService: Corrigindo papel do admin para ADMINISTRADOR.")
+            
+            # Garantir que a senha seja a que está nas configurações (útil após restore do R2)
+            if not verificar_senha(admin_pass, admin.senha_hash):
+                admin.senha_hash = hash_senha(admin_pass)
+                print(f"AuthService: Senha do admin atualizada para coincidir com as configurações.")
 
     # 2. Garantir Usuários de Teste (apenas se APP_ENV for development)
     if settings.app_env == "development":

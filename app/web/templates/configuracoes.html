@@ -6,12 +6,17 @@
 <div style="display: flex; flex-direction: column; gap: 2rem;">
 
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
-        
+
         <!-- Painel Aeronaves -->
         <div class="card" style="display: flex; flex-direction: column; gap: 1rem;">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <div style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(52, 152, 219, 0.1); color: var(--primary-color); display: flex; align-items: center; justify-content: center;">
-                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                <div
+                    style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(52, 152, 219, 0.1); color: var(--primary-color); display: flex; align-items: center; justify-content: center;">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                        </path>
+                    </svg>
                 </div>
                 <h3 style="margin: 0; font-size: 1.25rem;">Aeronaves</h3>
             </div>
@@ -20,11 +25,19 @@
             </p>
             <div style="display: flex; gap: 0.5rem; flex-direction: column;">
                 <button class="btn btn-aeronave" id="btn-nova-aeronave" style="width: 100%;" data-role="ADMINISTRADOR">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 5px;"><path d="M12 5v14m-7-7h14"/></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="vertical-align: middle; margin-right: 5px;">
+                        <path d="M12 5v14m-7-7h14" />
+                    </svg>
                     Cadastrar Aeronave
                 </button>
-                <button class="btn btn-aeronave" id="btn-alterar-status-aeronave" style="width: 100%;" data-role="ENCARREGADO">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 5px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                <button class="btn btn-aeronave" id="btn-alterar-status-aeronave" style="width: 100%;"
+                    data-role="ENCARREGADO">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        style="vertical-align: middle; margin-right: 5px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
                     Alterar Status
                 </button>
             </div>
@@ -33,8 +46,13 @@
         <!-- Painel Equipamentos -->
         <div class="card" style="display: flex; flex-direction: column; gap: 1rem;" data-role="ENCARREGADO">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <div style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(155, 89, 182, 0.1); color: #9b59b6; display: flex; align-items: center; justify-content: center;">
-                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                <div
+                    style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(155, 89, 182, 0.1); color: #9b59b6; display: flex; align-items: center; justify-content: center;">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4">
+                        </path>
+                    </svg>
                 </div>
                 <h3 style="margin: 0; font-size: 1.25rem;">Equipamentos e PNs</h3>
             </div>
@@ -43,11 +61,18 @@
             </p>
             <div style="display: flex; gap: 0.5rem; flex-direction: column;">
                 <button class="btn btn-equipamento" id="btn-novo-pn" style="width: 100%;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 5px;"><path d="M12 5v14m-7-7h14"/></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="vertical-align: middle; margin-right: 5px;">
+                        <path d="M12 5v14m-7-7h14" />
+                    </svg>
                     Cadastrar PN
                 </button>
                 <button class="btn btn-equipamento" id="btn-gerenciar-catalogo" style="width: 100%;">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 5px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        style="vertical-align: middle; margin-right: 5px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                    </svg>
                     Gerenciar Catálogo
                 </button>
             </div>
@@ -56,8 +81,12 @@
         <!-- Painel Vencimentos -->
         <div class="card" style="display: flex; flex-direction: column; gap: 1rem;" data-role="ADMINISTRADOR">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <div style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(230, 126, 34, 0.1); color: var(--status-warning); display: flex; align-items: center; justify-content: center;">
-                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <div
+                    style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(230, 126, 34, 0.1); color: var(--status-warning); display: flex; align-items: center; justify-content: center;">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
                 </div>
                 <h3 style="margin: 0; font-size: 1.25rem;">Controles de Vencimento</h3>
             </div>
@@ -66,16 +95,28 @@
             </p>
             <div style="display: flex; gap: 0.5rem; flex-direction: column;">
                 <button class="btn btn-vencimento" id="btn-tipos-controle" style="width: 100%;">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 5px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
-                    Cadastrar Tipo
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        style="vertical-align: middle; margin-right: 5px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    Criar Controle
                 </button>
                 <button class="btn btn-vencimento" id="btn-editar-tipo-controle" style="width: 100%;">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 5px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                    Editar Tipo
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        style="vertical-align: middle; margin-right: 5px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Editar Controle
                 </button>
                 <button class="btn btn-vencimento" id="btn-equipamento-controle" style="width: 100%;">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 5px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                    Regras por Equipamento
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        style="vertical-align: middle; margin-right: 5px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    Gerenciar Regras
                 </button>
             </div>
         </div>
@@ -83,8 +124,13 @@
         <!-- Painel Administração de Efetivo -->
         <div class="card" style="display: flex; flex-direction: column; gap: 1rem;" data-role="ADMINISTRADOR">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <div style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(46, 204, 113, 0.1); color: var(--status-ok); display: flex; align-items: center; justify-content: center;">
-                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                <div
+                    style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(46, 204, 113, 0.1); color: var(--status-ok); display: flex; align-items: center; justify-content: center;">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                        </path>
+                    </svg>
                 </div>
                 <h3 style="margin: 0; font-size: 1.25rem;">Administração de Efetivo</h3>
             </div>
@@ -95,27 +141,28 @@
                 Gerenciar Efetivo
             </button>
         </div>
-        
+
         <!-- Painel Inspeções -->
         <div class="card" style="display: flex; flex-direction: column; gap: 1rem;" data-role="ENCARREGADO">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <div style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(26, 188, 156, 0.1); color: #1abc9c; display: flex; align-items: center; justify-content: center;">
-                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <div
+                    style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(26, 188, 156, 0.1); color: #1abc9c; display: flex; align-items: center; justify-content: center;">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
                 </div>
                 <h3 style="margin: 0; font-size: 1.25rem;">Inspeções</h3>
             </div>
             <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0; flex-grow: 1;">
                 Configuração de tipos de inspeção, gerenciamento de tarefas template e abertura de novos eventos.
             </p>
-            <div style="display: flex; gap: 0.5rem; flex-direction: column;">
-                <div style="font-weight: 600; margin-bottom: 0.25rem; font-size: 0.85rem; color: var(--text-color); text-transform: uppercase; letter-spacing: 0.5px;">Tipos de Inspeção</div>
+            <div style="display: flex; gap: 0rem; flex-direction: column;">
                 <button class="btn btn-inspecao" id="btn-config-inspecoes" style="width: 100%; margin-bottom: 0.5rem;">
-                    Gerenciar Tipos (Templates)
+                    Gerenciar Inspeções
                 </button>
-                
-                <div style="font-weight: 600; margin-bottom: 0.25rem; font-size: 0.85rem; color: var(--text-color); text-transform: uppercase; letter-spacing: 0.5px;">Catálogo Global de Tarefas</div>
                 <button class="btn btn-inspecao" id="btn-gerenciar-catalogo-tarefas" style="width: 100%;">
-                    Gerenciar Tarefas do Catálogo
+                    Gerenciar Tarefas
                 </button>
             </div>
         </div>
@@ -125,11 +172,16 @@
 </div>
 
 <!-- Modal para Nova Aeronave -->
-<div id="modal-aeronave" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+<div id="modal-aeronave"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
     <div class="card glass-panel" style="width: 100%; max-width: 450px; margin: 1rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Nova Aeronave</h3>
-            <button class="btn-icon" type="button" id="btn-close-modal-aeronave"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-modal-aeronave"><svg width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg></button>
         </div>
 
         <form id="formAeronave">
@@ -160,11 +212,16 @@
 </div>
 
 <!-- Modal para Alterar Status de Aeronave (Estocar/Inativar/Reativar) -->
-<div id="modal-alterar-status-aeronave" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+<div id="modal-alterar-status-aeronave"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
     <div class="card glass-panel" style="width: 100%; max-width: 450px; margin: 1rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Alterar Status da Aeronave</h3>
-            <button class="btn-icon" type="button" id="btn-close-modal-status"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-modal-status"><svg width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg></button>
         </div>
 
         <form id="formAlterarStatusAeronave">
@@ -193,11 +250,16 @@
 </div>
 
 <!-- Modal para Tipo de Controle -->
-<div id="modal-tipo-controle" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+<div id="modal-tipo-controle"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
     <div class="card glass-panel" style="width: 100%; max-width: 450px; margin: 1rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Novo Tipo de Controle</h3>
-            <button class="btn-icon" type="button" id="btn-close-modal-tipo-controle"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-modal-tipo-controle"><svg width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg></button>
         </div>
 
         <form id="formTipoControle">
@@ -219,11 +281,16 @@
 </div>
 
 <!-- Modal para Editar Tipo de Controle -->
-<div id="modal-editar-tipo-controle" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+<div id="modal-editar-tipo-controle"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
     <div class="card glass-panel" style="width: 100%; max-width: 480px; margin: 1rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Editar Tipo de Controle</h3>
-            <button class="btn-icon" type="button" id="btn-close-modal-editar-tipo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-modal-editar-tipo"><svg width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg></button>
         </div>
 
         <form id="formEditarTipoControle">
@@ -251,11 +318,17 @@
 </div>
 
 <!-- Modal para Gerenciar Catálogo (Part Numbers) -->
-<div id="modal-catalogo" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
-    <div class="card glass-panel" style="width: 100%; max-width: 800px; margin: 1rem; max-height: 90vh; display: flex; flex-direction: column;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+<div id="modal-catalogo"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card glass-panel"
+        style="width: 100%; max-width: 800px; margin: 1rem; max-height: 90vh; display: flex; flex-direction: column;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Gerenciamento de Catálogo (Part Numbers)</h3>
-            <button class="btn-icon" type="button" id="btn-close-modal-catalogo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-modal-catalogo"><svg width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg></button>
         </div>
 
         <div style="overflow-y: auto; flex-grow: 1; padding-right: 0.5rem;">
@@ -275,18 +348,24 @@
             </table>
         </div>
 
-        <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+        <div
+            style="display: flex; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
             <button type="button" class="btn btn-outline" id="btn-close-catalogo">Fechar</button>
         </div>
     </div>
 </div>
 
 <!-- Modal para Novo PN -->
-<div id="modal-novo-pn" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+<div id="modal-novo-pn"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
     <div class="card glass-panel" style="width: 100%; max-width: 480px; margin: 1rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Cadastrar Novo Part Number</h3>
-            <button class="btn-icon" type="button" id="btn-close-modal-novo-pn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-modal-novo-pn"><svg width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg></button>
         </div>
 
         <form id="formNovoPN">
@@ -312,11 +391,16 @@
 </div>
 
 <!-- Modal para Editar PN -->
-<div id="modal-editar-pn" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+<div id="modal-editar-pn"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
     <div class="card glass-panel" style="width: 100%; max-width: 480px; margin: 1rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Editar Part Number</h3>
-            <button class="btn-icon" type="button" id="btn-close-modal-editar-pn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-modal-editar-pn"><svg width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg></button>
         </div>
 
         <form id="formEditarPN">
@@ -343,16 +427,23 @@
 </div>
 
 <!-- Modal para Regras por Equipamento (Vencimentos) -->
-<div id="modal-regras-equipamento" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
-    <div class="card glass-panel" style="width: 100%; max-width: 700px; margin: 1rem; max-height: 90vh; display: flex; flex-direction: column;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+<div id="modal-regras-equipamento"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card glass-panel"
+        style="width: 100%; max-width: 700px; margin: 1rem; max-height: 90vh; display: flex; flex-direction: column;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Regras de Vencimento por Equipamento</h3>
-            <button class="btn-icon" type="button" id="btn-close-modal-regras"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-modal-regras"><svg width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg></button>
         </div>
 
         <div style="overflow-y: auto; flex-grow: 1; padding-right: 0.5rem;">
             <!-- Form para nova regra -->
-            <form id="formNovaRegra" style="background: rgba(0,0,0,0.05); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem;">
+            <form id="formNovaRegra"
+                style="background: rgba(0,0,0,0.05); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem;">
                 <h4 style="margin: 0 0 1rem 0; font-size: 1rem;">Nova Regra (Vínculo PN + Controle)</h4>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 80px auto; gap: 0.75rem; align-items: end;">
                     <div class="form-group" style="margin-bottom: 0;">
@@ -393,24 +484,35 @@
             </table>
         </div>
 
-        <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+        <div
+            style="display: flex; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
             <button type="button" class="btn btn-outline" id="btn-close-regras">Fechar</button>
         </div>
     </div>
 </div>
 
 <!-- Modal de Gerenciamento de Inspeções (Tipos) -->
-<div id="modal-inspecoes-tipos" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
-    <div class="card glass-panel" style="width: 100%; max-width: 800px; margin: 1rem; max-height: 90vh; display: flex; flex-direction: column;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+<div id="modal-inspecoes-tipos"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card glass-panel"
+        style="width: 100%; max-width: 800px; margin: 1rem; max-height: 90vh; display: flex; flex-direction: column;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Tipos de Inspeção</h3>
-            <button class="btn-icon" type="button" id="btn-close-modal-inspecoes"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-modal-inspecoes"><svg width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg></button>
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">Configure os pacotes/tipos de inspeção aplicáveis à frota.</p>
+            <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">Configure os pacotes/tipos de
+                inspeção aplicáveis à frota.</p>
             <button class="btn btn-inspecao" id="btn-novo-tipo-inspecao" style="padding: 0.5rem 1rem;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 5px;"><path d="M12 5v14m-7-7h14"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    style="vertical-align: middle; margin-right: 5px;">
+                    <path d="M12 5v14m-7-7h14" />
+                </svg>
                 Novo Tipo
             </button>
         </div>
@@ -432,18 +534,24 @@
             </table>
         </div>
 
-        <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+        <div
+            style="display: flex; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
             <button type="button" class="btn btn-outline" id="btn-close-inspecoes">Fechar</button>
         </div>
     </div>
 </div>
 
 <!-- Modal Novo/Editar Tipo de Inspeção -->
-<div id="modal-form-tipo-inspecao" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1050; align-items: center; justify-content: center;">
+<div id="modal-form-tipo-inspecao"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1050; align-items: center; justify-content: center;">
     <div class="card glass-panel" style="width: 100%; max-width: 500px; margin: 1rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 id="titulo-form-tipo-inspecao" style="margin: 0; font-size: 1.25rem;">Novo Tipo de Inspeção</h3>
-            <button class="btn-icon" type="button" id="btn-close-form-tipo-inspecao"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-form-tipo-inspecao"><svg width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg></button>
         </div>
 
         <form id="formTipoInspecao">
@@ -462,13 +570,13 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Duração (dias) *</label>
-                <input type="number" id="duracaoTipoInspecaoInput" class="form-input" required min="0" max="180" value="0"
-                       style="max-width: 160px;">
+                <input type="number" id="duracaoTipoInspecaoInput" class="form-input" required min="0" max="180"
+                    value="0" style="max-width: 160px;">
                 <small style="display:block; margin-top:0.25rem; color: var(--text-secondary); font-size: 0.8rem;">
                     Usado para calcular a Data Prevista de Encerramento. Máx. 180 dias.
                 </small>
             </div>
-            
+
             <div id="container-status-tipo-inspecao" class="form-group" style="display: none;">
                 <label class="form-label">Ativo</label>
                 <select id="ativoTipoInspecaoInput" class="form-input">
@@ -486,16 +594,24 @@
 </div>
 
 <!-- Modal Gerenciar Tarefas Template -->
-<div id="modal-tarefas-template" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1050; align-items: center; justify-content: center;">
-    <div class="card glass-panel" style="width: 100%; max-width: 900px; margin: 1rem; max-height: 90vh; display: flex; flex-direction: column;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+<div id="modal-tarefas-template"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1050; align-items: center; justify-content: center;">
+    <div class="card glass-panel"
+        style="width: 100%; max-width: 900px; margin: 1rem; max-height: 90vh; display: flex; flex-direction: column;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 id="titulo-modal-tarefas" style="margin: 0; font-size: 1.25rem;">Tarefas da Inspeção</h3>
-            <button class="btn-icon" type="button" id="btn-close-modal-tarefas"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-modal-tarefas"><svg width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg></button>
         </div>
 
-        <div style="overflow-y: auto; flex-grow: 1; padding-right: 0.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
+        <div
+            style="overflow-y: auto; flex-grow: 1; padding-right: 0.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
             <!-- Form para nova tarefa (vinculação) -->
-            <form id="formNovaTarefa" style="background: rgba(0,0,0,0.05); padding: 1rem; border-radius: var(--radius-md);">
+            <form id="formNovaTarefa"
+                style="background: rgba(0,0,0,0.05); padding: 1rem; border-radius: var(--radius-md);">
                 <input type="hidden" id="tarefaTipoInspecaoId">
                 <h4 style="margin: 0 0 1rem 0; font-size: 1rem;">Adicionar Tarefa ao Template</h4>
                 <div style="display: grid; grid-template-columns: 80px 1fr; gap: 0.75rem;">
@@ -514,7 +630,8 @@
                     <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; cursor: pointer;">
                         <input type="checkbox" id="tarefaObrigatoriaInput" checked> Tarefa Obrigatória
                     </label>
-                    <button type="submit" class="btn btn-inspecao" id="btnSalvarTarefaTemplate" style="padding: 0.5rem 1.5rem;">Vincular Tarefa</button>
+                    <button type="submit" class="btn btn-inspecao" id="btnSalvarTarefaTemplate"
+                        style="padding: 0.5rem 1.5rem;">Vincular Tarefa</button>
                 </div>
             </form>
 
@@ -535,24 +652,35 @@
             </table>
         </div>
 
-        <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+        <div
+            style="display: flex; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
             <button type="button" class="btn btn-outline" id="btn-close-tarefas">Concluído</button>
         </div>
     </div>
 </div>
 
 <!-- Modal Gerenciar Catálogo de Tarefas -->
-<div id="modal-catalogo-tarefas" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
-    <div class="card glass-panel" style="width: 100%; max-width: 900px; margin: 1rem; max-height: 90vh; display: flex; flex-direction: column;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+<div id="modal-catalogo-tarefas"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card glass-panel"
+        style="width: 100%; max-width: 900px; margin: 1rem; max-height: 90vh; display: flex; flex-direction: column;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 style="margin: 0; font-size: 1.25rem;">Catálogo Global de Tarefas</h3>
-            <button class="btn-icon" type="button" id="btn-close-modal-catalogo-tarefas"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-modal-catalogo-tarefas"><svg width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg></button>
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">Gerencie as tarefas base disponíveis para vincular aos tipos de inspeção.</p>
+            <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">Gerencie as tarefas base disponíveis
+                para vincular aos tipos de inspeção.</p>
             <button class="btn btn-inspecao" id="btn-nova-tarefa-catalogo" style="padding: 0.5rem 1rem;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 5px;"><path d="M12 5v14m-7-7h14"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    style="vertical-align: middle; margin-right: 5px;">
+                    <path d="M12 5v14m-7-7h14" />
+                </svg>
                 Nova Tarefa
             </button>
         </div>
@@ -573,35 +701,44 @@
             </table>
         </div>
 
-        <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+        <div
+            style="display: flex; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
             <button type="button" class="btn btn-outline" id="btn-close-catalogo-tarefas">Fechar</button>
         </div>
     </div>
 </div>
 
 <!-- Modal Novo/Editar Tarefa no Catálogo -->
-<div id="modal-form-tarefa-catalogo" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1050; align-items: center; justify-content: center;">
+<div id="modal-form-tarefa-catalogo"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1050; align-items: center; justify-content: center;">
     <div class="card glass-panel" style="width: 100%; max-width: 500px; margin: 1rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
             <h3 id="titulo-form-tarefa-catalogo" style="margin: 0; font-size: 1.25rem;">Nova Tarefa no Catálogo</h3>
-            <button class="btn-icon" type="button" id="btn-close-form-tarefa-catalogo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="btn-icon" type="button" id="btn-close-form-tarefa-catalogo"><svg width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg></button>
         </div>
 
         <form id="formTarefaCatalogo">
             <input type="hidden" id="tarefaCatalogoId">
             <div class="form-group">
                 <label class="form-label">Título da Tarefa (Ação) *</label>
-                <input type="text" id="tituloTarefaCatalogoInput" class="form-input" required maxlength="200" placeholder="Ex: Verificar luzes anticolisão">
+                <input type="text" id="tituloTarefaCatalogoInput" class="form-input" required maxlength="200"
+                    placeholder="Ex: Verificar luzes anticolisão">
             </div>
             <div class="form-group">
                 <label class="form-label">Sistema / Grupo</label>
-                <input type="text" id="sistemaTarefaCatalogoInput" class="form-input" maxlength="100" placeholder="Ex: Iluminação">
+                <input type="text" id="sistemaTarefaCatalogoInput" class="form-input" maxlength="100"
+                    placeholder="Ex: Iluminação">
             </div>
             <div class="form-group">
                 <label class="form-label">Descrição / Referência</label>
-                <textarea id="descTarefaCatalogoInput" class="form-input" rows="3" placeholder="Detalhes ou referência do manual"></textarea>
+                <textarea id="descTarefaCatalogoInput" class="form-input" rows="3"
+                    placeholder="Detalhes ou referência do manual"></textarea>
             </div>
-            
+
             <div id="container-status-tarefa-catalogo" class="form-group" style="display: none;">
                 <label class="form-label">Status</label>
                 <select id="ativoTarefaCatalogoInput" class="form-input">
@@ -623,4 +760,3 @@
 {% block scripts %}
 <script src="/static/js/configuracoes.js"></script>
 {% endblock %}
-
