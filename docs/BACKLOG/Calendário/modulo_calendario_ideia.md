@@ -242,7 +242,7 @@ Legenda:
 AÇÃO                                    MANT  ENC  INSP  ADMIN
 --------------------------------------------------------------
 Ver público                             ✔     ✔    ✔     ✔
-Ver privado próprio                     ✔     ✔    ◐     ✔
+Ver privado próprio                     ✔     ✔    ✔     ✔
 Ver privado de terceiros                ◐     ✔    ◐     ✔
 Criar próprio                           ✔     ✔    ✔     ✔
 Criar para terceiros                    ✖     ✔    ✖     ✔
