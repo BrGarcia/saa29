@@ -56,10 +56,10 @@ Resposta: Sim, Clicar no Card direciona o usuário para a página do módulo
 3. **Prioridade Visual:** Dos 4 cards iniciais (Panes, Vencimentos, Aeronaves em Inspeção, Inventário), qual deles é o mais crítico no dia a dia e deve ter o maior destaque na tela (ex: ficar no topo ou ocupar a largura inteira)?
 Resposta: A Prioridade é Panes > Vencimentos > Inspeção > Inventário > Frota 
     COMO SERA A EXIBIÇÃO:
-        Panes: 
-        Vencimentos: 
-        Inspeção: 
-        Inventário: 
+        Panes: Cards Número de panes abertas, resolvidas e Botão para abrir pane.
+        Vencimentos: Cards OK, A VENCER, VENCIDOS, PRORROGADOS
+        Inspeção: CARDS DAS ANV COM INSPEÇÕES EM ABERTO
+        Inventário: [AGUARDANDO SUGESTAO]
         Frota (Quantidade de Aeronaves DISPONIVEL, INDISPONIVEL, INSPEÇÃO, ESTOCADA, INATIVA)
 
 

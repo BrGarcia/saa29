@@ -28,31 +28,35 @@ A força do módulo de calendário será sua capacidade de agregar:
 | **Pedidos / To-Do List** | Prazos de tarefas pontuais ou deadlines operacionais. | Arrastar tarefa para reagendar prazo final. |
 
 ## 5. Permissões e Lançamentos (RBAC)
-O calendário deve ser "inteligente" para adaptar as permissões de quem o visualiza:
+O sistema utiliza as roles existentes para determinar o nível de acesso e visibilidade. A regra de ouro é: **o backend nunca envia detalhes de eventos particulares para quem não tem permissão.**
 
-*   **Usuário Comum (Mantenedor / Inspetor)**:
-    *   Consegue visualizar o calendário de sua equipe/especialidade.
-    *   Pode clicar no próprio calendário para **solicitar ou lançar** suas próprias indisponibilidades pessoais (ex: marcar uma consulta médica).
-*   **Encarregado (Chefe de Linha / Especialidade)**:
-    *   Tem visão gerencial da sua área.
-    *   Pode lançar escalas, serviços, missões e férias **para qualquer militar** sob sua gestão.
-*   **Administrador / Seção de Pessoal**:
-    *   Visão global da organização (Mapa de Férias Master).
-    *   Permissão para lançar e aprovar qualquer tipo de evento ou definir feriados fixos.
+| Papel (Role) | Visualização | Ações Permitidas |
+| :--- | :--- | :--- |
+| **Mantenedor** | Vê tudo que é público. Vê seus próprios privados. Privados de terceiros aparecem como "🔒 Particular". | Cria e edita suas próprias indisponibilidades. |
+| **Encarregado** | Visão integral de todos os eventos (sem censura). | Cria e edita indisponibilidades para qualquer militar sob sua gestão. |
+| **Inspetor** | Vê tudo que é público. Vê seus próprios privados. Privados de terceiros aparecem como "🔒 Particular". | Cria e edita suas próprias indisponibilidades. |
+| **Administrador** | Visão integral e sem restrições. | Controle total: cria, edita e **exclui** qualquer evento. |
+
+### Conceitos de Visibilidade
+*   **Evento Público**: (Férias, Serviço, Escala) - Visível para todos.
+*   **Evento Particular**: (Consulta Médica, Dispensa) - Motivo real oculto para usuários sem permissão gerencial.
+*   **Trigramas**: Todo evento deve exibir o **trigrama** do militar (ex: `[ JSM ]`) para rápida identificação.
 
 ## 6. Proposta Arquitetural
 Para manter a independência e alto desempenho:
 
-1.  **Backend Agregador**: 
-    Haverá um endpoint principal (ex: `GET /api/v1/calendario/eventos?start=X&end=Y`). O serviço do calendário chamará as funções de listagem dos domínios (Efetivo, Inspeções, etc.) passando as datas. Ele normalizará todos os resultados num schema padrão unificado (ex: `{ id, title, start, end, type, backgroundColor }`).
+1.  **Backend Agregador (Segurança em Primeiro Lugar)**: 
+    *   Endpoint: `GET /api/v1/calendario/eventos`.
+    *   O serviço consolida dados de múltiplos módulos e aplica a **regra de censura** antes de enviar o JSON. 
+    *   Se o usuário não for Encarregado ou Admin, o `title` de eventos privados de terceiros é alterado para "Particular".
 2.  **Frontend Reativo**:
-    Uma biblioteca de calendário robusta (como *FullCalendar* ou *TUI Calendar*) cuidará da renderização. Contará com painéis laterais de filtros (ex: ligar/desligar visualização de inspeções, mostrar apenas militares da especialidade 'BMB').
-3.  **UI de Entrada**:
-    Ao invés de formulários espalhados, o usuário clica num bloco de tempo. Um seletor pergunta o que ele quer lançar:
-    `[ Férias ] [ Serviço ] [ Tarefa ] [ Evento ]`. 
-    Conforme a seleção, a interface injeta dinamicamente o formulário do respectivo módulo, mantendo tudo coeso para o usuário final, mas separado a nível de código.
+    *   Biblioteca visual (FullCalendar/TUI) renderiza os blocos.
+    *   Uso de cores e ícones (🌴, 🏥, 🔒) para distinguir tipos de indisponibilidade.
+3.  **Interface de Lançamento Única**:
+    *   O usuário clica no calendário e um seletor dinâmico abre o formulário correto do módulo de origem (Indisponibilidades ou Eventos), mantendo a integridade dos dados de cada domínio.
 
-## 7. Próximos Passos (Roadmap de Implementação)
-1.  Modelar a API de agregação (`calendario/service.py`) e testar a fusão de dados em memória.
-2.  Prototipar o Frontend instalando a biblioteca visual e injetando dados falsos de teste.
-3.  Criar os formulários independentes no módulo de Indisponibilidades (missão, férias, dispensa) para que possam ser consumidos via modais do Calendário.
+## 7. Próximos Passos (Roadmap)
+1.  **Data Schema**: Implementar as tabelas `event_types` e `calendar_events` conforme definido no arquivo de ideias.
+2.  **Service de Agregação**: Criar a lógica que busca dados de outros módulos e aplica as permissões de visibilidade.
+3.  **UI Base**: Renderizar o calendário com dados mofados (mock) incluindo os trigramas.
+4.  **Integração de Modais**: Conectar o clique no calendário aos formulários de lançamento.
