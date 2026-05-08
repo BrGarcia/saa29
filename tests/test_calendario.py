@@ -224,3 +224,51 @@ async def test_router_crud_eventos_basico(db: AsyncSession):
         delete_response = await client.delete(f"{CALENDARIO_URL}/eventos/{event_id}")
         assert delete_response.status_code == 204
 
+
+@pytest.mark.asyncio
+async def test_router_lista_tipos_evento_para_modal(db: AsyncSession):
+    usuario = await criar_usuario_teste(db, funcao="MANTENEDOR", trigrama="USR")
+    tipo = await criar_tipo_evento(db, visibility_type="public", name="Servico")
+    app = criar_app_isolado(db, usuario)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        response = await client.get(f"{CALENDARIO_URL}/tipos")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert any(item["id"] == str(tipo.id) for item in payload)
+
+
+@pytest.mark.asyncio
+async def test_router_bloqueia_mantenedor_criar_evento_para_terceiro(db: AsyncSession):
+    owner = await criar_usuario_teste(db, funcao="MANTENEDOR", trigrama="OWN")
+    viewer = await criar_usuario_teste(db, funcao="MANTENEDOR", trigrama="VIS")
+    tipo = await criar_tipo_evento(db, visibility_type="public", name="Servico")
+    app = criar_app_isolado(db, viewer)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        response = await client.post(
+            f"{CALENDARIO_URL}/eventos",
+            json={
+                "owner_user_id": str(owner.id),
+                "event_type_id": str(tipo.id),
+                "start_date": "2026-05-12T08:00:00Z",
+                "end_date": "2026-05-12T12:00:00Z",
+                "notes": "Tentativa invalida",
+            },
+        )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_router_bloqueia_delete_para_nao_admin(db: AsyncSession):
+    owner = await criar_usuario_teste(db, funcao="MANTENEDOR", trigrama="OWN")
+    tipo = await criar_tipo_evento(db, visibility_type="public", name="Servico")
+    evento = await criar_evento_teste(db, owner, tipo)
+    app = criar_app_isolado(db, owner)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        response = await client.delete(f"{CALENDARIO_URL}/eventos/{evento.id}")
+
+    assert response.status_code == 403
