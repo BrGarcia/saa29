@@ -2,11 +2,14 @@
 **Ref**: `docs/BACKLOG/modulo_calendario.md`
 **Strategy**: Phased MVP, Token-Efficient, Backend-Driven Security.
 **Development Rules**: **ISOLATED DEVELOPMENT**. Do not modify existing modules (except essential routes) until the final integration phase (P5) to prevent breaking the system. Start with tests (TDD).
-**Status**: P0-P2 completed. Validation: `.\.venv\Scripts\pytest.exe tests -q` -> 158 passed.
+**Status**: P0-P5 completed. Validation: `.\.venv\Scripts\pytest.exe tests -q` -> 162 passed.
 **Commits**:
 - P0: `6c276dc` `test: define calendario module contracts`
 - P1: `91d587b` `feat: add calendario data layer`
 - P2: `2229683` `feat: implement calendario backend api`
+- P3: `c4ffdfd` `feat: add calendario frontend view`
+- P4: `57095cf` `test: cover calendario write permissions`
+- P5: pending final commit
 
 ## P0: TDD IMPLEMENTATION (Tests First)
 **Goal**: Define contracts and expected behavior before coding.
@@ -41,23 +44,25 @@
 
 ## P3: FRONTEND UI (Read-Only)
 **Goal**: Visual rendering of time blocks.
-- [ ] **Setup Lib**: Integrate FullCalendar (or equivalent).
-- [ ] **Views**: Day, Week, Month, Year.
-- [ ] **Data Fetching**: Hook calendar state to `GET /api/v1/calendario/eventos`.
-- [ ] **Custom Event Render**: Format as `[ {trigram} ] {icon} {title}`.
+- [x] **Setup Lib**: Implemented equivalent vanilla JS calendar to avoid new runtime dependencies.
+- [x] **Views**: Day, Week, Month, Year.
+- [x] **Data Fetching**: Hook calendar state to `GET /api/v1/calendario/eventos`.
+- [x] **Custom Event Render**: Format as `[ {trigram} ] {icon} {title}`.
 
 ## P4: INTERACTIVE UI (Write Operations)
 **Goal**: Create/Edit modals respecting RBAC.
-- [ ] **Event Handlers**: Listen to `dateClick` / `eventClick`.
-- [ ] **Dynamic Modal**:
+- [x] **Event Handlers**: Listen to calendar day clicks and event clicks.
+- [x] **Dynamic Modal**:
   - Type Selector `[ Ferias | Servico | Particular | Eventos ]`.
   - Field `Militar` (read-only self se Mantenedor/Inspetor; select if Encarregado/Admin).
-- [ ] **API Bindings**:
+- [x] **API Bindings**:
   - `POST/PUT /api/v1/calendario/eventos`.
   - `DELETE /api/v1/calendario/eventos/{id}` (Backend blocks if not Admin).
+- [x] **Support API**: `GET /api/v1/calendario/tipos` for type selector.
+- [x] **Write permission tests**: covered third-party create block and non-admin delete block.
 
 ## P5: EXTERNAL MODULES (Aggregation)
 **Goal**: Cross-domain data fusion.
-- [ ] **Backend Update**: `get_events()` calls `inspecoes_service` -> maps DPE (Data Prev. Encerramento) to `{type: 'inspecao'}`.
-- [ ] **Backend Update**: calls `todo_service` -> maps deadlines to `{type: 'task'}`.
-- [ ] **UI Filters**: Sidebar toggles (`[x] Efetivo`, `[x] Inspecoes`, `[ ] Tarefas`).
+- [x] **Backend Update**: `get_events()` aggregates inspection DPE as `source: 'inspecao'`.
+- [x] **Backend Update**: added no-op task adapter pending a real To-Do module. See `docs/BACKLOG/Calendário/Duvidas.md`.
+- [x] **UI Filters**: Sidebar toggles (`[x] Efetivo`, `[x] Inspecoes`, `[ ] Tarefas`).

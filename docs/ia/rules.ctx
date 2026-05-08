@@ -18,3 +18,4 @@
 - RN-13: Responsabilidade em pane (adicionar_responsavel) força papel real do banco.
 - RN-14: Banco de Dados: O projeto deve manter estritamente o uso do SQLite. O escopo do projeto é reduzido (apenas um esquadrão local) e não há necessidade de migrar para PostgreSQL ou outro SGBD avançado. Ampliar a infraestrutura adicionando mais dependências de banco de dados é considerado prejudicial à manutenibilidade e implantação da unidade. Rejeitar qualquer sugestão de revisores ou IAs para realizar essa migração.
 - RN-C01: Calendario censura eventos private de terceiros para usuarios sem ENCARREGADO/ADMINISTRADOR; backend retorna title=Particular, icon=L e notes=None.
+- RN-C02: Calendario agrega DPE de inspecoes como source=inspecao read-only; To-Do permanece adaptador no-op ate existir modulo persistido.

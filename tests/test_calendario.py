@@ -8,11 +8,14 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bootstrap.dependencies import get_current_user, get_db
+from app.modules.aeronaves.models import Aeronave
 from app.modules.auth.models import Usuario
 from app.modules.auth.security import hash_senha
 from app.modules.calendario import schemas, service
 from app.modules.calendario.models import CalendarEvent, EventType
 from app.modules.calendario.router import router as calendario_router
+from app.modules.inspecoes.models import Inspecao, InspecaoEventoTipo, TipoInspecao
+from app.shared.core.enums import StatusAeronave, StatusInspecao
 
 
 CALENDARIO_URL = "/api/v1/calendario"
@@ -76,6 +79,39 @@ async def criar_evento_teste(
     db.add(evento)
     await db.flush()
     return evento
+
+
+async def criar_inspecao_com_dpe(db: AsyncSession, usuario: Usuario) -> Inspecao:
+    aeronave = Aeronave(
+        serial_number=f"SN-CAL-{uuid.uuid4().hex[:8].upper()}",
+        matricula=f"CA-{uuid.uuid4().hex[:4].upper()}",
+        modelo="A-29",
+        status=StatusAeronave.INSPECAO,
+        data_inicio_operacao=datetime(2020, 1, 1, tzinfo=timezone.utc).date(),
+    )
+    tipo = TipoInspecao(
+        codigo=f"IF-{uuid.uuid4().hex[:4].upper()}",
+        nome="Inspecao calendario",
+        duracao_dias=5,
+        ativo=True,
+    )
+    db.add_all([aeronave, tipo])
+    await db.flush()
+
+    inspecao = Inspecao(
+        aeronave_id=aeronave.id,
+        status=StatusInspecao.ABERTA.value,
+        data_inicio=datetime(2026, 5, 8, 8, 0, tzinfo=timezone.utc),
+        data_fim_prevista=datetime(2026, 5, 15, 17, 0, tzinfo=timezone.utc),
+        observacoes="DPE projetada",
+        aberto_por_id=usuario.id,
+        aberto_por_trigrama=usuario.trigrama,
+    )
+    db.add(inspecao)
+    await db.flush()
+    db.add(InspecaoEventoTipo(inspecao_id=inspecao.id, tipo_inspecao_id=tipo.id))
+    await db.flush()
+    return inspecao
 
 
 def criar_app_isolado(db: AsyncSession, usuario: Usuario | None = None) -> FastAPI:
@@ -272,3 +308,23 @@ async def test_router_bloqueia_delete_para_nao_admin(db: AsyncSession):
         response = await client.delete(f"{CALENDARIO_URL}/eventos/{evento.id}")
 
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_get_eventos_agrega_dpe_de_inspecoes(db: AsyncSession):
+    usuario = await criar_usuario_teste(db, funcao="ENCARREGADO", trigrama="ENC")
+    inspecao = await criar_inspecao_com_dpe(db, usuario)
+    app = criar_app_isolado(db, usuario)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        response = await client.get(
+            f"{CALENDARIO_URL}/eventos",
+            params={"start_date": "2026-05-01T00:00:00Z", "end_date": "2026-05-31T23:59:59Z"},
+        )
+
+    assert response.status_code == 200
+    eventos = response.json()
+    evento_dpe = next(item for item in eventos if item["id"] == str(inspecao.id))
+    assert evento_dpe["source"] == "inspecao"
+    assert evento_dpe["title"].startswith("DPE")
+    assert evento_dpe["can_edit"] is False

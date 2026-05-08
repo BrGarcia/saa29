@@ -78,6 +78,18 @@ async def get_events(
     end_date: datetime,
     current_user: Usuario,
 ) -> list[schemas.CalendarEventPayload]:
+    events = await _get_calendar_events(db, start_date, end_date, current_user)
+    events.extend(await _get_inspection_events(db, start_date, end_date))
+    events.extend(await _get_task_events(db, start_date, end_date))
+    return sorted(events, key=lambda event: event.start)
+
+
+async def _get_calendar_events(
+    db: AsyncSession,
+    start_date: datetime,
+    end_date: datetime,
+    current_user: Usuario,
+) -> list[schemas.CalendarEventPayload]:
     stmt = (
         select(CalendarEvent)
         .where(
@@ -95,6 +107,61 @@ async def get_events(
     result = await db.execute(stmt)
     events = list(result.scalars().all())
     return [format_event_for_user(event, current_user) for event in events]
+
+
+async def _get_inspection_events(
+    db: AsyncSession,
+    start_date: datetime,
+    end_date: datetime,
+) -> list[schemas.CalendarEventPayload]:
+    from app.modules.inspecoes.models import Inspecao
+
+    stmt = (
+        select(Inspecao)
+        .where(
+            Inspecao.data_fim_prevista.is_not(None),
+            Inspecao.data_fim_prevista >= start_date,
+            Inspecao.data_fim_prevista <= end_date,
+        )
+        .options(
+            selectinload(Inspecao.aeronave),
+            selectinload(Inspecao.tipos_aplicados),
+        )
+        .order_by(Inspecao.data_fim_prevista.asc())
+    )
+    result = await db.execute(stmt)
+    payloads: list[schemas.CalendarEventPayload] = []
+    for inspecao in result.scalars().all():
+        dpe = inspecao.data_fim_prevista
+        if dpe is None:
+            continue
+        matricula = getattr(inspecao.aeronave, "matricula", None) or "ANV"
+        tipos = ", ".join(tipo.codigo for tipo in inspecao.tipos_aplicados) or "Inspecao"
+        payloads.append(
+            schemas.CalendarEventPayload(
+                id=inspecao.id,
+                title=f"DPE {matricula} {tipos}",
+                start=dpe,
+                end=dpe,
+                backgroundColor="#0f766e",
+                icon="DPE",
+                owner_trigram=inspecao.aberto_por_trigrama,
+                notes=inspecao.observacoes,
+                source="inspecao",
+                can_edit=False,
+                can_delete=False,
+            )
+        )
+    return payloads
+
+
+async def _get_task_events(
+    db: AsyncSession,
+    start_date: datetime,
+    end_date: datetime,
+) -> list[schemas.CalendarEventPayload]:
+    _ = (db, start_date, end_date)
+    return []
 
 
 async def list_event_types(db: AsyncSession) -> list[EventType]:
