@@ -33,6 +33,7 @@ from app.modules.equipamentos.router import router as equipamentos_router
 from app.modules.vencimentos.router import router as vencimentos_router
 from app.modules.panes.router import router as panes_router
 from app.modules.inspecoes.router import router as inspecoes_router
+from app.modules.calendario.router import router as calendario_router
 from app.modules.dashboard.router import router as dashboard_router
 from app.web.pages.router import router as pages_router
 
@@ -113,6 +114,7 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(vencimentos_router,  prefix="/vencimentos",  tags=["Vencimentos"])
     app.include_router(panes_router,        prefix="/panes",        tags=["Panes"])
     app.include_router(inspecoes_router,    prefix="/inspecoes",    tags=["Inspeções"])
+    app.include_router(calendario_router,   prefix="/api/v1/calendario", tags=["Calendario"])
     app.include_router(dashboard_router,    prefix="/dashboard",    tags=["Dashboard"])
     
     # Frontend Pages (Root / UI)

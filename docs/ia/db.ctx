@@ -6,3 +6,4 @@
 - Vencimentos (Temporal): tipos_controle (nome), equipamento_controles (template PN x Controle), controle_vencimentos (item_id, tipo_id, vencimento, status), prorrogacoes_vencimento
 - Panes: panes (aeronave_id, FK sistema_ata_id, status ABERTA/RESOLVIDA, ativo), sistemas_ata (Lookup: codigo, descricao), anexos (pane_id), pane_responsaveis
 - Inspecoes: tipos_inspecao (codigo), tarefas_catalogo (titulo, sistema), tarefas_template (Tipo x Catalogo), inspecoes (aeronave_id, status), inspecao_evento_tipos, inspecao_tarefas (snapshot + status)
+- Calendario: event_types (name, visibility_type public/private, color, icon, active), calendar_events (owner_user_id, created_by_user_id, event_type_id, start_date, end_date, notes)

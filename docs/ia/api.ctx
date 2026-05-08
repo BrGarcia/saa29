@@ -8,4 +8,5 @@
   - /panes: create, list, detail, update, concluir, anexos (CRUD), responsaveis (Add/Rem), restore, sistemas (Lookup List)
   - /equipamentos: tipos-controle, modelos (CRUD), slots (CRUD), itens (CRUD), instalacao, remocao, exec-vencimento, inventario-historico, inventario-aeronave, ajuste-sinc
   - /inspecoes: integrated (endpoints available in inspections router)
+  - /api/v1/calendario/eventos: GET range query with backend privacy censorship; POST/PUT/DELETE calendar_events CRUD
 - HTTP Status: 200/201 (OK/Created), 401 (Unauth), 403 (Forbidden), 404 (NotFound), 409 (Conflict), 422 (Pydantic Error)

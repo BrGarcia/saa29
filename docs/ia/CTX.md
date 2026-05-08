@@ -12,7 +12,7 @@ project:
 - type: web_monolith_modular_ddd
 - domain: panes_aeronaves_inventario_a29
 - status: architecture_stabilized_ddd_active
-- test_status: passing with recent additions (133 tests collected)
+- test_status: calendario targeted passing (tests/test_calendario.py: 7 passed)
 - db_state: active_db_preserve_no_schema_change_for_inspecoes
 
 operational_constraints:
@@ -50,6 +50,7 @@ domains:
 - vencimentos: tipo_controle, periodicidade_pn, matriz_vencimentos, prorrogacoes (OK, VENCENDO, VENCIDO, PRORROGADO)
 - configuracoes: admin_dashboard, gerenciamento_frota, administracao_efetivo, regras_vencimento
 - inspecoes: integrated_fully_active (tipos_inspecao,tarefas_catalogo,tarefas_template,inspecoes,inspecao_tarefas)
+- calendario: backend_p0_p2_active (event_types,calendar_events,rbac_censorship,api_v1_events)
 - shared/image_pipeline: service_layer_for_image_processing (validator,converter,resizer,optimizer,pipeline)
 
 auth_state:
@@ -98,6 +99,8 @@ current_focus:
 - inspecoes_migration_created: true
 - inspecoes_frontend_integrated: completed
 - inspecoes_full_module_completed: true
+- calendario_backend_p0_p2_completed: true
+- calendario_router_registered_api_v1: true
 - inspecoes_dpe_and_audit_trigrama_completed: true
 - ddd_modularization_completed: true
 - frontend_csp_refactoring_completed: true (removed all inline scripts)
@@ -115,7 +118,7 @@ backlog_inspecoes:
 
 known_gaps_from_roadmap:
 - audit_2026-05-07_resolved: true (storage masking, aeronave inativa, token reuse, rbac inventario, singleton storage, pane role validation, inventory traceability, bcrypt limit)
-- feature_modo_calendario_idealizacao: docs/BACKLOG/idela_modo_calendario.md
+- feature_modo_calendario_backend_p0_p2: completed (tests, data layer, service/router censorship)
 - bug_fix_inativar_anv_config_verified: true
 - logout_frontend_backend_alignment_verified: true
 - database_url_consistency_verified: true
