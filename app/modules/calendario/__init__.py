@@ -1,0 +1,2 @@
+"""Modulo de calendario operacional."""
+

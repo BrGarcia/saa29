@@ -18,6 +18,7 @@ import app.modules.vencimentos.models
 import app.modules.aeronaves.models
 import app.modules.panes.models
 import app.modules.efetivo.models
+import app.modules.calendario.models
 
 # --- Configurações e Ciclo de Vida ---
 from app.bootstrap.config import get_settings

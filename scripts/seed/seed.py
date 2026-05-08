@@ -25,7 +25,8 @@ from scripts.seed import (
     seed_panes,
     seed_tarefas,
     seed_inspecoes,
-    seed_sistemas_ata
+    seed_sistemas_ata,
+    seed_calendario,
 )
 
 async def main():
@@ -49,6 +50,9 @@ async def main():
 
             # 3.1 Sistemas ATA (Sempre essencial para categorização)
             await seed_sistemas_ata.run(session)
+
+            # 3.2 Calendario (Tipos base para agregacao temporal)
+            await seed_calendario.run(session)
 
             if settings.enable_dev_seeds:
                 print("🛠️  Modo Desenvolvimento: Carregando dados de teste...")
