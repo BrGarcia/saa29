@@ -78,58 +78,60 @@
     <div class="dashboard-bottom-grid">
         <!-- CAMPO CENTRAL: Panes Operacionais -->
         <div class="glass-panel dashboard-card card-panes" aria-label="Painel de Panes Operacionais">
-        <div class="card-header">
-            <div class="header-info">
-                <span class="card-icon" aria-hidden="true" style="color: var(--status-danger);">🚨</span>
-                <h3 class="card-label">Panes Operacionais</h3>
+            <div class="card-header">
+                <div class="header-info">
+                    <span class="card-icon" aria-hidden="true" style="color: var(--status-danger);">🚨</span>
+                    <h3 class="card-label">Panes Operacionais</h3>
+                </div>
+                <button class="btn btn-primary btn-sm" id="btn-registrar-pane" aria-label="Registrar nova pane">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Registrar Pane
+                </button>
             </div>
-            <button class="btn btn-primary btn-sm" id="btn-registrar-pane" aria-label="Registrar nova pane">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                Registrar Pane
-            </button>
+            <div class="card-body">
+                <div class="stats-row">
+                    <div class="stat-item clickable" id="stat-panes-abertas" aria-label="Ver todas as panes abertas">
+                        <span class="stat-value skeleton-text" id="val-panes-abertas" style="color: var(--status-danger);">--</span>
+                        <span class="stat-label">Abertas</span>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item clickable" id="stat-panes-resolvidas" aria-label="Ver panes resolvidas no mês">
+                        <span class="stat-value skeleton-text" id="val-panes-resolvidas" style="color: var(--status-ok);">--</span>
+                        <span class="stat-label">Resolvidas (Mês)</span>
+                    </div>
+                </div>
+                
+                <div class="panes-list-container">
+                    <h4 class="sub-title">Panes Críticas (Mais Antigas)</h4>
+                    <div id="panes-criticas-list" class="mini-list">
+                        <div class="skeleton list-item-skeleton"></div>
+                        <div class="skeleton list-item-skeleton"></div>
+                        <div class="skeleton list-item-skeleton"></div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            <div class="stats-row">
-                <div class="stat-item clickable" id="stat-panes-abertas" aria-label="Ver todas as panes abertas">
-                    <span class="stat-value skeleton-text" id="val-panes-abertas" style="color: var(--status-danger);">--</span>
-                    <span class="stat-label">Abertas</span>
-                </div>
-                <div class="stat-divider"></div>
-                <div class="stat-item clickable" id="stat-panes-resolvidas" aria-label="Ver panes resolvidas no mês">
-                    <span class="stat-value skeleton-text" id="val-panes-resolvidas" style="color: var(--status-ok);">--</span>
-                    <span class="stat-label">Resolvidas (Mês)</span>
-                </div>
-            </div>
-            
-            <div class="panes-list-container">
-                <h4 class="sub-title">Panes Críticas (Mais Antigas)</h4>
-                <div id="panes-criticas-list" class="mini-list">
-                    <div class="skeleton list-item-skeleton"></div>
-                    <div class="skeleton list-item-skeleton"></div>
-                    <div class="skeleton list-item-skeleton"></div>
-                </div>
-            </div>
-        </div>
-    </div>
 
         <!-- CAMPO INFERIOR: Últimas Instalações -->
         <div class="glass-panel dashboard-card card-inventario" id="card-inventario" aria-label="Últimas movimentações de inventário">
-        <div class="card-header">
-            <div class="header-info">
-                <span class="card-icon" aria-hidden="true" style="color: var(--primary-color);">📦</span>
-                <h3 class="card-label">Últimas Instalações</h3>
+            <div class="card-header">
+                <div class="header-info">
+                    <span class="card-icon" aria-hidden="true" style="color: var(--primary-color);">📦</span>
+                    <h3 class="card-label">Últimas Instalações</h3>
+                </div>
+                <a href="/inventario" class="btn-link" aria-label="Ir para o módulo de inventário">Inventário</a>
             </div>
-            <a href="/inventario" class="btn-link" aria-label="Ir para o módulo de inventário">Inventário</a>
-        </div>
-        <div class="card-body">
-            <div id="movimentacoes-list" class="mini-feed">
-                <div class="skeleton feed-item-skeleton"></div>
-                <div class="skeleton feed-item-skeleton"></div>
+            <div class="card-body">
+                <div id="movimentacoes-list" class="mini-feed">
+                    <div class="skeleton feed-item-skeleton"></div>
+                    <div class="skeleton feed-item-skeleton"></div>
+                </div>
             </div>
         </div>
     </div>
 
-        <!-- NOVO CARD: Calendário -->
+    <!-- LINHA ADICIONAL: Calendário (Largura Total) -->
+    <div class="dashboard-calendar-row">
         <div class="glass-panel dashboard-card card-calendario" id="card-calendario" aria-label="Visualização do Calendário Semanal">
             <div class="card-header">
                 <div class="header-info">
@@ -214,8 +216,12 @@
 
 .dashboard-bottom-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 2fr 1fr;
     gap: 1.5rem;
+}
+
+.dashboard-calendar-row {
+    width: 100%;
 }
 
 @media (max-width: 1200px) {
