@@ -4,17 +4,21 @@
 
 {% block content %}
 <div class="dashboard-container">
-    
+
     <!-- PARTE SUPERIOR: 3 colunas (Vencimentos / Inspeções / Status da Frota) -->
     <div class="dashboard-top-grid">
         <!-- Card: Vencimentos -->
-        <div class="glass-panel dashboard-card card-vencimentos clickable" id="card-vencimentos" aria-label="Ver controle de vencimentos">
+        <div class="glass-panel dashboard-card card-vencimentos clickable" id="card-vencimentos"
+            aria-label="Ver controle de vencimentos">
             <div class="card-header">
                 <div class="header-info">
                     <span class="card-icon" aria-hidden="true" style="color: var(--status-warning);">🕒</span>
                     <h3 class="card-label">Vencimentos</h3>
                 </div>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    aria-hidden="true">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
             </div>
             <div class="card-body">
                 <div class="vencimentos-summary">
@@ -39,7 +43,8 @@
         </div>
 
         <!-- Card: Inspeções em Andamento -->
-        <div class="glass-panel dashboard-card card-inspecoes" id="card-inspecoes" aria-label="Painel de Inspeções Ativas">
+        <div class="glass-panel dashboard-card card-inspecoes" id="card-inspecoes"
+            aria-label="Painel de Inspeções Ativas">
             <div class="card-header">
                 <div class="header-info">
                     <span class="card-icon" aria-hidden="true" style="color: #1abc9c;">🔍</span>
@@ -56,13 +61,17 @@
         </div>
 
         <!-- Card: Frota -->
-        <div class="glass-panel dashboard-card card-frota clickable" id="card-frota" aria-label="Ver status detalhado da frota">
+        <div class="glass-panel dashboard-card card-frota clickable" id="card-frota"
+            aria-label="Ver status detalhado da frota">
             <div class="card-header">
                 <div class="header-info">
                     <span class="card-icon" aria-hidden="true" style="color: var(--status-ok);">✈️</span>
                     <h3 class="card-label">Status da Frota</h3>
                 </div>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    aria-hidden="true">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
             </div>
             <div class="card-body">
                 <div id="frota-stats" class="frota-badges">
@@ -81,26 +90,34 @@
             <div class="card-header">
                 <div class="header-info">
                     <span class="card-icon" aria-hidden="true" style="color: var(--status-danger);">🚨</span>
-                    <h3 class="card-label">Panes Operacionais</h3>
+                    <h3 class="card-label">Panes Abertas</h3>
                 </div>
-                <button class="btn btn-primary btn-sm" id="btn-registrar-pane" aria-label="Registrar nova pane">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <!-- Botão oculto, pois a criação agora é pelo menu lateral
+                <button class="btn btn-primary btn-sm" id="btn-registrar-pane" aria-label="Registrar nova pane" style="display: none;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
                     Registrar Pane
-                </button>
+                </button> -->
             </div>
             <div class="card-body">
                 <div class="stats-row">
                     <div class="stat-item clickable" id="stat-panes-abertas" aria-label="Ver todas as panes abertas">
-                        <span class="stat-value skeleton-text" id="val-panes-abertas" style="color: var(--status-danger);">--</span>
+                        <span class="stat-value skeleton-text" id="val-panes-abertas"
+                            style="color: var(--status-danger);">--</span>
                         <span class="stat-label">Abertas</span>
                     </div>
                     <div class="stat-divider"></div>
-                    <div class="stat-item clickable" id="stat-panes-resolvidas" aria-label="Ver panes resolvidas no mês">
-                        <span class="stat-value skeleton-text" id="val-panes-resolvidas" style="color: var(--status-ok);">--</span>
+                    <div class="stat-item clickable" id="stat-panes-resolvidas"
+                        aria-label="Ver panes resolvidas no mês">
+                        <span class="stat-value skeleton-text" id="val-panes-resolvidas"
+                            style="color: var(--status-ok);">--</span>
                         <span class="stat-label">Resolvidas (Mês)</span>
                     </div>
                 </div>
-                
+
                 <div class="panes-list-container">
                     <h4 class="sub-title">Panes Críticas (Mais Antigas)</h4>
                     <div id="panes-criticas-list" class="mini-list">
@@ -113,7 +130,8 @@
         </div>
 
         <!-- CAMPO INFERIOR: Últimas Instalações -->
-        <div class="glass-panel dashboard-card card-inventario" id="card-inventario" aria-label="Últimas movimentações de inventário">
+        <div class="glass-panel dashboard-card card-inventario" id="card-inventario"
+            aria-label="Últimas movimentações de inventário">
             <div class="card-header">
                 <div class="header-info">
                     <span class="card-icon" aria-hidden="true" style="color: var(--primary-color);">📦</span>
@@ -132,7 +150,8 @@
 
     <!-- LINHA ADICIONAL: Calendário (Largura Total) -->
     <div class="dashboard-calendar-row">
-        <div class="glass-panel dashboard-card card-calendario" id="card-calendario" aria-label="Visualização do Calendário Semanal">
+        <div class="glass-panel dashboard-card card-calendario" id="card-calendario"
+            aria-label="Visualização do Calendário Semanal">
             <div class="card-header">
                 <div class="header-info">
                     <span class="card-icon" aria-hidden="true" style="color: var(--status-ok);">📅</span>
@@ -154,447 +173,504 @@
 </div>
 
 <style>
-.dashboard-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    animation: dashboardFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes dashboardFadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.dashboard-card {
-    padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
-}
-
-.dashboard-card.clickable:hover {
-    transform: translateY(-4px);
-    cursor: pointer;
-}
-
-.card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.header-info {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.card-icon {
-    font-size: 1.5rem;
-}
-
-.card-label {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.full-width {
-    width: 100%;
-}
-
-.dashboard-top-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1.5rem;
-}
-
-.dashboard-bottom-grid {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 1.5rem;
-}
-
-.dashboard-calendar-row {
-    width: 100%;
-}
-
-@media (max-width: 1200px) {
-    .dashboard-top-grid {
-        grid-template-columns: repeat(2, 1fr);
+    .dashboard-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        animation: dashboardFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
     }
+
+    @keyframes dashboardFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .dashboard-card {
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+    }
+
+    .dashboard-card.clickable:hover {
+        transform: translateY(-4px);
+        cursor: pointer;
+    }
+
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .header-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .card-icon {
+        font-size: 1.5rem;
+    }
+
+    .card-label {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .full-width {
+        width: 100%;
+    }
+
+    .dashboard-top-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+    }
+
     .dashboard-bottom-grid {
-        grid-template-columns: 1fr;
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1.5rem;
     }
-}
 
-@media (max-width: 768px) {
-    .dashboard-top-grid {
-        grid-template-columns: 1fr;
+    .dashboard-calendar-row {
+        width: 100%;
     }
-}
 
-/* Stats Row - Panes */
-.stats-row {
-    display: flex;
-    align-items: center;
-    gap: 2rem;
-    margin-bottom: 1.5rem;
-}
+    @media (max-width: 1200px) {
+        .dashboard-top-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
 
-.stat-item {
-    display: flex;
-    flex-direction: column;
-}
+        .dashboard-bottom-grid {
+            grid-template-columns: 1fr;
+        }
+    }
 
-.stat-value {
-    font-size: 2.5rem;
-    font-weight: 700;
-    line-height: 1;
-}
+    @media (max-width: 768px) {
+        .dashboard-top-grid {
+            grid-template-columns: 1fr;
+        }
+    }
 
-.stat-label {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    font-weight: 500;
-}
+    /* Stats Row - Panes */
+    .stats-row {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        margin-bottom: 1.5rem;
+    }
 
-.stat-divider {
-    width: 1px;
-    height: 40px;
-    background: var(--border-color);
-}
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+    }
 
-.stat-item.clickable:hover .stat-value {
-    color: var(--primary-color);
-}
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1;
+    }
 
-/* Listas Minimalistas */
-.sub-title {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    margin-bottom: 0.75rem;
-    font-weight: 600;
-}
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
 
-.mini-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
+    .stat-divider {
+        width: 1px;
+        height: 40px;
+        background: var(--border-color);
+    }
 
-.list-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 1rem;
-    background: var(--bg-primary);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-color);
-    transition: var(--transition);
-    text-decoration: none;
-    color: inherit;
-}
+    .stat-item.clickable:hover .stat-value {
+        color: var(--primary-color);
+    }
 
-.list-item:hover {
-    border-color: var(--primary-color);
-    background: var(--bg-tertiary);
-}
+    /* Listas Minimalistas */
+    .sub-title {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+    }
 
-.item-main {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
+    .mini-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
 
-.item-tag {
-    font-weight: 700;
-    color: var(--primary-color);
-    font-family: monospace;
-    font-size: 0.95rem;
-}
+    .list-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        background: var(--bg-primary);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-color);
+        transition: var(--transition);
+        text-decoration: none;
+        color: inherit;
+    }
 
-.item-desc {
-    font-size: 0.9rem;
-    color: var(--text-primary);
-}
+    .list-item:hover {
+        border-color: var(--primary-color);
+        background: var(--bg-tertiary);
+    }
 
-.item-meta {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-}
+    .item-main {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
 
-/* Vencimentos Grid */
-.vencimentos-summary {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
-}
+    .item-tag {
+        font-weight: 700;
+        color: var(--primary-color);
+        font-family: monospace;
+        font-size: 0.95rem;
+    }
 
-.v-stat {
-    padding: 0.75rem;
-    border-radius: var(--radius-md);
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    border: 1px solid var(--border-color);
-}
+    .item-desc {
+        font-size: 0.9rem;
+        color: var(--text-primary);
+    }
 
-.v-stat.ok { border-left: 4px solid var(--status-ok); background: var(--status-ok-bg); }
-.v-stat.warning { border-left: 4px solid var(--status-warning); background: var(--status-warning-bg); }
-.v-stat.danger { border-left: 4px solid var(--status-danger); background: var(--status-danger-bg); }
-.v-stat.prorrogado { border-left: 4px solid var(--status-prorrogado); background: var(--status-prorrogado-bg); }
+    .item-meta {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+    }
 
-.v-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); }
-.v-count { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); }
+    /* Vencimentos Grid */
+    .vencimentos-summary {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
 
-/* Chips */
-.chip-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
+    .v-stat {
+        padding: 0.75rem;
+        border-radius: var(--radius-md);
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        border: 1px solid var(--border-color);
+    }
 
-.chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    border-radius: 20px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    text-decoration: none;
-    color: var(--text-primary);
-    transition: var(--transition);
-}
+    .v-stat.ok {
+        border-left: 4px solid var(--status-ok);
+        background: var(--status-ok-bg);
+    }
 
-.chip:hover {
-    border-color: var(--primary-color);
-    color: var(--primary-color);
-}
+    .v-stat.warning {
+        border-left: 4px solid var(--status-warning);
+        background: var(--status-warning-bg);
+    }
 
-.chip-status {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-}
+    .v-stat.danger {
+        border-left: 4px solid var(--status-danger);
+        background: var(--status-danger-bg);
+    }
 
-/* Feed */
-.mini-feed {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
+    .v-stat.prorrogado {
+        border-left: 4px solid var(--status-prorrogado);
+        background: var(--status-prorrogado-bg);
+    }
 
-.feed-item {
-    display: flex;
-    gap: 0.75rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border-color);
-}
+    .v-label {
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+    }
 
-.feed-item:last-child {
-    border-bottom: none;
-}
+    .v-count {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
 
-.feed-icon {
-    font-size: 1.1rem;
-    margin-top: 2px;
-}
+    /* Chips */
+    .chip-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
 
-.feed-content {
-    display: flex;
-    flex-direction: column;
-}
+    .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-decoration: none;
+        color: var(--text-primary);
+        transition: var(--transition);
+    }
 
-.feed-title {
-    font-size: 0.875rem;
-    font-weight: 500;
-}
+    .chip:hover {
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
 
-.feed-date {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-}
+    .chip-status {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
 
-/* Frota Badges */
-.frota-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
+    /* Feed */
+    .mini-feed {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
 
-.f-pill {
-    padding: 0.35rem 0.75rem;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    transition: var(--transition);
-    font-family: monospace;
-}
+    .feed-item {
+        display: flex;
+        gap: 0.75rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--border-color);
+    }
 
-.f-pill:hover {
-    background: var(--bg-tertiary);
-    transform: translateY(-2px);
-}
+    .feed-item:last-child {
+        border-bottom: none;
+    }
 
-.f-pill-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-}
+    .feed-icon {
+        font-size: 1.1rem;
+        margin-top: 2px;
+    }
 
-.btn-link {
-    font-size: 0.8rem;
-    color: var(--primary-color);
-    text-decoration: none;
-    font-weight: 500;
-}
+    .feed-content {
+        display: flex;
+        flex-direction: column;
+    }
 
-.btn-link:hover {
-    text-decoration: underline;
-}
+    .feed-title {
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
 
-.loading-placeholder {
-    color: var(--text-secondary);
-    font-style: italic;
-    font-size: 0.875rem;
-    padding: 1rem;
-    text-align: center;
-}
+    .feed-date {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+    }
 
-/* Skeleton Loading Effects */
-.skeleton {
-    background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--border-color) 50%, var(--bg-tertiary) 75%);
-    background-size: 200% 100%;
-    animation: skeletonLoading 1.5s infinite linear;
-    border-radius: 4px;
-}
+    /* Frota Badges */
+    .frota-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
 
-@keyframes skeletonLoading {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-}
+    .f-pill {
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        transition: var(--transition);
+        font-family: monospace;
+    }
 
-.skeleton-text {
-    color: transparent !important;
-    background: var(--bg-tertiary);
-    border-radius: 4px;
-    position: relative;
-    overflow: hidden;
-}
+    .f-pill:hover {
+        background: var(--bg-tertiary);
+        transform: translateY(-2px);
+    }
 
-.skeleton-text::after {
-    content: "";
-    position: absolute;
-    top: 0; right: 0; bottom: 0; left: 0;
-    transform: translateX(-100%);
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-    animation: shimmer 1.5s infinite;
-}
+    .f-pill-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+    }
 
-@keyframes shimmer {
-    100% { transform: translateX(100%); }
-}
+    .btn-link {
+        font-size: 0.8rem;
+        color: var(--primary-color);
+        text-decoration: none;
+        font-weight: 500;
+    }
 
-.list-item-skeleton { height: 48px; width: 100%; margin-bottom: 8px; }
-.chip-skeleton { height: 32px; width: 120px; border-radius: 20px; }
-.feed-item-skeleton { height: 40px; width: 100%; margin-bottom: 12px; }
+    .btn-link:hover {
+        text-decoration: underline;
+    }
 
-/* Micro-interactions */
-.stat-item.clickable:active {
-    transform: scale(0.95);
-}
+    .loading-placeholder {
+        color: var(--text-secondary);
+        font-style: italic;
+        font-size: 0.875rem;
+        padding: 1rem;
+        text-align: center;
+    }
 
-.btn-primary:active {
-    transform: scale(0.98);
-}
+    /* Skeleton Loading Effects */
+    .skeleton {
+        background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--border-color) 50%, var(--bg-tertiary) 75%);
+        background-size: 200% 100%;
+        animation: skeletonLoading 1.5s infinite linear;
+        border-radius: 4px;
+    }
 
-/* Calendário */
-.calendar-nav {
-    display: flex;
-    gap: 0.5rem;
-}
+    @keyframes skeletonLoading {
+        0% {
+            background-position: 200% 0;
+        }
 
-.btn-nav {
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-    border-radius: 4px;
-    padding: 0.25rem 0.5rem;
-    cursor: pointer;
-    font-weight: bold;
-    transition: var(--transition);
-}
+        100% {
+            background-position: -200% 0;
+        }
+    }
 
-.btn-nav:hover {
-    background: var(--primary-color);
-    color: #fff;
-    border-color: var(--primary-color);
-}
+    .skeleton-text {
+        color: transparent !important;
+        background: var(--bg-tertiary);
+        border-radius: 4px;
+        position: relative;
+        overflow: hidden;
+    }
 
-.calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 0.25rem;
-    text-align: center;
-}
+    .skeleton-text::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        transform: translateX(-100%);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        animation: shimmer 1.5s infinite;
+    }
 
-.calendar-header-day {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    padding-bottom: 0.5rem;
-}
+    @keyframes shimmer {
+        100% {
+            transform: translateX(100%);
+        }
+    }
 
-.calendar-day {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 0.5rem 0.25rem;
-    min-height: 100px;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.5rem;
-}
+    .list-item-skeleton {
+        height: 48px;
+        width: 100%;
+        margin-bottom: 8px;
+    }
 
-.calendar-day .day-num {
-    font-size: 0.85rem;
-    font-weight: 600;
-}
+    .chip-skeleton {
+        height: 32px;
+        width: 120px;
+        border-radius: 20px;
+    }
 
-.day-today {
-    border-color: var(--primary-color);
-    background: var(--bg-tertiary);
-}
+    .feed-item-skeleton {
+        height: 40px;
+        width: 100%;
+        margin-bottom: 12px;
+    }
 
-.day-today .day-num {
-    color: var(--primary-color);
-}
+    /* Micro-interactions */
+    .stat-item.clickable:active {
+        transform: scale(0.95);
+    }
 
-.day-muted .day-num {
-    color: var(--text-muted, #7f8c8d);
-}
+    .btn-primary:active {
+        transform: scale(0.98);
+    }
 
-.event-indicators {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    width: 100%;
-}
+    /* Calendário */
+    .calendar-nav {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-nav {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        border-radius: 4px;
+        padding: 0.25rem 0.5rem;
+        cursor: pointer;
+        font-weight: bold;
+        transition: var(--transition);
+    }
+
+    .btn-nav:hover {
+        background: var(--primary-color);
+        color: #fff;
+        border-color: var(--primary-color);
+    }
+
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 0.25rem;
+        text-align: center;
+    }
+
+    .calendar-header-day {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        padding-bottom: 0.5rem;
+    }
+
+    .calendar-day {
+        background: var(--bg-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 0.5rem 0.25rem;
+        min-height: 100px;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    .calendar-day .day-num {
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .day-today {
+        border-color: var(--primary-color);
+        background: var(--bg-tertiary);
+    }
+
+    .day-today .day-num {
+        color: var(--primary-color);
+    }
+
+    .day-muted .day-num {
+        color: var(--text-muted, #7f8c8d);
+    }
+
+    .event-indicators {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        width: 100%;
+    }
 </style>
 {% endblock %}
 
