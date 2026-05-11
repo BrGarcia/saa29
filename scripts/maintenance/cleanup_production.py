@@ -27,57 +27,43 @@ FROTA_PARA_REMOVER = [
 ]
 
 async def cleanup():
-    print("🧹 Iniciando limpeza de dados de seed em produção...")
+    print("🧹 Iniciando limpeza de dados de MOCK (Teste) em produção...")
+    print("⚠️  Preservando: Aeronaves, Slots de Equipamento e Sistemas ATA.")
     AsyncSessionLocal = get_session_factory()
     
     async with AsyncSessionLocal() as session:
         try:
-            # 1. Remover Aeronaves
-            print(f"🗑️ Removendo aeronaves da frota padrão...")
-            stmt = delete(Aeronave).where(Aeronave.matricula.in_(FROTA_PARA_REMOVER))
-            result = await session.execute(stmt)
-            print(f"   Done: {result.rowcount} aeronaves removidas.")
+            # 1. Remover Panes de Teste
+            print(f"🗑️ Removendo Panes de teste...")
+            from app.modules.panes.models import Pane
+            stmt_panes = delete(Pane)
+            res_panes = await session.execute(stmt_panes)
+            print(f"   Done: {res_panes.rowcount} panes removidas.")
 
-            # 2. Remover Slots e Modelos (Catálogo)
-            # Como slots dependem de modelos, removemos slots primeiro
-            print(f"🗑️ Removendo slots e catálogo de equipamentos padrão...")
-            # Aqui limpamos slots que não possuem registros vinculados (operação segura)
-            # Para simplificar, vamos remover apenas os que foram criados pelos seeds 
-            # (Identificados pelos PNs do seed_equipamentos)
-            from scripts.seed.seed_equipamentos import EQUIPAMENTOS_FICHA
-            pns_seed = [item["pn"] for item in EQUIPAMENTOS_FICHA]
-            
-            # Buscar IDs dos modelos para limpar slots vinculados
-            res_mod = await session.execute(select(ModeloEquipamento.id).where(ModeloEquipamento.part_number.in_(pns_seed)))
-            model_ids = res_mod.scalars().all()
-            
-            if model_ids:
-                stmt_slots = delete(SlotInventario).where(SlotInventario.modelo_id.in_(model_ids))
-                res_slots = await session.execute(stmt_slots)
-                print(f"   Done: {res_slots.rowcount} slots de inventário removidos.")
-                
-                stmt_models = delete(ModeloEquipamento).where(ModeloEquipamento.id.in_(model_ids))
-                res_models = await session.execute(stmt_models)
-                print(f"   Done: {res_models.rowcount} modelos de equipamento removidos.")
+            # 2. Remover Inspeções e Tarefas de Teste
+            print(f"🗑️ Removendo Inspeções e registros de tarefas...")
+            from app.modules.inspecoes.models import Inspecao, InspecaoTarefa
+            await session.execute(delete(InspecaoTarefa))
+            res_insp = await session.execute(delete(Inspecao))
+            print(f"   Done: {res_insp.rowcount} inspeções removidas.")
 
-            # 3. Remover Sistemas ATA
-            print(f"🗑️ Removendo Sistemas ATA...")
-            from scripts.seed.seed_sistemas_ata import ATA_DATA
-            ata_codes = [item["codigo"] for item in ATA_DATA]
-            stmt_ata = delete(SistemaATA).where(SistemaATA.codigo.in_(ata_codes))
-            res_ata = await session.execute(stmt_ata)
-            print(f"   Done: {res_ata.rowcount} sistemas ATA removidos.")
+            # 3. Remover Itens Instalados (Inventário) - Preservando os Slots
+            print(f"🗑️ Removendo itens instalados nos slots (Inventário)...")
+            from app.modules.equipamentos.models import ItemEquipamento
+            res_items = await session.execute(delete(ItemEquipamento))
+            print(f"   Done: {res_items.rowcount} itens físicos removidos (Slots agora estão vazios).")
 
-            # 4. Remover Tipos de Eventos do Calendário
-            print(f"🗑️ Removendo tipos de eventos do calendário...")
-            from scripts.seed.seed_calendario import BASE_EVENT_TYPES
-            event_names = [item["name"] for item in BASE_EVENT_TYPES]
-            stmt_events = delete(EventType).where(EventType.name.in_(event_names))
-            res_events = await session.execute(stmt_events)
-            print(f"   Done: {res_events.rowcount} tipos de eventos removidos.")
+            # 4. Remover Usuários de Teste
+            print(f"🗑️ Removendo usuários de teste (mantendo admin)...")
+            from app.modules.auth.models import Usuario
+            USUARIOS_TESTE = ["encarregado", "inspetor", "mantenedor"]
+            stmt_users = delete(Usuario).where(Usuario.username.in_(USUARIOS_TESTE))
+            res_users = await session.execute(stmt_users)
+            print(f"   Done: {res_users.rowcount} usuários de teste removidos.")
 
             await session.commit()
-            print("\n✅ Limpeza concluída com sucesso!")
+            print("\n✅ Limpeza de dados de teste concluída!")
+            print("🚀 A estrutura básica (Frota, Slots e ATA) foi MANTIDA.")
             
         except Exception as e:
             await session.rollback()
