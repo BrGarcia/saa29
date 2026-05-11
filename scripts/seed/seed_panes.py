@@ -3,6 +3,7 @@ scripts/seed/seed_panes.py
 Gera panes aleatórias para as aeronaves para popular o dashboard.
 """
 import uuid
+import os
 import random
 from datetime import datetime, timedelta
 from sqlalchemy import select

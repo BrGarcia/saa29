@@ -2,6 +2,7 @@
 scripts/seed/seed_tarefas.py
 Popula o catálogo global de tarefas (TarefaCatalogo) e fornece helpers para vinculação.
 """
+import os
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.inspecoes.models import TarefaCatalogo, TarefaTemplate, TipoInspecao

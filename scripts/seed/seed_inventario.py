@@ -3,6 +3,7 @@ scripts/seed/seed_inventario.py
 Instala itens físicos em todas as aeronaves específicas para testes.
 (Responsabilidade exclusiva: criar ItemEquipamento e Instalacao física).
 """
+import os
 import uuid
 from datetime import date, timedelta
 from sqlalchemy import select

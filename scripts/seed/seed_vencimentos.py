@@ -2,6 +2,7 @@
 scripts/seed/seed_vencimentos.py
 Configura Tipos de Controle, Regras de Periodicidade e aplica esses controles aos Itens (S/N) instalados.
 """
+import os
 import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
