@@ -18,10 +18,10 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 try:
-    from scripts.seed import seed_equipamentos, seed_aeronaves, seed_sistemas_ata
+    from scripts.seed import seed_equipamentos, seed_aeronaves, seed_sistemas_ata, seed_vencimentos, seed_inspecoes, seed_calendario
 except (ImportError, ModuleNotFoundError):
     # Fallback para execução direta via python -m scripts.db.init_db
-    from scripts.seed import seed_equipamentos, seed_aeronaves, seed_sistemas_ata
+    from scripts.seed import seed_equipamentos, seed_aeronaves, seed_sistemas_ata, seed_vencimentos, seed_inspecoes, seed_calendario
 
 from app.bootstrap.database import get_session_factory
 from app.modules.auth.security import hash_senha
@@ -110,6 +110,15 @@ async def init_db():
 
         # 4. Garantir catálogo de Sistemas ATA
         await seed_sistemas_ata.run(session)
+
+        # 5. Garantir Tipos de Inspeção (Estrutura)
+        await seed_inspecoes.run(session)
+
+        # 6. Garantir Tipos de Controle (Vencimentos)
+        await seed_vencimentos.run(session)
+
+        # 7. Garantir Tipos de Calendário
+        await seed_calendario.run(session)
 
         await session.commit()
         print(f"🚀 Inicialização do Banco concluída!")

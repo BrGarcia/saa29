@@ -131,7 +131,7 @@ def _calcular_tipos_aplicaveis(
 
 
 async def run(session: AsyncSession):
-    print("🚀 [Inspeções] Iniciando carga de tipos e instâncias...")
+    print("🚀 [Inspeções] Configurando Tipos de Inspeção...")
 
     data_inicio_operacao = _parse_date(DATA_INICIO_OPERACAO)
     data_referencia = _parse_date(DATA_REFERENCIA) if DATA_REFERENCIA else datetime.now(timezone.utc).date()
@@ -167,6 +167,11 @@ async def run(session: AsyncSession):
     # 3. Processar Templates de Tarefas (delegado ao seed_tarefas)
     await seed_tarefas.run(session)
     print("   + Tipos e Templates (via seed_tarefas) configurados.")
+
+    # TRAVA DE SEGURANÇA: Daqui para baixo são dados de MOCK (Instâncias)
+    if os.getenv("APP_ENV", "development").lower() == "production":
+        print("🛡️ [Inspeções] Modo Produção: Ignorando abertura de instâncias de teste.")
+        return
 
     # 4. Determinar tipos aplicáveis pela simulação
     tipos_aplicaveis = _calcular_tipos_aplicaveis(

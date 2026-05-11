@@ -64,6 +64,10 @@ for i in range(2, 4): TEMPLATES_CONFIG[f"{i}C"] = TEMPLATES_CONFIG["C"]
 
 async def run(session: AsyncSession):
     """Popula o Catálogo Global e vincula templates se os tipos existirem."""
+    if os.getenv("APP_ENV", "development").lower() == "production":
+        print("⏭️ [Tarefas] Pulando: Catálogo de tarefas e templates não são carregados em produção via seed.")
+        return
+
     print("🚀 [Tarefas] Populando Catálogo e Templates...")
     
     # 1. Catálogo

@@ -18,7 +18,7 @@ TIPOS = {
 }
 
 async def run(session: AsyncSession):
-    print("🚀 [Vencimentos] Configurando tipos de controle e regras...")
+    print("🚀 [Vencimentos] Configurando tipos de controle (CRI, TLV, etc)...")
     
     # 1. Criar Tipos
     tp_map = {}
@@ -30,6 +30,11 @@ async def run(session: AsyncSession):
             session.add(obj)
         tp_map[nome] = obj
     await session.flush()
+
+    # TRAVA DE SEGURANÇA: Daqui para baixo são REGRAS DE TESTE e INSTÂNCIAS
+    if os.getenv("APP_ENV", "development").lower() == "production":
+        print("🛡️ [Vencimentos] Modo Produção: Ignorando regras de exemplo e instâncias físicas.")
+        return
 
     # 2. Configurar Algumas Regras de Exemplo (PN -> Tipo -> Meses)
     # Buscamos os modelos já criados (pelo seed_equipamentos)

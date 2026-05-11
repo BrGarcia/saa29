@@ -13,6 +13,10 @@ from app.modules.equipamentos.models import SlotInventario, ItemEquipamento, Ins
 from app.shared.core.enums import StatusItem
 
 async def run(session: AsyncSession):
+    if os.getenv("APP_ENV", "development").lower() == "production":
+        print("⏭️ [Inventário] Pulando: Instalação física de itens de teste bloqueada em produção.")
+        return
+
     print("🚀 [Inventário] Instalando itens de teste nas aeronaves...")
     
     # 1. Buscar Aeronaves

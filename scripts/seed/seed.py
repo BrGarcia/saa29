@@ -34,46 +34,50 @@ async def main():
     
     from app.bootstrap.config import get_settings
     settings = get_settings()
+    app_env = os.getenv("APP_ENV", "development").lower()
     
     AsyncSessionLocal = get_session_factory()
     
     async with AsyncSessionLocal() as session:
         try:
-            # 1. Auth (Usuários base - Admin sempre, outros só em dev via service)
+            # --- GRUPO 1: ESTRUTURA ESSENCIAL (Sempre carrega em qualquer ambiente) ---
+            print("🚀 [Infra] Garantindo estrutura essencial (Admin, Frota, Slots, ATA)...")
+            
+            # 1. Auth (Admin sempre)
             await seed_auth.run(session)
 
-            # 2. Aeronaves (Frota - Essencial sempre conforme solicitado)
+            # 2. Aeronaves (Frota)
             await seed_aeronaves.run(session)
             
-            # 3. Equipamentos (Catálogo/PNs/Slots - Sempre essencial para estrutura)
+            # 3. Equipamentos (Catálogo/PNs/Slots)
             await seed_equipamentos.run(session)
 
-            # 3.1 Sistemas ATA (Sempre essencial para categorização)
+            # 4. Sistemas ATA
             await seed_sistemas_ata.run(session)
 
-            # 3.2 Calendario (Tipos base para agregacao temporal)
+            # 5. Calendario (Tipos base)
             await seed_calendario.run(session)
 
-            if settings.enable_dev_seeds:
-                print("🛠️  Modo Desenvolvimento: Carregando dados de teste...")
-                # Remover redundância (Aeronaves já carregadas acima)
+            # --- GRUPO 2: DADOS DE TESTE / MOCK (Bloqueado em Produção) ---
+            if app_env != "production" or settings.enable_dev_seeds:
+                print("🧪 [Mock] Modo Desenvolvimento: Carregando dados de teste...")
                 
-                # 4. Inventário (Instalação física de Itens)
+                # 6. Inventário (Instalação física de Itens)
                 await seed_inventario.run(session)
                 
-                # 5. Vencimentos (Regras/Periodicidades)
+                # 7. Vencimentos (Regras/Periodicidades)
                 await seed_vencimentos.run(session)
                 
-                # 6. Panes (Dados aleatórios para dashboard)
+                # 8. Panes (Dados aleatórios para dashboard)
                 await seed_panes.run(session)
                 
-                # 7. Tarefas (Tipos, catálogo, templates)
+                # 9. Tarefas (Catálogo de tarefas e templates)
                 await seed_tarefas.run(session)
 
-                # 8. Inspeções (Abertura de inspeções em frota)
+                # 10. Inspeções (Instâncias de inspeção)
                 await seed_inspecoes.run(session)
             else:
-                print("🚀 Modo Produção: Usuários, Aeronaves e Estrutura (slots) carregados.")
+                print("🛡️ [Segurança] Modo Produção: Dados de teste bloqueados.")
             
             await session.commit()
             print("\n✅ Seed concluído com sucesso!")

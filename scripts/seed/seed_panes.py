@@ -16,6 +16,10 @@ DESCRICOES = [
 ]
 
 async def run(session: AsyncSession):
+    if os.getenv("APP_ENV", "development").lower() == "production":
+        print("⏭️ [Panes] Pulando: Dados de teste não são carregados em produção.")
+        return
+
     print("🚀 [Panes] Gerando panes aleatórias...")
     
     # Buscar Aeronaves e Usuários
