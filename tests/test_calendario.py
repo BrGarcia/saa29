@@ -284,6 +284,34 @@ async def test_router_lista_tipos_evento_para_modal(db: AsyncSession):
 
 
 @pytest.mark.asyncio
+async def test_router_atualiza_tipo_evento_com_payload_do_modal(db: AsyncSession):
+    usuario = await criar_usuario_teste(db, funcao="ADMINISTRADOR", trigrama="ADM")
+    tipo = await criar_tipo_evento(db, visibility_type="public", name="Servico")
+    app = criar_app_isolado(db, usuario)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        response = await client.put(
+            f"{CALENDARIO_URL}/tipos/{tipo.id}",
+            json={
+                "name": "Servico Operacional",
+                "icon": "SHIELD",
+                "visibility_type": "private",
+                "color": "#2563eb",
+                "private_color": "#94a3b8",
+                "active": True,
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["name"] == "Servico Operacional"
+    assert payload["icon"] == "SHIELD"
+    assert payload["visibility_type"] == "private"
+    assert payload["private_color"] == "#94a3b8"
+    assert payload["active"] is True
+
+
+@pytest.mark.asyncio
 async def test_router_bloqueia_mantenedor_criar_evento_para_terceiro(db: AsyncSession):
     owner = await criar_usuario_teste(db, funcao="MANTENEDOR", trigrama="OWN")
     viewer = await criar_usuario_teste(db, funcao="MANTENEDOR", trigrama="VIS")

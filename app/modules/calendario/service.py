@@ -203,13 +203,55 @@ async def _get_task_events(
     return []
 
 
-async def list_event_types(db: AsyncSession) -> list[EventType]:
-    result = await db.execute(
-        select(EventType)
-        .where(EventType.active == True)  # noqa: E712
-        .order_by(EventType.name.asc())
-    )
+async def list_event_types(db: AsyncSession, only_active: bool = True) -> list[EventType]:
+    stmt = select(EventType)
+    if only_active:
+        stmt = stmt.where(EventType.active == True)  # noqa: E712
+    stmt = stmt.order_by(EventType.active.desc(), EventType.name.asc())
+    result = await db.execute(stmt)
     return list(result.scalars().all())
+
+
+async def create_event_type(
+    db: AsyncSession,
+    data: schemas.EventTypeCreate,
+) -> EventType:
+    # Verifica se ja existe um tipo com o mesmo nome
+    stmt = select(EventType).where(EventType.name == data.name)
+    result = await db.execute(stmt)
+    if result.scalar_one_or_none():
+        raise ValueError(f"Ja existe um tipo de evento com o nome '{data.name}'.")
+
+    event_type = EventType(**data.model_dump())
+    db.add(event_type)
+    await db.flush()
+    await db.refresh(event_type)
+    return event_type
+
+
+async def update_event_type(
+    db: AsyncSession,
+    type_id: uuid.UUID,
+    data: schemas.EventTypeUpdate,
+) -> EventType:
+    event_type = await db.get(EventType, type_id)
+    if event_type is None:
+        raise LookupError("Tipo de evento nao encontrado.")
+
+    update_data = data.model_dump(exclude_unset=True)
+    
+    if "name" in update_data and update_data["name"] != event_type.name:
+        stmt = select(EventType).where(EventType.name == update_data["name"])
+        result = await db.execute(stmt)
+        if result.scalar_one_or_none():
+            raise ValueError(f"Ja existe um tipo de evento com o nome '{update_data['name']}'.")
+
+    for field, value in update_data.items():
+        setattr(event_type, field, value)
+
+    await db.flush()
+    await db.refresh(event_type)
+    return event_type
 
 
 async def create_event(

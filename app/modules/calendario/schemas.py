@@ -18,6 +18,7 @@ class EventTypeCreate(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     visibility_type: VisibilityType = "public"
     color: str = Field(min_length=1, max_length=20)
+    private_color: str | None = Field(default=None, max_length=20)
     icon: str = Field(min_length=1, max_length=20)
     active: bool = True
 
@@ -31,6 +32,7 @@ class EventTypeUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=80)
     visibility_type: VisibilityType | None = None
     color: str | None = Field(default=None, min_length=1, max_length=20)
+    private_color: str | None = Field(default=None, max_length=20)
     icon: str | None = Field(default=None, min_length=1, max_length=20)
     active: bool | None = None
 
@@ -47,6 +49,7 @@ class EventTypeOut(BaseModel):
     name: str
     visibility_type: VisibilityType
     color: str
+    private_color: str | None
     icon: str
     active: bool
     created_at: datetime

@@ -166,6 +166,31 @@
                 </button>
             </div>
         </div>
+        
+        <!-- Painel Calendário -->
+        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;" data-role="ADMINISTRADOR">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div
+                    style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(59, 131, 246, 0.1); color: #3b83f6; display: flex; align-items: center; justify-content: center;">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <rect x="3" y="4" width="18" height="17" rx="2" stroke-width="2"></rect>
+                        <line x1="8" y1="2" x2="8" y2="6" stroke-width="2"></line>
+                        <line x1="16" y1="2" x2="16" y2="6" stroke-width="2"></line>
+                        <line x1="3" y1="10" x2="21" y2="10" stroke-width="2"></line>
+                        <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" stroke-width="3"></path>
+                    </svg>
+                </div>
+                <h3 style="margin: 0; font-size: 1.25rem;">Calendário</h3>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0; flex-grow: 1;">
+                Gerenciamento de tipos de eventos, cores de exibição e níveis de privacidade (sigilo).
+            </p>
+            <div style="display: flex; gap: 0rem; flex-direction: column;">
+                <button class="btn btn-calendario" id="btn-config-calendario-tipos" style="width: 100%;">
+                    Gerenciar Tipos de Evento
+                </button>
+            </div>
+        </div>
 
     </div>
 
@@ -750,6 +775,118 @@
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
                 <button type="button" class="btn btn-outline" id="btn-cancel-form-tarefa-catalogo">Cancelar</button>
                 <button type="submit" class="btn btn-inspecao" id="btnSalvarTarefaCatalogo">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Gerenciar Tipos de Evento -->
+<div id="modal-calendario-tipos"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card glass-panel"
+        style="width: 100%; max-width: 850px; margin: 1rem; max-height: 90vh; display: flex; flex-direction: column;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+            <h3 style="margin: 0; font-size: 1.25rem;">Tipos de Evento (Calendário)</h3>
+            <button class="btn-icon" type="button" id="btn-close-modal-calendario-tipos"><svg width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg></button>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">Configure as categorias de eventos, cores e regras de sigilo.</p>
+            <button class="btn btn-calendario" id="btn-novo-tipo-evento" style="padding: 0.5rem 1rem;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    style="vertical-align: middle; margin-right: 5px;">
+                    <path d="M12 5v14m-7-7h14" />
+                </svg>
+                Novo Tipo
+            </button>
+        </div>
+
+        <div style="overflow-y: auto; flex-grow: 1; padding-right: 0.5rem;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                <thead style="background: rgba(0,0,0,0.1);">
+                    <tr>
+                        <th style="text-align: left; padding: 0.75rem;">Nome</th>
+                        <th style="text-align: center; padding: 0.75rem; width: 80px;">Ícone</th>
+                        <th style="text-align: center; padding: 0.75rem; width: 100px;">Privacidade</th>
+                        <th style="text-align: center; padding: 0.75rem; width: 80px;">Cor</th>
+                        <th style="text-align: center; padding: 0.75rem; width: 80px;">Status</th>
+                        <th style="text-align: right; padding: 0.75rem; width: 120px;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="lista-tipos-evento-body">
+                    <!-- Preenchido via JS -->
+                </tbody>
+            </table>
+        </div>
+
+        <div
+            style="display: flex; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+            <button type="button" class="btn btn-outline" id="btn-close-calendario-tipos">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Novo/Editar Tipo de Evento -->
+<div id="modal-form-tipo-evento"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1050; align-items: center; justify-content: center;">
+    <div class="card glass-panel" style="width: 100%; max-width: 500px; margin: 1rem;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+            <h3 id="titulo-form-tipo-evento" style="margin: 0; font-size: 1.25rem;">Configurar Tipo de Evento</h3>
+            <button class="btn-icon" type="button" id="btn-close-form-tipo-evento"><svg width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg></button>
+        </div>
+
+        <form id="formTipoEvento">
+            <input type="hidden" id="tipoEventoId">
+            <div class="form-group">
+                <label class="form-label">Nome da Categoria *</label>
+                <input type="text" id="nomeTipoEventoInput" class="form-input" required maxlength="80" placeholder="Ex: Afastamento Médico">
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Ícone (Emoji/Símbolo) *</label>
+                    <input type="text" id="iconTipoEventoInput" class="form-input" required maxlength="10" placeholder="Ex: 🏥">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Grau de Sigilo *</label>
+                    <select id="sigiloTipoEventoInput" class="form-input" required>
+                        <option value="public">Público (Visível a todos)</option>
+                        <option value="private">Privado (Sigiloso/Censurado)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Cor Principal *</label>
+                    <input type="color" id="colorTipoEventoInput" class="form-input" style="height: 42px; padding: 0.2rem;" required value="#3b82f6">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cor de Censura</label>
+                    <input type="color" id="privateColorTipoEventoInput" class="form-input" style="height: 42px; padding: 0.2rem;" value="#94a3b8">
+                    <small style="color: var(--text-secondary); font-size: 0.75rem;">Exibida para usuários sem privilégio.</small>
+                </div>
+            </div>
+
+            <div id="container-status-tipo-evento" class="form-group" style="display: none;">
+                <label class="form-label">Ativo</label>
+                <select id="ativoTipoEventoInput" class="form-input">
+                    <option value="true">Sim</option>
+                    <option value="false">Não</option>
+                </select>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+                <button type="button" class="btn btn-outline" id="btn-cancel-form-tipo-evento">Cancelar</button>
+                <button type="submit" class="btn btn-calendario" id="btnSalvarTipoEvento">Salvar Categoria</button>
             </div>
         </form>
     </div>

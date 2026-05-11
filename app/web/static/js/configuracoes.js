@@ -124,6 +124,16 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('btn-close-form-tarefa-catalogo')?.addEventListener('click', closeModalFormTarefaCatalogo);
     document.getElementById('btn-cancel-form-tarefa-catalogo')?.addEventListener('click', closeModalFormTarefaCatalogo);
     document.getElementById('formTarefaCatalogo')?.addEventListener('submit', salvarTarefaCatalogo);
+
+    // Calendário
+    document.getElementById('btn-config-calendario-tipos')?.addEventListener('click', openModalCalendarioTipos);
+    document.getElementById('btn-close-modal-calendario-tipos')?.addEventListener('click', closeModalCalendarioTipos);
+    document.getElementById('btn-close-calendario-tipos')?.addEventListener('click', closeModalCalendarioTipos);
+    
+    document.getElementById('btn-novo-tipo-evento')?.addEventListener('click', () => openModalFormTipoEvento());
+    document.getElementById('btn-close-form-tipo-evento')?.addEventListener('click', closeModalFormTipoEvento);
+    document.getElementById('btn-cancel-form-tipo-evento')?.addEventListener('click', closeModalFormTipoEvento);
+    document.getElementById('formTipoEvento')?.addEventListener('submit', salvarTipoEvento);
 });
 
 function openModalConfig() {
@@ -1048,31 +1058,176 @@ async function salvarTarefaCatalogo(e) {
     btn.disabled = true;
 
     const id = document.getElementById('tarefaCatalogoId').value;
-    const titulo = document.getElementById('tituloTarefaCatalogoInput').value.trim();
-    const sistema = document.getElementById('sistemaTarefaCatalogoInput').value.trim();
-    const descricao = document.getElementById('descTarefaCatalogoInput').value.trim();
-    
+    const isEdit = !!id;
+
+    const body = {
+        titulo: document.getElementById('tituloTarefaCatalogoInput').value.trim(),
+        sistema: document.getElementById('sistemaTarefaCatalogoInput').value.trim() || null,
+        descricao: document.getElementById('descTarefaCatalogoInput').value.trim() || null
+    };
+
+    if (isEdit) {
+        body.ativa = document.getElementById('ativoTarefaCatalogoInput').value === 'true';
+    }
+
     try {
-        if (id) {
-            const ativa = document.getElementById('ativoTarefaCatalogoInput').value === 'true';
-            await apiFetch(`/inspecoes/tarefas-catalogo/${id}`, {
-                method: 'PUT',
-                body: { titulo, sistema, descricao, ativa }
-            });
-            showToast("Tarefa atualizada com sucesso!", "success");
-        } else {
-            await apiFetch('/inspecoes/tarefas-catalogo', {
-                method: 'POST',
-                body: { titulo, sistema, descricao }
-            });
-            showToast("Tarefa criada com sucesso!", "success");
-        }
+        await apiFetch(isEdit ? `/inspecoes/tarefas-catalogo/${id}` : '/inspecoes/tarefas-catalogo', {
+            method: isEdit ? 'PUT' : 'POST',
+            body: body
+        });
+        showToast(isEdit ? "Tarefa atualizada!" : "Tarefa criada!", "success");
         closeModalFormTarefaCatalogo();
         carregarListaCatalogoTarefas();
     } catch(err) {
         showToast(err.message || "Erro ao salvar tarefa.", "error");
     } finally {
         btn.disabled = false;
+    }
+}
+
+// ==========================================
+// Módulo de Calendário (Tipos de Evento)
+// ==========================================
+
+let tiposEventoCache = [];
+
+function openModalCalendarioTipos() {
+    const modal = document.getElementById('modal-calendario-tipos');
+    modal.style.display = 'flex';
+    carregarListaTiposEvento();
+}
+
+function closeModalCalendarioTipos() {
+    const modal = document.getElementById('modal-calendario-tipos');
+    if(modal) modal.style.display = 'none';
+}
+
+async function carregarListaTiposEvento() {
+    const tbody = document.getElementById('lista-tipos-evento-body');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 1rem;">Carregando categorias...</td></tr>';
+
+    try {
+        tiposEventoCache = await apiFetch('/api/v1/calendario/tipos?only_active=false');
+        tbody.innerHTML = '';
+        
+        if(tiposEventoCache.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 1rem; color: var(--text-secondary);">Nenhuma categoria cadastrada.</td></tr>';
+            return;
+        }
+
+        tiposEventoCache.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border-color)';
+            tr.innerHTML = `
+                <td style="padding: 0.75rem;"><strong>${escapeHtml(t.name)}</strong></td>
+                <td style="padding: 0.75rem; text-align: center; font-size: 1.25rem;">${escapeHtml(t.icon)}</td>
+                <td style="padding: 0.75rem; text-align: center;">
+                    <span style="font-size: 0.8rem; font-weight: 600; color: ${t.visibility_type === 'private' ? 'var(--status-warning)' : 'var(--status-ok)'};">
+                        ${t.visibility_type === 'private' ? 'Sigiloso' : 'Público'}
+                    </span>
+                </td>
+                <td style="padding: 0.75rem; text-align: center;">
+                    <div style="width: 24px; height: 24px; border-radius: 4px; background: ${t.color}; margin: 0 auto; border: 1px solid rgba(0,0,0,0.1);" title="${t.color}"></div>
+                </td>
+                <td style="padding: 0.75rem; text-align: center;">
+                    <span style="display: inline-block; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600; background: ${t.active ? 'rgba(46, 204, 113, 0.1)' : 'rgba(231, 76, 60, 0.1)'}; color: ${t.active ? 'var(--status-ok)' : 'var(--status-danger)'}; cursor: pointer;" class="badge-status-evento" data-id="${t.id}">
+                        ${t.active ? 'Ativo' : 'Inativo'}
+                    </span>
+                </td>
+                <td style="padding: 0.75rem; text-align: right; display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button type="button" class="btn-icon btn-editar-tipo-evento" data-id="${t.id}" title="Editar Categoria" style="color: var(--primary-color);">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    </button>
+                </td>
+            `;
+            
+            tr.querySelector('.btn-editar-tipo-evento').addEventListener('click', () => openModalFormTipoEvento(t.id));
+            tr.querySelector('.badge-status-evento').addEventListener('click', () => toggleStatusTipoEvento(t.id, t.active));
+            
+            tbody.appendChild(tr);
+        });
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 1rem; color: var(--status-danger);">Erro ao carregar categorias.</td></tr>';
+    }
+}
+
+function openModalFormTipoEvento(id = null) {
+    document.getElementById('modal-form-tipo-evento').style.display = 'flex';
+    document.getElementById('formTipoEvento').reset();
+    
+    if (id) {
+        const t = tiposEventoCache.find(x => x.id === id);
+        if (t) {
+            document.getElementById('titulo-form-tipo-evento').innerText = 'Editar Categoria';
+            document.getElementById('tipoEventoId').value = t.id;
+            document.getElementById('nomeTipoEventoInput').value = t.name;
+            document.getElementById('iconTipoEventoInput').value = t.icon;
+            document.getElementById('sigiloTipoEventoInput').value = t.visibility_type;
+            document.getElementById('colorTipoEventoInput').value = t.color;
+            document.getElementById('privateColorTipoEventoInput').value = t.private_color || '#94a3b8';
+            document.getElementById('container-status-tipo-evento').style.display = 'block';
+            document.getElementById('ativoTipoEventoInput').value = t.active ? 'true' : 'false';
+        }
+    } else {
+        document.getElementById('titulo-form-tipo-evento').innerText = 'Nova Categoria de Evento';
+        document.getElementById('tipoEventoId').value = '';
+        document.getElementById('container-status-tipo-evento').style.display = 'none';
+        document.getElementById('colorTipoEventoInput').value = '#3b82f6';
+        document.getElementById('privateColorTipoEventoInput').value = '#94a3b8';
+    }
+}
+
+function closeModalFormTipoEvento() {
+    document.getElementById('modal-form-tipo-evento').style.display = 'none';
+}
+
+async function salvarTipoEvento(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnSalvarTipoEvento');
+    btn.disabled = true;
+
+    const id = document.getElementById('tipoEventoId').value;
+    const isEdit = !!id;
+
+    const body = {
+        name: document.getElementById('nomeTipoEventoInput').value.trim(),
+        icon: document.getElementById('iconTipoEventoInput').value.trim(),
+        visibility_type: document.getElementById('sigiloTipoEventoInput').value,
+        color: document.getElementById('colorTipoEventoInput').value,
+        private_color: document.getElementById('privateColorTipoEventoInput').value
+    };
+
+    if (isEdit) {
+        body.active = document.getElementById('ativoTipoEventoInput').value === 'true';
+    }
+
+    try {
+        await apiFetch(isEdit ? `/api/v1/calendario/tipos/${id}` : '/api/v1/calendario/tipos', {
+            method: isEdit ? 'PUT' : 'POST',
+            body: body
+        });
+        showToast(isEdit ? "Categoria atualizada!" : "Categoria criada com sucesso!", "success");
+        closeModalFormTipoEvento();
+        carregarListaTiposEvento();
+    } catch(err) {
+        showToast(err.message || "Erro ao salvar categoria.", "error");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function toggleStatusTipoEvento(id, currentStatus) {
+    if (!confirm(`Deseja ${currentStatus ? 'desativar' : 'ativar'} esta categoria?`)) return;
+    
+    try {
+        await apiFetch(`/api/v1/calendario/tipos/${id}`, {
+            method: 'PUT',
+            body: { active: !currentStatus }
+        });
+        showToast(`Categoria ${currentStatus ? 'desativada' : 'ativada'}!`, "success");
+        carregarListaTiposEvento();
+    } catch(err) {
+        showToast(err.message || "Erro ao alterar status.", "error");
     }
 }
 
@@ -1106,4 +1261,3 @@ async function carregarOpcoesCatalogoTarefas() {
         select.innerHTML = '<option value="" disabled selected>Erro ao carregar catálogo</option>';
     }
 }
-
