@@ -13,6 +13,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Event Listeners para navegação e ações
     configurarEventos();
+
+    // Inicializar Calendário
+    initCalendar();
 });
 
 async function carregarDashboard() {
@@ -203,4 +206,118 @@ function formatarDataSimples(isoString) {
     if (!isoString) return "";
     const data = new Date(isoString);
     return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+/**
+ * Lógica do Calendário Semanal
+ */
+
+let currentViewDate = new Date();
+
+function initCalendar() {
+    const btnPrev = document.getElementById('btn-prev-week');
+    const btnNext = document.getElementById('btn-next-week');
+
+    if (btnPrev) {
+        btnPrev.addEventListener('click', () => {
+            currentViewDate.setDate(currentViewDate.getDate() - 7);
+            renderCalendarView();
+        });
+    }
+
+    if (btnNext) {
+        btnNext.addEventListener('click', () => {
+            currentViewDate.setDate(currentViewDate.getDate() + 7);
+            renderCalendarView();
+        });
+    }
+
+    renderCalendarView();
+}
+
+async function renderCalendarView() {
+    const grid = document.getElementById('mini-calendar-grid');
+    const title = document.getElementById('calendar-title');
+    if (!grid || !title) return;
+
+    // Calcular o início da semana (Domingo)
+    const startDate = new Date(currentViewDate);
+    const day = startDate.getDay();
+    startDate.setDate(startDate.getDate() - day);
+    startDate.setHours(0, 0, 0, 0);
+
+    // Calcular o fim da semana (Sábado)
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 6);
+    endDate.setHours(23, 59, 59, 999);
+
+    // Atualizar título
+    const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    title.textContent = `Calendário (${startDate.getDate()} ${monthNames[startDate.getMonth()]} - ${endDate.getDate()} ${monthNames[endDate.getMonth()]})`;
+
+    // Exibir loading
+    grid.innerHTML = '<div class="skeleton list-item-skeleton" style="grid-column: 1 / -1;"></div>';
+
+    try {
+        // Formatar datas para a API (YYYY-MM-DDTHH:mm:ss)
+        const startStr = startDate.toISOString();
+        const endStr = endDate.toISOString();
+
+        const eventos = await apiFetch(`/calendario/eventos?start_date=${encodeURIComponent(startStr)}&end_date=${encodeURIComponent(endStr)}`);
+        
+        // Renderizar dias da semana
+        let html = '';
+        const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        
+        // Cabeçalhos
+        dayNames.forEach(d => {
+            html += `<div class="calendar-header-day">${d}</div>`;
+        });
+
+        // Dias
+        const today = new Date();
+        for (let i = 0; i < 7; i++) {
+            const currentDate = new Date(startDate);
+            currentDate.setDate(currentDate.getDate() + i);
+            
+            const isToday = currentDate.getDate() === today.getDate() && 
+                            currentDate.getMonth() === today.getMonth() && 
+                            currentDate.getFullYear() === today.getFullYear();
+                            
+            const dayClass = isToday ? 'calendar-day day-today' : 'calendar-day';
+            
+            // Filtrar eventos do dia
+            const eventosDia = (eventos || []).filter(e => {
+                const eDate = new Date(e.data_inicio || e.data_prevista || e.data);
+                return eDate.getDate() === currentDate.getDate() &&
+                       eDate.getMonth() === currentDate.getMonth() &&
+                       eDate.getFullYear() === currentDate.getFullYear();
+            });
+
+            // Gerar indicadores
+            let indicatorsHtml = '<div class="event-indicators">';
+            eventosDia.forEach(e => {
+                let typeClass = '';
+                if (e.tipo === 'INSPECAO' || e.tipo === 'INSPEÇÃO') typeClass = 'insp';
+                else if (e.tipo === 'VENCIMENTO') typeClass = 'venc';
+                else if (e.tipo === 'PANE') typeClass = 'pane';
+                
+                indicatorsHtml += `<div class="event-indicator ${typeClass}" title="${escapeHtml(e.titulo || e.descricao || 'Evento')}"></div>`;
+            });
+            indicatorsHtml += '</div>';
+
+            html += `
+                <div class="${dayClass}">
+                    <span class="day-num">${currentDate.getDate()}</span>
+                    ${indicatorsHtml}
+                </div>
+            `;
+        }
+        
+        grid.innerHTML = html;
+
+    } catch (error) {
+        console.error("Erro ao carregar calendário:", error);
+        grid.innerHTML = '<div class="loading-placeholder" style="grid-column: 1 / -1;">Erro ao carregar calendário.</div>';
+    }
 }
