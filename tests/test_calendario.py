@@ -190,7 +190,11 @@ async def test_rbac_censura_privado_para_terceiro_sem_privilegio(db: AsyncSessio
     assert payload.title == "Particular"
     assert payload.icon == "L"
     assert payload.notes is None
-    assert payload.owner_trigram == "OWN"
+    assert payload.owner_trigram is None
+    assert payload.event_type_id is None
+    assert payload.owner_user_id is None
+    assert payload.can_edit is False
+    assert payload.can_delete is False
 
 
 @pytest.mark.asyncio
@@ -227,8 +231,12 @@ async def test_router_lista_eventos_com_censura_backend(db: AsyncSession):
     eventos = response.json()
     assert len(eventos) == 1
     assert eventos[0]["title"] == "Particular"
-    assert eventos[0]["owner_trigram"] == "OWN"
+    assert eventos[0]["owner_trigram"] is None
     assert eventos[0]["notes"] is None
+    assert eventos[0]["event_type_id"] is None
+    assert eventos[0]["owner_user_id"] is None
+    assert eventos[0]["can_edit"] is False
+    assert eventos[0]["can_delete"] is False
 
 
 @pytest.mark.asyncio

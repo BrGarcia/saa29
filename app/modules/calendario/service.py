@@ -135,8 +135,9 @@ async def _get_inspection_events(
     start_date: datetime,
     end_date: datetime,
 ) -> list[schemas.CalendarEventPayload]:
-    # Import lazy para evitar ciclo (inspecoes â†’ calendario seria circular)
-    from app.modules.inspecoes.models import Inspecao, StatusInspecao  # noqa: PLC0415
+    # Import lazy para evitar ciclo (inspecoes -> calendario seria circular)
+    from app.modules.inspecoes.models import Inspecao  # noqa: PLC0415
+    from app.shared.core.enums import StatusInspecao  # noqa: PLC0415
 
     stmt = (
         select(Inspecao)

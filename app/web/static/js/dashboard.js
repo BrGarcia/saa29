@@ -263,7 +263,7 @@ async function renderCalendarView() {
         const startStr = startDate.toISOString();
         const endStr = endDate.toISOString();
 
-        const eventos = await apiFetch(`/calendario/eventos?start_date=${encodeURIComponent(startStr)}&end_date=${encodeURIComponent(endStr)}`);
+        const eventos = await apiFetch(`/api/v1/calendario/eventos?start_date=${encodeURIComponent(startStr)}&end_date=${encodeURIComponent(endStr)}`);
         
         // Renderizar dias da semana
         let html = '';
@@ -287,22 +287,30 @@ async function renderCalendarView() {
             const dayClass = isToday ? 'calendar-day day-today' : 'calendar-day';
             
             // Filtrar eventos do dia
+            const dayStart = new Date(currentDate);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(dayStart);
+            dayEnd.setDate(dayEnd.getDate() + 1);
+
             const eventosDia = (eventos || []).filter(e => {
-                const eDate = new Date(e.data_inicio || e.data_prevista || e.data);
-                return eDate.getDate() === currentDate.getDate() &&
-                       eDate.getMonth() === currentDate.getMonth() &&
-                       eDate.getFullYear() === currentDate.getFullYear();
+                const eventStart = new Date(e.start);
+                const eventEnd = new Date(e.end);
+                return eventStart < dayEnd && eventEnd >= dayStart;
             });
 
             // Gerar indicadores
             let indicatorsHtml = '<div class="event-indicators">';
             eventosDia.forEach(e => {
                 let typeClass = '';
-                if (e.tipo === 'INSPECAO' || e.tipo === 'INSPEÇÃO') typeClass = 'insp';
-                else if (e.tipo === 'VENCIMENTO') typeClass = 'venc';
-                else if (e.tipo === 'PANE') typeClass = 'pane';
+                if (e.source === 'inspecao') typeClass = 'insp';
+                else if (e.source === 'vencimento') typeClass = 'venc';
+                else if (e.source === 'pane') typeClass = 'pane';
                 
-                indicatorsHtml += `<div class="event-indicator ${typeClass}" title="${escapeHtml(e.titulo || e.descricao || 'Evento')}"></div>`;
+                const titleParts = [];
+                if (e.owner_trigram) titleParts.push(`[ ${e.owner_trigram} ]`);
+                if (e.icon) titleParts.push(e.icon);
+                titleParts.push(e.title || 'Evento');
+                indicatorsHtml += `<div class="event-indicator ${typeClass}" title="${escapeHtml(titleParts.join(' '))}"></div>`;
             });
             indicatorsHtml += '</div>';
 
