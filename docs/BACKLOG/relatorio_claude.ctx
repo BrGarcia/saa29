@@ -45,23 +45,65 @@
 
 # Tarefas Pendentes - Auditoria 2026-05-11 (Módulo Calendário)
 
-- [ ] **10.1 Filtro Inspeções Concluídas/Canceladas:**
+> **Atenção:** itens 10.2 e 10.5 introduzem **migrações DDL** (Alembic). A premissa "sem DDL" cai a partir desta rodada — atualizar `docs/architecture/CTX.md` ao final.
+
+- [ ] **10.1 Filtro Inspeções Concluídas/Canceladas (hash `c5a1b9`):**
   - **Targets:** `app/modules/calendario/service.py` (`_get_inspection_events`).
-  - **Ação:** `.where(Inspecao.status.in_([StatusInspecao.ABERTA.value, StatusInspecao.EM_ANDAMENTO.value]))`.
-  - **TDD:** Inspeções concluídas não devem aparecer no endpoint de eventos.
-- [ ] **10.2 Vazamento de Eventos Privados:**
-  - **Targets:** `app/modules/calendario/service.py` (`format_event_for_user`).
-  - **Ação:** Censurar retornando `owner_trigram=None` e `backgroundColor="#9CA3AF"`.
-  - **TDD:** MANTENEDOR recebe valores censurados para evento particular alheio.
-- [ ] **10.3 Duplicação de Roles (ADMIN):**
-  - **Targets:** `app/modules/calendario/router.py`, `service.py`.
-  - **Ação:** Usar `AdminRequired`, remover sets estáticos (`PRIVILEGED_ROLES`) e a constante `"ADMIN"`.
-  - **TDD:** Acesso indevido de role errada e remoção de literal falso.
-- [ ] **10.4 Range Ilimitado (DoS):**
-  - **Targets:** `app/modules/calendario/router.py` (`listar_eventos`), `service.py`.
-  - **Ação:** `raise HTTPException(422)` se range > 366 dias. Colocar `.limit(5000)` nas consultas.
-  - **TDD:** Retorno HTTP 422 para `start_date` e `end_date` distantes > 1 ano.
-- [ ] **10.5 Rastreabilidade Delete:**
-  - **Targets:** `app/modules/calendario/service.py` (`delete_event`).
-  - **Ação:** Incluir chamada `logger.warning(...)` listando metadados e o usuário antes do `db.delete()`.
-  - **TDD:** Verificar se registro de exclusão via log estruturado foi acionado na deleção.
+  - **Ação:**
+    - Import lazy: `from app.modules.inspecoes.models import StatusInspecao` (dentro da função, evitando ciclo).
+    - Adicionar `.where(Inspecao.status.in_([StatusInspecao.ABERTA.value, StatusInspecao.EM_ANDAMENTO.value]))`.
+    - Verificar via EXPLAIN que o índice de `inspecoes.status` é usado.
+  - **TDD:**
+    - Abrir inspeção com DPE em D+10, concluir → não aparece em `GET /calendario/eventos`.
+    - Caso simétrico para `CANCELADA`.
+    - Caso positivo: `ABERTA`/`EM_ANDAMENTO` continuam aparecendo.
+
+- [ ] **10.2 Vazamento de Eventos Privados (hash `9d3f2a`) — DDL:**
+  - **Targets:** `app/modules/calendario/models.py`, `service.py`, migração Alembic.
+  - **Ação:**
+    - **DDL:** Adicionar `EventType.private_color: Mapped[str | None] = mapped_column(String(20), nullable=True)`. Migração preenche `'#9CA3AF'` para tipos com `visibility_type='private'`.
+    - **Service** (`format_event_for_user`, ramo censurado): retornar `owner_trigram=None`, `backgroundColor=event.event_type.private_color or "#9CA3AF"`, `event_type_id=None`, `owner_user_id=None` (remover linha 53 atual), `notes=None`, `icon="L"`.
+  - **TDD:**
+    - 3 personas: dono / ENCARREGADO / MANTENEDOR não-dono — apenas o último recebe censura completa.
+    - Regressão: evento `public` continua exibindo dados completos.
+    - DDL: migração up/down sem perda de dados.
+
+- [ ] **10.3 Duplicação de Roles e alias `"ADMIN"` (hash `b7e4c1`):**
+  - **Targets:** `app/modules/calendario/service.py`, `router.py`, novo `app/modules/auth/roles.py`, `docs/architecture/RBAC.md`.
+  - **Ação:**
+    - Criar `app/modules/auth/roles.py` com `PRIVILEGED_FUNCTIONS = frozenset({"ENCARREGADO", "ADMINISTRADOR"})` e `ADMIN_FUNCTIONS = frozenset({"ADMINISTRADOR"})`.
+    - Remover sets locais e o alias `"ADMIN"` em `calendario/service.py`.
+    - `has_privilege` passa a usar `PRIVILEGED_FUNCTIONS`.
+    - `remover_evento` (router) usa `current_user: AdminRequired` e remove verificação interna no service.
+    - Documentar catálogo único de papéis em `RBAC.md`.
+  - **TDD:**
+    - Usuário `funcao="ADMIN"` (string indevida) → 403 nas três rotas.
+    - `ADMINISTRADOR` → permite tudo; `ENCARREGADO` → cria/edita para terceiros, mas não deleta.
+    - Lint custom: garantir que `"ADMIN"` literal não apareça em `app/modules/`.
+
+- [ ] **10.4 Range Ilimitado / DoS (hash `4f8d6e`):**
+  - **Targets:** `app/modules/calendario/router.py` (`listar_eventos`), `service.py`, `app/web/static/js/calendario.js`.
+  - **Ação:**
+    - Router: `if (end_date - start_date).days > 366: raise HTTPException(422, "Range maximo permitido: 366 dias.")`.
+    - Service: `.limit(5000)` em `_get_calendar_events`, `_get_inspection_events` e `_get_task_events`.
+    - `logger.warning("calendar_query_limit_hit", ...)` quando o `LIMIT` é atingido.
+    - Confirmar que FullCalendar nunca pede range > 366 dias.
+  - **TDD:**
+    - 422 para range de 10 anos e 367 dias.
+    - 200 para range de exatos 366 dias.
+    - 5000+ eventos no range → resposta truncada com warning emitido.
+
+- [ ] **10.5 Rastreabilidade Delete (hash `8c2b5d`) — DDL + Log:**
+  - **Targets:** `app/modules/calendario/models.py`, `service.py`, migração Alembic.
+  - **Ação:**
+    - **DDL:** Adicionar a `CalendarEvent`: `deleted_at: Mapped[datetime | None]` (indexado) e `deleted_by_user_id: Mapped[uuid.UUID | None]` (FK → `usuarios.id`, `ondelete="RESTRICT"`).
+    - **Service `delete_event`:** trocar `db.delete(event)` por `event.deleted_at = datetime.now(timezone.utc); event.deleted_by_user_id = current_user.id`.
+    - Filtrar `deleted_at IS NULL` em `_get_calendar_events` e `_get_event_or_raise`.
+    - Log estruturado antes da marcação: `logger.warning("calendar_event_deleted", extra={"event_id", "deleted_by", "owner_user_id", "event_type_id", "start_date"})`.
+    - Opcional (fora desta rodada): endpoint admin `GET /calendario/eventos/excluidos`.
+  - **TDD:**
+    - ADMIN apaga → registro mantém `deleted_at`/`deleted_by_user_id` preenchidos.
+    - Após delete, `GET /calendario/eventos` não retorna o evento.
+    - `PUT /calendario/eventos/{id}` após delete → 404.
+    - Log estruturado capturado nos campos esperados.
+    - Migração reversível preserva dados.
