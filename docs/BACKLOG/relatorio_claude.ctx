@@ -42,3 +42,26 @@
 - [x] **9.5 Doc RBAC Tarefas Avulsas:**
   - **Targets:** `docs/architecture/RBAC.md`.
   - **Ação:** Documentar que MANTENEDOR pode criar tarefa avulsa na inspeção. (Sem mudança de código).
+
+# Tarefas Pendentes - Auditoria 2026-05-11 (Módulo Calendário)
+
+- [ ] **10.1 Filtro Inspeções Concluídas/Canceladas:**
+  - **Targets:** `app/modules/calendario/service.py` (`_get_inspection_events`).
+  - **Ação:** `.where(Inspecao.status.in_([StatusInspecao.ABERTA.value, StatusInspecao.EM_ANDAMENTO.value]))`.
+  - **TDD:** Inspeções concluídas não devem aparecer no endpoint de eventos.
+- [ ] **10.2 Vazamento de Eventos Privados:**
+  - **Targets:** `app/modules/calendario/service.py` (`format_event_for_user`).
+  - **Ação:** Censurar retornando `owner_trigram=None` e `backgroundColor="#9CA3AF"`.
+  - **TDD:** MANTENEDOR recebe valores censurados para evento particular alheio.
+- [ ] **10.3 Duplicação de Roles (ADMIN):**
+  - **Targets:** `app/modules/calendario/router.py`, `service.py`.
+  - **Ação:** Usar `AdminRequired`, remover sets estáticos (`PRIVILEGED_ROLES`) e a constante `"ADMIN"`.
+  - **TDD:** Acesso indevido de role errada e remoção de literal falso.
+- [ ] **10.4 Range Ilimitado (DoS):**
+  - **Targets:** `app/modules/calendario/router.py` (`listar_eventos`), `service.py`.
+  - **Ação:** `raise HTTPException(422)` se range > 366 dias. Colocar `.limit(5000)` nas consultas.
+  - **TDD:** Retorno HTTP 422 para `start_date` e `end_date` distantes > 1 ano.
+- [ ] **10.5 Rastreabilidade Delete:**
+  - **Targets:** `app/modules/calendario/service.py` (`delete_event`).
+  - **Ação:** Incluir chamada `logger.warning(...)` listando metadados e o usuário antes do `db.delete()`.
+  - **TDD:** Verificar se registro de exclusão via log estruturado foi acionado na deleção.

@@ -8,6 +8,7 @@
 - app/modules/vencimentos: temporal_intel,maint_rules,extensions
 - app/modules/inspecoes: active_backend,task_catalog,decoupling,audit_persistent
 - app/modules/calendario: active_fullstack,event_types,calendar_events,rbac_censorship,api_v1_router,frontend_calendar,inspecoes_dpe_aggregation
+- app/modules/dashboard: active_fullstack,dashboard_resumo,consolidated_metrics,frontend_dashboard
 - app/shared/core: enums,helpers,storage,validators,exceptions
 - app/shared/middleware: csrf
 - app/shared/services/image: pipeline,validator,converter,resizer,optimizer

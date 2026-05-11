@@ -275,6 +275,53 @@ Auditoria completa realizada lendo os arquivos-fonte. **Todos os 10 itens do pla
 *   [x] Implementar TDD e correção 9.3 (Remoção db.rollback).
 *   [x] Implementar TDD e correção 9.4 (Fix bcrypt byte limit).
 *   [x] Atualizar doc RBAC (9.5).
+*   [ ] Implementar TDD e correção 10.1 (Filtro Inspeção).
+*   [ ] Implementar TDD e correção 10.2 (Censura Eventos Privados).
+*   [ ] Implementar TDD e correção 10.3 (Remover Duplicação RBAC).
+*   [ ] Implementar TDD e correção 10.4 (Limite/Range de Data).
+*   [ ] Implementar TDD e correção 10.5 (Rastreabilidade Delete).
+
+---
+
+## 10. Correções da Auditoria de 2026-05-11 (Módulo Calendário)
+
+### 10.1 Bug: Filtro de status em `_get_inspection_events` (Hash: `c5a1b9`)
+*   **Problema:** Eventos do calendário exibem inspeções já concluídas ou canceladas, prejudicando o planejamento da frota.
+*   **Plano de Ação (`app/modules/calendario/service.py`):**
+    1.  Importar `StatusInspecao` do módulo de inspeções.
+    2.  Em `_get_inspection_events`, adicionar `.where(Inspecao.status.in_([StatusInspecao.ABERTA.value, StatusInspecao.EM_ANDAMENTO.value]))` na query base.
+*   **Testes (TDD):**
+    1.  Teste de integração verificando se inspeções com status `CONCLUIDA` ou `CANCELADA` deixam de aparecer em `/calendario/eventos`.
+
+### 10.2 Segurança/Privacidade: Censura ineficaz de eventos privados (Hash: `9d3f2a`)
+*   **Problema:** Eventos marcados como "Particulares" vazam o trigrama do dono e a cor associada ao tipo do evento, expondo informações sensíveis para MANTENEDORes.
+*   **Plano de Ação (`app/modules/calendario/service.py`):**
+    1.  Em `format_event_for_user`, no bloco `if should_censor:`, alterar a resposta para retornar `owner_trigram=None` e uma `backgroundColor` genérica (ex: `"#9CA3AF"`).
+*   **Testes (TDD):**
+    1.  Verificar que um evento particular consultado por usuário não dono retorna o `owner_trigram` nulo e cor cinza.
+
+### 10.3 Arquitetura: Duplicação de Roles (Hash: `b7e4c1`)
+*   **Problema:** O módulo reescreve permissões RBAC de forma manual (com alias `ADMIN` indevido) em vez de usar as dependências centralizadas de `bootstrap/dependencies.py`.
+*   **Plano de Ação (`app/modules/calendario/router.py` e `app/modules/calendario/service.py`):**
+    1.  Substituir conjuntos de papéis locais (`PRIVILEGED_ROLES`) por verificação de `funcao in {"ENCARREGADO", "ADMINISTRADOR"}`.
+    2.  Modificar o router para usar dependências existentes (`AdminRequired` onde for o caso).
+*   **Testes (TDD):**
+    1.  Testar endpoint injetando usuário com `.funcao = "ADMIN"` (deve ser rejeitado).
+
+### 10.4 Bug/DoS: Range ilimitado em `GET /calendario/eventos` (Hash: `4f8d6e`)
+*   **Problema:** A rota permite puxar décadas de eventos de uma vez, arriscando DoS em ambiente de memória restrita.
+*   **Plano de Ação (`app/modules/calendario/router.py` e `service.py`):**
+    1.  Em `listar_eventos`, levantar `HTTPException(422)` se `(end_date - start_date).days > 366`.
+    2.  Em `_get_calendar_events`, `_get_inspection_events` e `_get_task_events`, adicionar `.limit(5000)`.
+*   **Testes (TDD):**
+    1.  Teste da API enviando range de > 366 dias esperando 422.
+
+### 10.5 Rastreabilidade: Hard-delete de Evento (Hash: `8c2b5d`)
+*   **Problema:** A exclusão física via `delete()` impossibilita auditoria de quem apagou licenças, afastamentos, etc.
+*   **Plano de Ação (`app/modules/calendario/service.py`):**
+    1.  Em `delete_event`, implementar log estruturado `logger.warning(...)` antes da exclusão física, gravando o `event_id`, `deleted_by: current_user.id` e dono do evento. Como alternativa, introduzir uma flag de soft-delete.
+*   **Testes (TDD):**
+    1.  Validação de auditoria gerada ou flag alterada na deleção.
 
 ---
 

@@ -21,6 +21,8 @@ app:
 - modules/equipamentos/: catalog_slots_physical_items_inventory
 - modules/vencimentos/: temporal_intelligence_maintenance_rules_extensions
 - modules/inspecoes/: integrated_backend_active_with_task_catalog_decoupling
+- modules/calendario/: calendar_events_api_and_business_logic
+- modules/dashboard/: consolidated_operational_metrics_and_summary
 - shared/core/: enums,helpers,storage,validators,limiter,exceptions
 - shared/middleware/: csrf
 - shared/services/image/: image_processing_pipeline (validator,converter,resizer,optimizer,pipeline)
@@ -36,6 +38,19 @@ app/modules/inspecoes:
 - schemas.py: local_status_enums,pydantic_contracts
 - service.py: business_rules_crud_instantiation_completion_extras_audit
 - router.py: api_router_fully_registered_and_bootstrapped
+
+app/modules/calendario:
+- __init__.py: passive_package
+- models.py: EventType,CalendarEvent (with RBAC visibility)
+- schemas.py: pydantic_contracts
+- service.py: business_logic_dpe_aggregation
+- router.py: api_router
+
+app/modules/dashboard:
+- __init__.py: passive_package
+- schemas.py: DashboardResumo
+- service.py: aggregation_across_modules
+- router.py: api_router
 
 scripts:
 - db/init_db.py: bootstrap_admin_frota

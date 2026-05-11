@@ -255,3 +255,55 @@
 - **Impacto:** Usuário cuja senha contenha "ção", "á", emojis ou qualquer caractere multibyte pode (a) ter `_pwd_context.hash` levantando exceção mascarada como erro 500 no cadastro, (b) cadastrar com sucesso mas falhar autenticação após upgrade do passlib (mismatch entre o byte-truncate interno do passlib e o char-truncate da aplicação), ou (c) ter sua senha silenciosamente encurtada — reduzindo a entropia que o usuário acreditava ter. Risco de bloqueio em massa de contas após upgrade de dependência.
 - **Sugestão:** Truncar em bytes preservando UTF-8 válido: `senha_bytes = senha_plana.encode("utf-8")[:72]; senha_ajustada = senha_bytes.decode("utf-8", errors="ignore")`. Aplicar idêntico em `hash_senha` e `verificar_senha`. Alternativamente (mais robusto), pré-hashear com SHA-256 antes do bcrypt: `bcrypt_input = base64.b64encode(hashlib.sha256(senha_plana.encode("utf-8")).digest())` (32 bytes raw → 44 bytes b64, sempre < 72) — elimina o limite e padroniza o tamanho. Adicionar teste com senha contendo "manutenção_aeronáutica🛩️" e ≥40 caracteres.
 - **Hash:** `7b3f9a`
+
+---
+
+## 2026-05-11 (módulo calendario)
+
+### [BUG] CALENDÁRIO - `_get_inspection_events` não filtra inspeções CONCLUIDA/CANCELADA
+
+- **Local:** `app/modules/calendario/service.py:112-155` — função `_get_inspection_events`
+- **Descrição:** A consulta filtra inspeções apenas por `data_fim_prevista` dentro do range, sem considerar `Inspecao.status`. Inspeções já `CONCLUIDA` ou `CANCELADA` continuam sendo agregadas ao calendário com o evento "DPE <matricula> <tipos>". O modelo `Inspecao.status` é exatamente o campo manipulado pelas correções `f1a3e8` e `b4d7e6` (rodadas anteriores) e admite os valores `ABERTA`, `EM_ANDAMENTO`, `CONCLUIDA`, `CANCELADA`. Hoje, uma inspeção fechada na semana passada continua "ocupando" o calendário no dia da DPE original — eternamente.
+- **Impacto:** O calendário operacional perde valor como ferramenta de planejamento: prazos já cumpridos ou abortados poluem a visão futura/passada do encarregado e podem mascarar DPEs reais que vencem no mesmo dia. Em sistema aeronáutico onde o calendário é referência para alocação de aeronaves, exibir DPE de inspeção `CANCELADA` induz o operador a manter a aeronave reservada indevidamente. Reabrir o histórico (range largo) trará centenas de eventos fantasmas.
+- **Sugestão:** Adicionar filtro explícito de status no `select(Inspecao)`: `.where(Inspecao.status.in_([StatusInspecao.ABERTA.value, StatusInspecao.EM_ANDAMENTO.value]))`. Importar `StatusInspecao` do módulo de inspeções (sem criar ciclo, pois já há `from app.modules.inspecoes.models import Inspecao` localizado dentro da função). Cobrir com teste que abre uma inspeção, conclui-a e verifica que ela não aparece mais em `GET /calendario/eventos` para o intervalo da DPE.
+- **Hash:** `c5a1b9`
+
+---
+
+### [SEGURANÇA/PRIVACIDADE] CALENDÁRIO - Censura de eventos privados vaza `owner_trigram` e `backgroundColor`
+
+- **Local:** `app/modules/calendario/service.py:37-56` — função `format_event_for_user`, ramo `should_censor`
+- **Descrição:** Quando um evento é privado e o usuário não é o dono nem privilegiado, o título é substituído por "Particular" e o `notes` é zerado — mas o payload continua expondo: (a) `owner_trigram=event.owner.trigrama` (identifica claramente o militar) e (b) `backgroundColor=event.event_type.color` (a cor é única por tipo, conforme `EventType.color`). Em conjunto, isso permite a um MANTENEDOR descobrir, p.ex., que "Sgt FUL está em compromisso médico (cor vermelha exclusiva do tipo 'Médico') na quarta-feira" — exatamente o que o regime `visibility_type='private'` pretende ocultar. A intenção do design (campo `visibility_type`) é proteger natureza E identidade do compromisso, não apenas o título textual.
+- **Impacto:** Vazamento de dado pessoal sensível (saúde, religião, licenças) em sistema multi-perfil. Em ambiente militar onde o calendário coletivo é visível a toda a turma, isso pode constituir quebra de LGPD (art. 11 — dados sensíveis) e gerar problemas disciplinares se MANTENEDORes inferirem licenças médicas/psicológicas de colegas. Mesmo se a UI atual não exibir o trigrama no evento "Particular", o JSON está disponível via DevTools e qualquer cliente alternativo pode consumir.
+- **Sugestão:** Em `format_event_for_user`, no ramo censurado, retornar `owner_trigram=None` e `backgroundColor` neutro (ex.: `"#9CA3AF"` cinza fixo) ou um campo dedicado em `EventType` (`private_color` opcional). Idealmente, padronizar todos os campos derivados do tipo para valores genéricos quando censurado: `icon="L"`, `event_type_id=None` (já está), `owner_user_id=None`. Cobrir com teste verificando que um MANTENEDOR consultando evento privado de outro recebe `owner_trigram is None` e `backgroundColor` igual ao valor neutro.
+- **Hash:** `9d3f2a`
+
+---
+
+### [ARQUITETURA] CALENDÁRIO - `PRIVILEGED_ROLES`/`ADMIN_ROLES` duplicam RBAC fora do `bootstrap/dependencies.py`
+
+- **Local:** `app/modules/calendario/service.py:19-20` e `router.py:18-80`
+- **Descrição:** O módulo redeclara conjuntos de papéis em strings literais (`{"ENCARREGADO", "ADMINISTRADOR", "ADMIN"}` e `{"ADMINISTRADOR", "ADMIN"}`) e faz verificação manual no service via `PermissionError`, em vez de usar as dependências canônicas já existentes em `app/bootstrap/dependencies.py:142-159` (`AdminRequired`, `EncarregadoOuAdmin`, `ExecucaoPermitida`, etc.). Pior: a inclusão do alias `"ADMIN"` (que não existe em nenhum outro módulo do projeto — todos usam apenas `"ADMINISTRADOR"`) gera duas consequências: (i) se um futuro `Usuario.funcao` for cadastrado como `"ADMIN"` por erro, o RBAC do calendário aceitará mas todo o resto do sistema rejeitará — inconsistência silenciosa; (ii) impede aproveitar a auditoria centralizada das exceções 403 já tratadas pelo `require_role`.
+- **Impacto:** Quebra do princípio DRY na RBAC, que é justamente o ponto mais crítico de manter em um único lugar para auditoria de segurança. Se o catálogo de papéis mudar (ex.: introdução de um novo papel `SUPERVISOR`), o calendário ficará dessincronizado e exporá rotas a perfis indevidos. O alias `"ADMIN"` é o mesmo erro que motivou achados anteriores (`e9c0a4`).
+- **Sugestão:** Remover os sets locais e expressar a política via dependências do router: `delete_event` → `AdminRequired`; `create_event`/`update_event` → `CurrentUser` para a verificação de "dono ou privilegiado" feita no service, mas trocando `PRIVILEGED_ROLES` por `{"ENCARREGADO", "ADMINISTRADOR"}` (sem "ADMIN"). Para a função `has_privilege`, comparar com `usuario.funcao in {"ENCARREGADO", "ADMINISTRADOR"}` reusando — idealmente — uma constante única `app.modules.auth.roles.PRIVILEGED_FUNCTIONS`. Adicionar teste que rejeita usuário com `funcao="ADMIN"` (string indevida) por todas as rotas.
+- **Hash:** `b7e4c1`
+
+---
+
+### [BUG/DOS] CALENDÁRIO - `GET /calendario/eventos` aceita range ilimitado e sem paginação
+
+- **Local:** `app/modules/calendario/router.py:22-31` e `service.py:75-84`
+- **Descrição:** O endpoint exige `start_date` e `end_date` mas valida apenas que `end_date >= start_date`. Não há limite máximo de duração do range, nem `LIMIT`/paginação na query. Um cliente pode pedir `?start_date=1900-01-01&end_date=3000-01-01` e o handler executa três joins amplos: (1) `CalendarEvent` com `selectinload(owner, event_type)`, (2) `Inspecao` com `selectinload(aeronave, tipos_aplicados)` (sem filtro de status — ver `c5a1b9`), e (3) `_get_task_events` (hoje stub vazio, mas planejado). À medida que `calendar_events` cresce (uso operacional contínuo), a resposta serializa todos os registros no range para a memória — sem `LIMIT`, sem cursor, sem `ORDER BY` em índice para early termination.
+- **Impacto:** Vetor de DoS interno trivial — qualquer usuário autenticado pode forçar o servidor a materializar milhares/dezenas de milhares de linhas em RAM e serializar JSON com Pydantic, prendendo o worker uvicorn. Em sistema aeronáutico em Cloud Run/contêiner com memória limitada, basta um cliente malicioso ou um bug no frontend (loop de retentativas com range grande) para derrubar a instância. Adicionalmente, à medida que o módulo cresce, latência p99 degrada para todos os clientes legítimos.
+- **Sugestão:** No router (`listar_eventos`), adicionar guarda explícita: `if (end_date - start_date).days > 366: raise HTTPException(422, "Range maximo de 366 dias.")`. No service, capear o resultado em um `LIMIT` defensivo (`.limit(5000)`) e logar warning se atingido. Como o front-end usa FullCalendar com janela mensal/anual, 366 dias cobre todos os casos de uso reais. Cobrir com teste enviando range de 10 anos e esperando 422.
+- **Hash:** `4f8d6e`
+
+---
+
+### [RASTREABILIDADE] CALENDÁRIO - `delete_event` faz hard-delete sem auditoria de quem/o quê foi removido
+
+- **Local:** `app/modules/calendario/service.py:227-241` — função `delete_event`
+- **Descrição:** A função executa `await db.delete(event)` (hard delete físico no banco) sem nenhum log, sem soft-delete e sem registro do `current_user.id` que efetuou a remoção. Diferente do padrão de outras entidades do sistema (ex.: `Usuario` usa flag `ativo` para soft delete por exigência de rastreabilidade — correção `b2c9d4`), o `CalendarEvent` é apagado fisicamente, juntamente com `notes` (que pode conter justificativa operacional sensível como "Em tratamento médico restrito até …"). Não há nem mesmo um `logger.info` registrando a ação.
+- **Impacto:** Em sistema aeronáutico onde o calendário é referência para alocação de efetivo (escala de mantenedores, indisponibilidades médicas, licenças), apagar um evento sem trilha permite que um ADMINISTRADOR malicioso ou em erro humano elimine evidência de planejamento — sem possibilidade de auditoria posterior ("quem apagou a licença do Sgt FUL antes da inspeção?"). Quebra explícita do princípio de rastreabilidade aeronáutica reforçado em vários itens já corrigidos (`d4b8f1`, `f5d2a7`).
+- **Sugestão:** Duas opções complementares: (i) introduzir soft-delete em `CalendarEvent` (campo `deleted_at: DateTime|None` + `deleted_by_user_id: UUID|None`), filtrando `deleted_at IS NULL` em `_get_calendar_events`; (ii) ao remover, gravar um evento na tabela de auditoria do projeto (ou pelo menos `logger.info("calendar_event_deleted", extra={"event_id": event_id, "by": current_user.id, "owner_user_id": event.owner_user_id, "event_type_id": event.event_type_id})`). Como mínimo imediato: capturar o registro antes do `db.delete` e gravar `logger.warning` estruturado com os campos críticos.
+- **Hash:** `8c2b5d`
