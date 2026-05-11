@@ -47,7 +47,7 @@
 
 > **Atenção:** itens 10.2 e 10.5 introduzem **migrações DDL** (Alembic). A premissa "sem DDL" cai a partir desta rodada — atualizar `docs/architecture/CTX.md` ao final.
 
-- [ ] **10.1 Filtro Inspeções Concluídas/Canceladas (hash `c5a1b9`):**
+- [x] **10.1 Filtro Inspeções Concluídas/Canceladas (hash `c5a1b9`):**
   - **Targets:** `app/modules/calendario/service.py` (`_get_inspection_events`).
   - **Ação:**
     - Import lazy: `from app.modules.inspecoes.models import StatusInspecao` (dentro da função, evitando ciclo).
@@ -58,7 +58,7 @@
     - Caso simétrico para `CANCELADA`.
     - Caso positivo: `ABERTA`/`EM_ANDAMENTO` continuam aparecendo.
 
-- [ ] **10.2 Vazamento de Eventos Privados (hash `9d3f2a`) — DDL:**
+- [x] **10.2 Vazamento de Eventos Privados (hash `9d3f2a`) — DDL:**
   - **Targets:** `app/modules/calendario/models.py`, `service.py`, migração Alembic.
   - **Ação:**
     - **DDL:** Adicionar `EventType.private_color: Mapped[str | None] = mapped_column(String(20), nullable=True)`. Migração preenche `'#9CA3AF'` para tipos com `visibility_type='private'`.
@@ -68,7 +68,7 @@
     - Regressão: evento `public` continua exibindo dados completos.
     - DDL: migração up/down sem perda de dados.
 
-- [ ] **10.3 Duplicação de Roles e alias `"ADMIN"` (hash `b7e4c1`):**
+- [x] **10.3 Duplicação de Roles e alias `"ADMIN"` (hash `b7e4c1`):**
   - **Targets:** `app/modules/calendario/service.py`, `router.py`, novo `app/modules/auth/roles.py`, `docs/architecture/RBAC.md`.
   - **Ação:**
     - Criar `app/modules/auth/roles.py` com `PRIVILEGED_FUNCTIONS = frozenset({"ENCARREGADO", "ADMINISTRADOR"})` e `ADMIN_FUNCTIONS = frozenset({"ADMINISTRADOR"})`.
@@ -81,7 +81,7 @@
     - `ADMINISTRADOR` → permite tudo; `ENCARREGADO` → cria/edita para terceiros, mas não deleta.
     - Lint custom: garantir que `"ADMIN"` literal não apareça em `app/modules/`.
 
-- [ ] **10.4 Range Ilimitado / DoS (hash `4f8d6e`):**
+- [x] **10.4 Range Ilimitado / DoS (hash `4f8d6e`):**
   - **Targets:** `app/modules/calendario/router.py` (`listar_eventos`), `service.py`, `app/web/static/js/calendario.js`.
   - **Ação:**
     - Router: `if (end_date - start_date).days > 366: raise HTTPException(422, "Range maximo permitido: 366 dias.")`.
@@ -93,7 +93,7 @@
     - 200 para range de exatos 366 dias.
     - 5000+ eventos no range → resposta truncada com warning emitido.
 
-- [ ] **10.5 Rastreabilidade Delete (hash `8c2b5d`) — DDL + Log:**
+- [x] **10.5 Rastreabilidade Delete (hash `8c2b5d`) — DDL + Log:**
   - **Targets:** `app/modules/calendario/models.py`, `service.py`, migração Alembic.
   - **Ação:**
     - **DDL:** Adicionar a `CalendarEvent`: `deleted_at: Mapped[datetime | None]` (indexado) e `deleted_by_user_id: Mapped[uuid.UUID | None]` (FK → `usuarios.id`, `ondelete="RESTRICT"`).
@@ -106,4 +106,4 @@
     - Após delete, `GET /calendario/eventos` não retorna o evento.
     - `PUT /calendario/eventos/{id}` após delete → 404.
     - Log estruturado capturado nos campos esperados.
-    - Migração reversível preserva dados.
+    - Migração reversível preserva dados.

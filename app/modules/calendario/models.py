@@ -32,6 +32,8 @@ class EventType(Base):
     name: Mapped[str] = mapped_column(String(80), nullable=False, unique=True, index=True)
     visibility_type: Mapped[str] = mapped_column(String(20), nullable=False, default="public", index=True)
     color: Mapped[str] = mapped_column(String(20), nullable=False)
+    # Cor alternativa neutra exibida quando evento é censurado por privacidade (10.2)
+    private_color: Mapped[str | None] = mapped_column(String(20), nullable=True)
     icon: Mapped[str] = mapped_column(String(20), nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
@@ -75,9 +77,17 @@ class CalendarEvent(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+    # Soft-delete (10.5): nao remove fisicamente do banco, apenas marca como excluido
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    deleted_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
 
     owner: Mapped["Usuario"] = relationship("Usuario", foreign_keys=[owner_user_id], lazy="selectin")
     created_by: Mapped["Usuario"] = relationship("Usuario", foreign_keys=[created_by_user_id], lazy="selectin")
+    deleted_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[deleted_by_user_id], lazy="selectin")
     event_type: Mapped[EventType] = relationship(back_populates="events", lazy="selectin")
 
     def __repr__(self) -> str:
