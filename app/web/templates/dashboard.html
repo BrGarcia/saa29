@@ -564,11 +564,11 @@
     border: 1px solid var(--border-color);
     border-radius: 4px;
     padding: 0.5rem 0.25rem;
-    min-height: 50px;
+    min-height: 100px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
+    align-items: stretch;
+    gap: 0.5rem;
 }
 
 .calendar-day .day-num {
@@ -591,20 +591,10 @@
 
 .event-indicators {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 2px;
-    justify-content: center;
+    width: 100%;
 }
-
-.event-indicator {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background-color: var(--primary-color);
-}
-.event-indicator.insp { background-color: #1abc9c; }
-.event-indicator.venc { background-color: var(--status-warning); }
-.event-indicator.pane { background-color: var(--status-danger); }
 </style>
 {% endblock %}
 

@@ -298,19 +298,23 @@ async function renderCalendarView() {
                 return eventStart < dayEnd && eventEnd >= dayStart;
             });
 
-            // Gerar indicadores
+            // Gerar indicadores (Chips)
             let indicatorsHtml = '<div class="event-indicators">';
             eventosDia.forEach(e => {
-                let typeClass = '';
-                if (e.source === 'inspecao') typeClass = 'insp';
-                else if (e.source === 'vencimento') typeClass = 'venc';
-                else if (e.source === 'pane') typeClass = 'pane';
-                
                 const titleParts = [];
-                if (e.owner_trigram) titleParts.push(`[ ${e.owner_trigram} ]`);
+                if (e.owner_trigram) titleParts.push(`[${e.owner_trigram}]`);
                 if (e.icon) titleParts.push(e.icon);
                 titleParts.push(e.title || 'Evento');
-                indicatorsHtml += `<div class="event-indicator ${typeClass}" title="${escapeHtml(titleParts.join(' '))}"></div>`;
+                
+                const chipText = titleParts.join(' ');
+                const bgColor = e.backgroundColor || 'var(--primary-color)';
+                
+                indicatorsHtml += `
+                    <div class="calendar-event-chip" 
+                         style="border-left-color: ${bgColor}; margin-bottom: 2px; width: 100%;" 
+                         title="${escapeHtml(chipText)}">
+                        ${escapeHtml(chipText)}
+                    </div>`;
             });
             indicatorsHtml += '</div>';
 
