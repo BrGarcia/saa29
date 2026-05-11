@@ -28,9 +28,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 2. Startup: Criar diretórios de infraestrutura
     os.makedirs(current_settings.upload_dir, exist_ok=True)
     
-    # 3. Seed: Garantir dados básicos (Frota Padrão)
-    await seed.ensure_default_aeronaves()
-
     # 4. Configurar Event-Driven Backup (R2)
     if current_settings.storage_backend.lower() == "r2" and current_settings.r2_bucket_name:
         from sqlalchemy import event as sa_event
