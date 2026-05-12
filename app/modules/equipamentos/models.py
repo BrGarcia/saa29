@@ -58,6 +58,7 @@ class SlotInventario(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     nome_posicao: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     sistema: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    posicao_xlsx: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
     modelo_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("modelos_equipamento.id", ondelete="RESTRICT"), nullable=False
     )

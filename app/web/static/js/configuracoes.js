@@ -1261,3 +1261,118 @@ async function carregarOpcoesCatalogoTarefas() {
         select.innerHTML = '<option value="" disabled selected>Erro ao carregar catálogo</option>';
     }
 }
+
+// ============================================================
+// Upload XLSX Inventário
+// ============================================================
+(function () {
+    const btnUpload = document.getElementById('btn-upload-xlsx');
+    const modal = document.getElementById('modal-upload-xlsx');
+    const btnClose = document.getElementById('btn-close-modal-xlsx');
+    const btnCancel = document.getElementById('btn-cancel-modal-xlsx');
+    const form = document.getElementById('formUploadXlsx');
+    const fileInput = document.getElementById('xlsxFileInput');
+    const resultadoDiv = document.getElementById('xlsx-resultado');
+    const btnEnviar = document.getElementById('btnEnviarXlsx');
+
+    if (!btnUpload || !modal) return;
+
+    function abrirModal() {
+        modal.style.display = 'flex';
+        form.reset();
+        resultadoDiv.style.display = 'none';
+        resultadoDiv.innerHTML = '';
+        btnEnviar.disabled = false;
+        btnEnviar.textContent = 'Enviar e Processar';
+    }
+
+    function fecharModal() {
+        modal.style.display = 'none';
+    }
+
+    btnUpload.addEventListener('click', abrirModal);
+    btnClose.addEventListener('click', fecharModal);
+    btnCancel.addEventListener('click', fecharModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) fecharModal();
+    });
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        // Validar extensão
+        if (!file.name.toLowerCase().endsWith('.xlsx')) {
+            showToast('Selecione um arquivo .xlsx válido.', 'error');
+            return;
+        }
+
+        btnEnviar.disabled = true;
+        btnEnviar.textContent = 'Processando...';
+        resultadoDiv.style.display = 'block';
+        resultadoDiv.innerHTML = '<p>⏳ Enviando e processando arquivo...</p>';
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const resp = await fetch('/equipamentos/inventario/upload-xlsx', {
+                method: 'POST',
+                headers: { 
+                    'X-CSRF-Token': csrfToken
+                },
+                body: formData,
+            });
+
+            const data = await resp.json();
+
+            if (!resp.ok) {
+                resultadoDiv.innerHTML =
+                    `<p style="color: var(--status-danger);">
+                        ❌ Erro: ${data.detail || 'Falha no processamento.'}
+                    </p>`;
+                return;
+            }
+
+            // Montar relatório visual
+            let html = `
+                <h4 style="margin: 0 0 0.75rem;">Relatório — Aeronave ${data.matricula}</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem;">
+                    <div><strong>Linhas lidas:</strong> ${data.total_linhas}</div>
+                    <div><strong>PNs encontrados:</strong> ${data.pns_encontrados}</div>
+                    <div><strong>PNs ignorados:</strong> ${data.pns_ignorados}</div>
+                    <div><strong>Itens atualizados:</strong> ${data.itens_atualizados}</div>
+                </div>
+            `;
+
+            if (data.erros && data.erros.length > 0) {
+                html += `<div style="color: var(--status-danger); margin-bottom: 0.5rem;">
+                    <strong>Erros:</strong><br>
+                    ${data.erros.map(e => `• ${e}`).join('<br>')}
+                </div>`;
+            }
+
+            if (data.detalhes && data.detalhes.length > 0) {
+                html += `<div style="margin-top: 0.5rem;">
+                    <strong>Detalhes:</strong><br>
+                    ${data.detalhes.map(d => `${d}`).join('<br>')}
+                </div>`;
+            }
+
+            resultadoDiv.innerHTML = html;
+
+        } catch (err) {
+            resultadoDiv.innerHTML =
+                `<p style="color: var(--status-danger);">
+                    ❌ Erro de conexão: ${err.message}
+                </p>`;
+        } finally {
+            btnEnviar.disabled = false;
+            btnEnviar.textContent = 'Enviar e Processar';
+        }
+    });
+})();
+

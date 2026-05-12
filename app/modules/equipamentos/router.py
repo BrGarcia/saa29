@@ -5,7 +5,7 @@ Endpoints de gestão de equipamentos, itens e inventário.
 
 import uuid
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, UploadFile, File
 
 from app.modules.equipamentos import schemas, service
 from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin, AdminRequired, ExecucaoPermitida
@@ -249,3 +249,49 @@ async def ajustar_inventario(
                 mensagem="Erro de integridade: Usuário ou Aeronave não encontrados. Tente fazer logoff e login novamente."
             )
         raise e
+
+
+@router.post(
+    "/inventario/upload-xlsx",
+    summary="Carregar inventário via XLSX",
+)
+async def upload_inventario_xlsx(
+    db: DBSession,
+    current_user: EncarregadoOuAdmin,
+    file: UploadFile = File(...),
+):
+    """
+    Recebe um arquivo XLSX nomeado como MATRICULA.xlsx,
+    cruza os PNs com o catálogo e atualiza os seriais da aeronave.
+    """
+    # Validar extensão
+    if not file.filename or not file.filename.lower().endswith(".xlsx"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="O arquivo deve ser do tipo .xlsx"
+        )
+
+    # Validar tamanho (máximo 5MB)
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Arquivo excede o tamanho máximo de 5MB."
+        )
+
+    from app.modules.equipamentos.xlsx_service import processar_xlsx_inventario
+    resultado = await processar_xlsx_inventario(
+        db, content, file.filename, current_user.id
+    )
+
+    return {
+        "sucesso": len(resultado.erros) == 0,
+        "matricula": resultado.matricula,
+        "total_linhas": resultado.total_linhas,
+        "pns_encontrados": resultado.pns_encontrados,
+        "pns_ignorados": resultado.pns_ignorados,
+        "itens_atualizados": resultado.itens_atualizados,
+        "erros": resultado.erros,
+        "detalhes": resultado.detalhes,
+    }
+
