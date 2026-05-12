@@ -599,7 +599,7 @@ Adicionar ao final do arquivo a lógica do modal e do upload:
 
 1. **Desambiguação de Slots via `posicao_xlsx`**: A coluna E (Posição) do XLSX é usada para identificar qual slot específico recebe o SN quando um PN possui múltiplos slots (ex: CMFD → MF1, MF2, MF3, MF4). A nova coluna `posicao_xlsx` na tabela `slots_inventario` armazena essa correspondência. Se a posição do XLSX não bater com nenhum `posicao_xlsx` cadastrado, o serviço tenta fallback por `modelo_id` (slot único para o PN).
 
-2. **Levantamento de Correspondências**: É necessário mapear todas as posições da planilha (ex: MF1, MD1, V1, FT, CAT) para os `nome_posicao` do SAA29 (ex: CMFD1, MDP1, VUHF1). Isso pode ser feito comparando os arquivos da pasta `docs/inventario/` com os slots cadastrados em `seed_equipamentos.py`.
+2. **Levantamento de Correspondências**: É necessário mapear todas as posições da planilha (ex: MF1, MD1,EL1, EL2, V1, FT, CAT) para os `nome_posicao` do SAA29 (ex: CMFD1, MDP1, VUHF1). Isso pode ser feito comparando os arquivos da pasta `docs/inventario/` com os slots cadastrados em `seed_equipamentos.py`.
 
 3. **Permissão**: O endpoint usa `EncarregadoOuAdmin`, compatível com o padrão do módulo de ajuste de inventário.
 
