@@ -1,0 +1,51 @@
+/Users/bruno/Documents/Gemini/10_PROJETOS/SAA29/app/bootstrap/config/__init__.py:129: UserWarning: Running in development mode with debug=True (allowed but not for production)
+  warnings.warn(
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 6ff995143283, migrations/script.py.mako
+Template para geração de scripts de migração pelo Alembic.
+INFO  [alembic.runtime.migration] Running upgrade 6ff995143283 -> 0d5cbfc8249b, migrations/script.py.mako
+Template para geração de scripts de migração pelo Alembic.
+INFO  [alembic.runtime.migration] Running upgrade 0d5cbfc8249b -> a1b2c3d4e5f6, add_token_refresh_table
+INFO  [alembic.runtime.migration] Running upgrade a1b2c3d4e5f6 -> b2b0acbf451d, migrations/script.py.mako
+Template para geração de scripts de migração pelo Alembic.
+INFO  [alembic.runtime.migration] Running upgrade b2b0acbf451d -> a572f9b3cbba, migrations/script.py.mako
+Template para geração de scripts de migração pelo Alembic.
+INFO  [alembic.runtime.migration] Running upgrade a572f9b3cbba -> 213295655e96, migrations/script.py.mako
+Template para geração de scripts de migração pelo Alembic.
+INFO  [alembic.runtime.migration] Running upgrade 213295655e96 -> 802c031ae579, migrations/script.py.mako
+Template para geração de scripts de migração pelo Alembic.
+INFO  [alembic.runtime.migration] Running upgrade 802c031ae579 -> a52bed8e30b3, migrations/script.py.mako
+Template para geração de scripts de migração pelo Alembic.
+INFO  [alembic.runtime.migration] Running upgrade a52bed8e30b3 -> 390dd051edd3, migrations/script.py.mako
+Template para geração de scripts de migração pelo Alembic.
+INFO  [alembic.runtime.migration] Running upgrade 390dd051edd3 -> 0144b4b44e4a, migrations/script.py.mako
+Template para geração de scripts de migração pelo Alembic.
+INFO  [alembic.runtime.migration] Running upgrade 0144b4b44e4a -> bb4d91c20293, migrations/script.py.mako
+Template para geração de scripts de migração pelo Alembic.
+INFO  [alembic.runtime.migration] Running upgrade bb4d91c20293 -> 4cdf397899f3, migrations/script.py.mako
+Template para geração de scripts de migração pelo Alembic.
+INFO  [alembic.runtime.migration] Running upgrade 4cdf397899f3 -> 29bfac12c449, migrations/script.py.mako
+Template para geração de scripts de migração pelo Alembic.
+INFO  [alembic.runtime.migration] Running upgrade 29bfac12c449 -> 728522300c7e, migrations/script.py.mako
+Template para geração de scripts de migração pelo Alembic.
+INFO  [alembic.runtime.migration] Running upgrade 728522300c7e -> 617ffa2f1b86, migrations/script.py.mako
+Template para geração de scripts de migração pelo Alembic.
+INFO  [alembic.runtime.migration] Running upgrade 617ffa2f1b86 -> f997d1a99b6e, migrations/script.py.mako
+Template para geração de scripts de migração pelo Alembic.
+INFO  [alembic.runtime.migration] Running upgrade f997d1a99b6e -> ae1b32742c47, migrations/script.py.mako
+Template para geração de scripts de migração pelo Alembic.
+INFO  [alembic.runtime.migration] Running upgrade ae1b32742c47 -> 48d0005f8339, migrations/script.py.mako
+Template para geração de scripts de migração pelo Alembic.
+INFO  [alembic.runtime.migration] Running upgrade 48d0005f8339 -> c4d5e6f7a8b9, Add calendario module
+INFO  [alembic.runtime.migration] Running upgrade c4d5e6f7a8b9 -> d1e2f3a4b5c6, Calendario auditoria 10.2 e 10.5 - private_color e soft-delete
+INFO  [alembic.runtime.migration] Running upgrade d1e2f3a4b5c6 -> 994ef3b91511, migrations/script.py.mako
+Template para geração de scripts de migração pelo Alembic.
+aeronaves                inspecoes                slots_inventario       
+alembic_version          instalacoes              tarefas_catalogo       
+anexos                   itens_equipamento        tarefas_template       
+controle_vencimentos     modelos_equipamento      tipos_controle         
+equipamento_controles    pane_responsaveis        tipos_inspecao         
+indisponibilidades       panes                    token_blacklist        
+inspecao_evento_tipos    prorrogacoes_vencimento  token_refresh          
+inspecao_tarefas         sistemas_ata             usuarios               

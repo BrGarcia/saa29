@@ -118,7 +118,7 @@ async def init_db():
         await seed_vencimentos.run(session)
 
         # 7. Garantir Tipos de Calendário
-        await seed_calendario.run(session)
+        # await seed_calendario.run(session)
 
         await session.commit()
         print(f"🚀 Inicialização do Banco concluída!")
