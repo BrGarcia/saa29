@@ -307,6 +307,15 @@ async def ajustar_inventario_item(
         return AjusteInventarioResponse(sucesso=False, mensagem="Slot de inventário não encontrado.")
 
     inst_atual = await _obter_instalacao_ativa_no_slot(db, aeronave_id, slot_id)
+
+    # Caso de remoção (SN vazio)
+    if not sn_real:
+        if inst_atual:
+            inst_atual.data_remocao = date.today()
+            inst_atual.updated_at = func.now()
+            return AjusteInventarioResponse(sucesso=True, mensagem="Equipamento removido (vazio no inventário).")
+        return AjusteInventarioResponse(sucesso=True, mensagem="O slot já está vazio.")
+
     if inst_atual and inst_atual.item.numero_serie == sn_real:
         return AjusteInventarioResponse(sucesso=True, mensagem="S/N já está sincronizado.")
 

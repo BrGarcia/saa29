@@ -108,16 +108,17 @@ async def processar_xlsx_inventario(
             
             if not sn_xlsx or sn_xlsx.lower() in ("none", "", "-"):
                 # Caso encontre a equivalencia porem a coluna 6 (sn) esta vazia, considere desinstalado
-                sn_final = "" # Indica desinstalação
-                status_msg = f"∅ {slot.nome_posicao} ({pn_sistema}): Removido (SN vazio no XLSX)"
+                sn_final = "" # Indica desinstalação (o service agora trata "" como remoção)
+                status_msg = f"∅ {slot.nome_posicao} ({pn_sistema}): Removido (vazio no XLSX)"
             else:
                 sn_final = sn_xlsx
                 status_msg = f"✅ {slot.nome_posicao} ({pn_sistema}) → SN: {sn_final}"
         else:
             # Caso nao encontre a equivalencia altere o SN para XXXXXXX
+            # Usamos um sufixo para evitar conflito de duplicidade no banco (mesmo SN no mesmo modelo em slots diferentes)
             resultado.pns_ignorados += 1
-            sn_final = "XXXXXXX"
-            status_msg = f"❓ {slot.nome_posicao} ({pn_sistema}) [{pos_sistema}]: Não localizado no XLSX → XXXXXXX"
+            sn_final = f"XXXXXXX-{slot.nome_posicao}"
+            status_msg = f"❓ {slot.nome_posicao} ({pn_sistema}) [{pos_sistema}]: Não localizado no XLSX → {sn_final}"
 
         # 7. Ajustar inventário no slot identificado
         try:

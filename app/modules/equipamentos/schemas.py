@@ -115,7 +115,7 @@ class AjusteInventarioCreate(BaseModel):
     aeronave_id: uuid.UUID
     slot_id: uuid.UUID | None = None
     equipamento_id: uuid.UUID | None = None  # Compatibilidade Frontend (V1)
-    numero_serie_real: str = Field(..., min_length=1)
+    numero_serie_real: str = Field(..., min_length=0)
     forcar_transferencia: bool = False
     usuario_id: uuid.UUID | None = None
 
