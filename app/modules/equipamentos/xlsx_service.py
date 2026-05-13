@@ -67,82 +67,78 @@ async def processar_xlsx_inventario(
         m.part_number.upper(): m for m in res_modelos.scalars().all()
     }
 
-    # 4. Carregar slots e indexar por modelo_id E por posicao_xlsx
-    res_slots = await db.execute(select(SlotInventario))
-    slots_por_modelo: dict[uuid.UUID, list[SlotInventario]] = {}
-    slots_por_posicao: dict[str, SlotInventario] = {}  # posicao_xlsx → slot
-    for slot in res_slots.scalars().all():
-        slots_por_modelo.setdefault(slot.modelo_id, []).append(slot)
-        if slot.posicao_xlsx:
-            slots_por_posicao[slot.posicao_xlsx.upper()] = slot
+    # 4. Carregar slots para esta aeronave (ou todos e filtramos depois se necessário)
+    # Como o objetivo é atualizar os slots do sistema baseado no XLSX:
+    res_slots = await db.execute(
+        select(SlotInventario, ModeloEquipamento)
+        .join(ModeloEquipamento, SlotInventario.modelo_id == ModeloEquipamento.id)
+    )
+    slots_ativos = res_slots.all()
 
-    # 5. Ler o XLSX
-    wb = load_workbook(filename=BytesIO(file_content), read_only=True, data_only=True)
-    ws = wb.active  # Usa a primeira aba
+    # 5. Ler o XLSX e indexar por (PN, POSICAO)
+    wb = load_workbook(filename=BytesIO(file_content), data_only=True)
+    ws = wb.active
 
-    for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-        resultado.total_linhas += 1
-
+    xlsx_data: dict[tuple[str, str], str] = {} # (PN, POS) -> SN
+    for row in ws.iter_rows(min_row=2, values_only=True):
         # Col B (idx 1) = PN, Col E (idx 4) = Posição, Col F (idx 5) = SN Real
-        pn_raw = str(row[1]).strip().upper() if row[1] else None
-        pos_raw = str(row[4]).strip().upper() if row[4] else None
-        sn_raw = str(row[5]).strip() if row[5] else None
+        pn_xlsx = str(row[1]).strip().upper() if row[1] else None
+        pos_xlsx = str(row[4]).strip().upper() if row[4] else ""
+        sn_xlsx = str(row[5]).strip() if row[5] else None
 
-        if not pn_raw or not sn_raw or sn_raw.lower() in ("none", "", "-"):
-            continue
+        if pn_xlsx:
+            xlsx_data[(pn_xlsx, pos_xlsx)] = sn_xlsx
 
-        # 6. Buscar modelo pelo PN
-        modelo = modelos_map.get(pn_raw)
-        if not modelo:
-            resultado.pns_ignorados += 1
-            continue
-
-        resultado.pns_encontrados += 1
-
-        # 7. Desambiguar slot usando posicao_xlsx (coluna E)
-        slot_alvo = None
-        if pos_raw and pos_raw in slots_por_posicao:
-            # Match direto pela posição da planilha
-            slot_alvo = slots_por_posicao[pos_raw]
-        else:
-            # Fallback: se o PN tem um único slot, usar direto
-            slots_do_pn = slots_por_modelo.get(modelo.id, [])
-            if len(slots_do_pn) == 1:
-                slot_alvo = slots_do_pn[0]
-            elif len(slots_do_pn) == 0:
-                resultado.erros.append(
-                    f"Linha {row_idx}: PN '{pn_raw}' sem slot configurado."
-                )
-                continue
+    # 6. Processar slot por slot do sistema
+    for slot, modelo in slots_ativos:
+        resultado.total_linhas += 1 # Aqui total_linhas representa slots processados
+        
+        pn_sistema = modelo.part_number.upper()
+        pos_sistema = slot.posicao_xlsx.upper() if slot.posicao_xlsx else ""
+        
+        # Tenta encontrar no XLSX
+        chave = (pn_sistema, pos_sistema)
+        
+        sn_final = None
+        status_msg = ""
+        
+        if chave in xlsx_data:
+            sn_xlsx = xlsx_data[chave]
+            resultado.pns_encontrados += 1
+            
+            if not sn_xlsx or sn_xlsx.lower() in ("none", "", "-"):
+                # Caso encontre a equivalencia porem a coluna 6 (sn) esta vazia, considere desinstalado
+                sn_final = "" # Indica desinstalação
+                status_msg = f"∅ {slot.nome_posicao} ({pn_sistema}): Removido (SN vazio no XLSX)"
             else:
-                resultado.erros.append(
-                    f"Linha {row_idx}: PN '{pn_raw}' possui {len(slots_do_pn)} slots, "
-                    f"mas posição '{pos_raw}' não tem correspondência em posicao_xlsx."
-                )
-                continue
+                sn_final = sn_xlsx
+                status_msg = f"✅ {slot.nome_posicao} ({pn_sistema}) → SN: {sn_final}"
+        else:
+            # Caso nao encontre a equivalencia altere o SN para XXXXXXX
+            resultado.pns_ignorados += 1
+            sn_final = "XXXXXXX"
+            status_msg = f"❓ {slot.nome_posicao} ({pn_sistema}) [{pos_sistema}]: Não localizado no XLSX → XXXXXXX"
 
-        # 8. Ajustar inventário no slot identificado
+        # 7. Ajustar inventário no slot identificado
         try:
             dados = AjusteInventarioCreate(
                 aeronave_id=aeronave.id,
-                slot_id=slot_alvo.id,
-                numero_serie_real=sn_raw,
+                slot_id=slot.id,
+                numero_serie_real=sn_final,
                 forcar_transferencia=False,
                 usuario_id=usuario_id,
             )
             resp = await equip_service.ajustar_inventario_item(db, dados)
             if resp.sucesso:
                 resultado.itens_atualizados += 1
-                resultado.detalhes.append(
-                    f"✅ {slot_alvo.nome_posicao} ({pn_raw}) → SN: {sn_raw}"
-                )
+                resultado.detalhes.append(status_msg)
             else:
                 resultado.detalhes.append(
-                    f"⚠️ {slot_alvo.nome_posicao}: {resp.mensagem}"
+                    f"⚠️ {slot.nome_posicao}: {resp.mensagem}"
                 )
         except Exception as e:
             resultado.erros.append(
-                f"Linha {row_idx}, Slot {slot_alvo.nome_posicao}: {str(e)}"
+                f"Slot {slot.nome_posicao} ({pn_sistema}): {str(e)}"
             )
 
     wb.close()

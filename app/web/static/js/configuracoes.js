@@ -516,37 +516,18 @@ async function removerRegra(modeloId, tipoId) {
         return;
     }
 
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-    console.log("CSRF Token encontrado:", csrfToken ? "Sim" : "Não");
-
     try {
-        console.log("DISPARANDO: fetch DELETE...");
-        const response = await fetch(`/vencimentos/regras/${modeloId}/${tipoId}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-Token': csrfToken || '',
-                'Content-Type': 'application/json'
-            }
+        console.log("DISPARANDO: apiFetch DELETE...");
+        const data = await apiFetch(`/vencimentos/regras/${modeloId}/${tipoId}`, {
+            method: 'DELETE'
         });
 
-        console.log("RESPOSTA RECEBIDA: Status", response.status);
-
-        if (response.ok) {
-            let data = null;
-            if (response.status !== 204) {
-                data = await response.json().catch(() => ({}));
-            }
-            console.log("DADOS RECEBIDOS:", data);
-            showToast("Regra removida com sucesso!", "success");
-            await carregarListaRegras();
-        } else {
-            const error = await response.json().catch(() => ({ detail: "Erro desconhecido" }));
-            console.error("ERRO NA API:", response.status, error);
-            showToast(error.detail || "Erro ao excluir.", "error");
-        }
+        console.log("SUCESSO: Regra removida");
+        showToast("Regra removida com sucesso!", "success");
+        await carregarListaRegras();
     } catch(err) {
         console.error("ERRO FATAL (Network/JS):", err);
-        showToast("Falha de conexão ao excluir regra.", "error");
+        // apiFetch já mostra o toast se falhar, mas mantemos o log
     }
 }
 
@@ -1318,24 +1299,10 @@ async function carregarOpcoesCatalogoTarefas() {
         formData.append('file', file);
 
         try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-            const resp = await fetch('/equipamentos/inventario/upload-xlsx', {
+            const data = await apiFetch('/equipamentos/inventario/upload-xlsx', {
                 method: 'POST',
-                headers: { 
-                    'X-CSRF-Token': csrfToken
-                },
                 body: formData,
             });
-
-            const data = await resp.json();
-
-            if (!resp.ok) {
-                resultadoDiv.innerHTML =
-                    `<p style="color: var(--status-danger);">
-                        ❌ Erro: ${data.detail || 'Falha no processamento.'}
-                    </p>`;
-                return;
-            }
 
             // Montar relatório visual
             let html = `
