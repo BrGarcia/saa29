@@ -19,7 +19,8 @@ from app.bootstrap.database import get_session_factory, Base
 from scripts.seed import (
     seed_auth,
     seed_aeronaves,
-    seed_equipamentos,
+    seed_modelos,
+    seed_slots,
     seed_vencimentos,
     seed_inventario,
     seed_panes,
@@ -49,8 +50,11 @@ async def main():
             # 2. Aeronaves (Frota)
             await seed_aeronaves.run(session)
             
-            # 3. Equipamentos (Catálogo/PNs/Slots)
-            await seed_equipamentos.run(session)
+            # 3a. Modelos (Catálogo de PNs — deduplicados)
+            await seed_modelos.run(session)
+
+            # 3b. Slots (Mapa físico da aeronave — depende dos Modelos)
+            await seed_slots.run(session)
 
             # 4. Sistemas ATA
             await seed_sistemas_ata.run(session)

@@ -56,6 +56,7 @@ na posicao TEC e no seed tbm
 
 na seed os equipamentos sao carregados como
  {"slot": "CMFD4", "equipamento": "CMFD", "pn": "MB387B-01", "loc": "2P", "pos": "MF4"},verifique se essa variavel pos é a do xlsx
+ 
 [COMPORTAMENTO ESPERADO]
 - XLSX deve ser processado corretamente na primeira tentativa
 - Novos uploads devem funcionar sem necessidade de recarregar página
