@@ -16,8 +16,8 @@ EQUIPAMENTOS_FICHA = [
     {"slot": "STORMSCOPE", "equipamento": "STORMSCOPE", "pn": "78-8060-6086-5", "loc": "CEI"},
     {"slot": "EGIR", "equipamento": "EGIR", "pn": "34200802-80RB", "loc": "CEI"},
     {"slot": "VOR", "equipamento": "VOR", "pn": "622-7194-201", "loc": "CEI"},
-    {"slot": "MDP1", "equipamento": "MDP", "pn": "MA902B-02", "loc": "CEI", "pos": "EL1"},
-    {"slot": "MDP2", "equipamento": "MDP", "pn": "MA902B-02", "loc": "CEI", "pos": "EL2"},
+    {"slot": "MDP1", "equipamento": "MDP", "pn": "MA902B-01", "loc": "CEI", "pos": "EL1"},
+    {"slot": "MDP2", "equipamento": "MDP", "pn": "MA902B-01", "loc": "CEI", "pos": "EL2"},
     {"slot": "ARTU", "equipamento": "ARTU", "pn": "251-118-012-012", "loc": "CEI"},
     {"slot": "AFDC", "equipamento": "AFDC", "pn": "449100-02-01", "loc": "CEI"},
     {"slot": "VUHF1", "equipamento": "VUHF-1", "pn": "6110.3001.12", "loc": "CEI", "pos": "CEL"},
@@ -45,7 +45,7 @@ EQUIPAMENTOS_FICHA = [
     {"slot": "ASP-2P", "equipamento": "ASP", "pn": "343-001", "loc": "2P", "pos": "P2P"},
     {"slot": "STICKGRIP-2P", "equipamento": "STICKGRIP", "pn": "733-0402", "loc": "2P", "pos": "CAT"},
 
-    # CES - COMPARIMENTO ELETRONICO SUPERIOR
+    # CES - COMPARTIMENTO ELETRONICO SUPERIOR
     {"slot": "VADR", "equipamento": "VADR", "pn": "174521-10-01", "loc": "CES"},
     {"slot": "ELT", "equipamento": "ELT", "pn": "453-5000-710", "loc": "CES"},
     {"slot": "BEACON", "equipamento": "BEACON", "pn": "DK120", "loc": "CES"},
