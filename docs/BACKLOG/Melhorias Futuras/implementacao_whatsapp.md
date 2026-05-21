@@ -316,5 +316,6 @@ Acesse o sistema para mais detalhes.
 - **Falha silenciosa:** O sistema deve **continuar funcionando** mesmo que o WhatsApp esteja indisponível. O envio da notificação deve ser tratado como uma operação secundária com `try/except`.
 
 ---
-
+NOTA MENTAL: Pesquisar sobre a biblioteca bailyes https://baileys.wiki/docs/intro/
 *Documento criado em 17 de abril de 2026 como estudo de viabilidade para integração WhatsApp no SAA29.*
+
