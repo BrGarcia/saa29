@@ -1268,6 +1268,7 @@ async function carregarOpcoesCatalogoTarefas() {
         resultadoDiv.innerHTML = '';
         btnPrevia.style.display = 'inline-block';
         btnPrevia.disabled = false;
+        btnPrevia.textContent = 'Carregar';
         btnEnviar.style.display = 'none';
         btnEnviar.disabled = false;
         btnEnviar.textContent = 'Enviar e Processar';
@@ -1277,6 +1278,16 @@ async function carregarOpcoesCatalogoTarefas() {
     function fecharModal() {
         modal.style.display = 'none';
     }
+
+    // Resetar estado se o usuário trocar o arquivo
+    fileInput.addEventListener('change', () => {
+        btnPrevia.style.display = 'inline-block';
+        btnPrevia.disabled = false;
+        btnPrevia.textContent = 'Carregar';
+        btnEnviar.style.display = 'none';
+        resultadoDiv.style.display = 'none';
+        previewData = null;
+    });
 
     btnUpload.addEventListener('click', abrirModal);
     btnClose.addEventListener('click', fecharModal);
@@ -1332,20 +1343,24 @@ async function carregarOpcoesCatalogoTarefas() {
                     <div><strong>No XLSX:</strong> ${data.pns_encontrados}</div>
                     <div><strong>Não no XLSX:</strong> ${data.pns_ignorados}</div>
                 </div>
-                <div style="font-size: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px;">
-                    <div style="max-height: 150px; overflow-y: auto; padding: 0.5rem;">
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead style="position: sticky; top: 0; background: var(--card-bg); font-weight: bold;">
-                                <tr style="border-bottom: 1px solid var(--border-color);">
-                                    <td style="padding: 4px;">Posição</td>
-                                    <td style="padding: 4px;">SN Encontrado</td>
-                                </tr>
-                            </thead>
+                <div style="font-size: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden;">
+                    <!-- Cabeçalho Fixo -->
+                    <table style="width: 100%; border-collapse: collapse; background: var(--bg-tertiary);">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <th style="padding: 8px 4px; text-align: left; width: 40%; font-weight: bold;">Posição</th>
+                                <th style="padding: 8px 4px; text-align: left; width: 60%; font-weight: bold;">SN Encontrado</th>
+                            </tr>
+                        </thead>
+                    </table>
+                    <!-- Corpo Scrollable -->
+                    <div style="max-height: 180px; overflow-y: auto;">
+                        <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
                             <tbody>
                                 ${data.itens.map(item => `
                                     <tr style="border-bottom: 1px solid rgba(0,0,0,0.05);">
-                                        <td style="padding: 4px;">${item.nome_posicao}</td>
-                                        <td style="padding: 4px; color: ${item.status === 'OK' ? 'var(--status-ok)' : item.status === 'REMOVED' ? 'var(--status-warning)' : 'var(--text-secondary)'};">
+                                        <td style="padding: 6px 4px; width: 40%; word-break: break-word;">${item.nome_posicao}</td>
+                                        <td style="padding: 6px 4px; width: 60%; word-break: break-word; color: ${item.status === 'OK' ? 'var(--status-ok)' : item.status === 'REMOVED' ? 'var(--status-warning)' : 'var(--text-secondary)'};">
                                             ${item.status_msg}
                                         </td>
                                     </tr>

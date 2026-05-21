@@ -103,9 +103,13 @@ async def obter_previa_xlsx_inventario(
 
     # 5. Gerar itens de prévia
     for slot, modelo in slots_ativos:
-        resultado.total_linhas += 1
-        
         pn_sistema = modelo.part_number.upper()
+        
+        # Exceção: Beacon DK120 não costuma vir no XLSX e não deve ser alterado via carga automática
+        if pn_sistema == "DK120":
+            continue
+
+        resultado.total_linhas += 1
         pos_sistema = slot.posicao_xlsx.upper() if slot.posicao_xlsx else ""
         
         chave = (pn_sistema, pos_sistema)
@@ -176,7 +180,7 @@ async def processar_xlsx_inventario(
     # Aplicar cada item
     for item in previa.itens:
         try:
-            dados = AjusteInventarioCreate(
+            dados = schemas.AjusteInventarioCreate(
                 aeronave_id=previa.aeronave_id,
                 slot_id=item.slot_id,
                 numero_serie_real=item.sn_encontrado,
@@ -212,7 +216,7 @@ async def processar_confirmacao_xlsx(
 
     for item in itens:
         try:
-            dados = AjusteInventarioCreate(
+            dados = schemas.AjusteInventarioCreate(
                 aeronave_id=aeronave_id,
                 slot_id=item.slot_id,
                 numero_serie_real=item.sn_final,
