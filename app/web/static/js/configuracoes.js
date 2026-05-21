@@ -1254,7 +1254,10 @@ async function carregarOpcoesCatalogoTarefas() {
     const form = document.getElementById('formUploadXlsx');
     const fileInput = document.getElementById('xlsxFileInput');
     const resultadoDiv = document.getElementById('xlsx-resultado');
+    const btnPrevia = document.getElementById('btnPreviaXlsx');
     const btnEnviar = document.getElementById('btnEnviarXlsx');
+
+    let previewData = null;
 
     if (!btnUpload || !modal) return;
 
@@ -1263,8 +1266,12 @@ async function carregarOpcoesCatalogoTarefas() {
         form.reset();
         resultadoDiv.style.display = 'none';
         resultadoDiv.innerHTML = '';
+        btnPrevia.style.display = 'inline-block';
+        btnPrevia.disabled = false;
+        btnEnviar.style.display = 'none';
         btnEnviar.disabled = false;
         btnEnviar.textContent = 'Enviar e Processar';
+        previewData = null;
     }
 
     function fecharModal() {
@@ -1278,65 +1285,131 @@ async function carregarOpcoesCatalogoTarefas() {
         if (e.target === modal) fecharModal();
     });
 
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
+    // Passo 1: Carregar Prévia
+    btnPrevia.addEventListener('click', async () => {
         const file = fileInput.files[0];
-        if (!file) return;
+        if (!file) {
+            showToast('Selecione um arquivo .xlsx.', 'error');
+            return;
+        }
 
-        // Validar extensão
         if (!file.name.toLowerCase().endsWith('.xlsx')) {
             showToast('Selecione um arquivo .xlsx válido.', 'error');
             return;
         }
 
-        btnEnviar.disabled = true;
-        btnEnviar.textContent = 'Processando...';
+        btnPrevia.disabled = true;
+        btnPrevia.textContent = 'Lendo...';
         resultadoDiv.style.display = 'block';
-        resultadoDiv.innerHTML = '<p>⏳ Enviando e processando arquivo...</p>';
+        resultadoDiv.innerHTML = '<p>⏳ Analisando arquivo...</p>';
 
         const formData = new FormData();
         formData.append('file', file);
 
         try {
-            const data = await apiFetch('/equipamentos/inventario/upload-xlsx', {
+            const data = await apiFetch('/equipamentos/inventario/upload-xlsx/preview', {
                 method: 'POST',
                 body: formData,
             });
 
-            // Montar relatório visual
-            let html = `
-                <h4 style="margin: 0 0 0.75rem;">Relatório — Aeronave ${data.matricula}</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem;">
-                    <div><strong>Linhas lidas:</strong> ${data.total_linhas}</div>
-                    <div><strong>PNs encontrados:</strong> ${data.pns_encontrados}</div>
-                    <div><strong>PNs ignorados:</strong> ${data.pns_ignorados}</div>
-                    <div><strong>Itens atualizados:</strong> ${data.itens_atualizados}</div>
-                </div>
-            `;
-
             if (data.erros && data.erros.length > 0) {
-                html += `<div style="color: var(--status-danger); margin-bottom: 0.5rem;">
-                    <strong>Erros:</strong><br>
+                resultadoDiv.innerHTML = `<div style="color: var(--status-danger);">
+                    <strong>Erros encontrados:</strong><br>
                     ${data.erros.map(e => `• ${e}`).join('<br>')}
                 </div>`;
+                btnPrevia.disabled = false;
+                btnPrevia.textContent = 'Carregar';
+                return;
             }
 
-            if (data.detalhes && data.detalhes.length > 0) {
-                html += `<div style="margin-top: 0.5rem;">
-                    <strong>Detalhes:</strong><br>
-                    ${data.detalhes.map(d => `${d}`).join('<br>')}
-                </div>`;
-            }
+            previewData = data;
+
+            // Montar relatório de prévia
+            let html = `
+                <h4 style="margin: 0 0 0.75rem;">Pré-visualização — Aeronave ${data.matricula}</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem; background: rgba(0,0,0,0.05); padding: 0.75rem; border-radius: 4px;">
+                    <div><strong>Total Slots:</strong> ${data.total_linhas}</div>
+                    <div><strong>No XLSX:</strong> ${data.pns_encontrados}</div>
+                    <div><strong>Não no XLSX:</strong> ${data.pns_ignorados}</div>
+                </div>
+                <div style="font-size: 0.8rem; border: 1px solid var(--border-color); border-radius: 4px;">
+                    <div style="max-height: 150px; overflow-y: auto; padding: 0.5rem;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead style="position: sticky; top: 0; background: var(--card-bg); font-weight: bold;">
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <td style="padding: 4px;">Posição</td>
+                                    <td style="padding: 4px;">SN Encontrado</td>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.itens.map(item => `
+                                    <tr style="border-bottom: 1px solid rgba(0,0,0,0.05);">
+                                        <td style="padding: 4px;">${item.nome_posicao}</td>
+                                        <td style="padding: 4px; color: ${item.status === 'OK' ? 'var(--status-ok)' : item.status === 'REMOVED' ? 'var(--status-warning)' : 'var(--text-secondary)'};">
+                                            ${item.status_msg}
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <p style="margin-top: 1rem; font-weight: 500; color: var(--primary-color);">Deseja processar e atualizar o banco de dados?</p>
+            `;
 
             resultadoDiv.innerHTML = html;
+            btnPrevia.style.display = 'none';
+            btnEnviar.style.display = 'inline-block';
 
         } catch (err) {
-            resultadoDiv.innerHTML =
-                `<p style="color: var(--status-danger);">
-                    ❌ Erro de conexão: ${err.message}
-                </p>`;
-        } finally {
+            resultadoDiv.innerHTML = `<p style="color: var(--status-danger);">❌ Erro: ${err.message}</p>`;
+            btnPrevia.disabled = false;
+            btnPrevia.textContent = 'Carregar';
+        }
+    });
+
+    // Passo 2: Processar e Persistir
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        if (!previewData || !previewData.aeronave_id) {
+            showToast('Dados de prévia não encontrados.', 'error');
+            return;
+        }
+
+        btnEnviar.disabled = true;
+        btnEnviar.textContent = 'Gravando...';
+
+        const body = {
+            aeronave_id: previewData.aeronave_id,
+            itens: previewData.itens.map(it => ({
+                slot_id: it.slot_id,
+                sn_final: it.sn_encontrado
+            }))
+        };
+
+        try {
+            const data = await apiFetch('/equipamentos/inventario/upload-xlsx/process', {
+                method: 'POST',
+                body: body,
+            });
+
+            showToast(`Sucesso! ${data.itens_atualizados} itens atualizados.`, 'success');
+            
+            // Exibir resumo final
+            resultadoDiv.innerHTML = `
+                <div style="text-align: center; padding: 1rem;">
+                    <div style="color: var(--status-ok); font-size: 2rem; margin-bottom: 0.5rem;">✅</div>
+                    <h4 style="margin: 0;">Processamento Concluído</h4>
+                    <p>${data.itens_atualizados} de ${data.total_linhas} slots foram atualizados para a aeronave ${previewData.matricula}.</p>
+                </div>
+            `;
+            
+            btnEnviar.style.display = 'none';
+            setTimeout(fecharModal, 3000);
+
+        } catch (err) {
+            showToast(err.message || 'Erro ao processar inventário.', 'error');
             btnEnviar.disabled = false;
             btnEnviar.textContent = 'Enviar e Processar';
         }

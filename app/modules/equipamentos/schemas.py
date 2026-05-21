@@ -134,3 +134,33 @@ class AjusteInventarioResponse(BaseModel):
     mensagem: str
     requer_confirmacao: bool = False
     aeronave_conflito: str | None = None
+
+# ============================================================
+# XLSX Upload / Preview
+# ============================================================
+
+class XlsxPreviewItemOut(BaseModel):
+    slot_id: uuid.UUID
+    nome_posicao: str
+    pn: str
+    posicao_xlsx: str
+    sn_encontrado: str | None
+    status: str
+    status_msg: str
+
+class XlsxPreviewOut(BaseModel):
+    matricula: str
+    aeronave_id: uuid.UUID | None
+    total_linhas: int
+    pns_encontrados: int
+    pns_ignorados: int
+    itens: list[XlsxPreviewItemOut]
+    erros: list[str]
+
+class XlsxProcessConfirmItem(BaseModel):
+    slot_id: uuid.UUID
+    sn_final: str
+
+class XlsxProcessRequest(BaseModel):
+    aeronave_id: uuid.UUID
+    itens: list[XlsxProcessConfirmItem]

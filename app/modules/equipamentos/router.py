@@ -252,8 +252,59 @@ async def ajustar_inventario(
 
 
 @router.post(
+    "/inventario/upload-xlsx/preview",
+    response_model=schemas.XlsxPreviewOut,
+    summary="Obter prévia do inventário via XLSX",
+)
+async def upload_inventario_xlsx_preview(
+    db: DBSession,
+    _: EncarregadoOuAdmin,
+    file: UploadFile = File(...),
+):
+    """
+    Recebe um arquivo XLSX, cruza os PNs com o catálogo e retorna 
+    uma prévia das alterações sem persistir.
+    """
+    if not file.filename or not file.filename.lower().endswith(".xlsx"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="O arquivo deve ser do tipo .xlsx"
+        )
+
+    content = await file.read()
+    from app.modules.equipamentos.xlsx_service import obter_previa_xlsx_inventario
+    return await obter_previa_xlsx_inventario(db, content, file.filename)
+
+
+@router.post(
+    "/inventario/upload-xlsx/process",
+    summary="Processar e persistir inventário via XLSX",
+)
+async def upload_inventario_xlsx_process(
+    dados: schemas.XlsxProcessRequest,
+    db: DBSession,
+    current_user: EncarregadoOuAdmin,
+):
+    """
+    Recebe a lista confirmada de itens e persiste no banco de dados.
+    """
+    from app.modules.equipamentos.xlsx_service import processar_confirmacao_xlsx
+    resultado = await processar_confirmacao_xlsx(
+        db, dados.aeronave_id, dados.itens, current_user.id
+    )
+
+    return {
+        "sucesso": len(resultado.erros) == 0,
+        "total_linhas": resultado.total_linhas,
+        "itens_atualizados": resultado.itens_atualizados,
+        "erros": resultado.erros,
+        "detalhes": resultado.detalhes,
+    }
+
+
+@router.post(
     "/inventario/upload-xlsx",
-    summary="Carregar inventário via XLSX",
+    summary="Carregar inventário via XLSX (Legado/Direto)",
 )
 async def upload_inventario_xlsx(
     db: DBSession,
