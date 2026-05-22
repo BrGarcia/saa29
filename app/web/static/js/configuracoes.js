@@ -11,10 +11,10 @@
 
 // Declaramos funções globais importadas do app.js
 /** @type {typeof import('./app.js').apiFetch} */
-const apiFetch = /** @type {any} */ (window).apiFetch;
+var apiFetch = /** @type {any} */ (window).apiFetch;
 
 /** @type {typeof import('./app.js').showToast} */
-const showToast = /** @type {any} */ (window).showToast;
+var showToast = /** @type {any} */ (window).showToast;
 
 document.addEventListener("DOMContentLoaded", () => {
     // Verificação extra de segurança no frontend
