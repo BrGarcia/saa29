@@ -1,12 +1,78 @@
+// @ts-check
+
 /**
  * static/js/app.js
  * Lógica Vanilla JS para MVP Tático SAA29.
  */
 
-// 1. Gerenciamento de Tema (Dark/Light Mode)
+// ============================================================================
+// DEFINIÇÕES DE TIPOS GLOBAIS (JSDoc Model Definitions)
+// ============================================================================
+
+/**
+ * @typedef {Object} SAAUser
+ * @property {number} id
+ * @property {string} nome
+ * @property {string} funcao
+ * @property {string} [token]
+ */
+
+/**
+ * @typedef {Object} Aeronave
+ * @property {string} id
+ * @property {string} matricula
+ * @property {string} serial_number
+ * @property {string} status
+ * @property {boolean} [ativo]
+ */
+
+/**
+ * @typedef {Object} TipoControle
+ * @property {string} id
+ * @property {string} nome
+ * @property {string} [descricao]
+ */
+
+/**
+ * @typedef {Object} Equipamento
+ * @property {string} id
+ * @property {string} part_number
+ * @property {string} nome_generico
+ * @property {string} [descricao]
+ */
+
+/**
+ * @typedef {Object} RegraVencimento
+ * @property {string} modelo_id
+ * @property {string} tipo_controle_id
+ * @property {number} periodicidade_meses
+ * @property {string} [pn]
+ * @property {string} [tipo_nome]
+ */
+
+/**
+ * @typedef {Object} TipoInspecao
+ * @property {string} id
+ * @property {string} codigo
+ * @property {string} nome
+ * @property {string} [descricao]
+ * @property {number} [duracao_dias]
+ * @property {boolean} ativo
+ */
+
+// ============================================================================
+// LOGICA DE TEMA E SESSÃO
+// ============================================================================
+
 const THEME_KEY = "saa29_theme";
+
+/** @type {HTMLElement | null} */
 const toggleThemeBtn = document.getElementById("theme-toggle");
 
+/**
+ * Inicializa o tema preferido do usuário ou carrega o padrão claro.
+ * @returns {void}
+ */
 function initTheme() {
     let theme = localStorage.getItem(THEME_KEY);
     if (!theme) {
@@ -17,6 +83,10 @@ function initTheme() {
     updateThemeIcon(theme);
 }
 
+/**
+ * Alterna entre tema claro e escuro.
+ * @returns {void}
+ */
 function toggleTheme() {
     let currentTheme = document.documentElement.getAttribute("data-theme");
     let newTheme = currentTheme === "dark" ? "light" : "dark";
@@ -26,6 +96,11 @@ function toggleTheme() {
     updateThemeIcon(newTheme);
 }
 
+/**
+ * Atualiza o ícone do tema no botão correspondente.
+ * @param {string} theme - "light" ou "dark"
+ * @returns {void}
+ */
 function updateThemeIcon(theme) {
     if (!toggleThemeBtn) return;
     if (theme === "dark") {
@@ -36,6 +111,10 @@ function updateThemeIcon(theme) {
 }
 
 // 2. JWT Cookies Interceptor logic
+/**
+ * Limpa a sessão local do usuário e redireciona para a tela de login.
+ * @returns {Promise<void>}
+ */
 async function clearAuth() {
     // 1. Limpeza Local imediata para garantir que a UI deslogue
     localStorage.removeItem("saa29_user");
@@ -43,9 +122,10 @@ async function clearAuth() {
     // 2. Tenta notificar o servidor (opcional para o cliente, mas bom para segurança)
     try {
         const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        /** @type {Record<string, string>} */
         const headers = { "Content-Type": "application/json" };
         if (csrfMeta) {
-            headers["X-CSRF-Token"] = csrfMeta.getAttribute("content");
+            headers["X-CSRF-Token"] = csrfMeta.getAttribute("content") || "";
         }
 
         await fetch("/auth/logout", {
@@ -61,18 +141,26 @@ async function clearAuth() {
     window.location.href = "/login";
 }
 
+/**
+ * Função utilitária para chamadas à API com suporte a CSRF e tratamento de erros automático.
+ * 
+ * @param {string} endpoint - O endpoint da API (ex: "/aeronaves/")
+ * @param {RequestInit & { body?: any }} [options] - Opções extras da requisição HTTP
+ * @returns {Promise<any>} O payload retornado em formato JSON
+ */
 async function apiFetch(endpoint, options = {}) {
     // Para endpoints na mesma origem, envia os Cookies de sessão (HttpOnly)
     options.credentials = 'same-origin';
     
+    /** @type {Record<string, string>} */
     const headers = {
-        ...(options.headers || {})
+        ...(options.headers ? Object.fromEntries(new Headers(options.headers).entries()) : {})
     };
 
     // Auto-inject CSRF Token
     const csrfMeta = document.querySelector('meta[name="csrf-token"]');
     if (csrfMeta) {
-        headers["X-CSRF-Token"] = csrfMeta.getAttribute("content");
+        headers["X-CSRF-Token"] = csrfMeta.getAttribute("content") || "";
     }
 
     // Auto-inject JSON se aplicável
@@ -119,12 +207,19 @@ async function apiFetch(endpoint, options = {}) {
 
         return data;
     } catch (error) {
+        // @ts-ignore
         showToast(error.message, "error");
         throw error;
     }
 }
 
 // 3. Utilitários Globais (SEC-04)
+/**
+ * Sanitiza texto contra ataques XSS de forma segura.
+ * 
+ * @param {string | null | undefined} text - O texto que necessita de sanitização
+ * @returns {string} O texto sanitizado em formato seguro para inserção no HTML
+ */
 function escapeHtml(text) {
     if (text === null || text === undefined) return "";
     const div = document.createElement('div');
@@ -133,6 +228,13 @@ function escapeHtml(text) {
 }
 
 // 4. Sistema de Toasts Visuais Premium
+/**
+ * Exibe um toast visual customizável no canto da tela.
+ * 
+ * @param {string} message - A mensagem a ser exibida no Toast
+ * @param {"success" | "error" | "info" | "warning"} [type] - O tipo do Toast
+ * @returns {void}
+ */
 function showToast(message, type = "info") {
     let container = document.getElementById("toast-container");
     if (!container) {
@@ -173,3 +275,4 @@ document.addEventListener("DOMContentLoaded", () => {
         logoutBtn.addEventListener("click", clearAuth);
     }
 });
+

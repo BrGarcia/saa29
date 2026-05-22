@@ -1,13 +1,27 @@
+// @ts-check
+
 /**
  * Scripts para a página de configurações.
  * Por enquanto serve de stub para as funcionalidades futuras.
  */
+
+// Importamos tipos globais de app.js para autocompletação no editor
+/** @typedef {import('./app.js').SAAUser} SAAUser */
+/** @typedef {import('./app.js').Aeronave} Aeronave */
+
+// Declaramos funções globais importadas do app.js
+/** @type {typeof import('./app.js').apiFetch} */
+const apiFetch = /** @type {any} */ (window).apiFetch;
+
+/** @type {typeof import('./app.js').showToast} */
+const showToast = /** @type {any} */ (window).showToast;
 
 document.addEventListener("DOMContentLoaded", () => {
     // Verificação extra de segurança no frontend
     const userJson = localStorage.getItem("saa29_user");
     if (userJson) {
         try {
+            /** @type {SAAUser} */
             const user = JSON.parse(userJson);
             const funcao = user.funcao ? user.funcao.toUpperCase() : '';
             if (funcao !== 'ADMINISTRADOR' && funcao !== 'ENCARREGADO') {
@@ -26,31 +40,31 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnNova = document.getElementById('btn-nova-aeronave');
     if(btnNova) btnNova.addEventListener('click', openModalConfig);
     
-    const form = document.getElementById('formAeronave');
+    const form = /** @type {HTMLFormElement | null} */ (document.getElementById('formAeronave'));
     if(form) form.addEventListener('submit', criarAeronave);
 
     const btnAlterarStatus = document.getElementById('btn-alterar-status-aeronave');
     if(btnAlterarStatus) btnAlterarStatus.addEventListener('click', openModalStatus);
     
-    const formStatus = document.getElementById('formAlterarStatusAeronave');
+    const formStatus = /** @type {HTMLFormElement | null} */ (document.getElementById('formAlterarStatusAeronave'));
     if(formStatus) formStatus.addEventListener('submit', alterarStatusAeronave);
 
     const btnTiposControle = document.getElementById('btn-tipos-controle');
     if(btnTiposControle) btnTiposControle.addEventListener('click', openModalTipoControle);
 
-    const formTipoControle = document.getElementById('formTipoControle');
+    const formTipoControle = /** @type {HTMLFormElement | null} */ (document.getElementById('formTipoControle'));
     if(formTipoControle) formTipoControle.addEventListener('submit', salvarTipoControle);
 
     const btnEditarTipo = document.getElementById('btn-editar-tipo-controle');
     if(btnEditarTipo) btnEditarTipo.addEventListener('click', openModalEditarTipo);
 
-    const formEditarTipo = document.getElementById('formEditarTipoControle');
+    const formEditarTipo = /** @type {HTMLFormElement | null} */ (document.getElementById('formEditarTipoControle'));
     if(formEditarTipo) formEditarTipo.addEventListener('submit', salvarEditarTipo);
 
     const btnEquipamentoControle = document.getElementById('btn-equipamento-controle');
     if(btnEquipamentoControle) btnEquipamentoControle.addEventListener('click', openModalRegras);
 
-    const formNovaRegra = document.getElementById('formNovaRegra');
+    const formNovaRegra = /** @type {HTMLFormElement | null} */ (document.getElementById('formNovaRegra'));
     if(formNovaRegra) formNovaRegra.addEventListener('submit', salvarNovaRegra);
 
     const btnPN = document.getElementById('btn-gerenciar-catalogo');
@@ -59,10 +73,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnNovoPN = document.getElementById('btn-novo-pn');
     if(btnNovoPN) btnNovoPN.addEventListener('click', openModalNovoPN);
 
-    const formNovoPN = document.getElementById('formNovoPN');
+    const formNovoPN = /** @type {HTMLFormElement | null} */ (document.getElementById('formNovoPN'));
     if(formNovoPN) formNovoPN.addEventListener('submit', salvarNovoPN);
 
-    const formEditarPN = document.getElementById('formEditarPN');
+    const formEditarPN = /** @type {HTMLFormElement | null} */ (document.getElementById('formEditarPN'));
     if(formEditarPN) formEditarPN.addEventListener('submit', salvarEditarPN);
 
     // Navegação Efetivo
@@ -136,27 +150,62 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('formTipoEvento')?.addEventListener('submit', salvarTipoEvento);
 });
 
+/**
+ * Abre o modal de configuração de nova aeronave.
+ * @returns {void}
+ */
 function openModalConfig() {
-    document.querySelector("#modal-aeronave h3").innerText = "Nova Aeronave";
-    document.getElementById("btnSalvarAcft").innerText = "Registrar";
-    document.getElementById("statusInput").value = "DISPONIVEL";
-    document.getElementById("statusInput").disabled = false;
-    document.getElementById("modal-aeronave").style.display = "flex";
+    const modalH3 = document.querySelector("#modal-aeronave h3");
+    if (modalH3) {
+        /** @type {HTMLElement} */ (modalH3).innerText = "Nova Aeronave";
+    }
+    const btnSalvar = document.getElementById("btnSalvarAcft");
+    if (btnSalvar) {
+        /** @type {HTMLElement} */ (btnSalvar).innerText = "Registrar";
+    }
+    const statusInput = /** @type {HTMLInputElement | null} */ (document.getElementById("statusInput"));
+    if (statusInput) {
+        statusInput.value = "DISPONIVEL";
+        statusInput.disabled = false;
+    }
+    const modalAeronave = document.getElementById("modal-aeronave");
+    if (modalAeronave) {
+        modalAeronave.style.display = "flex";
+    }
 }
 
+/**
+ * Fecha o modal de configuração de aeronave e limpa o formulário.
+ * @returns {void}
+ */
 function closeModalConfig() {
-    document.getElementById("modal-aeronave").style.display = "none";
-    document.getElementById("formAeronave").reset();
+    const modalAeronave = document.getElementById("modal-aeronave");
+    if (modalAeronave) {
+        modalAeronave.style.display = "none";
+    }
+    const formAeronave = /** @type {HTMLFormElement | null} */ (document.getElementById("formAeronave"));
+    if (formAeronave) {
+        formAeronave.reset();
+    }
 }
 
+/**
+ * Cadastra uma nova aeronave no backend.
+ * @param {SubmitEvent} e
+ * @returns {Promise<void>}
+ */
 async function criarAeronave(e) {
     e.preventDefault();
-    const btn = document.getElementById("btnSalvarAcft");
-    btn.disabled = true;
+    const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById("btnSalvarAcft"));
+    if (btn) btn.disabled = true;
     
-    const matricula = document.getElementById("matriculaInput").value.trim().toUpperCase();
-    const sn = document.getElementById("snInput").value.trim();
-    const status = document.getElementById("statusInput").value;
+    const matriculaInput = /** @type {HTMLInputElement | null} */ (document.getElementById("matriculaInput"));
+    const snInput = /** @type {HTMLInputElement | null} */ (document.getElementById("snInput"));
+    const statusInput = /** @type {HTMLInputElement | null} */ (document.getElementById("statusInput"));
+
+    const matricula = matriculaInput ? matriculaInput.value.trim().toUpperCase() : "";
+    const sn = snInput ? snInput.value.trim() : "";
+    const status = statusInput ? statusInput.value : "";
 
     try {
         await apiFetch("/aeronaves/", {
@@ -170,21 +219,31 @@ async function criarAeronave(e) {
         showToast("Aeronave cadastrada com sucesso!", "success");
         closeModalConfig();
     } catch(err) {
+        // @ts-ignore
         showToast(err.message || "Erro ao cadastrar aeronave.", "error");
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }
 
-window.openModalConfig = openModalConfig;
-window.closeModalConfig = closeModalConfig;
+/** @type {any} */ (window).openModalConfig = openModalConfig;
+/** @type {any} */ (window).closeModalConfig = closeModalConfig;
 
+/**
+ * Abre o modal de alteração de status de aeronave e carrega opções.
+ * @returns {Promise<void>}
+ */
 async function openModalStatus() {
-    document.getElementById("modal-alterar-status-aeronave").style.display = "flex";
-    const select = document.getElementById("aeronaveStatusSelect");
+    const modalStatus = document.getElementById("modal-alterar-status-aeronave");
+    if (modalStatus) modalStatus.style.display = "flex";
+    
+    const select = /** @type {HTMLSelectElement | null} */ (document.getElementById("aeronaveStatusSelect"));
+    if (!select) return;
+    
     select.innerHTML = '<option value="" disabled selected>Carregando aeronaves...</option>';
     
     try {
+        /** @type {Aeronave[]} */
         const aeronaves = await apiFetch(`/aeronaves/?limit=1000&incluir_inativas=true`);
         
         if (aeronaves.length === 0) {
@@ -203,16 +262,30 @@ async function openModalStatus() {
     }
 }
 
+/**
+ * Fecha o modal de alteração de status.
+ * @returns {void}
+ */
 function closeModalStatus() {
-    document.getElementById("modal-alterar-status-aeronave").style.display = "none";
-    document.getElementById("formAlterarStatusAeronave").reset();
+    const modalStatus = document.getElementById("modal-alterar-status-aeronave");
+    if (modalStatus) modalStatus.style.display = "none";
+    const formStatus = /** @type {HTMLFormElement | null} */ (document.getElementById("formAlterarStatusAeronave"));
+    if (formStatus) formStatus.reset();
 }
 
+/**
+ * Envia a alteração de status da aeronave para o backend.
+ * @param {SubmitEvent} e
+ * @returns {Promise<void>}
+ */
 async function alterarStatusAeronave(e) {
     e.preventDefault();
-    const btn = document.getElementById("btnConfirmarStatus");
-    const select = document.getElementById("aeronaveStatusSelect");
-    const novoStatus = document.getElementById("novoStatusInput").value;
+    const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById("btnConfirmarStatus"));
+    const select = /** @type {HTMLSelectElement | null} */ (document.getElementById("aeronaveStatusSelect"));
+    const novoStatusInput = /** @type {HTMLInputElement | null} */ (document.getElementById("novoStatusInput"));
+    
+    if (!select || !novoStatusInput) return;
+    const novoStatus = novoStatusInput.value;
     const aeronaveId = select.value;
     
     if (!aeronaveId) {
@@ -229,7 +302,7 @@ async function alterarStatusAeronave(e) {
         return;
     }
     
-    btn.disabled = true;
+    if (btn) btn.disabled = true;
     
     try {
         if (novoStatus === statusAtual) {
@@ -261,38 +334,55 @@ async function alterarStatusAeronave(e) {
         showToast(`Status da aeronave ${matricula} alterado para ${novoStatus}!`, "success");
         closeModalStatus();
     } catch(err) {
+        // @ts-ignore
         showToast(err.message || "Erro ao alterar status.", "error");
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }
 
-window.openModalStatus = openModalStatus;
-window.closeModalStatus = closeModalStatus;
+/** @type {any} */ (window).openModalStatus = openModalStatus;
+/** @type {any} */ (window).closeModalStatus = closeModalStatus;
 
 // ==========================================
 // Módulo de Controles de Vencimento
 // ==========================================
 
+/**
+ * Abre o modal para cadastrar novo tipo de controle.
+ * @returns {void}
+ */
 function openModalTipoControle() {
     const modal = document.getElementById('modal-tipo-controle');
     if(modal) modal.style.display = 'flex';
 }
 
+/**
+ * Fecha o modal de novo tipo de controle e limpa o formulário.
+ * @returns {void}
+ */
 function closeModalTipoControle() {
     const modal = document.getElementById('modal-tipo-controle');
     if(modal) modal.style.display = 'none';
-    const form = document.getElementById('formTipoControle');
+    const form = /** @type {HTMLFormElement | null} */ (document.getElementById('formTipoControle'));
     if(form) form.reset();
 }
 
+/**
+ * Salva o novo tipo de controle no backend.
+ * @param {SubmitEvent} e
+ * @returns {Promise<void>}
+ */
 async function salvarTipoControle(e) {
     e.preventDefault();
-    const btn = document.getElementById("btnSalvarTipoControle");
-    btn.disabled = true;
+    const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById("btnSalvarTipoControle"));
+    if (btn) btn.disabled = true;
 
-    const nome = document.getElementById("codigoControleInput").value.trim().toUpperCase();
-    const descricao = document.getElementById("descControleInput").value.trim();
+    const codigoInput = /** @type {HTMLInputElement | null} */ (document.getElementById("codigoControleInput"));
+    const descInput = /** @type {HTMLInputElement | null} */ (document.getElementById("descControleInput"));
+
+    const nome = codigoInput ? codigoInput.value.trim().toUpperCase() : "";
+    const descricao = descInput ? descInput.value.trim() : "";
 
     try {
         await apiFetch("/vencimentos/tipos-controle", {
@@ -305,26 +395,39 @@ async function salvarTipoControle(e) {
         showToast("Tipo de controle cadastrado com sucesso!", "success");
         closeModalTipoControle();
     } catch(err) {
+        // @ts-ignore
         showToast(err.message || "Erro ao cadastrar tipo de controle.", "error");
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }
 
-window.openModalTipoControle = openModalTipoControle;
-window.closeModalTipoControle = closeModalTipoControle;
+/** @type {any} */ (window).openModalTipoControle = openModalTipoControle;
+/** @type {any} */ (window).closeModalTipoControle = closeModalTipoControle;
 
 // ---- Editar Tipo de Controle ----
 
+/** @type {TipoControle[]} */
 let tiposControleCache = [];
 
+/**
+ * Abre o modal de edição de tipo de controle e carrega as opções.
+ * @returns {Promise<void>}
+ */
 async function openModalEditarTipo() {
     const modal = document.getElementById('modal-editar-tipo-controle');
-    modal.style.display = 'flex';
-    const select = document.getElementById('editarTipoSelect');
+    if (modal) modal.style.display = 'flex';
+    
+    const select = /** @type {HTMLSelectElement | null} */ (document.getElementById('editarTipoSelect'));
+    if (!select) return;
+    
     select.innerHTML = '<option value="" disabled selected>Carregando...</option>';
-    document.getElementById('editarCodigoInput').value = '';
-    document.getElementById('editarDescInput').value = '';
+    
+    const editarCodigoInput = /** @type {HTMLInputElement | null} */ (document.getElementById('editarCodigoInput'));
+    const editarDescInput = /** @type {HTMLInputElement | null} */ (document.getElementById('editarDescInput'));
+    
+    if (editarCodigoInput) editarCodigoInput.value = '';
+    if (editarDescInput) editarDescInput.value = '';
 
     try {
         tiposControleCache = await apiFetch('/vencimentos/tipos-controle');
@@ -346,33 +449,45 @@ async function openModalEditarTipo() {
     select.addEventListener('change', function() {
         const tipo = tiposControleCache.find(t => t.id === this.value);
         if(tipo) {
-            document.getElementById('editarCodigoInput').value = tipo.nome;
-            document.getElementById('editarDescInput').value = tipo.descricao || '';
+            if (editarCodigoInput) editarCodigoInput.value = tipo.nome;
+            if (editarDescInput) editarDescInput.value = tipo.descricao || '';
         }
     });
 }
 
+/**
+ * Fecha o modal de edição de tipo de controle e reseta o formulário.
+ * @returns {void}
+ */
 function closeModalEditarTipo() {
     const modal = document.getElementById('modal-editar-tipo-controle');
     if(modal) modal.style.display = 'none';
-    const form = document.getElementById('formEditarTipoControle');
+    const form = /** @type {HTMLFormElement | null} */ (document.getElementById('formEditarTipoControle'));
     if(form) form.reset();
 }
 
+/**
+ * Salva a alteração do tipo de controle no backend.
+ * @param {SubmitEvent} e
+ * @returns {Promise<void>}
+ */
 async function salvarEditarTipo(e) {
     e.preventDefault();
-    const btn = document.getElementById('btnSalvarEditarTipo');
-    const select = document.getElementById('editarTipoSelect');
-    const tipoId = select.value;
+    const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('btnSalvarEditarTipo'));
+    const select = /** @type {HTMLSelectElement | null} */ (document.getElementById('editarTipoSelect'));
+    const tipoId = select ? select.value : "";
 
     if(!tipoId) {
         showToast('Selecione um tipo de controle.', 'error');
         return;
     }
 
-    btn.disabled = true;
-    const nome = document.getElementById('editarCodigoInput').value.trim().toUpperCase();
-    const descricao = document.getElementById('editarDescInput').value.trim();
+    if (btn) btn.disabled = true;
+    const editarCodigoInput = /** @type {HTMLInputElement | null} */ (document.getElementById('editarCodigoInput'));
+    const editarDescInput = /** @type {HTMLInputElement | null} */ (document.getElementById('editarDescInput'));
+    
+    const nome = editarCodigoInput ? editarCodigoInput.value.trim().toUpperCase() : "";
+    const descricao = editarDescInput ? editarDescInput.value.trim() : "";
 
     try {
         await apiFetch(`/vencimentos/tipos-controle/${tipoId}`, {
@@ -382,39 +497,55 @@ async function salvarEditarTipo(e) {
         showToast('Tipo de controle atualizado com sucesso!', 'success');
         closeModalEditarTipo();
     } catch(err) {
+        // @ts-ignore
         showToast(err.message || 'Erro ao atualizar tipo de controle.', 'error');
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }
 
-window.openModalEditarTipo = openModalEditarTipo;
-window.closeModalEditarTipo = closeModalEditarTipo;
+/** @type {any} */ (window).openModalEditarTipo = openModalEditarTipo;
+/** @type {any} */ (window).closeModalEditarTipo = closeModalEditarTipo;
 
 // ---- Regras por Equipamento (Vencimentos) ----
 
+/**
+ * Abre o modal de gerenciamento de regras de periodicidade por equipamento.
+ * @returns {Promise<void>}
+ */
 async function openModalRegras() {
     const modal = document.getElementById('modal-regras-equipamento');
-    modal.style.display = 'flex';
+    if (modal) modal.style.display = 'flex';
     await carregarOptionsRegras();
     await carregarListaRegras();
 }
 
+/**
+ * Fecha o modal de regras de periodicidade.
+ * @returns {void}
+ */
 function closeModalRegras() {
     const modal = document.getElementById('modal-regras-equipamento');
     if(modal) modal.style.display = 'none';
-    const form = document.getElementById('formNovaRegra');
+    const form = /** @type {HTMLFormElement | null} */ (document.getElementById('formNovaRegra'));
     if(form) form.reset();
 }
 
+/**
+ * Carrega as opções de PNs e tipos de controle nos selects do formulário de regras.
+ * @returns {Promise<void>}
+ */
 async function carregarOptionsRegras() {
-    const selectEquip = document.getElementById('regraEquipamentoSelect');
-    const selectTipo = document.getElementById('regraTipoSelect');
+    const selectEquip = /** @type {HTMLSelectElement | null} */ (document.getElementById('regraEquipamentoSelect'));
+    const selectTipo = /** @type {HTMLSelectElement | null} */ (document.getElementById('regraTipoSelect'));
+    
+    if (!selectEquip || !selectTipo) return;
     
     selectEquip.innerHTML = '<option value="">Carregando...</option>';
     selectTipo.innerHTML = '<option value="">Carregando...</option>';
 
     try {
+        /** @type {[Equipamento[], TipoControle[]]} */
         const [equipamentos, tipos] = await Promise.all([
             apiFetch('/equipamentos/'),
             apiFetch('/vencimentos/tipos-controle')
@@ -440,11 +571,17 @@ async function carregarOptionsRegras() {
     }
 }
 
+/**
+ * Carrega e renderiza a tabela de regras de periodicidade.
+ * @returns {Promise<void>}
+ */
 async function carregarListaRegras() {
     const tbody = document.getElementById('lista-regras-body');
+    if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem;">Carregando regras...</td></tr>';
 
     try {
+        /** @type {RegraVencimento[]} */
         const regras = await apiFetch('/vencimentos/regras');
         tbody.innerHTML = '';
         
@@ -473,8 +610,9 @@ async function carregarListaRegras() {
             const btnRemove = tr.querySelector('.btn-remover-regra');
             if (btnRemove) {
                 btnRemove.addEventListener('click', (e) => {
-                    const mid = e.currentTarget.getAttribute('data-modelo');
-                    const tid = e.currentTarget.getAttribute('data-tipo');
+                    const target = /** @type {HTMLElement} */ (e.currentTarget);
+                    const mid = target.getAttribute('data-modelo') || "";
+                    const tid = target.getAttribute('data-tipo') || "";
                     removerRegra(mid, tid);
                 });
             }
@@ -485,14 +623,24 @@ async function carregarListaRegras() {
     }
 }
 
+/**
+ * Salva uma nova regra de periodicidade por equipamento.
+ * @param {SubmitEvent} e
+ * @returns {Promise<void>}
+ */
 async function salvarNovaRegra(e) {
     e.preventDefault();
-    const btn = e.target.querySelector('button[type="submit"]');
-    btn.disabled = true;
+    const formTarget = /** @type {HTMLFormElement} */ (e.target);
+    const btn = /** @type {HTMLButtonElement | null} */ (formTarget.querySelector('button[type="submit"]'));
+    if (btn) btn.disabled = true;
 
-    const modelo_id = document.getElementById('regraEquipamentoSelect').value;
-    const tipo_controle_id = document.getElementById('regraTipoSelect').value;
-    const periodicidade_meses = parseInt(document.getElementById('regraMesesInput').value);
+    const selectModelo = /** @type {HTMLSelectElement | null} */ (document.getElementById('regraEquipamentoSelect'));
+    const selectTipo = /** @type {HTMLSelectElement | null} */ (document.getElementById('regraTipoSelect'));
+    const inputMeses = /** @type {HTMLInputElement | null} */ (document.getElementById('regraMesesInput'));
+
+    const modelo_id = selectModelo ? selectModelo.value : "";
+    const tipo_controle_id = selectTipo ? selectTipo.value : "";
+    const periodicidade_meses = inputMeses ? parseInt(inputMeses.value) : 0;
 
     try {
         await apiFetch('/vencimentos/regras', {
@@ -502,12 +650,19 @@ async function salvarNovaRegra(e) {
         showToast("Regra cadastrada/atualizada com sucesso!", "success");
         await carregarListaRegras();
     } catch(err) {
+        // @ts-ignore
         showToast(err.message || "Erro ao salvar regra.", "error");
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }
 
+/**
+ * Remove uma regra de periodicidade.
+ * @param {string} modeloId
+ * @param {string} tipoId
+ * @returns {Promise<void>}
+ */
 async function removerRegra(modeloId, tipoId) {
     console.log("INÍCIO: removerRegra", {modeloId, tipoId});
     
@@ -518,7 +673,7 @@ async function removerRegra(modeloId, tipoId) {
 
     try {
         console.log("DISPARANDO: apiFetch DELETE...");
-        const data = await apiFetch(`/vencimentos/regras/${modeloId}/${tipoId}`, {
+        await apiFetch(`/vencimentos/regras/${modeloId}/${tipoId}`, {
             method: 'DELETE'
         });
 
@@ -527,42 +682,66 @@ async function removerRegra(modeloId, tipoId) {
         await carregarListaRegras();
     } catch(err) {
         console.error("ERRO FATAL (Network/JS):", err);
-        // apiFetch já mostra o toast se falhar, mas mantemos o log
     }
 }
 
 window.openModalRegras = openModalRegras;
 window.closeModalRegras = closeModalRegras;
-window.removerRegra = removerRegra;
+/** @type {any} */ (window).removerRegra = removerRegra;
 
 // ==========================================
 // Módulo de Catálogo (Part Numbers)
 // ==========================================
 
+/**
+ * Abre o modal do catálogo de Part Numbers e lista os itens.
+ * @returns {void}
+ */
 function openModalCatalogo() {
     const modal = document.getElementById('modal-catalogo');
-    modal.style.display = 'flex';
+    if (modal) modal.style.display = 'flex';
     carregarListaCatalogo();
 }
 
+/**
+ * Fecha o modal do catálogo de Part Numbers.
+ * @returns {void}
+ */
 function closeModalCatalogo() {
     const modal = document.getElementById('modal-catalogo');
     if(modal) modal.style.display = 'none';
 }
 
+/**
+ * Abre o modal de cadastro de novo Part Number.
+ * @returns {void}
+ */
 function openModalNovoPN() {
-    document.getElementById('modal-novo-pn').style.display = 'flex';
+    const modal = document.getElementById('modal-novo-pn');
+    if (modal) modal.style.display = 'flex';
 }
 
+/**
+ * Fecha o modal de novo Part Number e limpa o formulário.
+ * @returns {void}
+ */
 function closeModalNovoPN() {
-    document.getElementById('modal-novo-pn').style.display = 'none';
-    document.getElementById('formNovoPN').reset();
+    const modal = document.getElementById('modal-novo-pn');
+    if (modal) modal.style.display = 'none';
+    const form = /** @type {HTMLFormElement | null} */ (document.getElementById('formNovoPN'));
+    if (form) form.reset();
 }
 
+/** @type {Equipamento[]} */
 let catalogoCache = [];
 
+/**
+ * Carrega a lista de Part Numbers do catálogo e renderiza a tabela.
+ * @returns {Promise<void>}
+ */
 async function carregarListaCatalogo() {
     const tbody = document.getElementById('lista-catalogo-body');
+    if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem;">Carregando catálogo...</td></tr>';
 
     try {
@@ -591,8 +770,11 @@ async function carregarListaCatalogo() {
                 </td>
             `;
             
-            tr.querySelector('.btn-editar-pn').addEventListener('click', () => openModalEditarPN(m.id));
-            tr.querySelector('.btn-remover-pn').addEventListener('click', () => removerPN(m.id, m.part_number));
+            const btnEdit = tr.querySelector('.btn-editar-pn');
+            if (btnEdit) btnEdit.addEventListener('click', () => openModalEditarPN(m.id));
+            
+            const btnRemove = tr.querySelector('.btn-remover-pn');
+            if (btnRemove) btnRemove.addEventListener('click', () => removerPN(m.id, m.part_number));
             
             tbody.appendChild(tr);
         });
@@ -601,14 +783,23 @@ async function carregarListaCatalogo() {
     }
 }
 
+/**
+ * Salva um novo Part Number no catálogo.
+ * @param {SubmitEvent} e
+ * @returns {Promise<void>}
+ */
 async function salvarNovoPN(e) {
     e.preventDefault();
-    const btn = document.getElementById('btnSalvarPN');
-    btn.disabled = true;
+    const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('btnSalvarPN'));
+    if (btn) btn.disabled = true;
 
-    const part_number = document.getElementById('pnInput').value.trim().toUpperCase();
-    const nome_generico = document.getElementById('nomePnInput').value.trim();
-    const descricao = document.getElementById('descPnInput').value.trim();
+    const pnInput = /** @type {HTMLInputElement | null} */ (document.getElementById('pnInput'));
+    const nomePnInput = /** @type {HTMLInputElement | null} */ (document.getElementById('nomePnInput'));
+    const descPnInput = /** @type {HTMLInputElement | null} */ (document.getElementById('descPnInput'));
+
+    const part_number = pnInput ? pnInput.value.trim().toUpperCase() : "";
+    const nome_generico = nomePnInput ? nomePnInput.value.trim() : "";
+    const descricao = descPnInput ? descPnInput.value.trim() : "";
 
     try {
         await apiFetch('/equipamentos/', {
@@ -617,58 +808,95 @@ async function salvarNovoPN(e) {
         });
         showToast("Part Number cadastrado com sucesso!", "success");
         closeModalNovoPN();
-        if (document.getElementById('modal-catalogo').style.display === 'flex') {
+        const modalCatalogo = document.getElementById('modal-catalogo');
+        if (modalCatalogo && modalCatalogo.style.display === 'flex') {
             carregarListaCatalogo();
         }
     } catch(err) {
+        // @ts-ignore
         showToast(err.message || "Erro ao cadastrar PN.", "error");
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }
 
+/**
+ * Abre o modal de edição de um Part Number específico.
+ * @param {string} id
+ * @returns {void}
+ */
 function openModalEditarPN(id) {
     const pn = catalogoCache.find(m => m.id === id);
     if (!pn) return;
 
-    document.getElementById('editarPnId').value = pn.id;
-    document.getElementById('editarPnInput').value = pn.part_number;
-    document.getElementById('editarNomePnInput').value = pn.nome_generico;
-    document.getElementById('editarDescPnInput').value = pn.descricao || '';
+    const inputId = /** @type {HTMLInputElement | null} */ (document.getElementById('editarPnId'));
+    const inputPn = /** @type {HTMLInputElement | null} */ (document.getElementById('editarPnInput'));
+    const inputNome = /** @type {HTMLInputElement | null} */ (document.getElementById('editarNomePnInput'));
+    const inputDesc = /** @type {HTMLInputElement | null} */ (document.getElementById('editarDescPnInput'));
+
+    if (inputId) inputId.value = pn.id;
+    if (inputPn) inputPn.value = pn.part_number;
+    if (inputNome) inputNome.value = pn.nome_generico;
+    if (inputDesc) inputDesc.value = pn.descricao || '';
     
-    document.getElementById('modal-editar-pn').style.display = 'flex';
+    const modal = document.getElementById('modal-editar-pn');
+    if (modal) modal.style.display = 'flex';
 }
 
+/**
+ * Fecha o modal de edição de Part Number e limpa o formulário.
+ * @returns {void}
+ */
 function closeModalEditarPN() {
-    document.getElementById('modal-editar-pn').style.display = 'none';
-    document.getElementById('formEditarPN').reset();
+    const modal = document.getElementById('modal-editar-pn');
+    if (modal) modal.style.display = 'none';
+    const form = /** @type {HTMLFormElement | null} */ (document.getElementById('formEditarPN'));
+    if (form) form.reset();
 }
 
+/**
+ * Salva as alterações de um Part Number no catálogo.
+ * @param {SubmitEvent} e
+ * @returns {Promise<void>}
+ */
 async function salvarEditarPN(e) {
     e.preventDefault();
-    const btn = document.getElementById('btnSalvarEditarPN');
-    const id = document.getElementById('editarPnId').value;
+    const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('btnSalvarEditarPN'));
+    const inputId = /** @type {HTMLInputElement | null} */ (document.getElementById('editarPnId'));
+    const id = inputId ? inputId.value : "";
     
-    btn.disabled = true;
-    const part_number = document.getElementById('editarPnInput').value.trim().toUpperCase();
-    const nome_generico = document.getElementById('editarNomePnInput').value.trim();
-    const descricao = document.getElementById('editarDescPnInput').value.trim();
+    if (btn) btn.disabled = true;
+    
+    const inputPn = /** @type {HTMLInputElement | null} */ (document.getElementById('editarPnInput'));
+    const inputNome = /** @type {HTMLInputElement | null} */ (document.getElementById('editarNomePnInput'));
+    const inputDesc = /** @type {HTMLInputElement | null} */ (document.getElementById('editarDescPnInput'));
+
+    const part_number = inputPn ? inputPn.value.trim().toUpperCase() : "";
+    const nome_generico = inputNome ? inputNome.value.trim() : "";
+    const descricao = inputDesc ? inputDesc.value.trim() : "";
 
     try {
         await apiFetch(`/equipamentos/${id}`, {
             method: 'PATCH',
             body: { part_number, nome_generico, descricao }
         });
-        showToast("Part Number atualizado com sucesso!", "success");
+        showToast("Part Number updated successfully!", "success");
         closeModalEditarPN();
         carregarListaCatalogo();
     } catch(err) {
+        // @ts-ignore
         showToast(err.message || "Erro ao atualizar PN.", "error");
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }
 
+/**
+ * Remove um Part Number do catálogo.
+ * @param {string} id
+ * @param {string} pn
+ * @returns {Promise<void>}
+ */
 async function removerPN(id, pn) {
     if (!confirm(`Tem certeza que deseja remover o PN ${pn}? Esta ação pode afetar itens vinculados.`)) {
         return;
@@ -679,37 +907,53 @@ async function removerPN(id, pn) {
         showToast("Part Number removido com sucesso!", "success");
         carregarListaCatalogo();
     } catch(err) {
+        // @ts-ignore
         showToast(err.message || "Erro ao remover PN.", "error");
     }
 }
 
 window.openModalCatalogo = openModalCatalogo;
 window.closeModalCatalogo = closeModalCatalogo;
-window.openModalEditarPN = openModalEditarPN;
-window.closeModalEditarPN = closeModalEditarPN;
-window.salvarEditarPN = salvarEditarPN;
-window.removerPN = removerPN;
+/** @type {any} */ (window).openModalEditarPN = openModalEditarPN;
+/** @type {any} */ (window).closeModalEditarPN = closeModalEditarPN;
+/** @type {any} */ (window).salvarEditarPN = salvarEditarPN;
+/** @type {any} */ (window).removerPN = removerPN;
 
 // ==========================================
 // Módulo de Inspeções (Tipos e Tarefas)
 // ==========================================
 
+/** @type {TipoInspecao[]} */
 let tiposInspecaoCache = [];
+/** @type {any[]} */
 let tarefasTemplateCache = [];
 
+/**
+ * Abre o modal de visualização de tipos de inspeção.
+ * @returns {void}
+ */
 function openModalTiposInspecao() {
     const modal = document.getElementById('modal-inspecoes-tipos');
-    modal.style.display = 'flex';
+    if (modal) modal.style.display = 'flex';
     carregarListaTiposInspecao();
 }
 
+/**
+ * Fecha o modal de tipos de inspeção.
+ * @returns {void}
+ */
 function closeModalTiposInspecao() {
     const modal = document.getElementById('modal-inspecoes-tipos');
     if(modal) modal.style.display = 'none';
 }
 
+/**
+ * Carrega a lista de tipos de inspeção do servidor e preenche a tabela.
+ * @returns {Promise<void>}
+ */
 async function carregarListaTiposInspecao() {
     const tbody = document.getElementById('lista-tipos-inspecao-body');
+    if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem;">Carregando...</td></tr>';
 
     try {
@@ -731,7 +975,7 @@ async function carregarListaTiposInspecao() {
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHtml(t.descricao || '')}</div>
                 </td>
                 <td style="padding: 0.75rem; text-align: center; font-size: 0.9rem;">
-                    ${t.duracao_dias > 0 ? `<span title="Duração">${t.duracao_dias}d</span>` : '<span style="color:var(--text-secondary)">—</span>'}
+                    ${t.duracao_dias && t.duracao_dias > 0 ? `<span title="Duração">${t.duracao_dias}d</span>` : '<span style="color:var(--text-secondary)">—</span>'}
                 </td>
                 <td style="padding: 0.75rem; text-align: center;">
                     <span style="display: inline-block; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600; background: ${t.ativo ? 'rgba(46, 204, 113, 0.1)' : 'rgba(231, 76, 60, 0.1)'}; color: ${t.ativo ? 'var(--status-ok)' : 'var(--status-danger)'};">${t.ativo ? 'Ativo' : 'Inativo'}</span>
@@ -746,8 +990,11 @@ async function carregarListaTiposInspecao() {
                 </td>
             `;
             
-            tr.querySelector('.btn-tarefas-tipo').addEventListener('click', () => openModalTarefasTemplate(t.id));
-            tr.querySelector('.btn-editar-tipo-insp').addEventListener('click', () => openModalFormTipoInspecao(t.id));
+            const btnTarefas = tr.querySelector('.btn-tarefas-tipo');
+            if (btnTarefas) btnTarefas.addEventListener('click', () => openModalTarefasTemplate(t.id));
+            
+            const btnEdit = tr.querySelector('.btn-editar-tipo-insp');
+            if (btnEdit) btnEdit.addEventListener('click', () => openModalFormTipoInspecao(t.id));
             
             tbody.appendChild(tr);
         });
@@ -756,48 +1003,84 @@ async function carregarListaTiposInspecao() {
     }
 }
 
+/**
+ * Abre o modal de cadastro/edição de um tipo de inspeção.
+ * @param {string | null} [id] - ID do tipo de inspeção (opcional para edição)
+ * @returns {void}
+ */
 function openModalFormTipoInspecao(id = null) {
-    document.getElementById('modal-form-tipo-inspecao').style.display = 'flex';
-    document.getElementById('formTipoInspecao').reset();
+    const modal = document.getElementById('modal-form-tipo-inspecao');
+    if (modal) modal.style.display = 'flex';
     
+    const form = /** @type {HTMLFormElement | null} */ (document.getElementById('formTipoInspecao'));
+    if (form) form.reset();
+    
+    const inputId = /** @type {HTMLInputElement | null} */ (document.getElementById('tipoInspecaoId'));
+    const inputCodigo = /** @type {HTMLInputElement | null} */ (document.getElementById('codigoTipoInspecaoInput'));
+    const inputNome = /** @type {HTMLInputElement | null} */ (document.getElementById('nomeTipoInspecaoInput'));
+    const inputDesc = /** @type {HTMLInputElement | null} */ (document.getElementById('descTipoInspecaoInput'));
+    const inputDuracao = /** @type {HTMLInputElement | null} */ (document.getElementById('duracaoTipoInspecaoInput'));
+    const selectAtivo = /** @type {HTMLSelectElement | null} */ (document.getElementById('ativoTipoInspecaoInput'));
+    
+    const title = document.getElementById('titulo-form-tipo-inspecao');
+    const containerStatus = document.getElementById('container-status-tipo-inspecao');
+
     if (id) {
         const t = tiposInspecaoCache.find(x => x.id === id);
         if (t) {
-            document.getElementById('titulo-form-tipo-inspecao').innerText = 'Editar Tipo de Inspeção';
-            document.getElementById('tipoInspecaoId').value = t.id;
-            document.getElementById('codigoTipoInspecaoInput').value = t.codigo;
-            document.getElementById('nomeTipoInspecaoInput').value = t.nome;
-            document.getElementById('descTipoInspecaoInput').value = t.descricao || '';
-            document.getElementById('duracaoTipoInspecaoInput').value = t.duracao_dias ?? 0;
-            document.getElementById('container-status-tipo-inspecao').style.display = 'block';
-            document.getElementById('ativoTipoInspecaoInput').value = t.ativo ? 'true' : 'false';
+            if (title) title.innerText = 'Editar Tipo de Inspeção';
+            if (inputId) inputId.value = t.id;
+            if (inputCodigo) inputCodigo.value = t.codigo;
+            if (inputNome) inputNome.value = t.nome;
+            if (inputDesc) inputDesc.value = t.descricao || '';
+            if (inputDuracao) inputDuracao.value = String(t.duracao_dias ?? 0);
+            if (containerStatus) containerStatus.style.display = 'block';
+            if (selectAtivo) selectAtivo.value = t.ativo ? 'true' : 'false';
         }
     } else {
-        document.getElementById('titulo-form-tipo-inspecao').innerText = 'Novo Tipo de Inspeção';
-        document.getElementById('tipoInspecaoId').value = '';
-        document.getElementById('container-status-tipo-inspecao').style.display = 'none';
+        if (title) title.innerText = 'Novo Tipo de Inspeção';
+        if (inputId) inputId.value = '';
+        if (containerStatus) containerStatus.style.display = 'none';
     }
 }
 
+/**
+ * Fecha o modal de formulário de tipo de inspeção.
+ * @returns {void}
+ */
 function closeModalFormTipoInspecao() {
-    document.getElementById('modal-form-tipo-inspecao').style.display = 'none';
-    document.getElementById('formTipoInspecao').reset();
+    const modal = document.getElementById('modal-form-tipo-inspecao');
+    if (modal) modal.style.display = 'none';
+    const form = /** @type {HTMLFormElement | null} */ (document.getElementById('formTipoInspecao'));
+    if (form) form.reset();
 }
 
+/**
+ * Salva ou atualiza um tipo de inspeção.
+ * @param {SubmitEvent} e
+ * @returns {Promise<void>}
+ */
 async function salvarTipoInspecao(e) {
     e.preventDefault();
-    const btn = document.getElementById('btnSalvarTipoInspecao');
-    btn.disabled = true;
+    const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('btnSalvarTipoInspecao'));
+    if (btn) btn.disabled = true;
 
-    const id = document.getElementById('tipoInspecaoId').value;
-    const codigo = document.getElementById('codigoTipoInspecaoInput').value.trim().toUpperCase();
-    const nome = document.getElementById('nomeTipoInspecaoInput').value.trim();
-    const descricao = document.getElementById('descTipoInspecaoInput').value.trim();
-    const duracao_dias = parseInt(document.getElementById('duracaoTipoInspecaoInput').value, 10) || 0;
+    const inputId = /** @type {HTMLInputElement | null} */ (document.getElementById('tipoInspecaoId'));
+    const inputCodigo = /** @type {HTMLInputElement | null} */ (document.getElementById('codigoTipoInspecaoInput'));
+    const inputNome = /** @type {HTMLInputElement | null} */ (document.getElementById('nomeTipoInspecaoInput'));
+    const inputDesc = /** @type {HTMLInputElement | null} */ (document.getElementById('descTipoInspecaoInput'));
+    const inputDuracao = /** @type {HTMLInputElement | null} */ (document.getElementById('duracaoTipoInspecaoInput'));
+    const selectAtivo = /** @type {HTMLSelectElement | null} */ (document.getElementById('ativoTipoInspecaoInput'));
+
+    const id = inputId ? inputId.value : "";
+    const codigo = inputCodigo ? inputCodigo.value.trim().toUpperCase() : "";
+    const nome = inputNome ? inputNome.value.trim() : "";
+    const descricao = inputDesc ? inputDesc.value.trim() : "";
+    const duracao_dias = inputDuracao ? (parseInt(inputDuracao.value, 10) || 0) : 0;
     
     try {
         if (id) {
-            const ativo = document.getElementById('ativoTipoInspecaoInput').value === 'true';
+            const ativo = selectAtivo ? selectAtivo.value === 'true' : true;
             await apiFetch(`/inspecoes/tipos/${id}`, {
                 method: 'PATCH',
                 body: { codigo, nome, descricao, duracao_dias, ativo }
@@ -813,41 +1096,65 @@ async function salvarTipoInspecao(e) {
         closeModalFormTipoInspecao();
         carregarListaTiposInspecao();
     } catch(err) {
+        // @ts-ignore
         showToast(err.message || "Erro ao salvar.", "error");
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }
 
 // ---- Tarefas do Template ----
 
+/** @type {string | null} */
 let tipoInspecaoAtualId = null;
 
+/**
+ * Abre o modal de gerenciamento de tarefas associadas a um tipo de inspeção.
+ * @param {string} tipoId
+ * @returns {void}
+ */
 function openModalTarefasTemplate(tipoId) {
     tipoInspecaoAtualId = tipoId;
     const tipo = tiposInspecaoCache.find(x => x.id === tipoId);
-    if(tipo) {
-        document.getElementById('titulo-modal-tarefas').innerText = `Tarefas: ${tipo.codigo} - ${tipo.nome}`;
+    const title = document.getElementById('titulo-modal-tarefas');
+    if(tipo && title) {
+        title.innerText = `Tarefas: ${tipo.codigo} - ${tipo.nome}`;
     }
     
-    document.getElementById('tarefaTipoInspecaoId').value = tipoId;
-    document.getElementById('modal-tarefas-template').style.display = 'flex';
+    const inputId = /** @type {HTMLInputElement | null} */ (document.getElementById('tarefaTipoInspecaoId'));
+    if (inputId) inputId.value = tipoId;
+    
+    const modal = document.getElementById('modal-tarefas-template');
+    if (modal) modal.style.display = 'flex';
     
     carregarListaTarefasTemplate();
     carregarOpcoesCatalogoTarefas();
 }
 
+/**
+ * Fecha o modal de tarefas associadas ao template.
+ * @returns {void}
+ */
 function closeModalTarefasTemplate() {
-    document.getElementById('modal-tarefas-template').style.display = 'none';
-    document.getElementById('formNovaTarefa').reset();
+    const modal = document.getElementById('modal-tarefas-template');
+    if (modal) modal.style.display = 'none';
+    const form = /** @type {HTMLFormElement | null} */ (document.getElementById('formNovaTarefa'));
+    if (form) form.reset();
     tipoInspecaoAtualId = null;
 }
 
+/**
+ * Carrega a lista de tarefas associadas ao tipo de inspeção atual.
+ * @returns {Promise<void>}
+ */
 async function carregarListaTarefasTemplate() {
     if (!tipoInspecaoAtualId) return;
     
     const tbody = document.getElementById('lista-tarefas-template-body');
+    if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 1rem;">Carregando...</td></tr>';
+
+    const inputOrdem = /** @type {HTMLInputElement | null} */ (document.getElementById('tarefaOrdemInput'));
 
     try {
         tarefasTemplateCache = await apiFetch(`/inspecoes/tipos/${tipoInspecaoAtualId}/tarefas`);
@@ -855,14 +1162,12 @@ async function carregarListaTarefasTemplate() {
         
         if(tarefasTemplateCache.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 1rem; color: var(--text-secondary);">Nenhuma tarefa cadastrada para este tipo.</td></tr>';
-            // Sugere a ordem 1
-            document.getElementById('tarefaOrdemInput').value = 1;
+            if (inputOrdem) inputOrdem.value = "1";
             return;
         }
 
-        // Sugere a próxima ordem
         const maxOrdem = Math.max(...tarefasTemplateCache.map(t => t.ordem));
-        document.getElementById('tarefaOrdemInput').value = maxOrdem + 1;
+        if (inputOrdem) inputOrdem.value = String(maxOrdem + 1);
 
         tarefasTemplateCache.forEach(t => {
             const tr = document.createElement('tr');
@@ -884,7 +1189,8 @@ async function carregarListaTarefasTemplate() {
                 </td>
             `;
             
-            tr.querySelector('.btn-remover-tarefa').addEventListener('click', () => removerTarefaTemplate(t.id));
+            const btnRemove = tr.querySelector('.btn-remover-tarefa');
+            if (btnRemove) btnRemove.addEventListener('click', () => removerTarefaTemplate(t.id));
             tbody.appendChild(tr);
         });
     } catch(e) {
@@ -892,20 +1198,29 @@ async function carregarListaTarefasTemplate() {
     }
 }
 
+/**
+ * Salva uma nova tarefa no template da inspeção.
+ * @param {SubmitEvent} e
+ * @returns {Promise<void>}
+ */
 async function salvarTarefaTemplate(e) {
     e.preventDefault();
     if (!tipoInspecaoAtualId) return;
     
-    const btn = document.getElementById('btnSalvarTarefaTemplate');
-    btn.disabled = true;
+    const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('btnSalvarTarefaTemplate'));
+    if (btn) btn.disabled = true;
 
-    const ordem = parseInt(document.getElementById('tarefaOrdemInput').value);
-    const tarefa_catalogo_id = document.getElementById('tarefaCatalogoSelect').value;
-    const obrigatoria = document.getElementById('tarefaObrigatoriaInput').checked;
+    const inputOrdem = /** @type {HTMLInputElement | null} */ (document.getElementById('tarefaOrdemInput'));
+    const selectCatalogo = /** @type {HTMLSelectElement | null} */ (document.getElementById('tarefaCatalogoSelect'));
+    const checkObrigatoria = /** @type {HTMLInputElement | null} */ (document.getElementById('tarefaObrigatoriaInput'));
+
+    const ordem = inputOrdem ? parseInt(inputOrdem.value) : 0;
+    const tarefa_catalogo_id = selectCatalogo ? selectCatalogo.value : "";
+    const obrigatoria = checkObrigatoria ? checkObrigatoria.checked : true;
 
     if (!tarefa_catalogo_id) {
         showToast("Selecione uma tarefa do catálogo.", "error");
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
         return;
     }
 
@@ -915,17 +1230,23 @@ async function salvarTarefaTemplate(e) {
             body: { ordem, tarefa_catalogo_id, obrigatoria }
         });
         showToast("Tarefa adicionada!", "success");
-        document.getElementById('formNovaTarefa').reset();
+        const form = /** @type {HTMLFormElement | null} */ (document.getElementById('formNovaTarefa'));
+        if (form) form.reset();
         carregarListaTarefasTemplate();
-        // Manter a checkbox obrigatoria como true apos o reset
-        document.getElementById('tarefaObrigatoriaInput').checked = true;
+        if (checkObrigatoria) checkObrigatoria.checked = true;
     } catch(err) {
+        // @ts-ignore
         showToast(err.message || "Erro ao adicionar tarefa.", "error");
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }
 
+/**
+ * Remove uma tarefa do template.
+ * @param {string} tarefaId
+ * @returns {Promise<void>}
+ */
 async function removerTarefaTemplate(tarefaId) {
     if (!tipoInspecaoAtualId) return;
     if (!confirm("Remover esta tarefa? O histórico de inspeções já abertas não será afetado.")) return;
@@ -937,6 +1258,7 @@ async function removerTarefaTemplate(tarefaId) {
         showToast("Tarefa removida.", "success");
         carregarListaTarefasTemplate();
     } catch(err) {
+        // @ts-ignore
         showToast(err.message || "Erro ao remover.", "error");
     }
 }
@@ -945,19 +1267,35 @@ async function removerTarefaTemplate(tarefaId) {
 // Módulo do Catálogo Global de Tarefas
 // ==========================================
 
+/** @type {any[]} */
 let tarefasCatalogoGeralCache = [];
 
+/**
+ * Abre o modal do catálogo de tarefas e carrega a listagem.
+ * @returns {void}
+ */
 function openModalCatalogoTarefas() {
-    document.getElementById('modal-catalogo-tarefas').style.display = 'flex';
+    const modal = document.getElementById('modal-catalogo-tarefas');
+    if (modal) modal.style.display = 'flex';
     carregarListaCatalogoTarefas();
 }
 
+/**
+ * Fecha o modal do catálogo de tarefas.
+ * @returns {void}
+ */
 function closeModalCatalogoTarefas() {
-    document.getElementById('modal-catalogo-tarefas').style.display = 'none';
+    const modal = document.getElementById('modal-catalogo-tarefas');
+    if (modal) modal.style.display = 'none';
 }
 
+/**
+ * Carrega a lista de tarefas do catálogo global e monta a tabela.
+ * @returns {Promise<void>}
+ */
 async function carregarListaCatalogoTarefas() {
     const tbody = document.getElementById('lista-tarefas-catalogo-body');
+    if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem;">Carregando...</td></tr>';
 
     try {
@@ -993,7 +1331,9 @@ async function carregarListaCatalogoTarefas() {
                 </td>
             `;
             
-            tr.querySelector('.btn-editar-tarefa-catalogo').addEventListener('click', () => openModalFormTarefaCatalogo(t.id));
+            const btnEdit = tr.querySelector('.btn-editar-tarefa-catalogo');
+            if (btnEdit) btnEdit.addEventListener('click', () => openModalFormTarefaCatalogo(t.id));
+            
             const btnDesativar = tr.querySelector('.btn-desativar-tarefa-catalogo');
             if (btnDesativar) {
                 btnDesativar.addEventListener('click', () => desativarTarefaCatalogo(t.id));
@@ -1006,49 +1346,84 @@ async function carregarListaCatalogoTarefas() {
     }
 }
 
+/**
+ * Abre o modal de cadastro/edição de tarefa no catálogo global.
+ * @param {string | null} [id] - ID da tarefa do catálogo (opcional para edição)
+ * @returns {void}
+ */
 function openModalFormTarefaCatalogo(id = null) {
-    document.getElementById('modal-form-tarefa-catalogo').style.display = 'flex';
-    document.getElementById('formTarefaCatalogo').reset();
+    const modal = document.getElementById('modal-form-tarefa-catalogo');
+    if (modal) modal.style.display = 'flex';
     
+    const form = /** @type {HTMLFormElement | null} */ (document.getElementById('formTarefaCatalogo'));
+    if (form) form.reset();
+    
+    const inputId = /** @type {HTMLInputElement | null} */ (document.getElementById('tarefaCatalogoId'));
+    const inputTitulo = /** @type {HTMLInputElement | null} */ (document.getElementById('tituloTarefaCatalogoInput'));
+    const inputSistema = /** @type {HTMLInputElement | null} */ (document.getElementById('sistemaTarefaCatalogoInput'));
+    const inputDesc = /** @type {HTMLInputElement | null} */ (document.getElementById('descTarefaCatalogoInput'));
+    const selectAtivo = /** @type {HTMLSelectElement | null} */ (document.getElementById('ativoTarefaCatalogoInput'));
+
+    const title = document.getElementById('titulo-form-tarefa-catalogo');
+    const containerStatus = document.getElementById('container-status-tarefa-catalogo');
+
     if (id) {
         const t = tarefasCatalogoGeralCache.find(x => x.id === id);
         if (t) {
-            document.getElementById('titulo-form-tarefa-catalogo').innerText = 'Editar Tarefa no Catálogo';
-            document.getElementById('tarefaCatalogoId').value = t.id;
-            document.getElementById('tituloTarefaCatalogoInput').value = t.titulo;
-            document.getElementById('sistemaTarefaCatalogoInput').value = t.sistema || '';
-            document.getElementById('descTarefaCatalogoInput').value = t.descricao || '';
-            document.getElementById('container-status-tarefa-catalogo').style.display = 'block';
-            document.getElementById('ativoTarefaCatalogoInput').value = t.ativa ? 'true' : 'false';
+            if (title) title.innerText = 'Editar Tarefa no Catálogo';
+            if (inputId) inputId.value = t.id;
+            if (inputTitulo) inputTitulo.value = t.titulo;
+            if (inputSistema) inputSistema.value = t.sistema || '';
+            if (inputDesc) inputDesc.value = t.descricao || '';
+            if (containerStatus) containerStatus.style.display = 'block';
+            if (selectAtivo) selectAtivo.value = t.ativa ? 'true' : 'false';
         }
     } else {
-        document.getElementById('titulo-form-tarefa-catalogo').innerText = 'Nova Tarefa no Catálogo';
-        document.getElementById('tarefaCatalogoId').value = '';
-        document.getElementById('container-status-tarefa-catalogo').style.display = 'none';
+        if (title) title.innerText = 'Nova Tarefa no Catálogo';
+        if (inputId) inputId.value = '';
+        if (containerStatus) containerStatus.style.display = 'none';
     }
 }
 
+/**
+ * Fecha o modal do formulário de tarefa do catálogo.
+ * @returns {void}
+ */
 function closeModalFormTarefaCatalogo() {
-    document.getElementById('modal-form-tarefa-catalogo').style.display = 'none';
-    document.getElementById('formTarefaCatalogo').reset();
+    const modal = document.getElementById('modal-form-tarefa-catalogo');
+    if (modal) modal.style.display = 'none';
+    const form = /** @type {HTMLFormElement | null} */ (document.getElementById('formTarefaCatalogo'));
+    if (form) form.reset();
 }
 
+/**
+ * Salva ou edita uma tarefa no catálogo global.
+ * @param {SubmitEvent} e
+ * @returns {Promise<void>}
+ */
 async function salvarTarefaCatalogo(e) {
     e.preventDefault();
-    const btn = document.getElementById('btnSalvarTarefaCatalogo');
-    btn.disabled = true;
+    const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('btnSalvarTarefaCatalogo'));
+    if (btn) btn.disabled = true;
 
-    const id = document.getElementById('tarefaCatalogoId').value;
+    const inputId = /** @type {HTMLInputElement | null} */ (document.getElementById('tarefaCatalogoId'));
+    const inputTitulo = /** @type {HTMLInputElement | null} */ (document.getElementById('tituloTarefaCatalogoInput'));
+    const inputSistema = /** @type {HTMLInputElement | null} */ (document.getElementById('sistemaTarefaCatalogoInput'));
+    const inputDesc = /** @type {HTMLInputElement | null} */ (document.getElementById('descTarefaCatalogoInput'));
+    const selectAtivo = /** @type {HTMLSelectElement | null} */ (document.getElementById('ativoTarefaCatalogoInput'));
+
+    const id = inputId ? inputId.value : "";
     const isEdit = !!id;
 
     const body = {
-        titulo: document.getElementById('tituloTarefaCatalogoInput').value.trim(),
-        sistema: document.getElementById('sistemaTarefaCatalogoInput').value.trim() || null,
-        descricao: document.getElementById('descTarefaCatalogoInput').value.trim() || null
+        titulo: inputTitulo ? inputTitulo.value.trim() : "",
+        sistema: inputSistema ? (inputSistema.value.trim() || null) : null,
+        descricao: inputDesc ? (inputDesc.value.trim() || null) : null,
+        ativa: true
     };
 
-    if (isEdit) {
-        body.ativa = document.getElementById('ativoTarefaCatalogoInput').value === 'true';
+    if (isEdit && selectAtivo) {
+        body.ativa = selectAtivo.value === 'true';
     }
 
     try {
@@ -1060,9 +1435,10 @@ async function salvarTarefaCatalogo(e) {
         closeModalFormTarefaCatalogo();
         carregarListaCatalogoTarefas();
     } catch(err) {
+        // @ts-ignore
         showToast(err.message || "Erro ao salvar tarefa.", "error");
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }
 
@@ -1070,21 +1446,35 @@ async function salvarTarefaCatalogo(e) {
 // Módulo de Calendário (Tipos de Evento)
 // ==========================================
 
+/** @type {any[]} */
 let tiposEventoCache = [];
 
+/**
+ * Abre o modal de categorias de eventos do calendário.
+ * @returns {void}
+ */
 function openModalCalendarioTipos() {
     const modal = document.getElementById('modal-calendario-tipos');
-    modal.style.display = 'flex';
+    if (modal) modal.style.display = 'flex';
     carregarListaTiposEvento();
 }
 
+/**
+ * Fecha o modal de categorias de eventos.
+ * @returns {void}
+ */
 function closeModalCalendarioTipos() {
     const modal = document.getElementById('modal-calendario-tipos');
     if(modal) modal.style.display = 'none';
 }
 
+/**
+ * Carrega a lista de categorias de eventos do calendário e popula a tabela.
+ * @returns {Promise<void>}
+ */
 async function carregarListaTiposEvento() {
     const tbody = document.getElementById('lista-tipos-evento-body');
+    if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 1rem;">Carregando categorias...</td></tr>';
 
     try {
@@ -1122,8 +1512,11 @@ async function carregarListaTiposEvento() {
                 </td>
             `;
             
-            tr.querySelector('.btn-editar-tipo-evento').addEventListener('click', () => openModalFormTipoEvento(t.id));
-            tr.querySelector('.badge-status-evento').addEventListener('click', () => toggleStatusTipoEvento(t.id, t.active));
+            const btnEdit = tr.querySelector('.btn-editar-tipo-evento');
+            if (btnEdit) btnEdit.addEventListener('click', () => openModalFormTipoEvento(t.id));
+            
+            const badge = tr.querySelector('.badge-status-evento');
+            if (badge) badge.addEventListener('click', () => toggleStatusTipoEvento(t.id, t.active));
             
             tbody.appendChild(tr);
         });
@@ -1132,54 +1525,92 @@ async function carregarListaTiposEvento() {
     }
 }
 
+/**
+ * Abre o modal de cadastro/edição de tipo de evento do calendário.
+ * @param {string | null} [id] - ID do tipo de evento (opcional para edição)
+ * @returns {void}
+ */
 function openModalFormTipoEvento(id = null) {
-    document.getElementById('modal-form-tipo-evento').style.display = 'flex';
-    document.getElementById('formTipoEvento').reset();
+    const modal = document.getElementById('modal-form-tipo-evento');
+    if (modal) modal.style.display = 'flex';
     
+    const form = /** @type {HTMLFormElement | null} */ (document.getElementById('formTipoEvento'));
+    if (form) form.reset();
+    
+    const inputId = /** @type {HTMLInputElement | null} */ (document.getElementById('tipoEventoId'));
+    const inputNome = /** @type {HTMLInputElement | null} */ (document.getElementById('nomeTipoEventoInput'));
+    const inputIcon = /** @type {HTMLInputElement | null} */ (document.getElementById('iconTipoEventoInput'));
+    const selectSigilo = /** @type {HTMLSelectElement | null} */ (document.getElementById('sigiloTipoEventoInput'));
+    const inputColor = /** @type {HTMLInputElement | null} */ (document.getElementById('colorTipoEventoInput'));
+    const inputPrivColor = /** @type {HTMLInputElement | null} */ (document.getElementById('privateColorTipoEventoInput'));
+    const selectAtivo = /** @type {HTMLSelectElement | null} */ (document.getElementById('ativoTipoEventoInput'));
+    
+    const title = document.getElementById('titulo-form-tipo-evento');
+    const containerStatus = document.getElementById('container-status-tipo-evento');
+
     if (id) {
         const t = tiposEventoCache.find(x => x.id === id);
         if (t) {
-            document.getElementById('titulo-form-tipo-evento').innerText = 'Editar Categoria';
-            document.getElementById('tipoEventoId').value = t.id;
-            document.getElementById('nomeTipoEventoInput').value = t.name;
-            document.getElementById('iconTipoEventoInput').value = t.icon;
-            document.getElementById('sigiloTipoEventoInput').value = t.visibility_type;
-            document.getElementById('colorTipoEventoInput').value = t.color;
-            document.getElementById('privateColorTipoEventoInput').value = t.private_color || '#94a3b8';
-            document.getElementById('container-status-tipo-evento').style.display = 'block';
-            document.getElementById('ativoTipoEventoInput').value = t.active ? 'true' : 'false';
+            if (title) title.innerText = 'Editar Categoria';
+            if (inputId) inputId.value = t.id;
+            if (inputNome) inputNome.value = t.name;
+            if (inputIcon) inputIcon.value = t.icon;
+            if (selectSigilo) selectSigilo.value = t.visibility_type;
+            if (inputColor) inputColor.value = t.color;
+            if (inputPrivColor) inputPrivColor.value = t.private_color || '#94a3b8';
+            if (containerStatus) containerStatus.style.display = 'block';
+            if (selectAtivo) selectAtivo.value = t.active ? 'true' : 'false';
         }
     } else {
-        document.getElementById('titulo-form-tipo-evento').innerText = 'Nova Categoria de Evento';
-        document.getElementById('tipoEventoId').value = '';
-        document.getElementById('container-status-tipo-evento').style.display = 'none';
-        document.getElementById('colorTipoEventoInput').value = '#3b82f6';
-        document.getElementById('privateColorTipoEventoInput').value = '#94a3b8';
+        if (title) title.innerText = 'Nova Categoria de Evento';
+        if (inputId) inputId.value = '';
+        if (containerStatus) containerStatus.style.display = 'none';
+        if (inputColor) inputColor.value = '#3b82f6';
+        if (inputPrivColor) inputPrivColor.value = '#94a3b8';
     }
 }
 
+/**
+ * Fecha o modal de formulário de tipo de evento.
+ * @returns {void}
+ */
 function closeModalFormTipoEvento() {
-    document.getElementById('modal-form-tipo-evento').style.display = 'none';
+    const modal = document.getElementById('modal-form-tipo-evento');
+    if (modal) modal.style.display = 'none';
 }
 
+/**
+ * Salva ou edita a categoria de evento do calendário.
+ * @param {SubmitEvent} e
+ * @returns {Promise<void>}
+ */
 async function salvarTipoEvento(e) {
     e.preventDefault();
-    const btn = document.getElementById('btnSalvarTipoEvento');
-    btn.disabled = true;
+    const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('btnSalvarTipoEvento'));
+    if (btn) btn.disabled = true;
 
-    const id = document.getElementById('tipoEventoId').value;
+    const inputId = /** @type {HTMLInputElement | null} */ (document.getElementById('tipoEventoId'));
+    const inputNome = /** @type {HTMLInputElement | null} */ (document.getElementById('nomeTipoEventoInput'));
+    const inputIcon = /** @type {HTMLInputElement | null} */ (document.getElementById('iconTipoEventoInput'));
+    const selectSigilo = /** @type {HTMLSelectElement | null} */ (document.getElementById('sigiloTipoEventoInput'));
+    const inputColor = /** @type {HTMLInputElement | null} */ (document.getElementById('colorTipoEventoInput'));
+    const inputPrivColor = /** @type {HTMLInputElement | null} */ (document.getElementById('privateColorTipoEventoInput'));
+    const selectAtivo = /** @type {HTMLSelectElement | null} */ (document.getElementById('ativoTipoEventoInput'));
+
+    const id = inputId ? inputId.value : "";
     const isEdit = !!id;
 
     const body = {
-        name: document.getElementById('nomeTipoEventoInput').value.trim(),
-        icon: document.getElementById('iconTipoEventoInput').value.trim(),
-        visibility_type: document.getElementById('sigiloTipoEventoInput').value,
-        color: document.getElementById('colorTipoEventoInput').value,
-        private_color: document.getElementById('privateColorTipoEventoInput').value
+        name: inputNome ? inputNome.value.trim() : "",
+        icon: inputIcon ? inputIcon.value.trim() : "",
+        visibility_type: selectSigilo ? selectSigilo.value : "public",
+        color: inputColor ? inputColor.value : "#3b82f6",
+        private_color: inputPrivColor ? inputPrivColor.value : "#94a3b8",
+        active: true
     };
 
-    if (isEdit) {
-        body.active = document.getElementById('ativoTipoEventoInput').value === 'true';
+    if (isEdit && selectAtivo) {
+        body.active = selectAtivo.value === 'true';
     }
 
     try {
@@ -1191,12 +1622,19 @@ async function salvarTipoEvento(e) {
         closeModalFormTipoEvento();
         carregarListaTiposEvento();
     } catch(err) {
+        // @ts-ignore
         showToast(err.message || "Erro ao salvar categoria.", "error");
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }
 
+/**
+ * Ativa/desativa uma categoria de evento.
+ * @param {string} id
+ * @param {boolean} currentStatus
+ * @returns {Promise<void>}
+ */
 async function toggleStatusTipoEvento(id, currentStatus) {
     if (!confirm(`Deseja ${currentStatus ? 'desativar' : 'ativar'} esta categoria?`)) return;
     
@@ -1208,10 +1646,16 @@ async function toggleStatusTipoEvento(id, currentStatus) {
         showToast(`Categoria ${currentStatus ? 'desativada' : 'ativada'}!`, "success");
         carregarListaTiposEvento();
     } catch(err) {
+        // @ts-ignore
         showToast(err.message || "Erro ao alterar status.", "error");
     }
 }
 
+/**
+ * Inativa uma tarefa do catálogo global.
+ * @param {string} id
+ * @returns {Promise<void>}
+ */
 async function desativarTarefaCatalogo(id) {
     if (!confirm("Tem certeza que deseja inativar esta tarefa do catálogo global?")) return;
 
@@ -1220,18 +1664,23 @@ async function desativarTarefaCatalogo(id) {
         showToast("Tarefa inativada com sucesso!", "success");
         carregarListaCatalogoTarefas();
     } catch(err) {
+        // @ts-ignore
         showToast(err.message || "Erro ao inativar tarefa.", "error");
     }
 }
 
+/**
+ * Carrega a lista de tarefas do catálogo e preenche o select de seleção de tarefas.
+ * @returns {Promise<void>}
+ */
 async function carregarOpcoesCatalogoTarefas() {
-    const select = document.getElementById('tarefaCatalogoSelect');
+    const select = /** @type {HTMLSelectElement | null} */ (document.getElementById('tarefaCatalogoSelect'));
+    if (!select) return;
     select.innerHTML = '<option value="">Carregando...</option>';
 
     try {
         const tarefas = await apiFetch('/inspecoes/tarefas-catalogo');
         select.innerHTML = '<option value="" disabled selected>Selecione uma tarefa ativa</option>';
-        
         tarefas.forEach(t => {
             const opt = document.createElement('option');
             opt.value = t.id;
@@ -1247,45 +1696,62 @@ async function carregarOpcoesCatalogoTarefas() {
 // Upload XLSX Inventário
 // ============================================================
 (function () {
-    const btnUpload = document.getElementById('btn-upload-xlsx');
-    const modal = document.getElementById('modal-upload-xlsx');
-    const btnClose = document.getElementById('btn-close-modal-xlsx');
-    const btnCancel = document.getElementById('btn-cancel-modal-xlsx');
-    const form = document.getElementById('formUploadXlsx');
-    const fileInput = document.getElementById('xlsxFileInput');
-    const resultadoDiv = document.getElementById('xlsx-resultado');
-    const btnPrevia = document.getElementById('btnPreviaXlsx');
-    const btnEnviar = document.getElementById('btnEnviarXlsx');
+    const btnUpload = /** @type {HTMLButtonElement | null} */ (document.getElementById('btn-upload-xlsx'));
+    const modal = /** @type {HTMLElement | null} */ (document.getElementById('modal-upload-xlsx'));
+    const btnClose = /** @type {HTMLButtonElement | null} */ (document.getElementById('btn-close-modal-xlsx'));
+    const btnCancel = /** @type {HTMLButtonElement | null} */ (document.getElementById('btn-cancel-modal-xlsx'));
+    const form = /** @type {HTMLFormElement | null} */ (document.getElementById('formUploadXlsx'));
+    const fileInput = /** @type {HTMLInputElement | null} */ (document.getElementById('xlsxFileInput'));
+    const resultadoDiv = /** @type {HTMLDivElement | null} */ (document.getElementById('xlsx-resultado'));
+    const btnPrevia = /** @type {HTMLButtonElement | null} */ (document.getElementById('btnPreviaXlsx'));
+    const btnEnviar = /** @type {HTMLButtonElement | null} */ (document.getElementById('btnEnviarXlsx'));
 
+    /** @type {any} */
     let previewData = null;
 
-    if (!btnUpload || !modal) return;
+    if (!btnUpload || !modal || !form || !fileInput || !resultadoDiv || !btnPrevia || !btnEnviar || !btnClose || !btnCancel) return;
 
+    /**
+     * Abre o modal de upload do XLSX e reseta os estados.
+     * @returns {void}
+     */
     function abrirModal() {
-        modal.style.display = 'flex';
-        form.reset();
-        resultadoDiv.style.display = 'none';
-        resultadoDiv.innerHTML = '';
-        btnPrevia.style.display = 'inline-block';
-        btnPrevia.disabled = false;
-        btnPrevia.textContent = 'Carregar';
-        btnEnviar.style.display = 'none';
-        btnEnviar.disabled = false;
-        btnEnviar.textContent = 'Enviar e Processar';
+        if (modal) modal.style.display = 'flex';
+        if (form) form.reset();
+        if (resultadoDiv) {
+            resultadoDiv.style.display = 'none';
+            resultadoDiv.innerHTML = '';
+        }
+        if (btnPrevia) {
+            btnPrevia.style.display = 'inline-block';
+            btnPrevia.disabled = false;
+            btnPrevia.textContent = 'Carregar';
+        }
+        if (btnEnviar) {
+            btnEnviar.style.display = 'none';
+            btnEnviar.disabled = false;
+            btnEnviar.textContent = 'Enviar e Processar';
+        }
         previewData = null;
     }
 
+    /**
+     * Fecha o modal de upload do XLSX.
+     * @returns {void}
+     */
     function fecharModal() {
-        modal.style.display = 'none';
+        if (modal) modal.style.display = 'none';
     }
 
     // Resetar estado se o usuário trocar o arquivo
     fileInput.addEventListener('change', () => {
-        btnPrevia.style.display = 'inline-block';
-        btnPrevia.disabled = false;
-        btnPrevia.textContent = 'Carregar';
-        btnEnviar.style.display = 'none';
-        resultadoDiv.style.display = 'none';
+        if (btnPrevia) {
+            btnPrevia.style.display = 'inline-block';
+            btnPrevia.disabled = false;
+            btnPrevia.textContent = 'Carregar';
+        }
+        if (btnEnviar) btnEnviar.style.display = 'none';
+        if (resultadoDiv) resultadoDiv.style.display = 'none';
         previewData = null;
     });
 
@@ -1298,6 +1764,7 @@ async function carregarOpcoesCatalogoTarefas() {
 
     // Passo 1: Carregar Prévia
     btnPrevia.addEventListener('click', async () => {
+        if (!fileInput.files) return;
         const file = fileInput.files[0];
         if (!file) {
             showToast('Selecione um arquivo .xlsx.', 'error');
@@ -1309,10 +1776,14 @@ async function carregarOpcoesCatalogoTarefas() {
             return;
         }
 
-        btnPrevia.disabled = true;
-        btnPrevia.textContent = 'Lendo...';
-        resultadoDiv.style.display = 'block';
-        resultadoDiv.innerHTML = '<p>⏳ Analisando arquivo...</p>';
+        if (btnPrevia) {
+            btnPrevia.disabled = true;
+            btnPrevia.textContent = 'Lendo...';
+        }
+        if (resultadoDiv) {
+            resultadoDiv.style.display = 'block';
+            resultadoDiv.innerHTML = '<p>⏳ Analisando arquivo...</p>';
+        }
 
         const formData = new FormData();
         formData.append('file', file);
@@ -1324,12 +1795,16 @@ async function carregarOpcoesCatalogoTarefas() {
             });
 
             if (data.erros && data.erros.length > 0) {
-                resultadoDiv.innerHTML = `<div style="color: var(--status-danger);">
-                    <strong>Erros encontrados:</strong><br>
-                    ${data.erros.map(e => `• ${e}`).join('<br>')}
-                </div>`;
-                btnPrevia.disabled = false;
-                btnPrevia.textContent = 'Carregar';
+                if (resultadoDiv) {
+                    resultadoDiv.innerHTML = `<div style="color: var(--status-danger);">
+                        <strong>Erros encontrados:</strong><br>
+                        ${data.erros.map((/** @type {string} */ e) => `• ${e}`).join('<br>')}
+                    </div>`;
+                }
+                if (btnPrevia) {
+                    btnPrevia.disabled = false;
+                    btnPrevia.textContent = 'Carregar';
+                }
                 return;
             }
 
@@ -1357,7 +1832,7 @@ async function carregarOpcoesCatalogoTarefas() {
                     <div style="max-height: 180px; overflow-y: auto;">
                         <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
                             <tbody>
-                                ${data.itens.map(item => `
+                                ${data.itens.map((/** @type {any} */ item) => `
                                     <tr style="border-bottom: 1px solid rgba(0,0,0,0.05);">
                                         <td style="padding: 6px 4px; width: 40%; word-break: break-word;">${item.nome_posicao}</td>
                                         <td style="padding: 6px 4px; width: 60%; word-break: break-word; color: ${item.status === 'OK' ? 'var(--status-ok)' : item.status === 'REMOVED' ? 'var(--status-warning)' : 'var(--text-secondary)'};">
@@ -1372,14 +1847,17 @@ async function carregarOpcoesCatalogoTarefas() {
                 <p style="margin-top: 1rem; font-weight: 500; color: var(--primary-color);">Deseja processar e atualizar o banco de dados?</p>
             `;
 
-            resultadoDiv.innerHTML = html;
-            btnPrevia.style.display = 'none';
-            btnEnviar.style.display = 'inline-block';
+            if (resultadoDiv) resultadoDiv.innerHTML = html;
+            if (btnPrevia) btnPrevia.style.display = 'none';
+            if (btnEnviar) btnEnviar.style.display = 'inline-block';
 
         } catch (err) {
-            resultadoDiv.innerHTML = `<p style="color: var(--status-danger);">❌ Erro: ${err.message}</p>`;
-            btnPrevia.disabled = false;
-            btnPrevia.textContent = 'Carregar';
+            // @ts-ignore
+            if (resultadoDiv) resultadoDiv.innerHTML = `<p style="color: var(--status-danger);">❌ Erro: ${err.message}</p>`;
+            if (btnPrevia) {
+                btnPrevia.disabled = false;
+                btnPrevia.textContent = 'Carregar';
+            }
         }
     });
 
@@ -1392,12 +1870,14 @@ async function carregarOpcoesCatalogoTarefas() {
             return;
         }
 
-        btnEnviar.disabled = true;
-        btnEnviar.textContent = 'Gravando...';
+        if (btnEnviar) {
+            btnEnviar.disabled = true;
+            btnEnviar.textContent = 'Gravando...';
+        }
 
         const body = {
             aeronave_id: previewData.aeronave_id,
-            itens: previewData.itens.map(it => ({
+            itens: previewData.itens.map((/** @type {any} */ it) => ({
                 slot_id: it.slot_id,
                 sn_final: it.sn_encontrado
             }))
@@ -1412,22 +1892,26 @@ async function carregarOpcoesCatalogoTarefas() {
             showToast(`Sucesso! ${data.itens_atualizados} itens atualizados.`, 'success');
             
             // Exibir resumo final
-            resultadoDiv.innerHTML = `
-                <div style="text-align: center; padding: 1rem;">
-                    <div style="color: var(--status-ok); font-size: 2rem; margin-bottom: 0.5rem;">✅</div>
-                    <h4 style="margin: 0;">Processamento Concluído</h4>
-                    <p>${data.itens_atualizados} de ${data.total_linhas} slots foram atualizados para a aeronave ${previewData.matricula}.</p>
-                </div>
-            `;
+            if (resultadoDiv) {
+                resultadoDiv.innerHTML = `
+                    <div style="text-align: center; padding: 1rem;">
+                        <div style="color: var(--status-ok); font-size: 2rem; margin-bottom: 0.5rem;">✅</div>
+                        <h4 style="margin: 0;">Processamento Concluído</h4>
+                        <p>${data.itens_atualizados} de ${data.total_linhas} slots foram atualizados para a aeronave ${previewData.matricula}.</p>
+                    </div>
+                `;
+            }
             
-            btnEnviar.style.display = 'none';
+            if (btnEnviar) btnEnviar.style.display = 'none';
             setTimeout(fecharModal, 3000);
 
         } catch (err) {
+            // @ts-ignore
             showToast(err.message || 'Erro ao processar inventário.', 'error');
-            btnEnviar.disabled = false;
-            btnEnviar.textContent = 'Enviar e Processar';
+            if (btnEnviar) {
+                btnEnviar.disabled = false;
+                btnEnviar.textContent = 'Enviar e Processar';
+            }
         }
     });
 })();
-
