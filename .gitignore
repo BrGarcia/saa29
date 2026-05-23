@@ -46,6 +46,7 @@ uploads/
 Thumbs.db
 variaveis_railway.txt
 railway_local_variables.txt
+*.tar
 var/logs/
 var/db
 var/uploads/
