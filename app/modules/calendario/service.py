@@ -254,6 +254,27 @@ async def update_event_type(
     return event_type
 
 
+async def delete_event_type(
+    db: AsyncSession,
+    type_id: uuid.UUID,
+) -> None:
+    event_type = await db.get(EventType, type_id)
+    if event_type is None:
+        raise LookupError("Tipo de evento nao encontrado.")
+
+    # Verificar se existem eventos vinculados (incluindo os soft-deletados)
+    stmt = select(CalendarEvent).where(CalendarEvent.event_type_id == type_id)
+    result = await db.execute(stmt)
+    if result.scalars().first() is not None:
+        raise ValueError(
+            "Nao e possivel excluir esta categoria pois existem eventos associados a ela. "
+            "Desative-a em vez disso."
+        )
+
+    await db.delete(event_type)
+    await db.flush()
+
+
 async def create_event(
     db: AsyncSession,
     data: schemas.CalendarEventCreate,

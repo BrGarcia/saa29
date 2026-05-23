@@ -175,7 +175,7 @@
                 </button>
             </div>
         </div>
-        
+
         <!-- Painel Calendário -->
         <div class="card" style="display: flex; flex-direction: column; gap: 1rem;" data-role="ADMINISTRADOR">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
@@ -804,7 +804,8 @@
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">Configure as categorias de eventos, cores e regras de sigilo.</p>
+            <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">Configure as categorias de eventos,
+                cores e regras de sigilo.</p>
             <button class="btn btn-calendario" id="btn-novo-tipo-evento" style="padding: 0.5rem 1rem;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     style="vertical-align: middle; margin-right: 5px;">
@@ -856,13 +857,15 @@
             <input type="hidden" id="tipoEventoId">
             <div class="form-group">
                 <label class="form-label">Nome da Categoria *</label>
-                <input type="text" id="nomeTipoEventoInput" class="form-input" required maxlength="80" placeholder="Ex: Afastamento Médico">
+                <input type="text" id="nomeTipoEventoInput" class="form-input" required maxlength="80"
+                    placeholder="Ex: Afastamento Médico">
             </div>
-            
+
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div class="form-group">
                     <label class="form-label">Ícone (Emoji/Símbolo) *</label>
-                    <input type="text" id="iconTipoEventoInput" class="form-input" required maxlength="10" placeholder="Ex: 🏥">
+                    <input type="text" id="iconTipoEventoInput" class="form-input" required maxlength="10"
+                        placeholder="Ex: 🏥">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Grau de Sigilo *</label>
@@ -876,12 +879,15 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div class="form-group">
                     <label class="form-label">Cor Principal *</label>
-                    <input type="color" id="colorTipoEventoInput" class="form-input" style="height: 42px; padding: 0.2rem;" required value="#3b82f6">
+                    <input type="color" id="colorTipoEventoInput" class="form-input"
+                        style="height: 42px; padding: 0.2rem;" required value="#3b82f6">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Cor de Censura</label>
-                    <input type="color" id="privateColorTipoEventoInput" class="form-input" style="height: 42px; padding: 0.2rem;" value="#94a3b8">
-                    <small style="color: var(--text-secondary); font-size: 0.75rem;">Exibida para usuários sem privilégio.</small>
+                    <input type="color" id="privateColorTipoEventoInput" class="form-input"
+                        style="height: 42px; padding: 0.2rem;" value="#94a3b8">
+                    <small style="color: var(--text-secondary); font-size: 0.75rem;">Exibida para usuários sem
+                        privilégio.</small>
                 </div>
             </div>
 
@@ -902,18 +908,16 @@
 </div>
 
 <!-- Modal Upload XLSX Inventário -->
-<div id="modal-upload-xlsx"
-    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+<div id="modal-upload-xlsx" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
            backdrop-filter: blur(4px); z-index: 1000; align-items: center;
            justify-content: center;">
     <div class="card glass-panel" style="width: 100%; max-width: 550px; margin: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center;
                     border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;
                     margin-bottom: 1.5rem;">
-            <h3 style="margin: 0; font-size: 1.25rem;">Carregamento de Inventário (XLSX)</h3>
+            <h3 style="margin: 0; font-size: 1.25rem;">Carregamento XLSX</h3>
             <button class="btn-icon" type="button" id="btn-close-modal-xlsx">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
             </button>
@@ -928,8 +932,7 @@
         <form id="formUploadXlsx">
             <div class="form-group">
                 <label class="form-label">Arquivo XLSX *</label>
-                <input type="file" id="xlsxFileInput" class="form-input"
-                       accept=".xlsx" required>
+                <input type="file" id="xlsxFileInput" class="form-input" accept=".xlsx" required>
             </div>
 
             <!-- Área de resultado (oculta até o processamento) -->
@@ -941,12 +944,10 @@
 
             <div style="display: flex; gap: 1rem; justify-content: flex-end;
                         margin-top: 2rem;">
-                <button type="button" class="btn btn-outline"
-                        id="btn-cancel-modal-xlsx">Cancelar</button>
-                <button type="button" class="btn btn-vencimento"
-                        id="btnPreviaXlsx">Carregar</button>
-                <button type="submit" class="btn btn-equipamento"
-                        id="btnEnviarXlsx" style="display: none;">Enviar e Processar</button>
+                <button type="button" class="btn btn-outline" id="btn-cancel-modal-xlsx">Cancelar</button>
+                <button type="button" class="btn btn-vencimento" id="btnPreviaXlsx">Carregar</button>
+                <button type="submit" class="btn btn-equipamento" id="btnEnviarXlsx" style="display: none;">Enviar e
+                    Processar</button>
             </div>
         </form>
     </div>
