@@ -10,5 +10,5 @@
   - /inspecoes: integrated (endpoints available in inspections router)
   - /dashboard/resumo: GET consolidated metrics for dashboard UI
   - /calendario/eventos: GET range query with backend privacy censorship and DPE aggregation; POST/PUT/DELETE calendar_events CRUD
-  - /calendario/tipos: list active calendar event types
+  - /calendario/tipos: GET list active types; POST create, PUT update, DELETE delete types (Restricted to ADMINISTRADOR)
 - HTTP Status: 200/201 (OK/Created), 401 (Unauth), 403 (Forbidden), 404 (NotFound), 409 (Conflict), 422 (Pydantic Error)
