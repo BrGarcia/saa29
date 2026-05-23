@@ -33,9 +33,9 @@ Resolver 3 vulnerabilidades críticas que permitem acesso não-autorizado e forj
 #### Problema
 ```
 File: .env (linhas 36-40)
-R2_ACCOUNT_ID=7fa0ed8254b8f41ec3eb2e83b5bc622f
-R2_ACCESS_KEY_ID=dce783c7c9793fbaa2b3a079606ee1ca
-R2_SECRET_ACCESS_KEY=3deb304c21438f4cbcdecfdd426b14f4fb40df53798e3618d75ae38ec1e1957a
+R2_ACCOUNT_ID=<R2_ACCOUNT_ID_EXPOSED_REMOVED>
+R2_ACCESS_KEY_ID=<R2_ACCESS_KEY_ID_EXPOSED_REMOVED>
+R2_SECRET_ACCESS_KEY=<R2_SECRET_ACCESS_KEY_EXPOSED_REMOVED>
 ```
 **Impacto:** Atacantes podem acessar/modificar todos os backups no Cloudflare R2.
 

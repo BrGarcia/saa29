@@ -1,8 +1,8 @@
 # ctx
 
 meta:
-- sync_date: 2026-05-07
-- docs_structure: reorganized (core/, guides/, backlog/, summaries/, ia/*.ctx)
+- sync_date: 2026-05-23
+- docs_structure: reorganized and cleaned (core/, guides/, backlog/, summaries/, ia/*.ctx)
 - mode: machine
 - format: kv_short
 - truth: official_docs_first
@@ -136,3 +136,6 @@ known_gaps_from_roadmap:
 - image_pipeline_integration_rule: all_image_uploads_must_call_process_image_before_storage
 - image_pipeline_config: app/bootstrap/config/image.py (MAX_WIDTH,MAX_HEIGHT,TARGET_PSNR,MIN_SIZE_SKIP)
 - image_pipeline_backlog: docs/backlog/implamentacao_image_editor.md
+- feature_delete_event_category_completed: true (add-btn-delete-event branch merged to development)
+- documentation_reorganization_completed: true (folder cleanups, lowercase backlog, sensitive key masks)
+

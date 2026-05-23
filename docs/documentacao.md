@@ -166,162 +166,78 @@ Adicionar profundidade técnica:
 
 ---
 
-# 🚧 Plano de Reorganização (Pós-Próximo Módulo)
+# 🎯 Status da Organização
 
-> **Status:** ⏳ Aguardando conclusão do próximo módulo para implementação.
-> **Gatilho:** Executar após finalização e merge do módulo em andamento.
+> **Status:** ✅ Reorganização de documentação concluída com sucesso!
+> **Data de conclusão:** 2026-05-23
 
-Esta seção consolida as decisões necessárias e os passos seguros identificados durante a análise de viabilidade realizada em 2026-05-03.
-
----
-
-## ❓ Decisões Pendentes (Definir antes de implementar)
-
-As questões abaixo precisam ser respondidas antes de mover qualquer arquivo:
-
-| # | Questão | Opções |
-|:---|:---|:---|
-| 1 | Para onde vai `docs/api/referencia-api.md`? | `docs/core/` ou `docs/architecture/` |
-    **Resposta:** docs/architecture/
-| 2 | Para onde vão os guias de `docs/development/`? | Criar `docs/guides/` ou mover para `docs/core/` |
-    **Resposta:** Criar docs/guides/
-| 3 | `docs/archive/` deve ser mantido como está? | Manter ou consolidar em `docs/legacy/` |
-    **Resposta:** Consolidar em docs/legacy/
-| 4 | `docs/bugs/` vai para `docs/backlog/`? | Mover ou manter separado |
-    **Resposta:** Mover para docs/backlog/
-| 5 | Arquivos raiz (`CHANGELOG.md`, `CONTRIBUTING.md`, etc.) ficam na raiz de `docs/`? | Sim (padrão de repositório) |
-    **Resposta:** Sim (padrão de repositório)
-
-Justificativa curta
-
-referencia-api.md combina mais com arquitetura porque documenta contrato técnico e integrações.
-docs/development/ merece uma pasta própria de guias, porque isso separa instruções operacionais de especificação formal.
-archive/ e legacy/ têm a mesma função prática: material histórico, então vale consolidar.
-bugs/ é trabalho pendente, correção e triagem, então faz mais sentido dentro de backlog/.
-Os arquivos de controle do repositório ficam melhor na raiz de docs/ para acesso rápido.
----
-
-Estrutura final sugerida
-docs/
-├── README.md
-├── documentacao.md
-├── estrutura.md
-├── CHANGELOG.md
-├── CONTRIBUTING.md
-├── core/
-├── summaries/
-├── architecture/
-├── ia/
-├── guides/
-├── backlog/
-├── relatorio/
-├── legacy/
-├── methodology/
-├── fim/
-
-## ✅ Passos Seguros (Já aprovados para execução)
-
-Estas operações são de baixo risco e podem ser feitas com `git mv` para preservar histórico:
-
-### Etapa 1 — Renomeações e movimentações simples (Concluído ✅)
-
-- [x] Renomear contexto de IA (`ia/contex.md` -> `ia/CTX.md`)
-- [x] Criar camada `docs/core/` (mover `requirements/` -> `core/`)
-- [x] Renomear pasta `BACKLOG` para `backlog` (lowercase)
-- [x] Ajuste de metodologia (`04_AKITA.MD` -> `AKITA.md`)
-- [x] Remover pasta vazia `security/`
-- [x] Resolver decisões pendentes (Q1-Q5):
-  - [x] Mover `docs/api/referencia-api.md` -> `docs/architecture/`
-  - [x] Mover `docs/development/` -> `docs/guides/`
-  - [x] Consolidar `docs/archive/` -> `docs/legacy/`
-  - [x] Mover `docs/bugs/` -> `docs/backlog/`
-
-```bash
-# Renomear contexto de IA
-git mv docs/ia/contex.md docs/ia/CTX.md
-
-# Criar camada core (requirements → core)
-mkdir docs/core
-git mv docs/requirements/00_SRS.md docs/core/SRS.md
-git mv docs/requirements/01_SPECS.md docs/core/SPECS.md
-
-# Renomear pasta BACKLOG para backlog (lowercase)
-git mv docs/BACKLOG docs/backlog
-
-# Ajuste de metodologia
-git mv docs/methodology/04_AKITA.MD docs/methodology/AKITA.md
-
-# Remover pasta vazia
-rmdir docs/security
-```
-
-### Etapa 2 — Criar arquivos `.ctx` para IA
-
-Criar na pasta `docs/ia/` com conteúdo condensado extraído dos documentos existentes:
-
-- [x] `modules.ctx` — estrutura dos módulos (extrair de `mapa_repositorio.md`)
-- [x] `flows.ctx` — fluxos principais do sistema (extrair de `contex.md`)
-- [x] `api.ctx` — contratos de API (extrair de `docs/architecture/referencia-api.md`)
-- [x] `rules.ctx` — regras de negócio (extrair de `architecture/Database.md` + `RBAC.md`)
-- [x] `db.ctx` — modelo de dados resumido (extrair de `architecture/Database.md`)
-
-### Etapa 3 — Criar camada `docs/summaries/`
-
-Criar pasta e os 4 arquivos de resumo condensados:
-
-- [x] `PROJECT_SUMMARY.md` — visão geral do sistema
-- [x] `SRS_SUMMARY.md` — requisitos resumidos (de `core/SRS.md`)
-- [x] `SPECS_SUMMARY.md` — especificações técnicas resumidas
-- [x] `MODEL_DB_SUMMARY.md` — modelo de dados resumido
+A estrutura de documentação está organizada de forma otimizada para humanos e agentes de IA, visando máxima eficiência no consumo de tokens e localização de informações.
 
 ---
 
-## 📁 Estrutura Final Esperada
+## 📁 Estrutura Final do Diretório `docs/`
 
 ```
 docs/
-├── ia/                   # Contexto para IA (tokens otimizados)
-│   ├── CTX.md            # Estado global do projeto
-│   ├── modules.ctx
-│   ├── flows.ctx
-│   ├── api.ctx
-│   ├── rules.ctx
-│   ├── db.ctx
-│   ├── mapa_repositorio.md
-│   ├── glossario.md
-│   └── prompts_base.md
-├── summaries/            # Resumos condensados
+├── ia/                   # Camada de Contexto IA (alta densidade semântica)
+│   ├── CTX.md            # Estado global e foco atual do projeto
+│   ├── modules.ctx       # Estrutura e dependências dos módulos
+│   ├── flows.ctx         # Fluxos principais de negócio
+│   ├── api.ctx           # Contratos e assinaturas de API
+│   ├── rules.ctx         # Regras de negócio do sistema
+│   ├── db.ctx            # Resumo do modelo de dados do banco
+│   ├── mapa_repositorio.md # Localização de arquivos e componentes
+│   ├── glossario.md      # Termos e jargões técnicos do domínio
+│   └── prompts_base.md   # Prompts úteis estruturados
+├── summaries/            # Camada de Resumo (visões gerais condensadas)
 │   ├── PROJECT_SUMMARY.md
 │   ├── SRS_SUMMARY.md
 │   ├── SPECS_SUMMARY.md
 │   └── MODEL_DB_SUMMARY.md
-├── core/                 # Fonte de verdade
-│   ├── SRS.md
-│   ├── SPECS.md
-│   └── MODEL_DB.md
-├── architecture/         # Arquitetura técnica (sem alteração)
-├── backlog/              # Planejamento (lowercase)
-├── tdd/                  # Testes (sem alteração)
-├── development/          # Guias de desenvolvimento (decisão pendente)
-├── api/                  # Referência API (decisão pendente)
-├── relatorio/            # Relatórios
-├── legacy/               # Documentos históricos
-├── archive/              # Arquivos antigos (manter como está)
-├── bugs/                 # Rastreamento de bugs (decisão pendente)
-├── methodology/          # Metodologia de desenvolvimento
-├── fim/                  # Manuais técnicos FIM (sem alteração)
-├── agile/                # Critérios de Definition of Done/Ready
-├── README.md
-├── CHANGELOG.md
-├── CONTRIBUTING.md
-├── ROADMAP.md
-├── SECURITY.md
-├── CODE_OF_CONDUCT.md
+├── core/                 # Camada de Especificação (Fonte de Verdade)
+│   ├── SRS.md            # Requisitos completos do sistema
+│   ├── SPECS.md          # Especificações detalhadas
+│   └── MODEL_DB.md       # Modelagem completa do banco de dados (se houver)
+├── architecture/         # Desenhos e especificações arquiteturais
+│   ├── Database.md       # Diagrama e detalhes das tabelas
+│   ├── RBAC.md           # Definição de papéis e permissões
+│   ├── overview.md       # Visão geral arquitetural do monólito
+│   ├── refatoracao_slot_posicao.md
+│   └── referencia-api.md # Contratos técnicos
+├── backlog/              # Planejamento e gestão de tarefas
+│   ├── Melhorias Futuras/ # Idéias e planejamentos futuros
+│   ├── resolvidos/        # Histórico de bugs e tarefas concluídas
+│   └── implementacao_JSDoc.md
+├── relatorio/            # Auditorias e relatórios de segurança/qualidade
+│   ├── claude.md         # Primeira auditoria de segurança (2026-05-05)
+│   └── claude_google.md  # Auditoria de segurança complementar (2026-05-11)
+├── guides/               # Guias operacionais e manuais de setup
+│   ├── cloudflare_r2.md  # Integração com storage R2
+│   ├── guia-desenvolvimento.md
+│   ├── guia-testes.md
+│   └── migracao_postgresql.md
+├── legacy/               # Documentos históricos e planos de ação antigos
+│   ├── Auditoria_2026-03-30.md
+│   ├── AUDIT_SUMMARY.md
+│   ├── RELATORIO_COMPLETO.MD
+│   ├── IMPLEMENTATION_PLAN.md
+│   └── PROGRESS_2026_04_20.md
+├── methodology/          # Normas e acordos de trabalho técnico
+│   ├── CSP.md            # Padrões de segurança do Content Security Policy
+│   └── merge_main.md     # Fluxo Git de merge na branch principal
+├── fim/                  # Manuais técnicos aeronáuticos (Fault Isolation Manual)
+│   ├── FIM1741_...PDF    # PDFs individuais de consulta
+│   └── fim.json          # Indexador dos manuais
+├── README.md             # Visão rápida de setup da documentação
+├── CHANGELOG.md          # Registro histórico de alterações
+├── CONTRIBUTING.md       # Manual do colaborador
+├── ROADMAP.md            # Próximos passos do projeto
+├── SECURITY.md           # Política de reporte de vulnerabilidades
+├── CODE_OF_CONDUCT.md    # Código de conduta do projeto
 ├── documentacao.md       # Este arquivo
-└── estrutura.md
+└── estrutura.md          # Estrutura geral de arquivos do repositório
 ```
 
 ---
 
-*Análise de viabilidade realizada em: 2026-05-03*
-*Última atualização do plano: 2026-05-03*
+*Última atualização do status: 2026-05-23*

@@ -36,9 +36,9 @@
 - **Status:** ✗ ACTIVE
 
 ```env
-R2_ACCOUNT_ID=7fa0ed8254b8f41ec3eb2e83b5bc622f
-R2_ACCESS_KEY_ID=dce783c7c9793fbaa2b3a079606ee1ca
-R2_SECRET_ACCESS_KEY=3deb304c21438f4cbcdecfdd426b14f4fb40df53798e3618d75ae38ec1e1957a
+R2_ACCOUNT_ID=<R2_ACCOUNT_ID_EXPOSED_REMOVED>
+R2_ACCESS_KEY_ID=<R2_ACCESS_KEY_ID_EXPOSED_REMOVED>
+R2_SECRET_ACCESS_KEY=<R2_SECRET_ACCESS_KEY_EXPOSED_REMOVED>
 ```
 
 **Impacto:** Um atacante pode acessar/modificar o bucket S3 do R2, comprometendo todos os backups.  
