@@ -50,6 +50,21 @@ async def atualizar_tipo_evento(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
+@router.delete("/tipos/{type_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def deletar_tipo_evento(
+    type_id: uuid.UUID,
+    db: DBSession,
+    _: AdminRequired,
+):
+    try:
+        await service.delete_event_type(db, type_id)
+        return None
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
 @router.get("/eventos", response_model=list[schemas.CalendarEventPayload])
 async def listar_eventos(
     db: DBSession,

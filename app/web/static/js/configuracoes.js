@@ -1509,11 +1509,16 @@ async function carregarListaTiposEvento() {
                     <button type="button" class="btn-icon btn-editar-tipo-evento" data-id="${t.id}" title="Editar Categoria" style="color: var(--primary-color);">
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                     </button>
+                    <button type="button" class="btn-icon btn-excluir-tipo-evento" data-id="${t.id}" title="Excluir Categoria" style="color: var(--status-danger);">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
                 </td>
             `;
             
             const btnEdit = tr.querySelector('.btn-editar-tipo-evento');
             if (btnEdit) btnEdit.addEventListener('click', () => openModalFormTipoEvento(t.id));
+            const btnDelete = tr.querySelector('.btn-excluir-tipo-evento');
+            if (btnDelete) btnDelete.addEventListener('click', () => excluirTipoEvento(t.id, t.name));
             
             const badge = tr.querySelector('.badge-status-evento');
             if (badge) badge.addEventListener('click', () => toggleStatusTipoEvento(t.id, t.active));
@@ -1648,6 +1653,27 @@ async function toggleStatusTipoEvento(id, currentStatus) {
     } catch(err) {
         // @ts-ignore
         showToast(err.message || "Erro ao alterar status.", "error");
+    }
+}
+
+/**
+ * Exclui fisicamente uma categoria de evento se não houver eventos associados.
+ * @param {string} id
+ * @param {string} name
+ * @returns {Promise<void>}
+ */
+async function excluirTipoEvento(id, name) {
+    if (!confirm(`Deseja realmente excluir a categoria "${name}"? Esta ação não pode ser desfeita.`)) return;
+    
+    try {
+        await apiFetch(`/api/v1/calendario/tipos/${id}`, {
+            method: 'DELETE'
+        });
+        showToast("Categoria excluída com sucesso!", "success");
+        carregarListaTiposEvento();
+    } catch(err) {
+        // @ts-ignore
+        showToast(err.message || "Erro ao excluir categoria.", "error");
     }
 }
 
