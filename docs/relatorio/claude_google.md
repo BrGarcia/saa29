@@ -1,57 +1,169 @@
-# Relatório de Auditoria — SAA29 (claude_google)
+Você é um auditor técnico sênior de software, especializado em análise de arquitetura, qualidade de código, segurança, banco de dados, APIs, testes, desempenho, manutenção e confiabilidade.
 
-Este relatório contém achados **complementares** ao `docs/relatorio/claude.md`, identificados por análise independente. Não há duplicidade com os hashes já registrados naquele arquivo (`c5a1b9`, `9d3f2a`, `b7e4c1`, `4f8d6e`, `8c2b5d`, etc.).
+Sua tarefa é fazer uma varredura geral, completa e minuciosa em um projeto de programação descrito pelo INICIO.MD. Considere que se trata de um sistema real e crítico, então trate qualquer falha como potencialmente relevante para operação, integridade de dados, segurança e manutenção futura.
 
----
+Objetivo da análise:
 
-## 2026-05-11
+1. Encontrar falhas, erros, defeitos, inconsistências, bugs prováveis e comportamentos inesperados.
+2. Identificar vulnerabilidades de segurança.
+3. Apontar gargalos, más práticas, pontos frágeis, acoplamentos indevidos e problemas de arquitetura.
+4. Detectar oportunidades de otimização, refatoração, simplificação e aumento de robustez.
+5. Verificar aderência entre documentação, estrutura do projeto, regras de negócio e implementação.
+6. Validar banco de dados, migrações, integridade referencial, rotas de API, modelos de domínio, validações, testes e fluxo de execução.
+7. Verificar se o projeto está coerente para evolução futura como Web/PWA.
+8. Produzir um plano de correção priorizado, prático e executável.
 
-### [CORRIGIDO] BUG-CRÍTICO — service.py contém código duplicado que causa NameError em runtime
+Regras da auditoria:
 
-- **Local:** `app/modules/calendario/service.py:330-577`
-- **Descrição:** O arquivo contém as funções corrigidas (linhas 1-327) seguidas de uma cópia **integral das funções antigas** (linhas 330-577), incluindo `has_privilege`, `is_owner`, `should_censor`, `format_event_for_user`, `get_events`, `_get_calendar_events`, `_get_inspection_events`, `_get_task_events`, `list_event_types`, `create_event`, `update_event`, `delete_event`, `_ensure_user_exists`, `_ensure_event_type_exists` e `_get_event_or_raise`. As funções duplicadas na metade inferior referenciam `PRIVILEGED_ROLES` e `ADMIN_ROLES` (variáveis que foram removidas na metade superior), causando `NameError` se Python resolver a versão inferior durante a importação. Além disso, a metade antiga contém todas as vulnerabilidades que as correções 10.1–10.5 pretendiam eliminar: sem filtro de status, sem soft-delete, com alias `"ADMIN"`, sem `.limit()`, com `db.delete()` físico, e com vazamento de `owner_trigram` em eventos censurados.
-- **Impacto:** O módulo inteiro pode falhar com `NameError` em runtime ao importar o service (se Python avaliar as definições duplicadas), ou — pior — as funções antigas podem sobrescrever as corrigidas durante a importação do módulo (Python executa top-to-bottom e a última definição prevalece). Neste caso, **todas as correções 10.1–10.5 estariam efetivamente revertidas** em produção silenciosamente: a censura de privacidade voltaria a vazar dados, o delete seria físico, e o filtro de status seria removido. Risco de regressão total.
-- **Sugestão:** Remover as linhas 330-577 integralmente. Essas funções são uma cópia residual da versão pré-correção que não deveria existir. Após a remoção, validar que o módulo importa sem erro e que os testes de calendário passam.
-- **Hash:** `a3f7d2`
+* Faça uma inspeção rigorosa e abrangente.
+* Não presuma que o projeto está correto.
+* Procure inconsistências entre README, código, testes, estrutura de diretórios e comportamento esperado.
+* Analise:
 
----
+  * regras de negócio
+  * validações de domínio
+  * modelos e schema
+  * rotas e contratos de API
+  * persistência e relacionamento entre tabelas
+  * migrações Alembic
+  * tratamento de erros
+  * autenticação/autorização, se existir
+  * exposição indevida de dados
+  * injeção, validação de entrada e superfícies de ataque
+  * concorrência e consistência de dados
+  * cobertura de testes
+  * riscos operacionais
+  * dependências e versões
+  * qualidade de organização do código
+  * legibilidade, manutenção e escalabilidade
+  * problemas de documentação e usabilidade para desenvolvimento futuro
 
-### [BUG] DASHBOARD — mini-calendário do dashboard filtra eventos com campos errados
+Ao avaliar, classifique cada achado com:
 
-- **Local:** `app/web/static/js/dashboard.js:290-295` — função `renderCalendarView`
-- **Descrição:** O mini-calendário do dashboard consome o endpoint `/calendario/eventos` e tenta filtrar eventos por dia usando os campos `e.data_inicio`, `e.data_prevista` e `e.data`. Porém, o schema `CalendarEventPayload` retorna os campos `start` e `end` (não `data_inicio`, `data_prevista` nem `data`). O resultado: `new Date(undefined)` retorna `Invalid Date`, e o filtro `eDate.getDate() === currentDate.getDate()` retorna `false` para **todos** os eventos. Nenhum indicador de evento jamais aparece no mini-calendário do dashboard.
-- **Impacto:** O mini-calendário do dashboard é puramente decorativo — mostra os dias da semana mas nunca exibe indicadores de eventos, independentemente de quantos eventos existam. O usuário vê um calendário vazio e pode concluir que não há eventos, quando na verdade o filtro no frontend está quebrado.
-- **Sugestão:** Substituir `e.data_inicio || e.data_prevista || e.data` por `e.start` (que é o campo real do `CalendarEventPayload`). Para eventos de dia inteiro, usar `new Date(e.start)` e `new Date(e.end)` para verificar interseção com o dia, análogo ao que `calendario.js:199-202` faz corretamente na função `eventsForDay`.
-- **Hash:** `e2b4c8`
+* Severidade: Crítica / Alta / Média / Baixa
+* Tipo: bug / vulnerabilidade / risco arquitetural / dívida técnica / inconsistência / melhoria / performance / teste / documentação
+* Impacto provável
+* Evidência objetiva encontrada no código ou documentação
+* Recomendação concreta de correção
 
----
+Se houver qualquer trecho que você não consiga verificar diretamente por falta de acesso ao código, deixe isso explícito e continue a análise com o que estiver disponível. Não invente evidências.
 
-### [BUG] DASHBOARD — mini-calendário classifica tipo de evento com campo inexistente
+Formato da análise interna:
 
-- **Local:** `app/web/static/js/dashboard.js:300-303` — função `renderCalendarView`
-- **Descrição:** A lógica de coloração dos indicadores verifica `e.tipo` contra `'INSPECAO'`, `'VENCIMENTO'` e `'PANE'`. Porém, o `CalendarEventPayload` não possui campo `tipo` — o campo equivalente é `source` (valores: `"calendario"`, `"inspecao"`). Resultado: `e.tipo` é sempre `undefined`, nenhuma classe CSS (`insp`, `venc`, `pane`) é aplicada, e todos os indicadores (caso o bug anterior seja corrigido) teriam aparência idêntica — sem distinção visual entre tipos de evento.
-- **Impacto:** Perda total da funcionalidade de distinção visual por cor no mini-calendário do dashboard. Mesmo corrigindo o bug de filtragem (`e2b4c8`), os indicadores seriam todos da mesma cor genérica.
-- **Sugestão:** Substituir `e.tipo` por `e.source` e ajustar os valores comparados: `if (e.source === 'inspecao') typeClass = 'insp';`. Para eventos do calendário próprio, usar `e.icon` ou `e.backgroundColor` diretamente para diferenciar visualmente. Exemplo: `else if (e.source === 'calendario') typeClass = 'cal';`.
-- **Hash:** `f1c9a5`
+1. Ler e entender o os documentos da pasta docs\ia\ (sendo o arquivo INICIO.MD o ponto de partida) e a estrutura geral do projeto.
+2. Mapear módulos, dependências e fluxo principal.
+3. Revisar regras de negócio e modelos.
+4. Revisar API, persistência e migrações.
+5. Revisar testes e lacunas de teste.
+6. Revisar segurança, robustez e manutenção.
+7. Consolidar os achados por prioridade.
 
----
+Formato obrigatório da saída final:
+Gere um relatório técnico em Markdown no arquivo:
 
-### [BUG] CALENDÁRIO — seed de tipos não preenche `private_color` para tipos privados existentes
+`docs\RELATORIO_FINAL.MD`
 
-- **Local:** `scripts/seed/seed_calendario.py:33-44` — função `run`
-- **Descrição:** O seed atualiza `visibility_type`, `color`, `icon` e `active` para tipos existentes, mas **não atualiza nem preenche** o novo campo `private_color` introduzido pela migração 10.2. A migração Alembic preenche `private_color='#9CA3AF'` para tipos com `visibility_type='private'` existentes no momento da migração, mas se o seed rodar **após** a migração (cenário de rebuild limpo com `init_db.py`), o tipo "Consulta" será criado com `private_color=None`. O service faz fallback com `event.event_type.private_color or "#9CA3AF"`, então o impacto visual é mascarado — porém o campo fica inconsistente entre deploys com migração e deploys limpos.
-- **Impacto:** Inconsistência de dados entre ambientes (produção migrada vs. desenvolvimento com seed limpo). Se no futuro o fallback `or "#9CA3AF"` for removido ou a lógica depender de `private_color IS NOT NULL` para determinar se um tipo é privado, o comportamento divergirá entre ambientes.
-- **Sugestão:** Adicionar `"private_color": "#9CA3AF"` ao item "Consulta" em `BASE_EVENT_TYPES` e atualizar o campo no bloco `else` do seed: `existing.private_color = item.get("private_color")`.
-- **Hash:** `d7e3b1`
+Esse relatório deve conter, no mínimo, as seções abaixo:
 
----
+# 1. Resumo Executivo
 
-### [SEGURANÇA] CALENDÁRIO — `update_event` permite escrever campos protegidos via `setattr` genérico
+* visão geral do estado do sistema
+* principais riscos
+* nível de maturidade técnica
+* conclusão objetiva
 
-- **Local:** `app/modules/calendario/service.py:258-259` (bloco corrigido) e `528-529` (bloco duplicado)
-- **Descrição:** A função `update_event` itera sobre `data.model_dump(exclude_unset=True)` e executa `setattr(event, field, value)` para cada campo. O schema `CalendarEventUpdate` não inclui campos como `created_by_user_id`, `created_at`, `deleted_at` ou `deleted_by_user_id` — então em teoria estão protegidos pela validação do Pydantic. **Porém**, o campo `notes` é aceito sem limitação de tamanho. O schema define `notes: str | None = None` sem `max_length`. Um payload malicioso com `notes` contendo megabytes de texto será aceito, serializado e persistido no campo `Text` do banco sem restrição.
-- **Impacto:** Permite armazenamento ilimitado de dados no campo `notes`, potencializando consumo de disco e memória na serialização da resposta. Em cenário de abuso, um cliente poderia enviar repetidamente payloads com `notes` de vários MB, inflando o banco de dados. Embora o impacto direto seja limitado pelo tamanho do request (configuração do uvicorn/reverse proxy), a falta de validação no schema é uma lacuna defensiva.
-- **Sugestão:** Adicionar `max_length` ao campo `notes` em `CalendarEventCreate` e `CalendarEventUpdate`: `notes: str | None = Field(default=None, max_length=2000)`. O valor de 2000 caracteres é compatível com o campo `Text` do modelo e suficiente para justificativas operacionais. Adicionar o mesmo em `CalendarEventOut` como documentação do contrato.
-- **Hash:** `b8a1f4`
+# 2. Escopo da Análise
 
----
+* o que foi analisado
+* o que não pôde ser analisado
+* premissas adotadas
+
+# 3. Achados Críticos
+
+Para cada achado:
+
+* título
+* severidade
+* categoria
+* descrição
+* evidência
+* impacto
+* recomendação
+
+# 4. Vulnerabilidades de Segurança
+
+* vulnerabilidades encontradas ou suspeitas
+* risco de exploração
+* superfície de ataque
+* mitigação recomendada
+
+# 5. Defeitos Funcionais e Inconsistências
+
+* bugs
+* divergências entre documentação e implementação
+* falhas de regra de negócio
+* comportamentos ambíguos
+
+# 6. Problemas de Arquitetura e Manutenibilidade
+
+* acoplamento
+* separação de responsabilidades
+* organização de camadas
+* pontos de dívida técnica
+
+# 7. Oportunidades de Otimização e Melhoria
+
+* desempenho
+* legibilidade
+* padrão de código
+* reuso
+* simplificação
+* observabilidade
+* testes
+
+# 8. Plano de Correção Priorizado
+
+Organize em ordem de execução:
+
+* prioridade
+* tarefa
+* justificativa
+* esforço estimado
+* dependências
+* risco mitigado
+* critério de aceite
+
+# 9. Plano de Testes Pós-Correção
+
+* testes unitários
+* testes de integração
+* testes de regressão
+* testes de segurança
+* validação de migrações
+* validação de API
+
+# 10. Conclusão Final
+
+* status geral
+* se o sistema está pronto ou não para continuidade
+* próximos passos recomendados
+
+Requisitos adicionais do relatório:
+
+* Seja técnico, objetivo e detalhado.
+* Não seja genérico.
+* Não repita o README; extraia implicações técnicas dele.
+* Sempre priorize correções com maior impacto no risco do sistema.
+* Indique claramente o que é fato observado e o que é inferência técnica.
+* Use linguagem precisa.
+* Se houver múltiplos problemas relacionados, agrupe por causa raiz.
+* Ao final, inclua uma lista curta de “Ações Imediatas Recomendadas”.
+
+Antes de finalizar, revise se:
+
+* todos os achados têm severidade
+* as recomendações são acionáveis
+* o plano de correção está em ordem lógica
+* o relatório está pronto para ser salvo em `docs\RELATORIO_FINAL.MD`
+
+Entregue a análise completa e o conteúdo final do relatório em Markdown, pronto para gravação no arquivo informado.
