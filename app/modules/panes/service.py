@@ -12,7 +12,7 @@ import anyio
 try:
     import magic
     _MAGIC_AVAILABLE = True
-except ImportError:
+except Exception:
     _MAGIC_AVAILABLE = False
 from sqlalchemy import select, or_, func, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -488,10 +488,19 @@ async def upload_anexo(
         )
 
     # SEC-05: Validar MIME type real do conteúdo (não confiar na extensão) (AUD-09)
-    if not _MAGIC_AVAILABLE:
-        raise ValueError("Validação de tipo de arquivo indisponível (python-magic ausente). Contacte o administrador.")
+    if _MAGIC_AVAILABLE:
+        try:
+            mime_real = magic.from_buffer(arquivo_bytes[:2048], mime=True)
+        except Exception as e:
+            from app.shared.core.file_validators import _detect_mime_type_fallback
+            mime_real = _detect_mime_type_fallback(arquivo_bytes[:2048])
+    else:
+        from app.shared.core.file_validators import _detect_mime_type_fallback
+        mime_real = _detect_mime_type_fallback(arquivo_bytes[:2048])
 
-    mime_real = magic.from_buffer(arquivo_bytes[:2048], mime=True)
+    if not mime_real:
+        raise ValueError("Não foi possível identificar o tipo de arquivo de forma segura por sua assinatura.")
+
     if mime_real not in _MIMES_PERMITIDOS:
         raise ValueError(
             f"Conteúdo real do arquivo ({mime_real}) não é um tipo permitido. "
