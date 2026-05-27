@@ -51,6 +51,17 @@ async def alternar_status_aeronave(
     if aeronave.status == StatusAeronave.INATIVA:
         aeronave.status = StatusAeronave.DISPONIVEL
     else:
+        # Antes de inativar, consultar se a aeronave possui alguma inspeção ativa (ABERTA ou EM_ANDAMENTO)
+        from app.modules.inspecoes.models import Inspecao
+        from app.modules.inspecoes.service import STATUS_ATIVOS
+        query_ativa = select(Inspecao).where(
+            Inspecao.aeronave_id == aeronave_id,
+            Inspecao.status.in_(STATUS_ATIVOS)
+        )
+        res_ativa = await db.execute(query_ativa)
+        if res_ativa.scalars().first():
+            raise ValueError("Aeronave está sob inspeção ativa. Cancele ou conclua a inspeção antes de alterar o status para INATIVA.")
+        
         aeronave.status = StatusAeronave.INATIVA
         
     await db.flush()

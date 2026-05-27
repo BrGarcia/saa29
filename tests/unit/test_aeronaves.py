@@ -15,6 +15,7 @@ Cobertura (ROADMAP Fase 2 – 2.2):
 import uuid
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 AERONAVES_URL = "/aeronaves/"
@@ -287,3 +288,40 @@ class TestEndpointsAdicionais:
         response = await client.get(AERONAVES_URL, headers=headers)
         assert response.status_code == 200
         assert any(item["id"] == aid for item in response.json())
+
+    @pytest.mark.asyncio
+    async def test_alternar_status_aeronave_sob_inspecao_ativa_rejeitado(
+        self, client: AsyncClient, dados_aeronave_valida: dict, usuario_e_token: dict, db: AsyncSession
+    ):
+        headers = usuario_e_token["headers"]
+        dados_aeronave_valida["matricula"] = "9995"
+        dados_aeronave_valida["serial_number"] = "SN-9995"
+        aeronave = await client.post(AERONAVES_URL, json=dados_aeronave_valida, headers=headers)
+        assert aeronave.status_code == 201
+        aid = aeronave.json()["id"]
+
+        # Criar tipo de inspeção e abrir uma inspeção ativa
+        from app.modules.inspecoes.models import TipoInspecao, Inspecao, InspecaoEventoTipo
+        from app.shared.core.enums import StatusInspecao
+        from datetime import datetime, timezone
+        
+        tipo = TipoInspecao(codigo="IF-51", nome="Inspecao Teste 51", duracao_dias=5)
+        db.add(tipo)
+        await db.flush()
+
+        inspecao = Inspecao(
+            aeronave_id=uuid.UUID(aid),
+            status=StatusInspecao.ABERTA.value,
+            data_inicio=datetime.now(timezone.utc),
+            aberto_por_id=usuario_e_token["usuario"].id,
+            aberto_por_trigrama=usuario_e_token["usuario"].trigrama
+        )
+        db.add(inspecao)
+        await db.flush()
+        db.add(InspecaoEventoTipo(inspecao_id=inspecao.id, tipo_inspecao_id=tipo.id))
+        await db.flush()
+
+        # Tentar inativar via toggle
+        response = await client.post(f"{AERONAVES_URL}{aid}/toggle-status", headers=headers)
+        assert response.status_code == 409
+        assert "inspeção ativa" in response.json()["detail"]
