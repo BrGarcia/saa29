@@ -165,6 +165,27 @@ def test_schema_calendar_event_bloqueia_periodo_invertido():
         )
 
 
+def test_schema_calendar_event_bloqueia_notes_excedente():
+    owner_id = uuid.uuid4()
+    event_type_id = uuid.uuid4()
+
+    with pytest.raises(ValidationError) as exc_info:
+        schemas.CalendarEventCreate(
+            owner_user_id=owner_id,
+            event_type_id=event_type_id,
+            start_date=datetime(2026, 5, 10, 9, 0, tzinfo=timezone.utc),
+            end_date=datetime(2026, 5, 10, 10, 0, tzinfo=timezone.utc),
+            notes="a" * 2001,
+        )
+    assert "at most 2000 characters" in str(exc_info.value)
+
+    with pytest.raises(ValidationError) as exc_info:
+        schemas.CalendarEventUpdate(
+            notes="a" * 2001,
+        )
+    assert "at most 2000 characters" in str(exc_info.value)
+
+
 @pytest.mark.asyncio
 async def test_modelos_event_type_e_calendar_event_persistem_relacionamentos(db: AsyncSession):
     usuario = await criar_usuario_teste(db)

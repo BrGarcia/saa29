@@ -61,7 +61,7 @@ class CalendarEventCreate(BaseModel):
     event_type_id: uuid.UUID
     start_date: datetime
     end_date: datetime
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=2000, description="Observações do evento")
 
     @model_validator(mode="after")
     def validate_period(self) -> "CalendarEventCreate":
@@ -75,7 +75,7 @@ class CalendarEventUpdate(BaseModel):
     event_type_id: uuid.UUID | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=2000, description="Observações do evento")
 
     @model_validator(mode="after")
     def validate_period(self) -> "CalendarEventUpdate":
