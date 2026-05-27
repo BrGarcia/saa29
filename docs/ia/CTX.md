@@ -1,7 +1,7 @@
 # ctx
 
 meta:
-- sync_date: 2026-05-23
+- sync_date: 2026-05-27
 - docs_structure: reorganized and cleaned (core/, guides/, backlog/, summaries/, ia/*.ctx)
 - mode: machine
 - format: kv_short
@@ -12,7 +12,7 @@ project:
 - type: web_monolith_modular_ddd
 - domain: panes_aeronaves_inventario_a29
 - status: architecture_stabilized_ddd_active
-- test_status: calendario targeted passing (tests/test_calendario.py: 11 passed)
+- test_status: all tests passing (177 tests passed)
 - db_state: active_db_preserve_no_schema_change_for_inspecoes
 
 operational_constraints:
@@ -120,6 +120,7 @@ backlog_inspecoes:
 
 known_gaps_from_roadmap:
 - audit_2026-05-07_resolved: true (storage masking, aeronave inativa, token reuse, rbac inventario, singleton storage, pane role validation, inventory traceability, bcrypt limit)
+- audit_2026-05-27_resolved: true (python-magic fallback in file validators, aircraft status checks on toggle manual to INATIVA, calendar event notes length limit of 2000 chars)
 - feature_modo_calendario_p0_p5: completed (tests, data layer, service/router censorship, frontend, write modal, DPE aggregation)
 - bug_fix_inativar_anv_config_verified: true
 - logout_frontend_backend_alignment_verified: true
@@ -132,7 +133,7 @@ known_gaps_from_roadmap:
 - bug_fix_badge_man_trigrama_resolved: true (distinguish template vs manual via tarefa_catalogo_id)
 - feature_remove_req_column_from_inspections: completed
 - rbac_documentation_active: true (docs/architecture/RBAC.md)
-- image_pipeline_module_active: partial (shared/services/image pipeline + tests ready; integration in panes/service.py pending)
+- image_pipeline_module_active: true (shared/services/image pipeline integrated in panes/service.py and tested)
 - image_pipeline_integration_rule: all_image_uploads_must_call_process_image_before_storage
 - image_pipeline_config: app/bootstrap/config/image.py (MAX_WIDTH,MAX_HEIGHT,TARGET_PSNR,MIN_SIZE_SKIP)
 - image_pipeline_backlog: docs/backlog/implamentacao_image_editor.md

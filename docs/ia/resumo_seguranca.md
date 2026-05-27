@@ -60,3 +60,4 @@ recent_actions:
 - 2026-05-01: Created RBAC.md matrix to consolidate user roles and permissions documentation.
 - 2026-05-07: Added token reuse protection, fixed storage error masking, secured inventory RBAC.
 - 2026-05-07 (Rodada 2): Secured pane responsibility role, fixed inventory traceability, removed direct service rollbacks, fixed bcrypt byte limit.
+- 2026-05-27: Added length constraint to calendar event notes, added active inspections checks to toggle manual aircraft status, and added manual magic bytes fallback for file validators.
