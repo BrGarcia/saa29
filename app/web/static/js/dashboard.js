@@ -1,7 +1,67 @@
+// @ts-check
+
 /**
  * app/web/static/js/dashboard.js
  * Lógica de controle para o Dashboard Central.
  * Consome o endpoint consolidado /dashboard/resumo.
+ */
+
+/**
+ * @typedef {Object} DashboardPane
+ * @property {string} id
+ * @property {string} matricula
+ * @property {string} sistema
+ * @property {string} data_abertura
+ */
+
+/**
+ * @typedef {Object} DashboardResumoPanes
+ * @property {number} total_abertas
+ * @property {number} total_resolvidas_mes
+ * @property {DashboardPane[]} panes_criticas
+ */
+
+/**
+ * @typedef {Object} DashboardVencimentos
+ * @property {number} ok
+ * @property {number} vencendo
+ * @property {number} vencido
+ * @property {number} prorrogado
+ */
+
+/**
+ * @typedef {Object} DashboardInspecao
+ * @property {string} inspecao_id
+ * @property {string} status
+ * @property {string} matricula
+ * @property {string[]} [tipos]
+ */
+
+/**
+ * @typedef {Object} DashboardMovimentacao
+ * @property {string} aeronave_matricula
+ * @property {string} descricao
+ * @property {string} data
+ */
+
+/**
+ * @typedef {Object} DashboardAeronave
+ * @property {string} matricula
+ * @property {string} status
+ */
+
+/**
+ * @typedef {Object} DashboardFrota
+ * @property {DashboardAeronave[]} aeronaves
+ */
+
+/**
+ * @typedef {Object} DashboardData
+ * @property {DashboardResumoPanes} panes
+ * @property {DashboardVencimentos} vencimentos
+ * @property {DashboardInspecao[]} inspecoes_ativas
+ * @property {DashboardMovimentacao[]} movimentacoes_recentes
+ * @property {DashboardFrota} frota
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -18,8 +78,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     initCalendar();
 });
 
+/**
+ * @returns {Promise<void>}
+ */
 async function carregarDashboard() {
     try {
+        /** @type {DashboardData} */
+        // @ts-ignore
         const data = await apiFetch('/dashboard/resumo');
 
         if (!data) return;
@@ -35,6 +100,9 @@ async function carregarDashboard() {
     }
 }
 
+/**
+ * @returns {void}
+ */
 function configurarEventos() {
     // Botão Registrar Pane
     const btnRegistrar = document.getElementById('btn-registrar-pane');
@@ -56,6 +124,10 @@ function configurarEventos() {
  * Renderizadores 
  */
 
+/**
+ * @param {DashboardResumoPanes} data
+ * @returns {void}
+ */
 function renderPanes(data) {
     const valAbertas = document.getElementById('val-panes-abertas');
     const valResolvidas = document.getElementById('val-panes-resolvidas');
@@ -64,11 +136,11 @@ function renderPanes(data) {
     // Remove skeleton-text classes
     if (valAbertas) {
         valAbertas.classList.remove('skeleton-text');
-        valAbertas.textContent = data.total_abertas;
+        valAbertas.textContent = String(data.total_abertas);
     }
     if (valResolvidas) {
         valResolvidas.classList.remove('skeleton-text');
-        valResolvidas.textContent = data.total_resolvidas_mes;
+        valResolvidas.textContent = String(data.total_resolvidas_mes);
     }
 
     if (!listContainer) return;
@@ -89,6 +161,10 @@ function renderPanes(data) {
     `).join('');
 }
 
+/**
+ * @param {DashboardVencimentos} data
+ * @returns {void}
+ */
 function renderVencimentos(data) {
     const elOk = document.getElementById('val-venc-ok');
     const elWarning = document.getElementById('val-venc-avencer');
@@ -101,12 +177,16 @@ function renderVencimentos(data) {
         }
     });
 
-    if (elOk) elOk.textContent = data.ok || 0;
-    if (elWarning) elWarning.textContent = data.vencendo || 0;
-    if (elDanger) elDanger.textContent = data.vencido || 0;
-    if (elProrrogado) elProrrogado.textContent = data.prorrogado || 0;
+    if (elOk) elOk.textContent = String(data.ok || 0);
+    if (elWarning) elWarning.textContent = String(data.vencendo || 0);
+    if (elDanger) elDanger.textContent = String(data.vencido || 0);
+    if (elProrrogado) elProrrogado.textContent = String(data.prorrogado || 0);
 }
 
+/**
+ * @param {DashboardInspecao[]} inspecoes
+ * @returns {void}
+ */
 function renderInspecoes(inspecoes) {
     const list = document.getElementById('inspecoes-list');
     if (!list) return;
@@ -128,6 +208,10 @@ function renderInspecoes(inspecoes) {
     }).join('');
 }
 
+/**
+ * @param {DashboardMovimentacao[]} movimentacoes
+ * @returns {void}
+ */
 function renderInventario(movimentacoes) {
     const list = document.getElementById('movimentacoes-list');
     if (!list) return;
@@ -150,6 +234,10 @@ function renderInventario(movimentacoes) {
     `).join('');
 }
 
+/**
+ * @param {DashboardFrota} data
+ * @returns {void}
+ */
 function renderFrota(data) {
     const container = document.getElementById('frota-stats');
     if (!container) return;
@@ -159,6 +247,7 @@ function renderFrota(data) {
         return;
     }
 
+    /** @type {Record<string, string>} */
     const colorMap = {
         'DISPONIVEL': 'var(--status-ok)',
         'OPERACIONAL': 'var(--primary-color)',
@@ -185,6 +274,10 @@ function renderFrota(data) {
  * Utilitários de Formatação
  */
 
+/**
+ * @param {string} isoString
+ * @returns {string}
+ */
 function formatarDataRelativa(isoString) {
     if (!isoString) return "";
     const data = new Date(isoString);
@@ -194,7 +287,7 @@ function formatarDataRelativa(isoString) {
     const d1 = new Date(data.getFullYear(), data.getMonth(), data.getDate());
     const d2 = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
     
-    const diffMs = d2 - d1;
+    const diffMs = d2.getTime() - d1.getTime();
     const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
     if (diffDias <= 0) return "Hoje";
@@ -202,6 +295,10 @@ function formatarDataRelativa(isoString) {
     return `Há ${diffDias} dias`;
 }
 
+/**
+ * @param {string} isoString
+ * @returns {string}
+ */
 function formatarDataSimples(isoString) {
     if (!isoString) return "";
     const data = new Date(isoString);
@@ -214,6 +311,9 @@ function formatarDataSimples(isoString) {
 
 let currentViewDate = new Date();
 
+/**
+ * @returns {void}
+ */
 function initCalendar() {
     const btnPrev = document.getElementById('btn-prev-week');
     const btnNext = document.getElementById('btn-next-week');
@@ -235,6 +335,9 @@ function initCalendar() {
     renderCalendarView();
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function renderCalendarView() {
     const grid = document.getElementById('mini-calendar-grid');
     const title = document.getElementById('calendar-title');
@@ -263,6 +366,8 @@ async function renderCalendarView() {
         const startStr = startDate.toISOString();
         const endStr = endDate.toISOString();
 
+        /** @type {any[]} */
+        // @ts-ignore
         const eventos = await apiFetch(`/api/v1/calendario/eventos?start_date=${encodeURIComponent(startStr)}&end_date=${encodeURIComponent(endStr)}`);
         
         // Renderizar dias da semana

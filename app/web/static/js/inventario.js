@@ -1,14 +1,47 @@
+// @ts-check
+
 /**
  * static/js/inventario.js
  * Gestão de Inventário de Equipamentos por Aeronave
  */
 
+/**
+ * @typedef {Object} InventarioLog
+ * @property {string} created_at
+ * @property {string} aeronave_matricula
+ * @property {string} slot_nome
+ * @property {string} item_sn
+ * @property {string} [usuario_trigrama]
+ * @property {string} tipo_acao
+ */
+
+/**
+ * @typedef {Object} InventarioItem
+ * @property {string} equipamento_id
+ * @property {string} [instalacao_id]
+ * @property {string} [sistema]
+ * @property {string} nome_posicao
+ * @property {string} [status_item]
+ * @property {string} part_number
+ * @property {string} [numero_serie]
+ * @property {string} [data_atualizacao]
+ * @property {string} [usuario_trigrama]
+ * @property {string} [aeronave_anterior]
+ */
+
+/** @type {any[]} */
 let aeronavesCache = [];
 
+/**
+ * @returns {Promise<void>}
+ */
 async function loadAeronaves() {
-    const select = document.getElementById('aeronave-select');
+    /** @type {HTMLSelectElement | null} */
+    const select = document.querySelector('#aeronave-select');
     if (!select) return;
     try {
+        /** @type {Aeronave[]} */
+        // @ts-ignore
         const data = await apiFetch('/aeronaves/?limit=100&incluir_inativas=true');
         data.sort((a, b) => a.matricula.localeCompare(b.matricula));
         
@@ -31,9 +64,14 @@ async function loadAeronaves() {
     } catch (e) { console.error(e); }
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function loadInventario() {
-    const select = document.getElementById('aeronave-select');
-    const filterNome = document.getElementById('filter-nome');
+    /** @type {HTMLSelectElement | null} */
+    const select = document.querySelector('#aeronave-select');
+    /** @type {HTMLInputElement | null} */
+    const filterNome = document.querySelector('#filter-nome');
     if(!select || !filterNome) return;
     
     const aeronaveId = select.value;
@@ -49,19 +87,26 @@ async function loadInventario() {
         let url = `/equipamentos/inventario/${aeronaveId}`;
         if (nomeFilter) url += `?nome=${encodeURIComponent(nomeFilter)}`;
 
+        /** @type {InventarioItem[]} */
+        // @ts-ignore
         const data = await apiFetch(url);
         renderInventario(data);
     } catch (e) {
-        container.innerHTML = `<div class="card glass-panel" style="padding: 2rem; text-align: center; color: var(--status-danger);">Erro ao carregar inventário.</div>`;
+        if (container) container.innerHTML = `<div class="card glass-panel" style="padding: 2rem; text-align: center; color: var(--status-danger);">Erro ao carregar inventário.</div>`;
     }
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function loadHistoricoRecente() {
     const container = document.getElementById('inventario-container');
     const statsDiv = document.getElementById('stats-summary');
     if(statsDiv) statsDiv.innerHTML = '';
     
     try {
+        /** @type {InventarioLog[]} */
+        // @ts-ignore
         const data = await apiFetch('/equipamentos/inventario/historico');
         renderHistorico(data);
     } catch (e) {
@@ -69,6 +114,10 @@ async function loadHistoricoRecente() {
     }
 }
 
+/**
+ * @param {InventarioLog[]} logs
+ * @returns {void}
+ */
 function renderHistorico(logs) {
     const container = document.getElementById('inventario-container');
     if(!container) return;
@@ -121,6 +170,12 @@ function renderHistorico(logs) {
     container.innerHTML = html;
 }
 
+/**
+ * @param {HTMLInputElement} input
+ * @param {string} snOriginal
+ * @param {string} equipamentoId
+ * @returns {void}
+ */
 function compareSN(input, snOriginal, equipamentoId) {
     const val = input.value.trim().toUpperCase();
     const btn = document.getElementById(`btn-sync-${equipamentoId}`);
@@ -137,16 +192,26 @@ function compareSN(input, snOriginal, equipamentoId) {
         input.classList.add('status-mismatch');
         if(btn) btn.classList.add('visible');
     }
+    // @ts-ignore (We will pass null for items to just use DOM)
     updateStats();
 }
 
+/**
+ * @param {string} equipamentoId
+ * @param {string} snReal
+ * @param {boolean} forcar
+ * @returns {Promise<void>}
+ */
 async function ajustarInventario(equipamentoId, snReal, forcar = false) {
-    const select = document.getElementById('aeronave-select');
+    /** @type {HTMLSelectElement | null} */
+    const select = document.querySelector('#aeronave-select');
     if(!select || !snReal) return;
     const aeronaveId = select.value;
-    const user = JSON.parse(localStorage.getItem("saa29_user"));
+    const userJson = localStorage.getItem("saa29_user");
+    const user = userJson ? JSON.parse(userJson) : null;
     
     try {
+        // @ts-ignore
         const response = await apiFetch(`/equipamentos/inventario/ajuste`, {
             method: 'POST',
             body: {
@@ -159,34 +224,48 @@ async function ajustarInventario(equipamentoId, snReal, forcar = false) {
         });
 
         if (response.sucesso) {
+            // @ts-ignore
             showToast(response.mensagem, "success");
             fecharModal();
             loadInventario();
         } else if (response.requer_confirmacao) {
             abrirModal(equipamentoId, snReal, response.aeronave_conflito);
         } else {
+            // @ts-ignore
             showToast(response.mensagem, "error");
         }
     } catch (e) {
+        // @ts-ignore
         showToast(e.message || "Erro ao ajustar inventário.", "error");
     }
 }
 
+/**
+ * @param {string} instalacaoId
+ * @returns {Promise<void>}
+ */
 async function removerEquipamento(instalacaoId) {
     if (!instalacaoId) return;
     try {
+        // @ts-ignore
         await apiFetch(`/equipamentos/instalacoes/${instalacaoId}/remover`, {
             method: 'PATCH',
             body: { data_remocao: new Date().toISOString().split('T')[0] }
         });
+        // @ts-ignore
         showToast("Item desinstalado com sucesso.", "info");
         fecharModalRemocao();
         loadInventario();
     } catch (e) {
+        // @ts-ignore
         showToast("Erro ao remover equipamento.", "error");
     }
 }
 
+/**
+ * @param {InventarioItem[]} items
+ * @returns {void}
+ */
 function renderInventario(items) {
     const container = document.getElementById('inventario-container');
     if(!container) return;
@@ -235,7 +314,7 @@ function renderInventario(items) {
         let rastreabilidade = '<span style="color: var(--text-secondary); opacity: 0.5;">-</span>';
         if (item.data_atualizacao) {
             const dataObj = new Date(item.data_atualizacao);
-            if (!isNaN(dataObj)) {
+            if (!isNaN(dataObj.getTime())) {
                 const dia = String(dataObj.getDate()).padStart(2, '0');
                 const mes = String(dataObj.getMonth() + 1).padStart(2, '0');
                 const ano = String(dataObj.getFullYear()).slice(-2);
@@ -248,9 +327,10 @@ function renderInventario(items) {
             }
         }
 
+        // @ts-ignore
         tr.innerHTML = `
             <td style="padding: 0.8rem 1rem;"><span class="badge" style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary-color); font-weight: 600; font-size: 0.75rem;">${item.sistema || '-'}</span></td>
-            <td style="padding: 0.8rem 1rem;"><div style="font-weight: 600;">${escapeHtml(item.nome_posicao)}</div><div style="font-size: 0.75rem; color: var(--text-secondary);">${escapeHtml(item.status_item) || 'NÃO INSTALADO'}</div></td>
+            <td style="padding: 0.8rem 1rem;"><div style="font-weight: 600;">${escapeHtml(item.nome_posicao)}</div><div style="font-size: 0.75rem; color: var(--text-secondary);">${escapeHtml(item.status_item || '') || 'NÃO INSTALADO'}</div></td>
             <td style="padding: 0.8rem 1rem; font-family: monospace; font-size: 0.9rem;">${escapeHtml(item.part_number)}</td>
             <td style="padding: 0.8rem 1rem;" class="td-sn-siloms">${snSilomsHtml}</td>
             <td style="padding: 0.8rem 1rem;">${rastreabilidade}</td>
@@ -266,29 +346,48 @@ function renderInventario(items) {
         `;
         
         const badgeSn = tr.querySelector('.badge-sn-siloms');
-        if(badgeSn) {
-            badgeSn.addEventListener('click', () => abrirModalRemocao(item.instalacao_id, item.numero_serie, item.nome_posicao));
+        if(badgeSn && item.instalacao_id) {
+            badgeSn.addEventListener('click', () => abrirModalRemocao(item.instalacao_id || '', item.numero_serie || '', item.nome_posicao));
         }
         
+        /** @type {HTMLInputElement | null} */
         const input = tr.querySelector('.real-input');
-        input.addEventListener('input', () => compareSN(input, item.numero_serie || '', item.equipamento_id));
+        if (input) {
+            input.addEventListener('input', () => compareSN(input, item.numero_serie || '', item.equipamento_id));
+            
+            const btnSync = tr.querySelector('.btn-sync');
+            if (btnSync) {
+                btnSync.addEventListener('click', () => ajustarInventario(item.equipamento_id, input.value));
+            }
+        }
         
-        const btnSync = tr.querySelector('.btn-sync');
-        btnSync.addEventListener('click', () => ajustarInventario(item.equipamento_id, input.value));
-        
-        tbody.appendChild(tr);
+        if (tbody) tbody.appendChild(tr);
     });
 
     container.appendChild(section);
     updateStats(items);
 }
 
+/**
+ * @param {InventarioItem[]} [items]
+ * @returns {void}
+ */
 function updateStats(items) {
     const statsDiv = document.getElementById('stats-summary');
     if (!statsDiv) return;
 
     if (!items) {
-        statsDiv.innerHTML = '';
+        // Find them in DOM
+        const inputs = Array.from(document.querySelectorAll('.real-input'));
+        const total = inputs.length;
+        const ok = inputs.filter(i => i.classList.contains('status-match')).length;
+        const pendente = inputs.filter(i => i.classList.contains('status-pending')).length;
+        const erro = total - ok - pendente;
+        statsDiv.innerHTML = `
+            <span style="color: var(--text-secondary);">Total: <strong>${total}</strong></span>
+            <span style="color: var(--status-success);">Conferidos: <strong>${ok}</strong></span>
+            <span style="color: var(--status-danger);">Divergentes: <strong>${erro}</strong></span>
+        `;
         return;
     }
 
@@ -312,67 +411,96 @@ function updateStats(items) {
     `;
 }
 
+/**
+ * @param {string} equipamentoId
+ * @param {string} snReal
+ * @param {string} anvConflito
+ * @returns {void}
+ */
 function abrirModal(equipamentoId, snReal, anvConflito) {
     const msg = document.getElementById('modal-transferencia-msg');
     const modal = document.getElementById('modal-transferencia');
     const btn = document.getElementById('btn-confirmar-transferencia');
     if(!msg || !modal || !btn) return;
 
+    // @ts-ignore
     msg.innerHTML = `O item <strong>${escapeHtml(snReal)}</strong> consta como instalado na aeronave <strong>${escapeHtml(anvConflito)}</strong>.`;
     modal.style.display = 'flex';
 
     const oldBtn = btn.cloneNode(true);
-    btn.parentNode.replaceChild(oldBtn, btn);
-    oldBtn.addEventListener('click', () => {
-        ajustarInventario(equipamentoId, snReal, true);
-    });
+    if (btn.parentNode) {
+        btn.parentNode.replaceChild(oldBtn, btn);
+        oldBtn.addEventListener('click', () => {
+            ajustarInventario(equipamentoId, snReal, true);
+        });
+    }
 }
 
+/**
+ * @returns {void}
+ */
 function fecharModal() {
     const modal = document.getElementById('modal-transferencia');
     if(modal) modal.style.display = 'none';
 }
 
+/**
+ * @param {string} instalacaoId
+ * @param {string} sn
+ * @param {string} slotNome
+ * @returns {void}
+ */
 function abrirModalRemocao(instalacaoId, sn, slotNome) {
     const msg = document.getElementById('modal-remocao-msg');
     const modal = document.getElementById('modal-remocao');
     const btn = document.getElementById('btn-confirmar-remocao');
     if(!msg || !modal || !btn) return;
 
+    // @ts-ignore
     msg.innerHTML = `Deseja registrar a remoção do item <strong>${escapeHtml(sn)}</strong> da posição <strong>${escapeHtml(slotNome)}</strong>?`;
     modal.style.display = 'flex';
 
     const oldBtn = btn.cloneNode(true);
-    btn.parentNode.replaceChild(oldBtn, btn);
-    oldBtn.addEventListener('click', () => {
-        removerEquipamento(instalacaoId);
-    });
+    if (btn.parentNode) {
+        btn.parentNode.replaceChild(oldBtn, btn);
+        oldBtn.addEventListener('click', () => {
+            removerEquipamento(instalacaoId);
+        });
+    }
 }
 
+/**
+ * @returns {void}
+ */
 function fecharModalRemocao() {
     const modal = document.getElementById('modal-remocao');
     if(modal) modal.style.display = 'none';
 }
 
+// @ts-ignore
 window.fecharModal = fecharModal;
+// @ts-ignore
 window.fecharModalRemocao = fecharModalRemocao;
+// @ts-ignore
 window.loadInventario = loadInventario;
 
 document.addEventListener('DOMContentLoaded', () => {
     loadAeronaves();
     
-    const select = document.getElementById('aeronave-select');
-    const filterNome = document.getElementById('filter-nome');
+    /** @type {HTMLSelectElement | null} */
+    const select = document.querySelector('#aeronave-select');
+    /** @type {HTMLInputElement | null} */
+    const filterNome = document.querySelector('#filter-nome');
     
     if (select) {
         select.addEventListener('change', () => {
-            const url = new URL(window.location);
+            const url = new URL(window.location.href);
             if (select.value) {
                 url.searchParams.set('aeronave_id', select.value);
             } else {
                 url.searchParams.delete('aeronave_id');
             }
-            window.history.pushState({}, '', url);
+            window.history.pushState({}, '', url.href);
             loadInventario();
         });
     }

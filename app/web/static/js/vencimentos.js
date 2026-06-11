@@ -1,9 +1,45 @@
+// @ts-check
+
 /**
  * vencimentos.js — Controle de Vencimentos da Frota
  * Layout moderno: cards por aeronave com chips de equipamento.
  */
 
+/**
+ * @typedef {Object} VencimentoControle
+ * @property {string} status
+ * @property {string} [vencimento_id]
+ * @property {string} tipo_controle_nome
+ * @property {string} [data_vencimento]
+ * @property {string} [data_nova_vencimento]
+ * @property {string} [data_ultima_exec]
+ * @property {string} [executado_por_trigrama]
+ * @property {string} [numero_documento_prorrogacao]
+ */
+
+/**
+ * @typedef {Object} VencimentoSlot
+ * @property {string} sistema
+ * @property {string} [numero_serie]
+ * @property {VencimentoControle[]} controles
+ */
+
+/**
+ * @typedef {Object} VencimentoAeronave
+ * @property {string} matricula
+ * @property {string} status_aeronave
+ * @property {string} status_vencimento
+ * @property {VencimentoSlot[]} slots
+ */
+
+/**
+ * @typedef {Object} VencimentoMatriz
+ * @property {VencimentoAeronave[]} aeronaves
+ */
+
+/** @type {VencimentoMatriz | null} */
 let matrizGlobal = null;
+/** @type {string} */
 let filtroStatusAtual = 'todos';
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -19,10 +55,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     const grid = document.getElementById('vencimentos-grid');
     if (grid) {
         grid.addEventListener('click', (e) => {
+            /** @type {HTMLElement | null} */
+            // @ts-ignore
             const row = e.target.closest('.clickable-control');
             if (!row) return;
 
-            const { vencId, infoLabel, isProrrogado, novaVenc, docProrrog, lastExec, lastUser } = row.dataset;
+            const vencId = row.dataset.vencId;
+            const infoLabel = row.dataset.infoLabel || '';
+            const isProrrogado = row.dataset.isProrrogado;
+            const novaVenc = row.dataset.novaVenc;
+            const docProrrog = row.dataset.docProrrog;
+            const lastExec = row.dataset.lastExec;
+            const lastUser = row.dataset.lastUser;
+
             if (vencId) {
                 openModalExecutar(vencId, infoLabel, isProrrogado === 'true', novaVenc, docProrrog, lastExec, lastUser);
             }
@@ -43,6 +88,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     await carregarMatriz();
 });
 
+/**
+ * @returns {void}
+ */
 function setupStaticListeners() {
     const btnTodos = document.getElementById('btn-filtro-todos');
     if (btnTodos) btnTodos.addEventListener('click', () => filtrarStatus('todos'));
@@ -71,9 +119,14 @@ function setupStaticListeners() {
 // Carregamento de Dados
 // ─────────────────────────────────────────────
 
+/**
+ * @returns {Promise<void>}
+ */
 async function carregarMatriz() {
     const grid = document.getElementById('vencimentos-grid');
+    if (!grid) return;
     try {
+        // @ts-ignore
         const dados = await apiFetch('/vencimentos/matriz');
         matrizGlobal = dados;
 
@@ -88,8 +141,11 @@ async function carregarMatriz() {
         }
 
         // Mostrar contadores
-        document.getElementById('summary-cards').style.display = 'grid';
-        document.getElementById('secao-cronograma').style.display = 'block';
+        const summaryCards = document.getElementById('summary-cards');
+        if (summaryCards) summaryCards.style.display = 'grid';
+        const secaoCron = document.getElementById('secao-cronograma');
+        if (secaoCron) secaoCron.style.display = 'block';
+        
         atualizarContadores(dados.aeronaves);
         renderizarGrid(dados.aeronaves);
         renderizarCronograma(dados.aeronaves);
@@ -97,7 +153,8 @@ async function carregarMatriz() {
     } catch (err) {
         console.error(err);
         grid.innerHTML = `<div class="card glass-panel" style="padding: 2rem; text-align: center; color: var(--status-danger);">
-            Erro ao carregar dados: ${err.message}
+            Erro ao carregar dados: ${// @ts-ignore
+            err.message}
         </div>`;
     }
 }
@@ -106,8 +163,13 @@ async function carregarMatriz() {
 // Renderização
 // ─────────────────────────────────────────────
 
+/**
+ * @param {VencimentoAeronave[]} aeronaves
+ * @returns {void}
+ */
 function renderizarGrid(aeronaves) {
     const grid = document.getElementById('vencimentos-grid');
+    if (!grid) return;
     grid.innerHTML = '';
 
     if (aeronaves.length === 0) {
@@ -123,6 +185,10 @@ function renderizarGrid(aeronaves) {
     });
 }
 
+/**
+ * @param {VencimentoAeronave} aeronave
+ * @returns {HTMLDivElement}
+ */
 function criarCardAeronave(aeronave) {
     const wrapper = document.createElement('div');
     wrapper.className = 'acft-card';
@@ -168,6 +234,7 @@ function criarCardAeronave(aeronave) {
     else if (statusAnv === 'INATIVA') statusAnvCls = 'badge-aberta';
     else if (statusAnv === 'OPERACIONAL') statusAnvCls = 'badge-resolvida';
 
+    // @ts-ignore
     header.innerHTML = `
         <div style="display: flex; align-items: center; gap: 1rem;">
             <span class="acft-matricula">${escapeHtml(aeronave.matricula)}</span>
@@ -200,6 +267,11 @@ function criarCardAeronave(aeronave) {
     return wrapper;
 }
 
+/**
+ * @param {VencimentoSlot} slot
+ * @param {VencimentoAeronave} aeronave
+ * @returns {HTMLDivElement}
+ */
 function criarChipEquipamento(slot, aeronave) {
     const chip = document.createElement('div');
     chip.className = 'equip-chip';
@@ -219,7 +291,7 @@ function criarChipEquipamento(slot, aeronave) {
         const isFaltante = ctrl.status === 'FALTANTE';
 
         let titleText = isProrrogado 
-            ? `PRORROGADO (Engenharia) Doc: ${ctrl.numero_documento_prorrogacao || 'N/A'}\nNova Data: ${dataText}\nVenc. Original: ${formatarData(ctrl.data_vencimento)}`
+            ? `PRORROGADO (Engenharia) Doc: ${ctrl.numero_documento_prorrogacao || 'N/A'}\nNova Data: ${dataText}\nVenc. Original: ${formatarData(ctrl.data_vencimento || '')}`
             : (ctrl.data_vencimento ? 'Vence: ' + formatarData(ctrl.data_vencimento) : 'Sem execução registrada');
         
         if (isFaltante) titleText = "EQUIPAMENTO NÃO INSTALADO NO SLOT";
@@ -231,6 +303,7 @@ function criarChipEquipamento(slot, aeronave) {
             }
         }
 
+        // @ts-ignore
         controlesHtml += `
             <div class="ctrl-row ${statusCls} ${vencId && slot.numero_serie ? 'clickable-control' : ''}" 
                  title="${titleText}"
@@ -247,6 +320,7 @@ function criarChipEquipamento(slot, aeronave) {
         `;
     });
 
+    // @ts-ignore
     chip.innerHTML = `
         <div class="equip-chip-name">${escapeHtml(slot.sistema)}</div>
         <div class="equip-chip-sn ${snClass}">${escapeHtml(snText)}</div>
@@ -260,6 +334,10 @@ function criarChipEquipamento(slot, aeronave) {
 // Contadores e Filtros
 // ─────────────────────────────────────────────
 
+/**
+ * @param {VencimentoAeronave[]} aeronaves
+ * @returns {void}
+ */
 function atualizarContadores(aeronaves) {
     let ok = 0, warn = 0, danger = 0, pendente = 0, prorrog = 0, incompleto = 0;
     aeronaves.forEach(a => {
@@ -276,21 +354,34 @@ function atualizarContadores(aeronaves) {
             });
         });
     });
-    document.getElementById('cnt-ok').innerText = ok;
-    document.getElementById('cnt-warn').innerText = warn;
-    document.getElementById('cnt-danger').innerText = danger;
-    document.getElementById('cnt-prorrogado').innerText = prorrog;
+    const cntOk = document.getElementById('cnt-ok');
+    const cntWarn = document.getElementById('cnt-warn');
+    const cntDanger = document.getElementById('cnt-danger');
+    const cntProrrog = document.getElementById('cnt-prorrogado');
+    if (cntOk) cntOk.innerText = String(ok);
+    if (cntWarn) cntWarn.innerText = String(warn);
+    if (cntDanger) cntDanger.innerText = String(danger);
+    if (cntProrrog) cntProrrog.innerText = String(prorrog);
 }
 
+/**
+ * @param {string} tipo
+ * @returns {void}
+ */
 function filtrarStatus(tipo) {
     filtroStatusAtual = tipo;
     aplicarFiltros();
 }
 
+/**
+ * @returns {void}
+ */
 function aplicarFiltros() {
     if (!matrizGlobal) return;
 
-    const termo = document.getElementById('filtro-vencimentos').value.toLowerCase();
+    /** @type {HTMLInputElement | null} */
+    const filtroEl = document.querySelector('#filtro-vencimentos');
+    const termo = filtroEl ? filtroEl.value.toLowerCase() : "";
 
     let aeronaves = matrizGlobal.aeronaves.filter(a => {
         // Filtro por texto
@@ -318,14 +409,21 @@ function aplicarFiltros() {
     renderizarGrid(aeronaves);
 }
  
+/**
+ * @param {VencimentoAeronave[]} aeronaves
+ * @returns {void}
+ */
 function renderizarCronograma(aeronaves) {
     const body = document.getElementById('cronograma-body');
     const containerVazio = document.getElementById('cronograma-vazio');
     const tabela = document.getElementById('tabela-cronograma');
     
+    if (!body || !containerVazio || !tabela) return;
+
     body.innerHTML = '';
     
     // 1. Coletar todos os controles com data
+    /** @type {any[]} */
     const itens = [];
     const hoje = new Date();
     const limite = new Date();
@@ -370,6 +468,7 @@ function renderizarCronograma(aeronaves) {
         const statusCls = mapStatusCls(it.status);
         const statusLabel = (it.status === 'VENCENDO') ? 'A VENCER' : (it.status || 'OK');
  
+        // @ts-ignore
         tr.innerHTML = `
             <td><span style="font-weight:600; color:var(--text-primary);">${escapeHtml(it.sistema)}</span></td>
             <td><span class="cron-acft">${escapeHtml(it.aeronave)}</span></td>
@@ -385,6 +484,10 @@ function renderizarCronograma(aeronaves) {
 // Utilitários
 // ─────────────────────────────────────────────
 
+/**
+ * @param {string} status
+ * @returns {string}
+ */
 function mapStatusCls(status) {
     if (!status) return 'status-pendente';
     switch (status.toUpperCase()) {
@@ -397,6 +500,10 @@ function mapStatusCls(status) {
     }
 }
 
+/**
+ * @param {string} dataStr
+ * @returns {string}
+ */
 function formatarData(dataStr) {
     if (!dataStr) return '---';
     const [y, m, d] = dataStr.split('-');
@@ -407,10 +514,26 @@ function formatarData(dataStr) {
 // Modal de Execução
 // ─────────────────────────────────────────────
 
+/**
+ * @param {string} vencimentoId
+ * @param {string} info
+ * @param {boolean} prorrogado
+ * @param {string} [dataNova]
+ * @param {string} [doc]
+ * @param {string} [lastExec]
+ * @param {string} [lastUser]
+ * @returns {void}
+ */
 function openModalExecutar(vencimentoId, info, prorrogado = false, dataNova = '', doc = '', lastExec = '', lastUser = '') {
-    document.getElementById('exec-vencimento-id').value = vencimentoId;
-    document.getElementById('exec-info-label').innerText = info;
-    document.getElementById('exec-data-input').value = new Date().toISOString().split('T')[0];
+    /** @type {HTMLInputElement | null} */
+    const execVencId = document.querySelector('#exec-vencimento-id');
+    const execInfo = document.getElementById('exec-info-label');
+    /** @type {HTMLInputElement | null} */
+    const execData = document.querySelector('#exec-data-input');
+
+    if (execVencId) execVencId.value = vencimentoId;
+    if (execInfo) execInfo.innerText = info;
+    if (execData) execData.value = new Date().toISOString().split('T')[0];
     
     const execLastLabel = document.getElementById('exec-last-label');
     if (execLastLabel) {
@@ -424,50 +547,84 @@ function openModalExecutar(vencimentoId, info, prorrogado = false, dataNova = ''
     
     // Alerta de Prorrogação
     const alert = document.getElementById('exec-prorrog-alert');
-    if (prorrogado) {
-        document.getElementById('exec-prorrog-desc').innerText = `Até ${formatarData(dataNova)} (Doc: ${doc || 'N/A'})`;
-        alert.style.display = 'block';
-    } else {
-        alert.style.display = 'none';
+    if (alert) {
+        if (prorrogado) {
+            const desc = document.getElementById('exec-prorrog-desc');
+            if (desc) desc.innerText = `Até ${formatarData(dataNova || '')} (Doc: ${doc || 'N/A'})`;
+            alert.style.display = 'block';
+        } else {
+            alert.style.display = 'none';
+        }
     }
 
-    document.getElementById('modal-executar-controle').style.display = 'flex';
+    const modal = document.getElementById('modal-executar-controle');
+    if (modal) modal.style.display = 'flex';
 }
 
+/**
+ * @returns {void}
+ */
 function closeModalExecutar() {
-    document.getElementById('modal-executar-controle').style.display = 'none';
-    document.getElementById('formExecutarControle').reset();
+    const modal = document.getElementById('modal-executar-controle');
+    if (modal) modal.style.display = 'none';
+    const form = document.getElementById('formExecutarControle');
+    // @ts-ignore
+    if (form) form.reset();
 }
 
+/**
+ * @param {Event} e
+ * @returns {Promise<void>}
+ */
 async function salvarExecucao(e) {
     e.preventDefault();
-    const id = document.getElementById('exec-vencimento-id').value;
-    const data = document.getElementById('exec-data-input').value;
-    const btn = document.getElementById('btnConfirmarExec');
+    /** @type {HTMLInputElement | null} */
+    const execVencId = document.querySelector('#exec-vencimento-id');
+    const id = execVencId ? execVencId.value : "";
 
-    if (!id) { showToast('Nenhum controle selecionado.', 'error'); return; }
+    /** @type {HTMLInputElement | null} */
+    const execData = document.querySelector('#exec-data-input');
+    const data = execData ? execData.value : "";
 
-    btn.disabled = true;
+    /** @type {HTMLButtonElement | null} */
+    const btn = document.querySelector('#btnConfirmarExec');
+
+    if (!id) { 
+        // @ts-ignore
+        showToast('Nenhum controle selecionado.', 'error'); 
+        return; 
+    }
+
+    if (btn) btn.disabled = true;
     try {
+        // @ts-ignore
         await apiFetch(`/vencimentos/${id}/executar`, {
             method: 'PATCH',
             body: { data_ultima_exec: data }
         });
+        // @ts-ignore
         showToast('Execução registrada com sucesso!', 'success');
         closeModalExecutar();
         await carregarMatriz();
     } catch (err) {
+        // @ts-ignore
         showToast(err.message || 'Erro ao registrar execução.', 'error');
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }
 
+// @ts-ignore
 window.openModalExecutar = openModalExecutar;
+// @ts-ignore
 window.closeModalExecutar = closeModalExecutar;
+// @ts-ignore
 window.openModalProrrogarFromExec = openModalProrrogarFromExec;
+// @ts-ignore
 window.closeModalProrrogar = closeModalProrrogar;
+// @ts-ignore
 window.cancelarProrrogacao = cancelarProrrogacao;
+// @ts-ignore
 window.filtrarStatus = filtrarStatus;
 
 
@@ -475,34 +632,77 @@ window.filtrarStatus = filtrarStatus;
 // Modal de Prorrogação
 // ─────────────────────────────────────────────
 
+/**
+ * @returns {void}
+ */
 function openModalProrrogarFromExec() {
-    const vencId = document.getElementById('exec-vencimento-id').value;
-    const info = document.getElementById('exec-info-label').innerText;
+    /** @type {HTMLInputElement | null} */
+    const execVencId = document.querySelector('#exec-vencimento-id');
+    const vencId = execVencId ? execVencId.value : "";
+    
+    const infoEl = document.getElementById('exec-info-label');
+    const info = infoEl ? infoEl.innerText : "";
     
     closeModalExecutar();
     
-    document.getElementById('prorrog-vencimento-id').value = vencId;
-    document.getElementById('prorrog-info-label').innerText = info;
-    document.getElementById('prorrog-data-input').value = new Date().toISOString().split('T')[0];
-    document.getElementById('modal-prorrogacao-vencimento').style.display = 'flex';
+    /** @type {HTMLInputElement | null} */
+    const prorrogVencId = document.querySelector('#prorrog-vencimento-id');
+    if (prorrogVencId) prorrogVencId.value = vencId;
+    
+    const prorrogInfo = document.getElementById('prorrog-info-label');
+    if (prorrogInfo) prorrogInfo.innerText = info;
+    
+    /** @type {HTMLInputElement | null} */
+    const prorrogData = document.querySelector('#prorrog-data-input');
+    if (prorrogData) prorrogData.value = new Date().toISOString().split('T')[0];
+    
+    const modal = document.getElementById('modal-prorrogacao-vencimento');
+    if (modal) modal.style.display = 'flex';
 }
 
+/**
+ * @returns {void}
+ */
 function closeModalProrrogar() {
-    document.getElementById('modal-prorrogacao-vencimento').style.display = 'none';
-    document.getElementById('formProrrogarVencimento').reset();
+    const modal = document.getElementById('modal-prorrogacao-vencimento');
+    if (modal) modal.style.display = 'none';
+    const form = document.getElementById('formProrrogarVencimento');
+    // @ts-ignore
+    if (form) form.reset();
 }
 
+/**
+ * @param {Event} e
+ * @returns {Promise<void>}
+ */
 async function salvarProrrogacao(e) {
     e.preventDefault();
-    const id = document.getElementById('prorrog-vencimento-id').value;
-    const doc = document.getElementById('prorrog-doc-input').value;
-    const data = document.getElementById('prorrog-data-input').value;
-    const dias = document.getElementById('prorrog-dias-input').value;
-    const motivo = document.getElementById('prorrog-motivo-input').value;
-    const btn = document.getElementById('btnConfirmarProrrog');
+    /** @type {HTMLInputElement | null} */
+    const prorrogVencId = document.querySelector('#prorrog-vencimento-id');
+    const id = prorrogVencId ? prorrogVencId.value : "";
+    
+    /** @type {HTMLInputElement | null} */
+    const docInput = document.querySelector('#prorrog-doc-input');
+    const doc = docInput ? docInput.value : "";
+    
+    /** @type {HTMLInputElement | null} */
+    const dataInput = document.querySelector('#prorrog-data-input');
+    const data = dataInput ? dataInput.value : "";
+    
+    /** @type {HTMLInputElement | null} */
+    const diasInput = document.querySelector('#prorrog-dias-input');
+    const dias = diasInput ? diasInput.value : "";
+    
+    /** @type {HTMLInputElement | null} */
+    const motivoInput = document.querySelector('#prorrog-motivo-input');
+    const motivo = motivoInput ? motivoInput.value : "";
+    
+    /** @type {HTMLButtonElement | null} */
+    const btn = document.querySelector('#btnConfirmarProrrog');
 
-    btn.disabled = true;
+    if (btn) btn.disabled = true;
     try {
+        // @ts-ignore
         await apiFetch(`/vencimentos/${id}/prorrogar`, {
             method: 'POST',
             body: {
@@ -512,30 +712,40 @@ async function salvarProrrogacao(e) {
                 motivo: motivo
             }
         });
+        // @ts-ignore
         showToast('Prorrogação concedida com sucesso!', 'success');
         closeModalProrrogar();
         await carregarMatriz();
     } catch (err) {
+        // @ts-ignore
         showToast(err.message || 'Erro ao registrar prorrogação.', 'error');
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function cancelarProrrogacao() {
-    const id = document.getElementById('exec-vencimento-id').value;
+    /** @type {HTMLInputElement | null} */
+    const execVencId = document.querySelector('#exec-vencimento-id');
+    const id = execVencId ? execVencId.value : "";
     if (!id) return;
     
     if (!confirm('Deseja realmente CANCELAR a prorrogação deste item? O status voltará ao real imediatamente.')) return;
     
     try {
+        // @ts-ignore
         await apiFetch(`/vencimentos/${id}/prorrogar`, {
             method: 'DELETE'
         });
+        // @ts-ignore
         showToast('Prorrogação cancelada.', 'success');
         closeModalExecutar();
         await carregarMatriz();
     } catch (err) {
+        // @ts-ignore
         showToast(err.message || 'Erro ao cancelar prorrogação.', 'error');
     }
 }

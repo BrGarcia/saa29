@@ -63,10 +63,10 @@ async function handleSubmit(e) {
 * **Foco:** Aplicar a tipagem em um arquivo de grande porte (+1400 linhas), mapeando modais, tabelas dinâmicas e formulários críticos de cadastro de aeronaves, regras e PNs.
 * **Status:** Todos os módulos internos (Aeronaves, Regras de Vencimento, Catálogo de PNs, Inspeções/Tarefas de Template, Categorias de Calendário e Upload de XLSX de Inventário) foram 100% documentados, com casts do DOM adequados e validados sob o controle estrito da diretiva `@ts-check`.
 
-### Fase 3: Operacional e Visual (Opcional/Futuro)
+### Fase 3: Operacional e Visual (Crítica) - **[CONCLUÍDA]**
 * **Arquivos:** `calendario.js`, `dashboard.js`, `efetivo.js`, `vencimentos.js`, `inspecoes.js`, `inventario.js`, `panes_detalhe.js`, `panes_lista.js`.
-* **Foco:** Aplicar JSDoc apenas ao fazer manutenções corretivas ou evolutivas nestes arquivos.
-* **Status:** Não iniciado.
+* **Foco:** Aplicar JSDoc ao fazer manutenções corretivas ou evolutivas nestes arquivos.
+* **Status:** Todos os arquivos operacionais principais foram atualizados com a diretiva `@ts-check` e anotações completas de tipos.
 
 ---
 

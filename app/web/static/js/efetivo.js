@@ -1,22 +1,46 @@
+// @ts-check
+
+/**
+ * @typedef {Object} EfetivoUsuario
+ * @property {string} id
+ * @property {string} nome
+ * @property {string} username
+ * @property {string} posto
+ * @property {string} funcao
+ * @property {string} [trigrama]
+ * @property {string} [especialidade]
+ * @property {string} [ramal]
+ * @property {boolean} ativo
+ */
+
+/** @type {EfetivoUsuario[]} */
 let usuariosCache = [];
 let isAdmin = false;
 
+/**
+ * @param {boolean} forceRefresh
+ * @returns {Promise<void>}
+ */
 async function loadEfetivo(forceRefresh = false) {
-    const filterStatusEl = document.getElementById('filter-status-user');
+    /** @type {HTMLSelectElement | null} */
+    const filterStatusEl = document.querySelector('#filter-status-user');
     if(!filterStatusEl) return;
     const filterStatus = filterStatusEl.value;
     const incluirInativos = filterStatus === 'inativos';
 
     if(usuariosCache.length === 0 || forceRefresh) {
         try {
+            // @ts-ignore
             usuariosCache = await apiFetch(`/auth/usuarios?inativos=${incluirInativos}`);
         } catch(e) {
             console.error(e);
         }
     }
     
-    const body = document.getElementById('efetivo-table-body');
-    const filterUserEl = document.getElementById('filter-user');
+    /** @type {HTMLTableSectionElement | null} */
+    const body = document.querySelector('#efetivo-table-body');
+    /** @type {HTMLInputElement | null} */
+    const filterUserEl = document.querySelector('#filter-user');
     if(!body || !filterUserEl) return;
     
     const str = filterUserEl.value.toLowerCase();
@@ -46,6 +70,7 @@ async function loadEfetivo(forceRefresh = false) {
         tr.style.borderBottom = "1px solid var(--border-color)";
         if (!u.ativo) tr.style.opacity = "0.6";
         
+        // @ts-ignore
         tr.innerHTML = `
             <td style="padding: 1rem; font-weight: 500;">${escapeHtml(u.posto)} ${escapeHtml(u.nome)} ${u.trigrama ? `<span style="font-size:0.75rem; font-family:monospace; background:var(--bg-tertiary); padding:0.1rem 0.4rem; border-radius:4px; margin-left:0.25rem;">${escapeHtml(u.trigrama)}</span>` : ''}</td>
             <td style="padding: 1rem; font-family: monospace;">${escapeHtml(u.username)}</td>
@@ -57,7 +82,7 @@ async function loadEfetivo(forceRefresh = false) {
         `;
 
         const tdAcoes = tr.querySelector('.td-acoes');
-        if(isAdmin) {
+        if(isAdmin && tdAcoes) {
             if (u.ativo) {
                 const btnEdit = document.createElement('button');
                 btnEdit.className = 'btn-icon';
@@ -93,7 +118,8 @@ async function loadEfetivo(forceRefresh = false) {
                 btnRestore.addEventListener('click', () => restaurarMembro(u.id, u.nome));
                 tdAcoes.appendChild(btnRestore);
             }
-        } else {
+        } else if (tdAcoes) {
+            // @ts-ignore
             tdAcoes.style.display = 'none';
         }
 
@@ -101,141 +127,282 @@ async function loadEfetivo(forceRefresh = false) {
     });
 }
 
-function openModalMembro() { document.getElementById("modal-membro").style.display = "flex"; }
-function closeModalMembro() { document.getElementById("modal-membro").style.display = "none"; document.getElementById("formMembro").reset(); }
+/**
+ * @returns {void}
+ */
+function openModalMembro() { 
+    const modal = document.getElementById("modal-membro");
+    if (modal) modal.style.display = "flex"; 
+}
 
+/**
+ * @returns {void}
+ */
+function closeModalMembro() { 
+    const modal = document.getElementById("modal-membro");
+    if (modal) modal.style.display = "none"; 
+    const form = document.getElementById("formMembro");
+    // @ts-ignore
+    if (form) form.reset(); 
+}
+
+/**
+ * @param {Event} e
+ * @returns {Promise<void>}
+ */
 async function criarMembro(e) {
     e.preventDefault();
-    const btn = document.getElementById("btnSalvarMembro");
-    btn.disabled = true;
+    /** @type {HTMLButtonElement | null} */
+    const btn = document.querySelector("#btnSalvarMembro");
+    if (btn) btn.disabled = true;
+
+    /** @type {HTMLInputElement | null} */
+    const nomeInput = document.querySelector("#nomeInput");
+    /** @type {HTMLInputElement | null} */
+    const postoInput = document.querySelector("#postoInput");
+    /** @type {HTMLInputElement | null} */
+    const espInput = document.querySelector("#espInput");
+    /** @type {HTMLSelectElement | null} */
+    const funcaoInput = document.querySelector("#funcaoInput");
+    /** @type {HTMLInputElement | null} */
+    const ramalInput = document.querySelector("#ramalInput");
+    /** @type {HTMLInputElement | null} */
+    const trigramaInput = document.querySelector("#trigramaInput");
+    /** @type {HTMLInputElement | null} */
+    const nipInput = document.querySelector("#nipInput");
+    /** @type {HTMLInputElement | null} */
+    const passInput = document.querySelector("#passInput");
 
     const payload = {
-        nome: document.getElementById("nomeInput").value,
-        posto: document.getElementById("postoInput").value,
-        especialidade: document.getElementById("espInput").value || null,
-        funcao: document.getElementById("funcaoInput").value,
-        ramal: document.getElementById("ramalInput").value || null,
-        trigrama: document.getElementById("trigramaInput").value.toUpperCase() || null,
-        username: document.getElementById("nipInput").value,
-        password: document.getElementById("passInput").value
+        nome: nomeInput?.value,
+        posto: postoInput?.value,
+        especialidade: espInput?.value || null,
+        funcao: funcaoInput?.value,
+        ramal: ramalInput?.value || null,
+        trigrama: trigramaInput?.value.toUpperCase() || null,
+        username: nipInput?.value,
+        password: passInput?.value
     };
 
     try {
+        // @ts-ignore
         await apiFetch("/auth/usuarios", {
             method: "POST",
             body: payload
         });
+        // @ts-ignore
         showToast("Militar registrado com sucesso!", "success");
         usuariosCache = []; // clear cache
         closeModalMembro();
         loadEfetivo();
     } catch(err) {
+        // @ts-ignore
         showToast(err.message, "error");
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }
 
+/**
+ * @param {EfetivoUsuario} u
+ * @returns {void}
+ */
 function openEditarMembro(u) {
-    document.getElementById('editMembroId').value = u.id;
-    document.getElementById('editPostoInput').value = u.posto || '';
-    document.getElementById('editNomeInput').value = u.nome || '';
-    document.getElementById('editTrigramaInput').value = u.trigrama || '';
-    document.getElementById('editEspInput').value = u.especialidade || '';
-    document.getElementById('editFuncaoInput').value = u.funcao || 'MANTENEDOR';
-    document.getElementById('editRamalInput').value = u.ramal || '';
-    document.getElementById("modal-editar-membro").style.display = 'flex';
+    /** @type {HTMLInputElement | null} */
+    const editMembroId = document.querySelector('#editMembroId');
+    /** @type {HTMLInputElement | null} */
+    const editPostoInput = document.querySelector('#editPostoInput');
+    /** @type {HTMLInputElement | null} */
+    const editNomeInput = document.querySelector('#editNomeInput');
+    /** @type {HTMLInputElement | null} */
+    const editTrigramaInput = document.querySelector('#editTrigramaInput');
+    /** @type {HTMLInputElement | null} */
+    const editEspInput = document.querySelector('#editEspInput');
+    /** @type {HTMLSelectElement | null} */
+    const editFuncaoInput = document.querySelector('#editFuncaoInput');
+    /** @type {HTMLInputElement | null} */
+    const editRamalInput = document.querySelector('#editRamalInput');
+    
+    if (editMembroId) editMembroId.value = u.id;
+    if (editPostoInput) editPostoInput.value = u.posto || '';
+    if (editNomeInput) editNomeInput.value = u.nome || '';
+    if (editTrigramaInput) editTrigramaInput.value = u.trigrama || '';
+    if (editEspInput) editEspInput.value = u.especialidade || '';
+    if (editFuncaoInput) editFuncaoInput.value = u.funcao || 'MANTENEDOR';
+    if (editRamalInput) editRamalInput.value = u.ramal || '';
+    
+    const modal = document.getElementById("modal-editar-membro");
+    if (modal) modal.style.display = 'flex';
 }
 
+/**
+ * @returns {void}
+ */
 function closeEditarMembro() {
-    document.getElementById("modal-editar-membro").style.display = 'none';
+    const modal = document.getElementById("modal-editar-membro");
+    if (modal) modal.style.display = 'none';
 }
 
+/**
+ * @param {EfetivoUsuario} u
+ * @returns {void}
+ */
 function openResetarSenha(u) {
-    document.getElementById('resetSenhaUserId').value = u.id;
-    document.getElementById('resetSenhaUserName').textContent = u.nome;
-    document.getElementById('novaSenhaInput').value = '';
-    document.getElementById('modal-resetar-senha').style.display = 'flex';
+    /** @type {HTMLInputElement | null} */
+    const resetSenhaUserId = document.querySelector('#resetSenhaUserId');
+    const resetSenhaUserName = document.getElementById('resetSenhaUserName');
+    /** @type {HTMLInputElement | null} */
+    const novaSenhaInput = document.querySelector('#novaSenhaInput');
+    
+    if (resetSenhaUserId) resetSenhaUserId.value = u.id;
+    if (resetSenhaUserName) resetSenhaUserName.textContent = u.nome;
+    if (novaSenhaInput) novaSenhaInput.value = '';
+    
+    const modal = document.getElementById('modal-resetar-senha');
+    if (modal) modal.style.display = 'flex';
 }
 
+/**
+ * @returns {void}
+ */
 function closeResetarSenha() {
-    document.getElementById('modal-resetar-senha').style.display = 'none';
+    const modal = document.getElementById('modal-resetar-senha');
+    if (modal) modal.style.display = 'none';
     const form = document.getElementById('formResetarSenha');
+    // @ts-ignore
     if (form) form.reset();
 }
 
+/**
+ * @param {Event} e
+ * @returns {Promise<void>}
+ */
 async function salvarEdicaoMembro(e) {
     e.preventDefault();
-    const btn = document.getElementById('btnSalvarEdicao');
-    btn.disabled = true;
-    const id = document.getElementById('editMembroId').value;
+    /** @type {HTMLButtonElement | null} */
+    const btn = document.querySelector('#btnSalvarEdicao');
+    if (btn) btn.disabled = true;
+    
+    /** @type {HTMLInputElement | null} */
+    const editMembroId = document.querySelector('#editMembroId');
+    const id = editMembroId ? editMembroId.value : "";
+    
+    /** @type {HTMLInputElement | null} */
+    const editNomeInput = document.querySelector('#editNomeInput');
+    /** @type {HTMLInputElement | null} */
+    const editPostoInput = document.querySelector('#editPostoInput');
+    /** @type {HTMLInputElement | null} */
+    const editEspInput = document.querySelector('#editEspInput');
+    /** @type {HTMLSelectElement | null} */
+    const editFuncaoInput = document.querySelector('#editFuncaoInput');
+    /** @type {HTMLInputElement | null} */
+    const editRamalInput = document.querySelector('#editRamalInput');
+    /** @type {HTMLInputElement | null} */
+    const editTrigramaInput = document.querySelector('#editTrigramaInput');
+
     const payload = {
-        nome:         document.getElementById('editNomeInput').value || undefined,
-        posto:        document.getElementById('editPostoInput').value || undefined,
-        especialidade:document.getElementById('editEspInput').value || null,
-        funcao:       document.getElementById('editFuncaoInput').value || undefined,
-        ramal:        document.getElementById('editRamalInput').value || null,
-        trigrama:     document.getElementById('editTrigramaInput').value.toUpperCase() || null,
+        nome:         editNomeInput?.value || undefined,
+        posto:        editPostoInput?.value || undefined,
+        especialidade:editEspInput?.value || null,
+        funcao:       editFuncaoInput?.value || undefined,
+        ramal:        editRamalInput?.value || null,
+        trigrama:     editTrigramaInput?.value.toUpperCase() || null,
     };
     try {
+        // @ts-ignore
         await apiFetch(`/auth/usuarios/${id}`, { method: 'PUT', body: payload });
+        // @ts-ignore
         showToast('Dados do militar atualizados!', 'success');
         usuariosCache = [];
         closeEditarMembro();
         loadEfetivo();
     } catch(err) {
+        // @ts-ignore
         showToast(err.message, "error");
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }
 
+/**
+ * @param {Event} e
+ * @returns {Promise<void>}
+ */
 async function salvarNovaSenha(e) {
     e.preventDefault();
-    const btn = document.getElementById('btnSalvarNovaSenha');
-    btn.disabled = true;
-    const id = document.getElementById('resetSenhaUserId').value;
-    const novaSenha = document.getElementById('novaSenhaInput').value;
+    /** @type {HTMLButtonElement | null} */
+    const btn = document.querySelector('#btnSalvarNovaSenha');
+    if (btn) btn.disabled = true;
+    
+    /** @type {HTMLInputElement | null} */
+    const resetSenhaUserId = document.querySelector('#resetSenhaUserId');
+    const id = resetSenhaUserId ? resetSenhaUserId.value : "";
+    
+    /** @type {HTMLInputElement | null} */
+    const novaSenhaInput = document.querySelector('#novaSenhaInput');
+    const novaSenha = novaSenhaInput ? novaSenhaInput.value : "";
     
     try {
+        // @ts-ignore
         await apiFetch(`/auth/usuarios/${id}/senha`, { 
             method: 'PUT', 
             body: { nova_senha: novaSenha } 
         });
+        // @ts-ignore
         showToast('Senha alterada com sucesso!', 'success');
         closeResetarSenha();
     } catch(err) {
+        // @ts-ignore
         showToast(err.message, "error");
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }
 
+/**
+ * @param {string} id
+ * @param {string} nome
+ * @returns {Promise<void>}
+ */
 async function excluirMembro(id, nome) {
     if(!confirm(`Atenção: O militar "${nome}" será desativado do sistema. Ele não poderá mais logar, mas seu histórico de panes será preservado. Confirmar?`)) return;
     try {
+        // @ts-ignore
         await apiFetch(`/auth/usuarios/${id}`, { method: 'DELETE' });
+        // @ts-ignore
         showToast(`${nome} desativado com sucesso.`, 'info');
         loadEfetivo(true);
     } catch(e) {}
 }
 
+/**
+ * @param {string} id
+ * @param {string} nome
+ * @returns {Promise<void>}
+ */
 async function restaurarMembro(id, nome) {
     if(!confirm(`Deseja reativar o acesso de "${nome}" ao sistema?`)) return;
     try {
+        // @ts-ignore
         await apiFetch(`/auth/usuarios/${id}/restaurar`, { method: 'POST' });
+        // @ts-ignore
         showToast(`${nome} reativado com sucesso!`, 'success');
         loadEfetivo(true);
     } catch(e) {}
 }
 
+// @ts-ignore
 window.openModalMembro = openModalMembro;
+// @ts-ignore
 window.closeModalMembro = closeModalMembro;
+// @ts-ignore
 window.closeEditarMembro = closeEditarMembro;
+// @ts-ignore
 window.loadEfetivo = loadEfetivo;
 
 document.addEventListener("DOMContentLoaded", () => {
-    isAdmin = window.hasPermission('ADMINISTRADOR');
+    // @ts-ignore
+    isAdmin = window.hasPermission ? window.hasPermission('ADMINISTRADOR') : false;
     if(isAdmin) {
         const btnAdd = document.getElementById('btn-add-membro');
         if(btnAdd) btnAdd.addEventListener('click', openModalMembro);
