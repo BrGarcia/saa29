@@ -21,7 +21,9 @@ async def autenticar_usuario(
 ) -> Usuario | None:
     """
     Valida as credenciais de login com proteção contra brute force (Account Lockout).
+    Em APP_ENV=development, o bloqueio é ignorado para facilitar testes locais.
     """
+    import os
     from datetime import datetime, timezone, timedelta
     from fastapi import HTTPException, status
 
@@ -31,29 +33,31 @@ async def autenticar_usuario(
     if not usuario.ativo:
         return None
 
-    # Verificar se a conta está bloqueada
-    agora = datetime.now(timezone.utc)
-    if usuario.locked_until and usuario.locked_until.tzinfo is None:
-        # Fallback para naive datetime se necessário, embora o ideal seja timezone-aware
-        usuario.locked_until = usuario.locked_until.replace(tzinfo=timezone.utc)
+    # Em ambiente de desenvolvimento, ignorar o bloqueio por brute force
+    _is_dev = os.getenv("APP_ENV", "production").strip().lower() == "development"
 
-    if usuario.locked_until and agora < usuario.locked_until:
-        minutos_restantes = int((usuario.locked_until - agora).total_seconds() / 60)
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Conta temporariamente bloqueada após múltiplas tentativas falhas. Tente novamente em {max(1, minutos_restantes)} minutos."
-        )
+    if not _is_dev:
+        # Verificar se a conta está bloqueada
+        agora = datetime.now(timezone.utc)
+        if usuario.locked_until and usuario.locked_until.tzinfo is None:
+            usuario.locked_until = usuario.locked_until.replace(tzinfo=timezone.utc)
+
+        if usuario.locked_until and agora < usuario.locked_until:
+            minutos_restantes = int((usuario.locked_until - agora).total_seconds() / 60)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Conta temporariamente bloqueada após múltiplas tentativas falhas. Tente novamente em {max(1, minutos_restantes)} minutos."
+            )
 
     # Validar senha
     if not verificar_senha(senha, usuario.senha_hash):
-        # Incrementar contador de falhas
-        usuario.failed_login_attempts += 1
-        
-        # Bloquear se atingir o limite (ex: 5 tentativas)
-        if usuario.failed_login_attempts >= 5:
-            usuario.locked_until = agora + timedelta(minutes=15)
-        
-        await db.flush()
+        if not _is_dev:
+            # Incrementar contador de falhas apenas em produção
+            usuario.failed_login_attempts += 1
+            agora = datetime.now(timezone.utc)
+            if usuario.failed_login_attempts >= 5:
+                usuario.locked_until = agora + timedelta(minutes=15)
+            await db.flush()
         return None
 
     # Sucesso: Resetar contador
@@ -62,6 +66,7 @@ async def autenticar_usuario(
     await db.flush()
     
     return usuario
+
 
 
 async def criar_usuario(
