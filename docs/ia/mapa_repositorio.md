@@ -17,12 +17,14 @@ app:
 - modules/auth/: auth_users_jwt_refresh_blacklist
 - modules/efetivo/: availability_absences_scales
 - modules/aeronaves/: aircraft_crud_status
-- modules/panes/: pane_flow_attachments_responsaveis
-- modules/equipamentos/: catalog_slots_physical_items_inventory
+- modules/panes/: pane_flow_attachments_responsaveis_export
+- modules/equipamentos/: catalog_slots_physical_items_inventory_export
 - modules/vencimentos/: temporal_intelligence_maintenance_rules_extensions
-- modules/inspecoes/: integrated_backend_active_with_task_catalog_decoupling
+- modules/inspecoes/: integrated_backend_active_with_task_catalog_decoupling_export
 - modules/calendario/: calendar_events_api_and_business_logic
 - modules/dashboard/: consolidated_operational_metrics_and_summary
+- shared/contracts.py: ddd_domain_lookup_protocols (AeronaveLookupProtocol)
+- shared/exporter.py: generic_csv_and_xlsx_report_generator
 - shared/core/: enums,helpers,storage,validators,limiter,exceptions
 - shared/middleware/: csrf
 - shared/services/image/: image_processing_pipeline (validator,converter,resizer,optimizer,pipeline)
@@ -37,7 +39,7 @@ app/modules/inspecoes:
 - models.py: TipoInspecao,TarefaCatalogo,TarefaTemplate,Inspecao (with persistent audit),InspecaoTarefa
 - schemas.py: local_status_enums,pydantic_contracts
 - service.py: business_rules_crud_instantiation_completion_extras_audit
-- router.py: api_router_fully_registered_and_bootstrapped
+- router.py: api_router_fully_registered_and_bootstrapped (with /export route)
 
 app/modules/calendario:
 - __init__.py: passive_package
@@ -63,6 +65,7 @@ scripts:
 
 tests:
 - unit/: feature_and_api_behavior
+- test_exporter.py: csv_and_xlsx_export_unit_tests
 - unit/test_inspecoes.py: isolated_inspections_service_router_security_tests
 - unit/shared/services/image/: image_pipeline_unit_tests (test_validator,test_converter,test_resizer,test_optimizer,test_pipeline)
 - security/: csrf_refresh

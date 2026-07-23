@@ -5,10 +5,12 @@ Endpoints de gestão de equipamentos, itens e inventário.
 
 import uuid
 
-from fastapi import APIRouter, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, HTTPException, status, UploadFile, File, Query
+from fastapi.responses import Response
 
 from app.modules.equipamentos import schemas, service
 from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin, AdminRequired, ExecucaoPermitida
+from app.shared.exporter import gerar_csv, gerar_xlsx
 
 router = APIRouter()
 
@@ -223,6 +225,45 @@ async def listar_inventario(
     Aceita filtro opcional por nome de equipamento (?nome=...).
     """
     return await service.listar_inventario_aeronave(db, aeronave_id, nome=nome)
+
+
+@router.get(
+    "/inventario/export",
+    summary="Exportar relatório de inventário de aeronave (CSV/XLSX)",
+)
+async def exportar_inventario(
+    db: DBSession,
+    _: CurrentUser,
+    aeronave_id: uuid.UUID,
+    fmt: str = Query("csv", alias="format", pattern="^(csv|xlsx)$"),
+):
+    """Exporta o inventário da aeronave especificada em CSV ou XLSX."""
+    inventario = await service.listar_inventario_aeronave(db, aeronave_id)
+    headers = ["Slot", "Part Number (PN)", "Nome Equipamento", "Número de Série (SN)", "Status Slot"]
+    rows = []
+    for item in inventario:
+        rows.append([
+            item.slot_nome,
+            item.pn or "",
+            item.nome_generico,
+            item.sn_instalado or "",
+            item.status_slot
+        ])
+
+    if fmt == "xlsx":
+        content = gerar_xlsx("Inventario", headers, rows)
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": 'attachment; filename="inventario_aeronave.xlsx"'}
+        )
+    else:
+        content_str = gerar_csv(headers, rows)
+        return Response(
+            content=content_str.encode("utf-8-sig"),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="inventario_aeronave.csv"'}
+        )
 
 
 @router.post(

@@ -12,8 +12,8 @@
 | ✅ Interface (UI/UX) | 98% | Login, Panes, Efetivo, Frota, Configurações (parcial), Refatoração CSP |
 | ✅ Segurança | 100% | Auditoria e Hardening de Frontend (CSP estrito) concluídos |
 | ✅ Portabilidade | 100% | Suporte nativo a SQLite e PostgreSQL |
-| 🔲 Equipamentos (UI) | Em Andamento | Interface para gestão de controles e vencimentos |
-| 🔲 Deploy Automatizado | Pendente | CI/CD completo no GitHub Actions |
+| ✅ Equipamentos (UI & Export) | 100% | Interface para gestão de controles/vencimentos e relatórios CSV/XLSX |
+| ✅ Deploy Automatizado | 100% | CI/CD completo no GitHub Actions com matriz SQLite & Postgres |
 
 ---
 

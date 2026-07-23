@@ -8,7 +8,8 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, File, UploadFile, Query, status, BackgroundTasks
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
+from app.shared.exporter import gerar_csv, gerar_xlsx
 
 from app.modules.panes import schemas, service
 from app.bootstrap.dependencies import DBSession, CurrentUser, ensure_role, ExecucaoPermitida
@@ -87,6 +88,47 @@ async def listar_panes(
         item["codigo"] = f"{sequencia:03d}/{str(ano)[-2:]}"
         resposta.append(schemas.PaneListItem(**item))
     return resposta
+
+
+@router.get(
+    "/export",
+    summary="Exportar relatório de panes (CSV/XLSX)",
+)
+async def exportar_panes(
+    db: DBSession,
+    _: CurrentUser,
+    fmt: str = Query("csv", alias="format", pattern="^(csv|xlsx)$"),
+    status: schemas.StatusPane | None = None,
+    aeronave_id: uuid.UUID | None = None,
+):
+    """Exporta relatórios de panes em formato CSV ou XLSX."""
+    filtros = schemas.PaneFilter(status=status, aeronave_id=aeronave_id, skip=0, limit=1000)
+    panes = await service.listar_panes(db, filtros)
+    
+    headers = ["Código", "Aeronave", "Status", "Descrição", "Data Abertura", "Data Conclusão"]
+    rows = []
+    for pane, sequencia, ano in panes:
+        codigo = f"{sequencia:03d}/{str(ano)[-2:]}"
+        anv = pane.aeronave.matricula if pane.aeronave else ""
+        desc = pane.descricao or ""
+        dt_ab = pane.data_abertura.strftime("%d/%m/%Y %H:%M") if pane.data_abertura else ""
+        dt_con = pane.data_conclusao.strftime("%d/%m/%Y %H:%M") if pane.data_conclusao else ""
+        rows.append([codigo, anv, pane.status, desc, dt_ab, dt_con])
+
+    if fmt == "xlsx":
+        content = gerar_xlsx("Panes", headers, rows)
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": 'attachment; filename="relatorio_panes.xlsx"'}
+        )
+    else:
+        content_str = gerar_csv(headers, rows)
+        return Response(
+            content=content_str.encode("utf-8-sig"),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="relatorio_panes.csv"'}
+        )
 
 
 @router.get(

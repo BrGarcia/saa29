@@ -1,7 +1,7 @@
 # ctx
 
 meta:
-- sync_date: 2026-05-27
+- sync_date: 2026-07-23
 - docs_structure: reorganized and cleaned (core/, guides/, backlog/, summaries/, ia/*.ctx)
 - mode: machine
 - format: kv_short
@@ -12,7 +12,8 @@ project:
 - type: web_monolith_modular_ddd
 - domain: panes_aeronaves_inventario_a29
 - status: architecture_stabilized_ddd_active
-- test_status: all tests passing (177 tests passed)
+- version: 1.2.0
+- test_status: all tests passing (179 tests passed)
 - db_state: active_db_preserve_no_schema_change_for_inspecoes
 
 operational_constraints:
@@ -34,6 +35,7 @@ stack:
 - db_optional: postgresql_asyncpg
 - frontend: jinja2_vanilla_js_css
 - storage: local_or_r2
+- export: openpyxl_csv_utf8_bom
 
 entrypoints:
 - app: app/bootstrap/main.py
@@ -45,13 +47,15 @@ domains:
 - auth: usuarios, token_blacklist, token_refresh
 - efetivo: indisponibilidades, ferias, ausencias (Modulo Ativo)
 - aeronaves: cadastro, status (DISPONIVEL, INDISPONIVEL, ESTOCADA, INATIVA, INSPEÇÃO), toggle_status
-- panes: pane (FK sistema_ata_id), sistemas_ata (Lookup), anexo, responsavel, soft_delete, restore
-- equipamentos: modelo (PN), slot, item (SN), instalacao, inventario
+- panes: pane (FK sistema_ata_id), sistemas_ata (Lookup), anexo, responsavel, soft_delete, restore, export_csv_xlsx
+- equipamentos: modelo (PN), slot, item (SN), instalacao, inventario, export_csv_xlsx
 - vencimentos: tipo_controle, periodicidade_pn, matriz_vencimentos, prorrogacoes (OK, VENCENDO, VENCIDO, PRORROGADO)
 - configuracoes: admin_dashboard, gerenciamento_frota, administracao_efetivo, regras_vencimento
-- inspecoes: integrated_fully_active (tipos_inspecao,tarefas_catalogo,tarefas_template,inspecoes,inspecao_tarefas)
+- inspecoes: integrated_fully_active (tipos_inspecao,tarefas_catalogo,tarefas_template,inspecoes,inspecao_tarefas,export_csv_xlsx)
 - calendario: p0_p5_active (event_types,calendar_events,rbac_censorship,frontend_ui,write_modal,inspecoes_dpe_aggregation)
 - shared/image_pipeline: service_layer_for_image_processing (validator,converter,resizer,optimizer,pipeline)
+- shared/contracts: ddd_domain_lookup_protocols (AeronaveLookupProtocol)
+- shared/exporter: generic_csv_xlsx_report_generator (gerar_csv, gerar_xlsx)
 
 auth_state:
 - access_token: jwt_hs256
@@ -86,13 +90,16 @@ core_rules:
 - RN-A02: admin_password_reset_authorized (Admins can reset passwords for other users)
 
 current_focus:
-- docs_synced: true (IA updated for isolated inspections scaffold)
+- docs_synced: true (IA updated for v1.2.0 export features, DDD decoupling and CI matrix)
 - security_controls_active: 100_percent (CSP hardening completed)
 - inventory_module_active: true
 - configuracoes_module_active: true
 - configuracoes_inspecoes_module_completed: true (Do not alter this logic unless explicitly requested)
 - matriz_vencimentos_active: true
 - inspecoes_module_active: true
+- ddd_decoupling_completed: true (AeronaveLookupProtocol in shared/contracts.py)
+- data_exporter_module_completed: true (gerar_csv, gerar_xlsx in shared/exporter.py)
+- ci_cd_matrix_workflow_active: true (GitHub Actions testing SQLite and Postgres)
 - inspecoes_backend_scaffold_isolated: false (integrated and tests passing)
 - inspecoes_router_registered_in_bootstrap: true
 - inspecoes_models_imported_in_bootstrap: true
@@ -121,6 +128,9 @@ backlog_inspecoes:
 known_gaps_from_roadmap:
 - audit_2026-05-07_resolved: true (storage masking, aeronave inativa, token reuse, rbac inventario, singleton storage, pane role validation, inventory traceability, bcrypt limit)
 - audit_2026-05-27_resolved: true (python-magic fallback in file validators, aircraft status checks on toggle manual to INATIVA, calendar event notes length limit of 2000 chars)
+- ddd_decoupling_equipamentos_aeronaves_resolved: true
+- data_export_csv_xlsx_v1_2_0_resolved: true
+- ci_matrix_testing_workflow_resolved: true
 - feature_modo_calendario_p0_p5: completed (tests, data layer, service/router censorship, frontend, write modal, DPE aggregation)
 - bug_fix_inativar_anv_config_verified: true
 - logout_frontend_backend_alignment_verified: true
@@ -139,4 +149,3 @@ known_gaps_from_roadmap:
 - image_pipeline_backlog: docs/backlog/implamentacao_image_editor.md
 - feature_delete_event_category_completed: true (add-btn-delete-event branch merged to development)
 - documentation_reorganization_completed: true (folder cleanups, lowercase backlog, sensitive key masks)
-

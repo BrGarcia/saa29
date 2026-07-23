@@ -39,7 +39,7 @@ v5.0: Ecossistema Total    ░░ Visão Final (IA & Supply)
 ### Fase 2: Arquitetura e Domínio
 - [x] **Exceções de Domínio:** Substituir erros genéricos por exceções tipadas e implementar um Global Exception Handler no FastAPI.
 - [x] **Desacoplamento de Services:** Refatorar "God Functions" (como `ajustar_inventario_item`) em componentes menores e testáveis.
-- [ ] **Redução de Acoplamento:** Isolar as dependências entre os módulos de Equipamentos e Aeronaves através de interfaces ou repositórios.
+- [x] **Redução de Acoplamento:** Isolar as dependências entre os módulos de Equipamentos e Aeronaves através de interfaces ou repositórios (`AeronaveLookupProtocol`).
 
 ---
 
@@ -47,7 +47,7 @@ v5.0: Ecossistema Total    ░░ Visão Final (IA & Supply)
 *Foco: Usabilidade Web, Performance e Segurança.*
 - [x] **v1.0.0**: Lançamento estável com CRUD de Panes, Frota e Efetivo.
 - [x] **v1.1.0**: Implementação de Soft Delete de usuários e Interface de Intervenção Direta.
-- [ ] **v1.2.0**: Exportação de dados (CSV/Excel) e melhoria nos filtros de busca global.
+- [x] **v1.2.0**: Exportação de dados (CSV/Excel) e melhoria nos filtros de busca global.
 
 ---
 

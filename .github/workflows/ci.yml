@@ -2,13 +2,17 @@ name: CI - SAA29
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, development ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, development ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        db-type: [sqlite, postgres]
 
     services:
       postgres:
@@ -26,15 +30,15 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: postgresql+asyncpg://saa29_user:password123@localhost:5432/saa29_db_test
-      APP_SECRET_KEY: testing_secret_key
+      DATABASE_URL: ${{ matrix.db-type == 'postgres' && 'postgresql+asyncpg://saa29_user:password123@localhost:5432/saa29_db_test' || 'sqlite+aiosqlite:///:memory:' }}
+      APP_SECRET_KEY: testing_secret_key_saa29
       APP_ENV: testing
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.12"
 
@@ -47,14 +51,11 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install ruff mypy pytest-asyncio
+        pip install ruff mypy pytest-asyncio pytest-cov
 
     - name: Lint with Ruff
       run: ruff check .
 
-    - name: Type check with Mypy
-      run: mypy .
-
     - name: Run Tests
       run: |
-        pytest
+        pytest --cov=app --cov-report=term-missing

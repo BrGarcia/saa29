@@ -15,6 +15,7 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 from app.bootstrap.dependencies import CurrentUser, DBSession, EncarregadoOuAdmin, AdminRequired, ExecucaoPermitida, EncarregadoInspetorOuAdmin
 from app.modules.inspecoes import schemas, service
 from app.shared.core.enums import StatusInspecao
+from app.shared.exporter import gerar_csv, gerar_xlsx
 
 router = APIRouter()
 
@@ -306,6 +307,51 @@ async def listar_inspecoes(
         item["progresso_percentual"] = percentual
         resposta.append(schemas.InspecaoListItem(**item))
     return resposta
+
+
+@router.get(
+    "/export",
+    summary="Exportar relatorio de inspecoes (CSV/XLSX)",
+)
+async def exportar_inspecoes(
+    db: DBSession,
+    _: CurrentUser,
+    fmt: str = Query("csv", alias="format", pattern="^(csv|xlsx)$"),
+    aeronave_id: uuid.UUID | None = Query(default=None),
+    status_inspecao: StatusInspecao | None = Query(default=None, alias="status"),
+):
+    """Exporta lista de inspecoes em CSV ou XLSX."""
+    filtros = schemas.FiltroInspecao(
+        aeronave_id=aeronave_id,
+        status=status_inspecao,
+        skip=0,
+        limit=1000,
+    )
+    inspecoes = await service.listar_inspecoes(db, filtros)
+    headers = ["Aeronave", "Tipo Inspeção", "Status", "Data Início", "Data Prevista (DPE)", "Progresso %"]
+    rows = []
+    for insp in inspecoes:
+        total, concluidas, percentual = service.calcular_progresso(insp)
+        anv = insp.aeronave.matricula if insp.aeronave else ""
+        tipo = insp.tipo_inspecao.nome if insp.tipo_inspecao else ""
+        dt_ini = insp.data_inicio.strftime("%d/%m/%Y") if insp.data_inicio else ""
+        dt_dpe = insp.dpe.strftime("%d/%m/%Y") if insp.dpe else ""
+        rows.append([anv, tipo, insp.status.value if hasattr(insp.status, "value") else str(insp.status), dt_ini, dt_dpe, f"{percentual:.1f}%"])
+
+    if fmt == "xlsx":
+        content = gerar_xlsx("Inspecoes", headers, rows)
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": 'attachment; filename="relatorio_inspecoes.xlsx"'}
+        )
+    else:
+        content_str = gerar_csv(headers, rows)
+        return Response(
+            content=content_str.encode("utf-8-sig"),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="relatorio_inspecoes.csv"'}
+        )
 
 
 @router.get(

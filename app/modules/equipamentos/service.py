@@ -9,7 +9,6 @@ from sqlalchemy import select, or_, desc, union_all, String, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.modules.aeronaves.models import Aeronave
 from app.modules.auth.models import Usuario
 from app.shared.core import exceptions as domain_exc
 from app.modules.equipamentos.models import (
@@ -210,6 +209,7 @@ async def listar_inventario_aeronave(
         item_ids = [row[1].id for row in inst_list]
         ant_map = {}
         if item_ids:
+            from app.modules.aeronaves.models import Aeronave
             subq = (
                 select(
                     Instalacao.item_id,

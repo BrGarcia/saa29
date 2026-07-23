@@ -5,9 +5,9 @@
 - Endpoints:
   - /auth: login, refresh, logout, me, usuarios (CRUD + pwd + admin-reset-pwd)
   - /aeronaves: list, create, detail, update, toggle-status
-  - /panes: create, list, detail, update, concluir, anexos (CRUD), responsaveis (Add/Rem), restore, sistemas (Lookup List)
-  - /equipamentos: tipos-controle, modelos (CRUD), slots (CRUD), itens (CRUD), instalacao, remocao, exec-vencimento, inventario-historico, inventario-aeronave, ajuste-sinc
-  - /inspecoes: integrated (endpoints available in inspections router)
+  - /panes: create, list, detail, update, concluir, anexos (CRUD), responsaveis (Add/Rem), restore, sistemas (Lookup List), export (GET CSV/XLSX)
+  - /equipamentos: tipos-controle, modelos (CRUD), slots (CRUD), itens (CRUD), instalacao, remocao, exec-vencimento, inventario-historico, inventario-aeronave, ajuste-sinc, inventario/export (GET CSV/XLSX)
+  - /inspecoes: integrated (endpoints available in inspections router), export (GET CSV/XLSX)
   - /dashboard/resumo: GET consolidated metrics for dashboard UI
   - /calendario/eventos: GET range query with backend privacy censorship and DPE aggregation; POST/PUT/DELETE calendar_events CRUD
   - /calendario/tipos: GET list active types; POST create, PUT update, DELETE delete types (Restricted to ADMINISTRADOR)
