@@ -18,7 +18,7 @@ O sistema garante que:
 
 ---
 
-## 2. O que o Sistema já Faz Hoje? (Funcionalidades Atuais)
+## 2. O que o Sistema já Faz Hoje? (Funcionalidades Atuais - Versão 1.2.0)
 
 O SAA29 é um software completo e funcional. Suas principais engrenagens são:
 
@@ -33,14 +33,16 @@ O SAA29 é um software completo e funcional. Suas principais engrenagens são:
 5.  **Gestão de Inspeções Programadas:**
     Gerenciamento de revisões periódicas das aeronaves. Cada revisão tem um checklist de tarefas obrigatórias. O sistema bloqueia a liberação da aeronave se houver tarefas pendentes ou panes impeditivas em aberto.
 6.  **Calendário de Escalas e Ausências:**
-    Planejamento visual de equipe e prazos. Permite registrar quando um militar estará de férias, licença ou serviço, e exibe os prazos das inspeções das aeronaves.
+    Planejamento visual de equipe e prazos. Permite registrar quando um militar estará de férias, licença ou serviço, e exibe os prazos das inspeções das aeronaves (DPE).
 7.  **Controle de Níveis de Acesso (Perfis):**
     *   **Mantenedor (Mecânico):** Executa o trabalho físico, abre panes, faz substituições no inventário.
     *   **Inspetor:** Confere e valida o trabalho executado para garantir a segurança.
     *   **Encarregado (Chefe):** Coordena prioridades e altera a disponibilidade da frota.
     *   **Administrador:** Cadastra usuários e gerencia o catálogo geral.
-8.  **Backup e Recuperação Automática no Cloudflare R2:**
-    Toda vez que a aplicação inicializa, ela baixa automaticamente o banco de dados seguro salvo na nuvem da Cloudflare (R2). Ao sofrer modificações, ela atualiza o backup remoto de forma inteligente. Se a conexão falhar criticamente, o sistema aborta a inicialização para evitar que um banco vazio sobrescreva os dados históricos.
+8.  **Exportação Universal de Relatórios (CSV / XLSX):**
+    Geração automatizada de relatórios tabulares em formato CSV (UTF-8 com BOM) ou Excel estilizado (`.xlsx`) para listagens de Panes, Inventário da Frota e Inspeções Programadas.
+9.  **Backup e Recuperação Automática no Cloudflare R2:**
+    Toda vez que a aplicação inicializa, ela baixa automaticamente o banco de dados seguro salvo na nuvem da Cloudflare (R2). Ao sofrer modificações, ela atualiza o backup remoto de forma inteligente. Se a conexão falhar criticamente, o sistema preserva o banco local para evitar perda de dados históricos.
 
 ---
 
@@ -55,13 +57,14 @@ SAA29/
 │   ├── modules/              # A Lógica do negócio (a parte inteligente)
 │   │   ├── aeronaves/        # Regras das células físicas
 │   │   ├── auth/             # Cadastro de usuários, senhas e permissões
-│   │   ├── calendario/       # Prazos e afastamentos
+│   │   ├── calendario/       # Prazos e afastamentos (com agregação DPE)
 │   │   ├── dashboard/        # Estatísticas rápidas da tela inicial
 │   │   ├── efetivo/          # Cadastro de mantenedores e inspetores
 │   │   ├── equipamentos/     # Cadastro de peças e itens físicos
 │   │   ├── inspecoes/        # Checklist de revisões periódicas
 │   │   ├── panes/            # Gestão e histórico de panes
 │   │   └── vencimentos/      # Cálculo de prazos de calibração
+│   ├── shared/               # Utilitários compartilhados, contratos DDD e exportadores (CSV/XLSX)
 │   └── web/                  # A cara do sistema (o que o usuário vê)
 │       ├── pages/            # Rotas das páginas web (links)
 │       ├── static/           # Arquivos de design (CSS, JS, imagens)
@@ -69,12 +72,12 @@ SAA29/
 ├── docs/                     # Documentações do sistema, manuais e planos de melhorias
 ├── migrations/               # Histórico de alterações estruturais do banco de dados
 ├── scripts/                  # Scripts utilitários e de manutenção (seeds, backups)
-└── tests/                    # Testes automatizados para garantir que nada quebre
+└── tests/                    # Testes automatizados (179 testes passing)
 ```
 
 ---
 
-## 4. Ideias de Implementações Futuras (Onde Expandir)
+## 4. Ideias de Implementações Futuras (Onde Expandir - Visão v2.0+)
 
 Caso o sistema precise ser continuado ou aprimorado no futuro, as ideias já especificadas e estruturadas nas pastas de desenvolvimento são:
 
@@ -99,5 +102,5 @@ Toda vez que você realizar alterações na estrutura do banco de dados, utilize
 ```
 E não se esqueça de rodar a suíte completa de testes para garantir que tudo continue funcionando sem problemas:
 ```bash
-.venv/Scripts/pytest
+./venv/bin/pytest
 ```

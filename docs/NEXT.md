@@ -1,6 +1,6 @@
 # NEXT.md – Status e Próximos Passos
 
-**Versão Atual:** `1.1.0` (Produção)
+**Versão Atual:** `1.2.0` (Produção)
 
 ---
 
@@ -8,12 +8,13 @@
 
 | Fase | Status | Descrição |
 |------|--------|-----------|
-| ✅ Fundação e Backend | 100% | Core, Auth, Panes, Aeronaves, Equipamentos (API) |
-| ✅ Interface (UI/UX) | 98% | Login, Panes, Efetivo, Frota, Configurações (parcial), Refatoração CSP |
-| ✅ Segurança | 100% | Auditoria e Hardening de Frontend (CSP estrito) concluídos |
-| ✅ Portabilidade | 100% | Suporte nativo a SQLite e PostgreSQL |
-| ✅ Equipamentos (UI & Export) | 100% | Interface para gestão de controles/vencimentos e relatórios CSV/XLSX |
-| ✅ Deploy Automatizado | 100% | CI/CD completo no GitHub Actions com matriz SQLite & Postgres |
+| ✅ Fundação e Backend | 100% | Core, Auth, Panes, Aeronaves, Equipamentos, Inspeções e Calendário |
+| ✅ Interface (UI/UX) | 100% | Login, Panes, Efetivo, Frota, Inspeções, Calendário e Configurações |
+| ✅ Segurança | 100% | CSP Estrito, CSRF, Token Rotation e Bloqueio Brute Force Environment-Aware |
+| ✅ Portabilidade | 100% | Suporte nativo e testado a SQLite e PostgreSQL |
+| ✅ Equipamentos & Relatórios | 100% | Gestão de controles, vencimentos e exportação de dados (CSV UTF-8 / XLSX) |
+| ✅ Arquitetura & DDD | 100% | Desacoplamento via `AeronaveLookupProtocol` e 179 testes unitários passing |
+| ✅ Deploy Automatizado | 100% | CI/CD no GitHub Actions com matriz de testes em SQLite & Postgres |
 
 ---
 
@@ -28,30 +29,42 @@ cp .env.example .env
 
 # 2. Banco e Dados
 alembic upgrade head
+python scripts/db/init_db.py
 
-# 3. App
-uvicorn app.main:app --reload
+# 3. Execução da Aplicação
+python scripts/run_app.py
 ```
 
 ---
 
-## 📋 Próximas Tarefas
+## 📋 Próximas Tarefas (Visão v2.0 - Hangar & Mobilidade)
 
-1. **Interface de Equipamentos**:
-   - Desenvolver telas para listagem de itens e inspeção de vencimentos.
-   - Implementar fluxo de instalação/remoção de componentes em aeronaves.
+1. **Carga e Importação em Lote via Excel (XLSX)**:
+   - Interface para upload e validação de inventário massivo via planilha.
 
-2. **Refinamento de Deploy**:
-   - Validar workflow de CI no repositório.
-   - Testar estabilidade do container em ambiente de homologação.
+2. **Mobilidade & PWA (Hangar Floor)**:
+   - Tornar a aplicação instalável como PWA para tablets e celulares no pátio.
+   - Suporte a cache offline de consultas essenciais.
 
-3. **Correções Técnicas (Pós-Auditoria)**:
-   - [x] Implementar `selectinload` para mitigar N+1 queries em listagens de inventário.
-   - [x] Refatorar tratamento de erros para Exceções de Domínio + Global Exception Handler.
-   - [x] Configurar PRAGMA WAL no SQLite para performance concorrente.
-   - [x] Refatorar Frontend para remover handlers inline (CSP Hardening).
-   - [x] Documentar bug de Inativação de Aeronaves (Docs/Relatorio).
+3. **Scanner de QR Code**:
+   - Leitura via câmera do dispositivo para busca instantânea de caixas-pretas e células.
+
+4. **Integração com Manual FIM (Fault Isolation Manual)**:
+   - Recomendação de procedimentos de correção ao registrar códigos ATA de panes.
 
 ---
 
-*Última atualização: 2026-04-28*
+## 🛠️ Correções e Auditorias Concluídas
+
+- [x] Implementação de `selectinload` para mitigar N+1 queries em inventários e panes.
+- [x] Refatoração de Exceções de Domínio + Global Exception Handler no FastAPI.
+- [x] Configuração de PRAGMA WAL no SQLite para alta concorrência.
+- [x] Refatoração do Frontend com remoção de handlers inline (CSP Hardening).
+- [x] Desacoplamento DDD entre Equipamentos e Aeronaves via `AeronaveLookupProtocol`.
+- [x] Sistema genérico de exportação CSV (UTF-8 BOM) e XLSX em Panes, Inventário e Inspeções.
+- [x] Resolução de 100% das 13 vulnerabilidades e defeitos auditados no `RELATORIO_FINAL.MD`.
+- [x] Suíte automatizada com **179 testes unitários e de integração passing (100% sucesso)**.
+
+---
+
+*Última atualização: 2026-07-23*

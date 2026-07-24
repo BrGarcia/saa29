@@ -65,14 +65,15 @@ Documentacao interativa da API:
 
 O codigo fonte esta organizado em:
 
-- `app/bootstrap` para configuracao, database e entrada da aplicacao;
-- `app/modules/auth` para autenticacao e usuarios;
-- `app/modules/aeronaves` para aeronaves;
-- `app/modules/panes` para panes, anexos e responsaveis;
-- `app/modules/equipamentos` para inventario e vencimentos;
-- `app/modules/inspecoes` para scaffold backend isolado de inspecoes, ainda sem registro no app principal;
-- `app/shared` para enums, utilitarios, storage e middleware;
-- `app/web` para rotas HTML, templates e assets.
+- `app/bootstrap` para configuração, banco de dados e inicialização da aplicação;
+- `app/modules/auth` para autenticação, controle de sessões e usuários;
+- `app/modules/aeronaves` para cadastro e disponibilidade da frota;
+- `app/modules/panes` para gestão e histórico de panes, anexos e relatórios;
+- `app/modules/equipamentos` para controle de inventário, posições (slots) e vencimentos;
+- `app/modules/inspecoes` para gestão de inspeções programadas, tarefas catálogo/template, DPE e auditoria por trigrama;
+- `app/modules/calendario` para agendamentos de escalas, afastamentos e datas previstas de inspeções (DPE);
+- `app/shared` para enums, exceções, contratos DDD (`contracts.py`), gerador de relatórios (`exporter.py`), storage e middleware;
+- `app/web` para rotas HTML, templates Jinja2 e assets estáticos (CSS/JS).
 
 ## Documentacao
 

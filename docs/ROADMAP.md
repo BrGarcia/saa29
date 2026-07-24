@@ -47,7 +47,7 @@ v5.0: Ecossistema Total    ░░ Visão Final (IA & Supply)
 *Foco: Usabilidade Web, Performance e Segurança.*
 - [x] **v1.0.0**: Lançamento estável com CRUD de Panes, Frota e Efetivo.
 - [x] **v1.1.0**: Implementação de Soft Delete de usuários e Interface de Intervenção Direta.
-- [x] **v1.2.0**: Exportação de dados (CSV/Excel) e melhoria nos filtros de busca global.
+- [x] **v1.2.0**: Exportação universal de relatórios (CSV/XLSX), desacoplamento de contratos DDD (`AeronaveLookupProtocol`), matriz CI/CD no GitHub Actions e 179 testes automatizados com 100% de sucesso.
 
 ---
 
