@@ -161,7 +161,7 @@ function renderizarCabecalho() {
 function baixarPDFInspecao() {
     if (!window.INSPECAO_ID) return;
     showToast("Gerando PDF da Ordem de Inspeção...", "info");
-    window.location.href = `/api/v1/inspecoes/${window.INSPECAO_ID}/pdf`;
+    window.location.href = `/inspecoes/${window.INSPECAO_ID}/pdf`;
 }
 
 function renderizarTarefas() {
