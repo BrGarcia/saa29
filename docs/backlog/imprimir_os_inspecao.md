@@ -1,14 +1,14 @@
 # Plano de Implementação: Geração de PDF da Ordem de Inspeção (OS)
 
 **Módulo:** Inspeções & Inventário  
-**Status:** Planejado (Backlog)  
+**Status:** Implementado  
 **Arquivo de Especificação:** `docs/backlog/imprimir_os_inspecao.md`
 
 ---
 
 ## 🎯 1. Objetivo e Escopo
 
-Adicionar a funcionalidade de emissão e download automático de relatórios em formato **PDF (Formato A4 Retrato)** para Ordens de Inspeção. O relatório consolida em um único documento impresso todas as informações atualizadas da inspeção (checklist com tarefas, responsabilidades por trigrama e observações) e a matriz de inventário controlado da aeronave vinculada.
+Adicionar a funcionalidade de emissão e download automático de relatórios em formato **PDF (Formato A4 Retrato)** para Ordens de Inspeção. O relatório consolida em um único documento impresso todas as informações da inspeção (identificação, checklist com tarefas com suporte a preenchimento manual e campo de assinatura/visto), vencimentos/calibrações controladas em fluxo contínuo e a matriz de inventário completo da aeronave em página dedicada.
 
 ---
 
@@ -18,22 +18,22 @@ Adicionar a funcionalidade de emissão e download automático de relatórios em 
 - **Biblioteca Backend:** Adição do pacote `reportlab` no `requirements.txt` para geração dinâmica e streaming de PDFs em memória (`io.BytesIO`).
 - **Camada de Serviço (`app/modules/inspecoes/pdf_service.py`):**
   - Função `gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: UUID) -> bytes`
-  - Utilização de `SimpleDocTemplate` do ReportLab com suporte a layout A4 retrato, margens padronizadas (1.5 cm) e controle de quebra de páginas (`PageBreak`).
-  - Consulta assíncrona desacoplada que reúne:
-    1. Dados cadastrais e status da inspeção.
-    2. Checklist completo das tarefas com status, trigrama do responsável, data/hora da última alteração e observações.
-    3. Itens do inventário instalado na aeronave que possuem controle de vencimento ativo (filtrando apenas itens monitorados).
+  - Utilização de `SimpleDocTemplate` do ReportLab com suporte a layout A4 retrato, margens padronizadas (1.3 cm) e controle de quebra de páginas (`PageBreak`).
+  - Blocos estruturados:
+    1. **1. IDENTIFICAÇÃO DA INSPEÇÃO** (dados cadastrais, datas, status e responsável).
+    2. **2. CHECKLIST DE TAREFAS DA INSPEÇÃO** (tabela com status, trigrama, data de conclusão, observações e coluna para visto/assinatura, formatado para permitir preenchimento impresso a caneta).
+    3. **3. VENCIMENTOS E CALIBRAÇÕES CONTROLADAS** (itens monitorados temporalmente, em páginas corridas logo abaixo do checklist).
+    4. **4. INVENTÁRIO COMPLETO DA AERONAVE** (matriz geral de aviônicos instalados, antecedida por `PageBreak` obrigatório).
 - **Endpoint na API (`app/modules/inspecoes/router.py`):**
-  - `GET /api/v1/inspecoes/{inspecao_id}/pdf`
-  - Retorna `Response(content=pdf_bytes, media_type="application/pdf")` com header de download: `Content-Disposition: attachment; filename="OS_Inspecao_{matricula}_{data}.pdf"`.
+  - `GET /inspecoes/{inspecao_id}/pdf`
+  - Retorna `Response(content=pdf_bytes, media_type="application/pdf")` com header de download: `Content-Disposition: attachment; filename="OS_Inspecao_{id}.pdf"`.
   - Exige autenticação (`CurrentUser` / Cookie ou Bearer JWT).
 
 ### 2.2 Frontend (Jinja2 + Vanilla JS)
 - **Página de Detalhes (`app/web/templates/inspecoes/inspecao_detalhe.html`):**
-  - Adição do botão **"Imprimir PDF"** (com ícone de impressora/documento) na barra de ações/cabeçalho da inspeção.
+  - Botão **"Imprimir (PDF)"** na barra de ações/cabeçalho da inspeção.
 - **Script de Interação (`app/web/static/js/inspecao_detalhe.js`):**
-  - Event listener no botão de impressão para chamar a rota de PDF via `fetch` autenticado ou abrindo a URL com o token de autorização.
-  - Início automático do download do arquivo sem recarregar a página ou alterar o estado da inspeção na tela.
+  - Event listener no botão de impressão para efetuar o download direto da rota `/inspecoes/{id}/pdf`.
 
 ---
 
@@ -50,23 +50,27 @@ Adicionar a funcionalidade de emissão e download automático de relatórios em 
 │ • Início: 20/07/2026          • DPE: 05/08/2026          │
 │ • Responsável:                • Gerado em: 24/07/2026    │
 ├──────────────────────────────────────────────────────────┤
-│ CHECKLIST DE TAREFAS                                     │
-│ ┌─────┬────────────────┬──────────┬────────┬───────────┐ │
-│ │ Item│ Tarefa         │ Status   │ Resp.  │ Atualiz.  │ │
-│ ├─────┼────────────────┼──────────┼────────┼───────────┤ │
-│ │ 01  │ Teste VHF-1    │ CONCLUIDO│ GRC    │ 21/07 14h │ │
-│ │ 02  │ Inspeção HUD   │ PENDENTE │ ---    │ ---       │ │
-│ └─────┴────────────────┴──────────┴────────┴───────────┘ │
-│ (Continuação em páginas adicionais se necessário)        │
-│ ──────────────────────────────────────────────────────── │
-│ PAGE BREAK OBRIGATÓRIO PARA INVENTÁRIO                   │
+│ BLOCO 2: CHECKLIST DE TAREFAS DA INSPEÇÃO                │
+│ ┌───┬──────────────┬──────────┬──────┬──────────┬───────┬──────┐│
+│ │Item│Tarefa       │Status    │Resp. │Data Conc.│Obs    │Visto ││
+│ ├───┼──────────────┼──────────┼──────┼──────────┼───────┼──────┤│
+│ │01 │Teste VHF-1   │CONCLUIDA │ GRC  │21/07 14h │---    │______││
+│ │02 │Inspeção HUD  │[ ]OK [ ]ANO│[    ]│__/__/____│_______│______││
+│ └───┴──────────────┴──────────┴──────┴──────────┴───────┴──────┘│
 ├──────────────────────────────────────────────────────────┤
-│ BLOCO 2: INVENTÁRIO CONTROLADO DA AERONAVE               │
-│ ┌──────────┬──────┬─────────────┬─────┬─────┬──────────┐ │
-│ │ Posição  │ Slot │ Equipamento │ PN  │ SN  │ Validade │ │
-│ ├──────────┼──────┼─────────────┼─────┼─────┼──────────┤ │
-│ │ PAINEL L │ MDP1 │ Computador  │ PN1 │ SN1 │ OK (28d) │ │
-│ └──────────┴──────┴─────────────┴─────┴─────┴──────────┘ │
+│ BLOCO 3: VENCIMENTOS E CALIBRAÇÕES CONTROLADAS (Páginas corridas)│
+│ ┌──────────┬──────┬─────────────┬─────┬─────────────┬──────────┐│
+│ │ Posição  │ Slot │ Equipamento │ PN  │ Controle    │ Validade ││
+│ ├──────────┼──────┼─────────────┼─────┼─────────────┼──────────┤│
+│ │ PAINEL L │ MDP1 │ Computador  │ PN1 │ ANUAL       │ OK (28d) ││
+│ └──────────┴──────┴─────────────┴─────┴─────────────┴──────────┘│
+│ ──────────────────────────────────────────────────────── │
+│ PAGE BREAK OBRIGATÓRIO PARA O INVENTÁRIO COMPLETO        │
+├──────────────────────────────────────────────────────────┤
+│ BLOCO 4: INVENTÁRIO COMPLETO DA AERONAVE (Em Página Única)│
+│ ┌──────────┬──────┬─────────────┬─────┬─────┬────────────┐│
+│ │ Posição  │ Slot │ Equipamento │ PN  │ SN  │ Data Inst. ││
+│ └──────────┴──────┴─────────────┴─────┴─────┴────────────┘│
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -74,42 +78,17 @@ Adicionar a funcionalidade de emissão e download automático de relatórios em 
 
 ## 🔒 4. Regras de Negócio e Restrições
 
-1. **Somente-Leitura (Read-Only):** A geração do PDF é 100% passiva. Não altera o banco de dados, não modifica o status da inspeção e não grava logs de mutação.
-2. **Qualquer Estado:** O PDF pode ser emitido em qualquer fase da inspeção (`ABERTA`, `EM_ANDAMENTO`, `CONCLUIDA`, `CANCELADA`).
-3. **Filtro de Inventário Controlado:** No Bloco 2, incluir **exclusivamente** os equipamentos da aeronave que possuem regras de vencimento/calibração associadas (ocultando itens sem controle temporal).
-4. **Resolução de Trigrama:** Exibir o trigrama do militar responsável pela conclusão ou execução de cada tarefa do checklist.
-5. **Formatos e Margens:** Folha A4 em modo Retrato (Portrait), margens de 15mm, cores institucionais (Azul FAB `#1F497D`, Cinza `#F3F4F6`, Verde `#2ECC71`, Amarelo `#F1C40F`, Vermelho `#E74C3C`).
+1. **Somente-Leitura (Read-Only):** A geração do PDF é 100% passiva. Não altera o banco de dados e não modifica o status da inspeção.
+2. **Preenchimento Manual:** Tarefas pendentes no checklist são renderizadas com campos visuais `[  ] OK  [  ] ANO`, datas e linhas guia para o mantenedor anota a caneta no papel.
+3. **Páginas Corridas (Blocos 1 a 3):** As 3 primeiras seções possuem fluxo contínuo de páginas.
+4. **Inventário em Nova Página (Bloco 4):** O Bloco 4 inicia obrigatoriamente após um `PageBreak`.
 
 ---
 
-## 📋 5. Componentes a Modificar / Criar
+## ✅ 5. Critérios de Aceite
 
-### [NEW] `requirements.txt`
-- Incluir dependência `reportlab>=4.0.0`.
-
-### [NEW] `app/modules/inspecoes/pdf_service.py`
-- Lógica de compilação de dados da inspeção + inventário controlado.
-- Construção do documento PDF via ReportLab Platypus (`SimpleDocTemplate`, `Table`, `Paragraph`, `Spacer`, `PageBreak`).
-
-### [MODIFY] `app/modules/inspecoes/router.py`
-- Adicionar o endpoint `GET /{inspecao_id}/pdf` antes das rotas dinâmicas.
-
-### [MODIFY] `app/web/templates/inspecoes/inspecao_detalhe.html`
-- Adicionar botão visual `<button id="btn-imprimir-pdf" class="btn btn-secondary"> Imprimir (PDF)</button>`.
-
-### [MODIFY] `app/web/static/js/inspecao_detalhe.js`
-- Adicionar handler para o botão de impressão disparando o download síncrono/assíncrono da rota `/pdf`.
-
-### [NEW] `tests/unit/test_inspecao_pdf.py`
-- Testes unitários para validar geração de bytes do PDF e resposta do endpoint de API.
-
----
-
-## ✅ 6. Critérios de Aceite
-
-- [ ] Botão "Imprimir (PDF)" visível e acessível na tela de detalhes da inspeção.
-- [ ] O clique dispara o download imediato de um arquivo `.pdf` sem recarregar a página.
-- [ ] O arquivo PDF gerado abre corretamente em leitores de PDF standard sem erros de sintaxe.
-- [ ] O layout A4 exibe o checklist de tarefas na primeira parte e quebra página para o inventário controlado.
-- [ ] Exibe corretamente os trigramas dos executores e o status atualizado dos componentes.
-- [ ] Todos os testes automatizados da suíte passam sem regressões.
+- [x] Botão "Imprimir (PDF)" visível e funcional na tela de detalhes da inspeção.
+- [x] Bloco 3 (Vencimentos e Calibrações) posicionado em fluxo contínuo logo após o Bloco 2 (Checklist).
+- [x] Bloco 4 (Inventário Completo) iniciado em página dedicada.
+- [x] Checklist de tarefas contém coluna de visto/assinatura e formatação para preenchimento manual de itens pendentes.
+- [x] Suíte de testes automatizados passando 100%.

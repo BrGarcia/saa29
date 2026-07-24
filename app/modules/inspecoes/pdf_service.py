@@ -38,8 +38,12 @@ def _format_date(d: Any, fmt: str = "%d/%m/%Y") -> str:
 
 async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> bytes:
     """
-    Gera o PDF formatado (A4 Retrato) da Ordem de Inspeção com Checklist,
-    Inventário Completo da Aeronave e Tabela de Vencimentos/Calibrações.
+    Gera o PDF formatado (A4 Retrato) da Ordem de Inspeção com:
+    - 1. Identificação da Inspeção
+    - 2. Checklist de Tarefas da Inspeção (formatado para conferência e preenchimento manual)
+    - 3. Vencimentos e Calibrações Controladas da Aeronave (fluxo contínuo)
+    - 4. Inventário Completo da Aeronave (em página dedicada)
+    
     Operação 100% passiva e somente-leitura.
     """
     # 1. Carregar dados completos da inspeção
@@ -58,7 +62,7 @@ async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> 
     if not inspecao:
         raise domain_exc.EntidadeNaoEncontradaError("Inspeção não encontrada.")
 
-    # 2. Carregar inventário completo instalado na aeronave
+    # 2. Carregar inventário instalado na aeronave
     aeronave_id = inspecao.aeronave_id
     stmt_inst = (
         select(Instalacao)
@@ -168,6 +172,15 @@ async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> 
         alignment=TA_CENTER,
     )
 
+    manual_field_style = ParagraphStyle(
+        "ManualField",
+        parent=cell_style_center,
+        fontName="Helvetica",
+        fontSize=7,
+        leading=9,
+        textColor=colors.HexColor("#666666"),
+    )
+
     elements = []
 
     # --- CABEÇALHO DO DOCUMENTO ---
@@ -232,17 +245,18 @@ async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> 
     elements.append(info_table)
     elements.append(Spacer(1, 10))
 
-    # --- CHECKLIST DE TAREFAS ---
+    # --- BLOCO 2: CHECKLIST DE TAREFAS DA INSPEÇÃO ---
     elements.append(Paragraph("<b>2. CHECKLIST DE TAREFAS DA INSPEÇÃO</b>", section_heading))
 
     tarefas_data = [
         [
             Paragraph("<b>Item</b>", table_header_style),
-            Paragraph("<b>Tarefa / Descrição</b>", table_header_style),
+            Paragraph("<b>Tarefa / Especificação</b>", table_header_style),
             Paragraph("<b>Status</b>", table_header_style),
             Paragraph("<b>Resp. (Trigrama)</b>", table_header_style),
-            Paragraph("<b>Atualizado em</b>", table_header_style),
+            Paragraph("<b>Data Conclusão</b>", table_header_style),
             Paragraph("<b>Observações</b>", table_header_style),
+            Paragraph("<b>Visto / Assinatura</b>", table_header_style),
         ]
     ]
 
@@ -256,110 +270,61 @@ async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> 
             Paragraph("---", cell_style_center),
             Paragraph("---", cell_style_center),
             Paragraph("---", cell_style),
+            Paragraph("---", cell_style_center),
         ])
     else:
         for idx, t in enumerate(tarefas_ordenadas, start=1):
-            executor_str = "---"
-            if t.executado_por:
-                executor_str = t.executado_por.trigrama or t.executado_por.nome
-            
-            dt_exec = _format_date(t.data_execucao)
-
-            status_color = "#333333"
-            if t.status == "CONCLUIDA":
-                status_color = "#166534"
-            elif t.status == "PENDENTE":
-                status_color = "#854D0E"
-            elif t.status == "ANOMALIA":
-                status_color = "#991B1B"
-
-            status_para = Paragraph(f"<font color='{status_color}'><b>{t.status}</b></font>", cell_style_center)
             titulo_para = Paragraph(f"<b>{t.titulo}</b><br/><font color='#555555'>{t.descricao or ''}</font>", cell_style)
-            obs_para = Paragraph(t.observacao_execucao or "", cell_style)
+            
+            if t.status == "CONCLUIDA":
+                executor_str = t.executado_por.trigrama if t.executado_por else (t.executado_por.nome if t.executado_por else "---")
+                dt_exec = _format_date(t.data_execucao)
+                status_para = Paragraph("<font color='#166534'><b>CONCLUÍDA</b></font>", cell_style_center)
+                resp_para = Paragraph(f"<b>{executor_str}</b>", cell_style_center)
+                dt_para = Paragraph(dt_exec, cell_style_center)
+                obs_para = Paragraph(t.observacao_execucao or "---", cell_style)
+            elif t.status == "ANOMALIA":
+                executor_str = t.executado_por.trigrama if t.executado_por else (t.executado_por.nome if t.executado_por else "---")
+                dt_exec = _format_date(t.data_execucao)
+                status_para = Paragraph("<font color='#991B1B'><b>ANOMALIA</b></font>", cell_style_center)
+                resp_para = Paragraph(f"<b>{executor_str}</b>", cell_style_center)
+                dt_para = Paragraph(dt_exec, cell_style_center)
+                obs_para = Paragraph(t.observacao_execucao or "---", cell_style)
+            else: # PENDENTE ou EM_ANDAMENTO
+                status_para = Paragraph("[ &nbsp; ] OK &nbsp; [ &nbsp; ] ANO", manual_field_style)
+                resp_para = Paragraph("[ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ]", manual_field_style)
+                dt_para = Paragraph("____/____/________", manual_field_style)
+                obs_para = Paragraph("____________________", manual_field_style)
+
+            visto_para = Paragraph("____________________", manual_field_style)
 
             tarefas_data.append([
                 Paragraph(f"{idx:02d}", cell_style_center),
                 titulo_para,
                 status_para,
-                Paragraph(executor_str, cell_style_center),
-                Paragraph(dt_exec, cell_style_center),
+                resp_para,
+                dt_para,
                 obs_para,
+                visto_para,
             ])
 
-    tarefas_table = Table(tarefas_data, colWidths=[30, 180, 75, 75, 75, 85])
+    tarefas_table = Table(tarefas_data, colWidths=[26, 160, 70, 65, 65, 70, 64])
     tarefas_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1F497D")),
-        ('ALIGN', (0,0), (-1,0), 'CENTER'),
-        ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#CBD5E1")),
-        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor("#FFFFFF"), colors.HexColor("#F8FAFC")]),
-        ('TOPPADDING', (0,0), (-1,-1), 4),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-        ('LEFTPADDING', (0,0), (-1,-1), 4),
-        ('RIGHTPADDING', (0,0), (-1,-1), 4),
-    ]))
-    elements.append(tarefas_table)
-
-    # --- QUEBRA DE PÁGINA OBRIGATÓRIA PARA O INVENTÁRIO ---
-    elements.append(PageBreak())
-
-    # --- BLOCO 3: INVENTÁRIO COMPLETO DA AERONAVE ---
-    elements.append(Paragraph(f"<b>3. INVENTÁRIO COMPLETO DA AERONAVE ({matricula})</b>", section_heading))
-    elements.append(Paragraph("<i>Relação geral de todos os equipamentos aviônicos instalados na célula.</i>", val_style))
-    elements.append(Spacer(1, 6))
-
-    inv_full_headers = [
-        Paragraph("<b>Slot / Posição</b>", table_header_style),
-        Paragraph("<b>Equipamento / Modelo</b>", table_header_style),
-        Paragraph("<b>Part Number (PN)</b>", table_header_style),
-        Paragraph("<b>Serial (SN)</b>", table_header_style),
-        Paragraph("<b>Data Instalação</b>", table_header_style),
-    ]
-    
-    inv_full_rows = [inv_full_headers]
-
-    if not todas_instalacoes:
-        inv_full_rows.append([
-            Paragraph("---", cell_style_center),
-            Paragraph("Nenhum equipamento instalado nesta aeronave.", cell_style),
-            Paragraph("---", cell_style_center),
-            Paragraph("---", cell_style_center),
-            Paragraph("---", cell_style_center),
-        ])
-    else:
-        for inst in todas_instalacoes:
-            slot_nome = inst.slot.nome_posicao if inst.slot else "---"
-            item = inst.item
-            nome_eq = item.modelo.nome_generico if (item and item.modelo) else "---"
-            pn = item.modelo.part_number if (item and item.modelo) else "---"
-            sn = item.numero_serie if item else "---"
-            dt_inst = _format_date(inst.data_instalacao, "%d/%m/%Y")
-
-            inv_full_rows.append([
-                Paragraph(slot_nome, cell_style),
-                Paragraph(nome_eq, cell_style),
-                Paragraph(pn, cell_style_center),
-                Paragraph(sn, cell_style_center),
-                Paragraph(dt_inst, cell_style_center),
-            ])
-
-    inv_full_table = Table(inv_full_rows, colWidths=[110, 150, 100, 80, 80])
-    inv_full_table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1F497D")),
         ('ALIGN', (0,0), (-1,0), 'CENTER'),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#CBD5E1")),
         ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor("#FFFFFF"), colors.HexColor("#F8FAFC")]),
-        ('TOPPADDING', (0,0), (-1,-1), 4),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-        ('LEFTPADDING', (0,0), (-1,-1), 4),
-        ('RIGHTPADDING', (0,0), (-1,-1), 4),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ('LEFTPADDING', (0,0), (-1,-1), 3),
+        ('RIGHTPADDING', (0,0), (-1,-1), 3),
     ]))
-    elements.append(inv_full_table)
-    elements.append(Spacer(1, 14))
+    elements.append(tarefas_table)
+    elements.append(Spacer(1, 12))
 
-    # --- BLOCO 4: VENCIMENTOS E CALIBRAÇÕES DA AERONAVE ---
-    elements.append(Paragraph(f"<b>4. VENCIMENTOS E CALIBRAÇÕES CONTROLADAS ({matricula})</b>", section_heading))
+    # --- BLOCO 3: VENCIMENTOS E CALIBRAÇÕES CONTROLADAS (Páginas corridas logo após o Checklist) ---
+    elements.append(Paragraph(f"<b>3. VENCIMENTOS E CALIBRAÇÕES CONTROLADAS ({matricula})</b>", section_heading))
     elements.append(Paragraph("<i>Exibindo exclusivamente componentes com regras de calibração/vencimento temporal monitorado.</i>", val_style))
     elements.append(Spacer(1, 6))
 
@@ -428,6 +393,63 @@ async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> 
         ('RIGHTPADDING', (0,0), (-1,-1), 4),
     ]))
     elements.append(venc_table)
+
+    # --- QUEBRA DE PÁGINA OBRIGATÓRIA PARA O BLOCO 4 (INVENTÁRIO) ---
+    elements.append(PageBreak())
+
+    # --- BLOCO 4: INVENTÁRIO COMPLETO DA AERONAVE (Em Página Dedicada) ---
+    elements.append(Paragraph(f"<b>4. INVENTÁRIO COMPLETO DA AERONAVE ({matricula})</b>", section_heading))
+    elements.append(Paragraph("<i>Relação geral de todos os equipamentos aviônicos instalados na célula.</i>", val_style))
+    elements.append(Spacer(1, 6))
+
+    inv_full_headers = [
+        Paragraph("<b>Slot / Posição</b>", table_header_style),
+        Paragraph("<b>Equipamento / Modelo</b>", table_header_style),
+        Paragraph("<b>Part Number (PN)</b>", table_header_style),
+        Paragraph("<b>Serial (SN)</b>", table_header_style),
+        Paragraph("<b>Data Instalação</b>", table_header_style),
+    ]
+    
+    inv_full_rows = [inv_full_headers]
+
+    if not todas_instalacoes:
+        inv_full_rows.append([
+            Paragraph("---", cell_style_center),
+            Paragraph("Nenhum equipamento instalado nesta aeronave.", cell_style),
+            Paragraph("---", cell_style_center),
+            Paragraph("---", cell_style_center),
+            Paragraph("---", cell_style_center),
+        ])
+    else:
+        for inst in todas_instalacoes:
+            slot_nome = inst.slot.nome_posicao if inst.slot else "---"
+            item = inst.item
+            nome_eq = item.modelo.nome_generico if (item and item.modelo) else "---"
+            pn = item.modelo.part_number if (item and item.modelo) else "---"
+            sn = item.numero_serie if item else "---"
+            dt_inst = _format_date(inst.data_instalacao, "%d/%m/%Y")
+
+            inv_full_rows.append([
+                Paragraph(slot_nome, cell_style),
+                Paragraph(nome_eq, cell_style),
+                Paragraph(pn, cell_style_center),
+                Paragraph(sn, cell_style_center),
+                Paragraph(dt_inst, cell_style_center),
+            ])
+
+    inv_full_table = Table(inv_full_rows, colWidths=[110, 150, 100, 80, 80])
+    inv_full_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1F497D")),
+        ('ALIGN', (0,0), (-1,0), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#CBD5E1")),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor("#FFFFFF"), colors.HexColor("#F8FAFC")]),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('LEFTPADDING', (0,0), (-1,-1), 4),
+        ('RIGHTPADDING', (0,0), (-1,-1), 4),
+    ]))
+    elements.append(inv_full_table)
 
     # 4. Construir PDF em memória
     doc.build(elements)
