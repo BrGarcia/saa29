@@ -15,6 +15,7 @@
 | ✅ Equipamentos & Relatórios | 100% | Gestão de controles, vencimentos e exportação de dados (CSV UTF-8 / XLSX) |
 | ✅ Arquitetura & DDD | 100% | Desacoplamento via `AeronaveLookupProtocol` e 179 testes unitários passing |
 | ✅ Deploy Automatizado | 100% | CI/CD no GitHub Actions com matriz de testes em SQLite & Postgres |
+| 🔲 Ordem de Inspeção (PDF) | Planejado | Emissão de PDF A4 da Ordem de Serviço com checklist e inventário controlado |
 
 ---
 
@@ -37,9 +38,13 @@ python scripts/run_app.py
 
 ---
 
-## 📋 Próximas Tarefas (Visão v2.0 - Hangar & Mobilidade)
+## 📋 Próximas Tarefas (Visão v1.3.0 & v2.0 - Hangar & Mobilidade)
 
-1. **Carga e Importação em Lote via Excel (XLSX)**:
+1. **Emissão de PDF da Ordem de Inspeção (OS)**:
+   - Implementação de gerador ReportLab para compilar o checklist com trigramas e inventário controlado da aeronave em PDF A4.
+   - Endpoint `GET /api/v1/inspecoes/{id}/pdf` e botão de impressão em `inspecao_detalhe.html`.
+
+2. **Carga e Importação em Lote via Excel (XLSX)**:
    - Interface para upload e validação de inventário massivo via planilha.
 
 2. **Mobilidade & PWA (Hangar Floor)**:

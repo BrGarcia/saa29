@@ -123,6 +123,7 @@ backlog_inspecoes:
 - feature_desacoplamento_tarefas_catalogo: completed
 - feature_duracao_tipos_e_dpe: completed
 - feature_auditoria_trigrama_persistente: completed
+- feature_inspecao_pdf_ordem_servico: planned (spec: docs/backlog/imprimir_os_inspecao.md)
 - csp_compliance: mandatory_for_all_new_UI (no_inline_scripts_no_onclick_attrs)
 
 known_gaps_from_roadmap:

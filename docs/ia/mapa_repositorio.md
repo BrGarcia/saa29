@@ -39,7 +39,8 @@ app/modules/inspecoes:
 - models.py: TipoInspecao,TarefaCatalogo,TarefaTemplate,Inspecao (with persistent audit),InspecaoTarefa
 - schemas.py: local_status_enums,pydantic_contracts
 - service.py: business_rules_crud_instantiation_completion_extras_audit
-- router.py: api_router_fully_registered_and_bootstrapped (with /export route)
+- pdf_service.py: reportlab_pdf_generator_for_inspection_orders
+- router.py: api_router_fully_registered_and_bootstrapped (with /export and /{id}/pdf routes)
 
 app/modules/calendario:
 - __init__.py: passive_package

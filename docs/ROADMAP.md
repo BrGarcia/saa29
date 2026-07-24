@@ -48,6 +48,7 @@ v5.0: Ecossistema Total    ░░ Visão Final (IA & Supply)
 - [x] **v1.0.0**: Lançamento estável com CRUD de Panes, Frota e Efetivo.
 - [x] **v1.1.0**: Implementação de Soft Delete de usuários e Interface de Intervenção Direta.
 - [x] **v1.2.0**: Exportação universal de relatórios (CSV/XLSX), desacoplamento de contratos DDD (`AeronaveLookupProtocol`), matriz CI/CD no GitHub Actions e 179 testes automatizados com 100% de sucesso.
+- [ ] **v1.3.0**: Emissão de PDF da Ordem de Inspeção (OS com checklist, trigramas e inventário controlado A4 formato oficial).
 
 ---
 
