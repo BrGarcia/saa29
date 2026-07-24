@@ -68,9 +68,9 @@ Adicionar a funcionalidade de emissão e download automático de relatórios em 
 │ PAGE BREAK OBRIGATÓRIO PARA O INVENTÁRIO COMPLETO        │
 ├──────────────────────────────────────────────────────────┤
 │ BLOCO 4: INVENTÁRIO COMPLETO DA AERONAVE (Em Página Única)│
-│ ┌──────────┬──────┬─────────────┬─────┬─────┬────────────┐│
-│ │ Posição  │ Slot │ Equipamento │ PN  │ SN  │ Data Inst. ││
-│ └──────────┴──────┴─────────────┴─────┴─────┴────────────┘│
+│ ┌──────────────┬──────────────────┬──────────┬──────────┬────────────┐│
+│ │ Slot/Posição │ Part Number (PN) │ SILOMS   │ REAL     │ Data Inst. ││
+│ └──────────────┴──────────────────┴──────────┴──────────┴────────────┘│
 └──────────────────────────────────────────────────────────┘
 ```
 

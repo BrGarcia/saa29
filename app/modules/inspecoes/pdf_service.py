@@ -404,9 +404,9 @@ async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> 
 
     inv_full_headers = [
         Paragraph("<b>Slot / Posição</b>", table_header_style),
-        Paragraph("<b>Equipamento / Modelo</b>", table_header_style),
         Paragraph("<b>Part Number (PN)</b>", table_header_style),
-        Paragraph("<b>Serial (SN)</b>", table_header_style),
+        Paragraph("<b>SILOMS</b>", table_header_style),
+        Paragraph("<b>REAL</b>", table_header_style),
         Paragraph("<b>Data Instalação</b>", table_header_style),
     ]
     
@@ -424,20 +424,20 @@ async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> 
         for inst in todas_instalacoes:
             slot_nome = inst.slot.nome_posicao if inst.slot else "---"
             item = inst.item
-            nome_eq = item.modelo.nome_generico if (item and item.modelo) else "---"
             pn = item.modelo.part_number if (item and item.modelo) else "---"
-            sn = item.numero_serie if item else "---"
+            sn_siloms = item.numero_serie if item else "---"
+            real_campo = Paragraph("", manual_field_style)
             dt_inst = _format_date(inst.data_instalacao, "%d/%m/%Y")
 
             inv_full_rows.append([
                 Paragraph(slot_nome, cell_style),
-                Paragraph(nome_eq, cell_style),
                 Paragraph(pn, cell_style_center),
-                Paragraph(sn, cell_style_center),
+                Paragraph(sn_siloms, cell_style_center),
+                real_campo,
                 Paragraph(dt_inst, cell_style_center),
             ])
 
-    inv_full_table = Table(inv_full_rows, colWidths=[110, 150, 100, 80, 80])
+    inv_full_table = Table(inv_full_rows, colWidths=[130, 110, 100, 100, 80])
     inv_full_table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1F497D")),
         ('ALIGN', (0,0), (-1,0), 'CENTER'),
