@@ -94,20 +94,26 @@ function renderizarCabecalho() {
         }
     }
 
-    let botoesAcao = '';
+    let botoesAcao = `
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button id="btn-imprimir-pdf" class="btn btn-outline" style="white-space: nowrap; display: flex; align-items: center; gap: 0.4rem;">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                Imprimir (PDF)
+            </button>
+    `;
+
     if (canControlInspecao && (inspecaoAtual.status === 'ABERTA' || inspecaoAtual.status === 'EM_ANDAMENTO')) {
-        botoesAcao = `
-            <div style="display: flex; gap: 1rem;">
-                <button id="btn-cancelar-inspecao" class="btn btn-outline" style="color: var(--status-danger); border-color: var(--status-danger);">
-                    Cancelar Inspeção
-                </button>
-                <button id="btn-concluir-inspecao" class="btn btn-inspecao" ${todasObrigatoriasFeitas && total > 0 ? '' : 'disabled style="opacity:0.5;" title="Conclua todas as tarefas obrigatórias"'} >
-                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 5px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                    Concluir Inspeção
-                </button>
-            </div>
+        botoesAcao += `
+            <button id="btn-cancelar-inspecao" class="btn btn-outline" style="color: var(--status-danger); border-color: var(--status-danger);">
+                Cancelar Inspeção
+            </button>
+            <button id="btn-concluir-inspecao" class="btn btn-inspecao" ${todasObrigatoriasFeitas && total > 0 ? '' : 'disabled style="opacity:0.5;" title="Conclua todas as tarefas obrigatórias"'} >
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 5px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                Concluir Inspeção
+            </button>
         `;
     }
+    botoesAcao += `</div>`;
 
     header.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
@@ -144,9 +150,37 @@ function renderizarCabecalho() {
         </div>
     `;
 
+    document.getElementById('btn-imprimir-pdf')?.addEventListener('click', baixarPDFInspecao);
+
     if (inspecaoAtual.status === 'ABERTA' || inspecaoAtual.status === 'EM_ANDAMENTO') {
         document.getElementById('btn-cancelar-inspecao')?.addEventListener('click', cancelarInspecao);
         document.getElementById('btn-concluir-inspecao')?.addEventListener('click', concluirInspecao);
+    }
+}
+
+async function baixarPDFInspecao() {
+    if (!window.INSPECAO_ID) return;
+    try {
+        showToast("Gerando PDF da Ordem de Inspeção...", "info");
+        const res = await fetch(`/api/v1/inspecoes/${window.INSPECAO_ID}/pdf`, {
+            credentials: 'same-origin'
+        });
+        if (!res.ok) {
+            throw new Error("Falha ao gerar o PDF da inspeção.");
+        }
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const matricula = inspecaoAtual?.aeronave?.matricula || 'A29';
+        a.download = `OS_Inspecao_${matricula}_${window.INSPECAO_ID.substring(0, 8)}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        showToast("Download do PDF iniciado com sucesso!", "success");
+    } catch(e) {
+        showToast("Erro ao gerar PDF da inspeção.", "error");
     }
 }
 

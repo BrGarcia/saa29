@@ -119,7 +119,7 @@ async def criar_inspecao_com_tarefas(db: AsyncSession) -> tuple[inspecoes_models
             tipos_inspecao_ids=[tipo.id],
             observacoes="Aeronave em teste de emissão de PDF",
         ),
-        usuario_padrao_id=usuario.id,
+        aberto_por_id=usuario.id,
     )
 
     return inspecao, usuario
