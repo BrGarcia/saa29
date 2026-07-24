@@ -38,7 +38,8 @@ def _format_date(d: Any, fmt: str = "%d/%m/%Y") -> str:
 
 async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> bytes:
     """
-    Gera o PDF formatado (A4 Retrato) da Ordem de Inspeção com Checklist e Inventário Controlado.
+    Gera o PDF formatado (A4 Retrato) da Ordem de Inspeção com Checklist,
+    Inventário Completo da Aeronave e Tabela de Vencimentos/Calibrações.
     Operação 100% passiva e somente-leitura.
     """
     # 1. Carregar dados completos da inspeção
@@ -57,7 +58,7 @@ async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> 
     if not inspecao:
         raise domain_exc.EntidadeNaoEncontradaError("Inspeção não encontrada.")
 
-    # 2. Carregar inventário instalado na aeronave com vencimento controlado
+    # 2. Carregar inventário completo instalado na aeronave
     aeronave_id = inspecao.aeronave_id
     stmt_inst = (
         select(Instalacao)
@@ -71,13 +72,12 @@ async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> 
         )
     )
     res_inst = await db.execute(stmt_inst)
-    instalacoes = res_inst.scalars().all()
+    todas_instalacoes = list(res_inst.scalars().all())
 
     # Filtrar apenas instalações onde o item possui controles de vencimento cadastrados
-    itens_controlados = []
-    for inst in instalacoes:
-        if inst.item and inst.item.controles_vencimento:
-            itens_controlados.append(inst)
+    itens_controlados = [
+        inst for inst in todas_instalacoes if inst.item and inst.item.controles_vencimento
+    ]
 
     # 3. Montar documento PDF com ReportLab
     buffer = io.BytesIO()
@@ -120,7 +120,7 @@ async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> 
         leading=12,
         textColor=colors.HexColor("#FFFFFF"),
         backColor=colors.HexColor("#1F497D"),
-        spaceBefore=6,
+        spaceBefore=8,
         spaceAfter=6,
         borderPadding=(4, 6, 4, 6),
     )
@@ -303,12 +303,67 @@ async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> 
     # --- QUEBRA DE PÁGINA OBRIGATÓRIA PARA O INVENTÁRIO ---
     elements.append(PageBreak())
 
-    # --- BLOCO 2: INVENTÁRIO CONTROLADO DA AERONAVE ---
-    elements.append(Paragraph(f"<b>3. INVENTÁRIO CONTROLADO DA AERONAVE ({matricula})</b>", section_heading))
+    # --- BLOCO 3: INVENTÁRIO COMPLETO DA AERONAVE ---
+    elements.append(Paragraph(f"<b>3. INVENTÁRIO COMPLETO DA AERONAVE ({matricula})</b>", section_heading))
+    elements.append(Paragraph("<i>Relação geral de todos os equipamentos aviônicos instalados na célula.</i>", val_style))
+    elements.append(Spacer(1, 6))
+
+    inv_full_headers = [
+        Paragraph("<b>Slot / Posição</b>", table_header_style),
+        Paragraph("<b>Equipamento / Modelo</b>", table_header_style),
+        Paragraph("<b>Part Number (PN)</b>", table_header_style),
+        Paragraph("<b>Serial (SN)</b>", table_header_style),
+        Paragraph("<b>Data Instalação</b>", table_header_style),
+    ]
+    
+    inv_full_rows = [inv_full_headers]
+
+    if not todas_instalacoes:
+        inv_full_rows.append([
+            Paragraph("---", cell_style_center),
+            Paragraph("Nenhum equipamento instalado nesta aeronave.", cell_style),
+            Paragraph("---", cell_style_center),
+            Paragraph("---", cell_style_center),
+            Paragraph("---", cell_style_center),
+        ])
+    else:
+        for inst in todas_instalacoes:
+            slot_nome = inst.slot.nome_posicao if inst.slot else "---"
+            item = inst.item
+            nome_eq = item.modelo.nome_generico if (item and item.modelo) else "---"
+            pn = item.modelo.part_number if (item and item.modelo) else "---"
+            sn = item.numero_serie if item else "---"
+            dt_inst = _format_date(inst.data_instalacao, "%d/%m/%Y")
+
+            inv_full_rows.append([
+                Paragraph(slot_nome, cell_style),
+                Paragraph(nome_eq, cell_style),
+                Paragraph(pn, cell_style_center),
+                Paragraph(sn, cell_style_center),
+                Paragraph(dt_inst, cell_style_center),
+            ])
+
+    inv_full_table = Table(inv_full_rows, colWidths=[110, 150, 100, 80, 80])
+    inv_full_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1F497D")),
+        ('ALIGN', (0,0), (-1,0), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#CBD5E1")),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.HexColor("#FFFFFF"), colors.HexColor("#F8FAFC")]),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('LEFTPADDING', (0,0), (-1,-1), 4),
+        ('RIGHTPADDING', (0,0), (-1,-1), 4),
+    ]))
+    elements.append(inv_full_table)
+    elements.append(Spacer(1, 14))
+
+    # --- BLOCO 4: VENCIMENTOS E CALIBRAÇÕES DA AERONAVE ---
+    elements.append(Paragraph(f"<b>4. VENCIMENTOS E CALIBRAÇÕES CONTROLADAS ({matricula})</b>", section_heading))
     elements.append(Paragraph("<i>Exibindo exclusivamente componentes com regras de calibração/vencimento temporal monitorado.</i>", val_style))
     elements.append(Spacer(1, 6))
 
-    inv_headers = [
+    venc_headers = [
         Paragraph("<b>Slot / Posição</b>", table_header_style),
         Paragraph("<b>Equipamento</b>", table_header_style),
         Paragraph("<b>Part Number (PN)</b>", table_header_style),
@@ -317,10 +372,10 @@ async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> 
         Paragraph("<b>Próximo Vencimento</b>", table_header_style),
     ]
     
-    inv_rows = [inv_headers]
+    venc_rows = [venc_headers]
 
     if not itens_controlados:
-        inv_rows.append([
+        venc_rows.append([
             Paragraph("---", cell_style_center),
             Paragraph("Nenhum item com vencimento controlado instalado na aeronave.", cell_style),
             Paragraph("---", cell_style_center),
@@ -351,7 +406,7 @@ async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> 
 
                 venc_para = Paragraph(f"{dt_venc}<br/><font color='{venc_color}'><b>({status_venc})</b></font>", cell_style_center)
 
-                inv_rows.append([
+                venc_rows.append([
                     Paragraph(slot_nome, cell_style),
                     Paragraph(nome_eq, cell_style),
                     Paragraph(pn, cell_style_center),
@@ -360,8 +415,8 @@ async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> 
                     venc_para,
                 ])
 
-    inv_table = Table(inv_rows, colWidths=[90, 110, 85, 75, 80, 80])
-    inv_table.setStyle(TableStyle([
+    venc_table = Table(venc_rows, colWidths=[90, 110, 85, 75, 80, 80])
+    venc_table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1F497D")),
         ('ALIGN', (0,0), (-1,0), 'CENTER'),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
@@ -372,7 +427,7 @@ async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> 
         ('LEFTPADDING', (0,0), (-1,-1), 4),
         ('RIGHTPADDING', (0,0), (-1,-1), 4),
     ]))
-    elements.append(inv_table)
+    elements.append(venc_table)
 
     # 4. Construir PDF em memória
     doc.build(elements)
