@@ -158,30 +158,10 @@ function renderizarCabecalho() {
     }
 }
 
-async function baixarPDFInspecao() {
+function baixarPDFInspecao() {
     if (!window.INSPECAO_ID) return;
-    try {
-        showToast("Gerando PDF da Ordem de Inspeção...", "info");
-        const res = await fetch(`/api/v1/inspecoes/${window.INSPECAO_ID}/pdf`, {
-            credentials: 'same-origin'
-        });
-        if (!res.ok) {
-            throw new Error("Falha ao gerar o PDF da inspeção.");
-        }
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const matricula = inspecaoAtual?.aeronave?.matricula || 'A29';
-        a.download = `OS_Inspecao_${matricula}_${window.INSPECAO_ID.substring(0, 8)}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-        showToast("Download do PDF iniciado com sucesso!", "success");
-    } catch(e) {
-        showToast("Erro ao gerar PDF da inspeção.", "error");
-    }
+    showToast("Gerando PDF da Ordem de Inspeção...", "info");
+    window.location.href = `/api/v1/inspecoes/${window.INSPECAO_ID}/pdf`;
 }
 
 function renderizarTarefas() {
