@@ -1,68 +1,86 @@
-# Implementação de Interface Mobile Simplificada (SAA29) — Modo Linha de Voo (Zero Fricção)
+# Implementação de Interface Mobile Simplificada (SAA29) — Modo Execução na Linha de Voo
 
-Este documento detalha as especificações técnicas e de experiência do usuário (UX) para a versão mobile do SAA29 (`/m/`), projetada especificamente para **operação ultra-rápida na linha de voo e no hangar**.
-
----
-
-## 🎯 1. Objetivo Operacional
-
-Proporcionar ao mantenedor e inspetor na linha de voo uma ferramenta de **máxima praticidade e zero atrito**, onde qualquer lançamento (pane, tarefa de checklist ou visto) possa ser realizado em **menos de 5 segundos**, sem necessidade de navegar por múltiplos menus, preencher campos burocráticos ou confirmar diálogos redundantes sob sol ou usando luvas.
+Este documento especifica a versão mobile simplificada do SAA29 (`/m/`), focada estritamente na **execução direta e conclusão rápida de tarefas** por mantenedores na linha de voo e hangar.
 
 ---
 
-## ⚡ 2. Princípios Norteadores: "Fricção Zero na Linha de Voo"
+## 🎯 1. Conceito Operacional (Foco em Execução)
 
-1. **Ação em 1 Toque (Tap-to-Action):** Da tela inicial até a conclusão de uma ação, no máximo 2 toques.
-2. **Entrada "Foto & Voz Primeiro":** Eliminar digitação no teclado virtual. O mecânico tira a foto da pane ou dita o texto por áudio (Web Speech API).
-3. **Presets & Chips Rápidos:** Botões de 1 clique com as panes mais comuns da rotina ("Vazamento de Óleo", "Pneu Desgastado", "Falha rádio VUHF1", "Falha MDP").
-4. **Sem Modais de Confirmação Redundantes:** Lançou/Vistou = Salvo instantaneamente no banco de dados. Exibe Toast com botão "Desfazer" (Undo) de 3 segundos para eventuais enganos.
-5. **Autenticação Rápida por PIN de 4 dígitos / Biometria (FaceID/Fingerprint):** Sem necessidade de digitar usuário e senha longa a cada acesso na pista.
-6. **Interface Adaptável a Sol Radiante (Modo Alta Legibilidade):** Botões com alvos de toque amplos (mínimo `56px`), contraste extremo e feedback tátil (Vibration API do celular).
+O fluxo de trabalho foi desenhado para **simplicidade absoluta e zero burocracia**:
 
----
-
-## 📱 3. Arquitetura da Solução Mobile (`/m/`)
-
-- **Rotas Dedicadas:** Prefixadas em `/m/` (ex: `/m/`, `/m/panes`, `/m/inspecoes`, `/m/frota`).
-- **PWA Instalável:** Suporte a *Progressive Web App* com manifesto e Service Worker para ícone direto na tela inicial do smartphone.
-- **Modo Offline-First Temporário:** Registro de panes e checklists em `IndexedDB`/`localStorage` caso o sinal de Wi-Fi/4G oscile no hangar, sincronizando automaticamente assim que a conexão retornar.
+1. **Encarregados & Gestores (Desktop):** Cadastram previamente as panes, ordens de trabalho e pacotes de inspeção no sistema.
+2. **Inspetores (Desktop/Tablet):** Geram e abrem as inspeções e checklists de delineamento.
+3. **Mantenedores / Mecânicos (Mobile na Pista):** Apenas abrem o aplicativo no smartphone, visualizam as tarefas pendentes da aeronave atribuída, executam a ação e **marcam como concluído em 1 toque**.
 
 ---
 
-## 🚀 4. Detalhamento dos Módulos Operacionais
+## ⚡ 2. Princípios da Interface Mobile (Mantenedor)
 
-### A. Dashboard de Frota Cockpit (`/m/`)
-- **Tela Única (Single Screen):** Ao abrir o app mobile, a primeira tela exibe os *Cards das Aeronaves* agrupados pelo status (Prontas para Voo / Em Inspeção / Indisponíveis).
-- **Bottom-Sheet ao Clicar na Aeronave:** Um clique no card da ANV (ex: `FAB 5701`) abre uma folha inferior instantânea com 3 grandes botões:
-  1. 🔴 **Lançar Pane Rápida**
-  2. 📋 **Continuar Checklist**
-  3. 👁️ **Ver Health Summary (Panes Ativas & Vencimentos)**
-
-### B. Relato Rápido de Panes ("Lançamento em 3 Segundos")
-- **Pré-preenchimento Automático:** Aeronave pré-selecionada pelo card acionado; Autor definido pelo militar logado.
-- **Interface de Entrada:**
-  - 📷 **Botão Câmera Gigante:** Tira a foto da pane que é anexada imediatamente.
-  - 🎙️ **Botão Ditado por Voz:** Transcreve a fala do mecânico para o campo de sintoma.
-  - 🏷️ **Chips de Panes Recorrentes:** Seleção com 1 toque dos sintomas frequentes.
-- **Botão "Salvar e Notificar":** Um toque envia o registro.
-
-### C. Checklist de Inspeção "Passa-Passa" (Swipe & Tap)
-- **Modo Execução Rápida:** Visualização de 1 item de checklist por vez em tela cheia com letras grandes.
-- **Ações Rápidas:**
-  - 🟢 **[ VISTO / OK ]** (Verde, 60px): Marca o item como concluído e avança automaticamente para o próximo item em 0,3s.
-  - 🔴 **[ RELATAR PANE ]** (Vermelho): Abre a câmera para anexar pane diretamente vinculada ao item do checklist.
-  - 🟡 **[ PNE / PENDENTE ]**: Marca o item para revisão sem travar o fluxo.
-
-### D. Consulta de Vencimentos & Inventário por QR Code / Slot
-- **Validação de Slot Físico:** Leitura de QR Code colado no painel/compartimento para exibir instantaneamente a peça que deveria estar instalada e seu vencimento.
+1. **Sem Formulários de Cadastro Complexos:** O mecânico não precisa cadastrar panes nem criar checklists no celular; ele consome o que já foi lançado pelo encarregado/inspetor.
+2. **Conclusão em 1 Toque:** Cada tarefa ou pane possui um botão de alta visibilidade `[ EXECUTADO / CONCLUIR ]`.
+3. **Anexo Opcional de Evidência:** Opção simples de tirar 1 foto (ex: componente trocado ou manômetro) ao concluir a tarefa.
+4. **Assinatura por Trigrama da Sessão:** O sistema preenche automaticamente o militar logado como executor da tarefa (`executado_por`).
+5. **Zero Confirmações Redundantes:** Clicou em concluir -> Tarefa salva instantaneamente. Toast com botão "Desfazer" de 3 segundos para enganos.
+6. **Interface Luva & Sol-Friendly:** Botões grandes (`>= 56px`), fontes de alto contraste e navegação simplificada.
 
 ---
 
-## 🛠️ 5. Cronograma de Implementação Simplificado
+## 📱 3. Fluxo de Uso na Linha de Voo (Passo a Passo)
 
-| Fase | Funcionalidade | Foco |
+```
+┌──────────────────────────────────────────────────────────┐
+┌ 1. TELA INICIAL: SELEÇÃO DE ANV                          ┐
+│  [ FAB 5701 - 2 tarefas pendentes ]  ──► (1 Toque)      │
+│  [ FAB 5702 - 0 tarefas pendentes ]                      │
+└──────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────┐
+┌ 2. LISTA DE TRABALHO DA ANV (FAB 5701)                   ┐
+│                                                          │
+│  • PANE ATA 24: Falha no CMFD 1                          │
+│    [ 🟢 CONCLUIR PANE ]    [ 📷 FOTO ]                    │
+│                                                          │
+│  • INSPEÇÃO 100H: Item 15 (Check EGIR/STHD)              │
+│    [ 🟢 VISTO / OK ]       [ 🟡 PNE ]                      │
+└──────────────────────────────────────────────────────────┘
+```
+
+### Passo 1: Seleção da Aeronave (1 Toque)
+Ao acessar `/m/`, o mantenedor vê os cards das aeronaves ativas na pista. Cada card destaca quantas tarefas/panes estão pendentes naquela ANV.
+
+### Passo 2: Lista de Execução da ANV
+Ao clicar na aeronave (ex: `FAB 5701`), o app exibe uma lista limpa contendo:
+- **Panes Abertas** que aguardam manutenção.
+- **Tarefas de Checklist** pendentes de execução.
+
+### Passo 3: Conclusão Instantânea
+- **Para Panes:** O mecânico clica em `[ CONCLUIR PANE ]`. Opcionalmente tira uma foto do componente ajustado/trocado e confirma. A pane muda o status para `RESOLVIDA` e vincula o trigrama do mantenedor.
+- **Para Checklists:** O mecânico clica em `[ VISTO / OK ]`. O item é marcado como concluído e desaparece da lista pendente.
+
+---
+
+## 🛠️ 4. Escopo Técnico da Versão Mobile (v1)
+
+### Incluído na V1:
+- [x] Rota mobile `/m/` otimizada para smartphones (Jinja2 + CSS ultra-leve).
+- [x] PWA (Progressive Web App) para adicionar à tela inicial do celular.
+- [x] Card de Frota com contador de pendências por ANV.
+- [x] Lista unificada de Panes & Checklists pendentes por aeronave.
+- [x] Ação de conclusão em 1 toque com captura direta de foto pela câmera.
+- [x] Auditoria automática registrando o trigrama e timestamp do executor.
+
+### Excluído da V1 (Mantendo a Simplicidade):
+- ❌ Reconhecimento / ditado por voz.
+- ❌ Formulários extensos de cadastro de panes no celular.
+- ❌ Modais e diálogos de confirmação múltiplos.
+
+---
+
+## 📊 5. Cronograma de Implementação Simplificado
+
+| Fase | Entrega | Foco |
 | :--- | :--- | :--- |
-| **Fase 1** | Shell Mobile `/m/`, PWA, Autenticação por PIN e Dashboard Cockpit | Acesso rápido em 1 toque |
-| **Fase 2** | Relato Rápido de Panes (Câmera + Ditado por Voz + Chips) | Registro de pista < 5 seg |
-| **Fase 3** | Checklist Digital "Passa-Passa" com Avanço Automático | Substituição de papel no hangar |
-| **Fase 4** | Cache Offline (IndexedDB) e Sincronização Automática | Operação em áreas sem Wi-Fi |
+| **Fase 1** | Layout Base `/m/` & Dashboard de Frota com Pendências | Acesso e seleção em 1 toque |
+| **Fase 2** | Lista de Execução de Panes & Conclusão com Foto | Encerramento rápido de panes |
+| **Fase 3** | Lista de Execução de Checklists & Vistos em 1 Toque | Baixa rápida de inspeções |
