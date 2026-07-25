@@ -195,3 +195,56 @@ async def test_endpoint_pdf_inspecao_sucesso(db: AsyncSession):
     assert "attachment" in response.headers["content-disposition"]
     assert ".pdf" in response.headers["content-disposition"]
     assert response.content.startswith(b"%PDF-")
+
+
+@pytest.mark.asyncio
+async def test_gerar_pdf_checklist_inspecao_servico_direto(db: AsyncSession):
+    """Valida a chamada direta ao serviço de geração do PDF do Checklist de Delineamento."""
+    from app.modules.inspecoes import pdf_service
+
+    inspecao, _ = await criar_inspecao_com_tarefas(db)
+    
+    pdf_bytes = await pdf_service.gerar_pdf_checklist_inspecao(db, inspecao.id)
+
+    assert isinstance(pdf_bytes, bytes)
+    assert len(pdf_bytes) > 0
+    assert pdf_bytes.startswith(b"%PDF-")
+
+
+@pytest.mark.asyncio
+async def test_endpoint_checklist_inspecao_sem_autenticacao_retorna_401(db: AsyncSession):
+    """Garante que a rota de PDF do Checklist exige autenticação."""
+    app = criar_app_isolado(db, usuario=None)
+    inspecao_id_falso = uuid.uuid4()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        response = await client.get(f"{INSPECOES_URL}/{inspecao_id_falso}/checklist")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_endpoint_checklist_inspecao_inexistente_retorna_404(db: AsyncSession):
+    """Garante erro 404 quando o UUID da inspeção não existe no banco."""
+    usuario = await criar_usuario_teste(db)
+    app = criar_app_isolado(db, usuario=usuario)
+    inspecao_id_falso = uuid.uuid4()
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        response = await client.get(f"{INSPECOES_URL}/{inspecao_id_falso}/checklist")
+    assert response.status_code == 404
+    assert "Inspeção não encontrada" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_endpoint_checklist_inspecao_sucesso(db: AsyncSession):
+    """Testa a rota completa de download do PDF do Checklist via cliente HTTP."""
+    inspecao, usuario = await criar_inspecao_com_tarefas(db)
+    app = criar_app_isolado(db, usuario=usuario)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        response = await client.get(f"{INSPECOES_URL}/{inspecao.id}/checklist")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert "attachment" in response.headers["content-disposition"]
+    assert "Checklist_Inspecao_" in response.headers["content-disposition"]
+    assert response.content.startswith(b"%PDF-")
+

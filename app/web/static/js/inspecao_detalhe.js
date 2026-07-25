@@ -96,6 +96,10 @@ function renderizarCabecalho() {
 
     let botoesAcao = `
         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button id="btn-imprimir-checklist" class="btn btn-outline" style="white-space: nowrap; display: flex; align-items: center; gap: 0.4rem;">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Imprimir (Checklist)
+            </button>
             <button id="btn-imprimir-pdf" class="btn btn-outline" style="white-space: nowrap; display: flex; align-items: center; gap: 0.4rem;">
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                 Imprimir (PDF)
@@ -150,12 +154,19 @@ function renderizarCabecalho() {
         </div>
     `;
 
+    document.getElementById('btn-imprimir-checklist')?.addEventListener('click', baixarChecklistInspecao);
     document.getElementById('btn-imprimir-pdf')?.addEventListener('click', baixarPDFInspecao);
 
     if (inspecaoAtual.status === 'ABERTA' || inspecaoAtual.status === 'EM_ANDAMENTO') {
         document.getElementById('btn-cancelar-inspecao')?.addEventListener('click', cancelarInspecao);
         document.getElementById('btn-concluir-inspecao')?.addEventListener('click', concluirInspecao);
     }
+}
+
+function baixarChecklistInspecao() {
+    if (!window.INSPECAO_ID) return;
+    showToast("Gerando PDF do Checklist da Inspeção...", "info");
+    window.location.href = `/inspecoes/${window.INSPECAO_ID}/checklist`;
 }
 
 function baixarPDFInspecao() {

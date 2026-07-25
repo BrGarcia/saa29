@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 
 from app.bootstrap.dependencies import CurrentUser, DBSession, EncarregadoOuAdmin, AdminRequired, ExecucaoPermitida, EncarregadoInspetorOuAdmin
 from app.modules.inspecoes import schemas, service, pdf_service
+from app.shared.core import exceptions as domain_exc
 from app.shared.core.enums import StatusInspecao
 from app.shared.exporter import gerar_csv, gerar_xlsx
 
@@ -372,7 +373,29 @@ async def gerar_pdf_inspecao(
             media_type="application/pdf",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'}
         )
-    except ValueError as exc:
+    except (ValueError, domain_exc.EntidadeNaoEncontradaError) as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get(
+    "/{inspecao_id}/checklist",
+    summary="Gerar PDF do Checklist da Inspeção",
+)
+async def gerar_checklist_inspecao(
+    inspecao_id: uuid.UUID,
+    db: DBSession,
+    _: CurrentUser,
+):
+    """Gera o arquivo PDF formatado do Checklist de Delineamento da Inspeção."""
+    try:
+        pdf_bytes = await pdf_service.gerar_pdf_checklist_inspecao(db, inspecao_id)
+        filename = f"Checklist_Inspecao_{str(inspecao_id)[:8]}.pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+    except (ValueError, domain_exc.EntidadeNaoEncontradaError) as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
