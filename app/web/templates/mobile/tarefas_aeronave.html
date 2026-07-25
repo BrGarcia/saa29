@@ -1,0 +1,33 @@
+{% extends "mobile/base_mobile.html" %}
+
+{% block title %}Tarefas ANV — SAA29 Mobile{% endblock %}
+
+{% block content %}
+<div class="mobile-section" id="context-aeronave-mobile" data-aeronave-id="{{ aeronave_id }}">
+    <div class="mobile-nav-back">
+        <a href="/m/" class="btn-back-mobile">← Voltar à Frota</a>
+    </div>
+
+    <div class="mobile-aeronave-header">
+        <h2 id="anv-title-mobile">A-29 FAB ...</h2>
+        <span id="anv-status-badge" class="badge-status">...</span>
+    </div>
+
+    <div class="mobile-tabs">
+        <button id="tab-btn-todas" class="mobile-tab-btn active">Todas Tarefas</button>
+        <button id="tab-btn-panes" class="mobile-tab-btn">Panes</button>
+        <button id="tab-btn-inspecoes" class="mobile-tab-btn">Checklists</button>
+    </div>
+
+    <div id="container-tarefas-mobile" class="mobile-task-list">
+        <div class="mobile-loading">Buscando pendências da aeronave...</div>
+    </div>
+</div>
+
+<!-- Modal / Input Oculto para Câmera (Sem Eventos Inline) -->
+<input type="file" id="mobile-camera-input" accept="image/*" capture="environment" style="display: none;">
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/mobile/tarefas_mobile.js"></script>
+{% endblock %}

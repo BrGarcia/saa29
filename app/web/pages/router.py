@@ -91,3 +91,23 @@ async def configuracoes_page(request: Request, _: AdminRequired):
     """Página de Configurações do Sistema - Admin"""
     return templates.TemplateResponse("configuracoes.html", {"request": request})
 
+
+# --- ROTAS MOBILE (/m/) ---
+
+@router.get("/m/", response_class=HTMLResponse, include_in_schema=False)
+@router.get("/m", response_class=HTMLResponse, include_in_schema=False)
+async def mobile_frota_page(request: Request, user=Depends(get_current_user)):
+    """Dashboard Cockpit Mobile — Lista de Frota para Linha de Voo."""
+    return templates.TemplateResponse("mobile/frota.html", {"request": request, "user": user})
+
+
+@router.get("/m/aeronave/{aeronave_id}", response_class=HTMLResponse, include_in_schema=False)
+async def mobile_tarefas_aeronave_page(request: Request, aeronave_id: str, user=Depends(get_current_user)):
+    """Lista de Tarefas e Panes da Aeronave para Mantenedor em 1 Toque."""
+    return templates.TemplateResponse("mobile/tarefas_aeronave.html", {
+        "request": request,
+        "aeronave_id": aeronave_id,
+        "user": user
+    })
+
+

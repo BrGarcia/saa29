@@ -1,0 +1,184 @@
+/* ==========================================================================
+   SAA29 Mobile - Design System para Linha de Voo (Fricção Zero)
+   ========================================================================== */
+
+:root {
+    --mobile-bg: #0F172A;
+    --mobile-card-bg: #1E293B;
+    --mobile-card-border: #334155;
+    --mobile-text: #F8FAFC;
+    --mobile-text-muted: #94A3B8;
+    --mobile-primary: #1F497D;
+    --mobile-accent: #2563EB;
+    --mobile-success: #166534;
+    --mobile-success-bright: #22C55E;
+    --mobile-danger: #991B1B;
+    --mobile-warning: #854D0E;
+    --mobile-touch-target: 56px;
+}
+
+body.mobile-body {
+    background-color: var(--mobile-bg);
+    color: var(--mobile-text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Header Fixo Mobile */
+.mobile-header {
+    background-color: #020617;
+    border-bottom: 1px solid var(--mobile-card-border);
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.mobile-header-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mobile-app-badge {
+    background: var(--mobile-primary);
+    color: #FFFFFF;
+    font-weight: 800;
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    letter-spacing: 0.05rem;
+}
+
+.mobile-header h1 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--mobile-text);
+}
+
+.mobile-user-badge {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.25rem 0.6rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Conteúdo Principal */
+.mobile-content {
+    padding: 1rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.mobile-section-title {
+    font-size: 1.25rem;
+    margin: 0 0 0.25rem 0;
+}
+
+.mobile-section-sub {
+    font-size: 0.85rem;
+    color: var(--mobile-text-muted);
+    margin: 0 0 1rem 0;
+}
+
+/* Cards da Frota */
+.mobile-card-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.mobile-anv-card {
+    background: var(--mobile-card-bg);
+    border: 1px solid var(--mobile-card-border);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-decoration: none;
+    color: inherit;
+    min-height: var(--mobile-touch-target);
+    transition: transform 0.1s ease, border-color 0.2s ease;
+}
+
+.mobile-anv-card:active {
+    transform: scale(0.98);
+    border-color: var(--mobile-accent);
+}
+
+.mobile-anv-info h3 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.2rem;
+    color: #FFFFFF;
+}
+
+.mobile-anv-info p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--mobile-text-muted);
+}
+
+.mobile-anv-badge-count {
+    background: var(--mobile-danger);
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+
+.mobile-anv-badge-count.zero {
+    background: var(--mobile-success);
+}
+
+/* Botões de Ação de 1 Toque */
+.btn-mobile-action {
+    min-height: var(--mobile-touch-target);
+    width: 100%;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    touch-action: manipulation;
+}
+
+.btn-mobile-success {
+    background-color: var(--mobile-success-bright);
+    color: #020617;
+}
+
+.btn-mobile-success:active {
+    background-color: #16a34a;
+}
+
+.btn-back-mobile {
+    color: var(--mobile-accent);
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-block;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.mobile-loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--mobile-text-muted);
+}

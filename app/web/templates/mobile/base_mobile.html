@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0F172A">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>{% block title %}SAA29 Mobile{% endblock %}</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/static/manifest.json">
+    
+    <!-- Design System Base & Mobile Overrides -->
+    <link rel="stylesheet" href="/static/css/index.css">
+    <link rel="stylesheet" href="/static/css/mobile.css">
+</head>
+<body class="mobile-body">
+
+    <!-- Top Bar Bar da Linha de Voo -->
+    <header class="mobile-header">
+        <div class="mobile-header-title">
+            <span class="mobile-app-badge">SAA29</span>
+            <h1>Linha de Voo</h1>
+        </div>
+        <div class="mobile-user-badge" id="mobile-user-badge">
+            <span class="user-trigrama">{{ user.trigrama if user and user.trigrama else 'MIL' }}</span>
+        </div>
+    </header>
+
+    <!-- Conteúdo Principal -->
+    <main class="mobile-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Contexto Oculto para JavaScript (Conformidade CSP) -->
+    <div id="mobile-global-context"
+         data-user-trigrama="{{ user.trigrama if user and user.trigrama else '' }}"
+         style="display: none;">
+    </div>
+
+    <!-- Scripts Globais (CSP Compliant) -->
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/mobile/app_mobile.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
