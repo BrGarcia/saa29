@@ -34,6 +34,19 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 
 ---
 
+## [1.3.0] - 2026-07-25
+
+### Added
+- **Inspeções (Checklist PDF):** Adicionado o botão `[Imprimir (Checklist)]` na tela Detalhes da Inspeção, permitindo a emissão de relatórios em PDF formatados de acordo com o padrão institucional da Força Aérea Brasileira e alinhados à estrutura de `docs/CHECKLIST Delineamento A-29.pdf`.
+- **Backend (Checklist PDF Service):** Endpoint `GET /inspecoes/{inspecao_id}/checklist` e serviço ReportLab (`gerar_pdf_checklist_inspecao`) pré-preenchendo cabeçalho da aeronave/inspeção e inserindo a tabela de *"Vencimentos e Calibrações Controladas da Aeronave"* na seção de Relatório de Voo.
+- **Documentação de Checklist & Automação:** Formatados e reestruturados os documentos `docs/CHECKLIST Delineamento A-29.pdf` e `docs/CHECKLIST Liberação EEXD A-29.pdf` no padrão visual oficial das Ordens de Serviço (OS), acompanhados de scripts de geração em `scripts/gerar_pdf_checklist_delineamento.py` e `scripts/gerar_pdf_checklist_liberacao_eexd.py`.
+
+### Fixed
+- **Segurança (CSRF em Downloads):** Corrigido o erro 403 Forbidden ("Falha na sincronia de segurança") ao tentar realizar ações de POST/PATCH após o download de arquivos PDF/CSV/XLSX/imagens. O `CSRFMiddleware` (`app/shared/middleware/csrf.py`) agora inspeciona o `Content-Type` real da resposta HTTP antes de emitir um novo token, ignorando respostas de arquivos binários não-HTML para não sobrescrever o cookie do cliente.
+- **Segurança (CSP):** Integração do botão `[Imprimir (Checklist)]` realizada via manipuladores de eventos (`addEventListener`) em `app/web/static/js/inspecao_detalhe.js`, sem injeção de scripts/atributos inline, garantindo conformidade com a política `script-src 'self'`.
+
+---
+
 ## [Unreleased]
 
 ### Added

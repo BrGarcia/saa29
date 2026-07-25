@@ -39,8 +39,8 @@ app/modules/inspecoes:
 - models.py: TipoInspecao,TarefaCatalogo,TarefaTemplate,Inspecao (with persistent audit),InspecaoTarefa
 - schemas.py: local_status_enums,pydantic_contracts
 - service.py: business_rules_crud_instantiation_completion_extras_audit
-- pdf_service.py: reportlab_pdf_generator_for_inspection_orders
-- router.py: api_router_fully_registered_and_bootstrapped (with /export and /{id}/pdf routes)
+- pdf_service.py: reportlab_pdf_generator_for_inspection_orders_and_checklists
+- router.py: api_router_fully_registered_and_bootstrapped (with /export, /{id}/pdf and /{id}/checklist routes)
 
 app/modules/calendario:
 - __init__.py: passive_package
@@ -60,6 +60,8 @@ scripts:
 - db/seed.py: dev_seed_base
 - seed_equipamentos.py: seed_inventory_structure_and_bootstrap_catalog
 - seed_30_panes.py: sample_panes
+- gerar_pdf_checklist_delineamento.py: reportlab_pdf_generator_delineamento_checklist
+- gerar_pdf_checklist_liberacao_eexd.py: reportlab_pdf_generator_eexd_checklist
 - run_app.py: local_run
 - maintenance/r2_manager.py: sqlite_backup_restore_r2
 - maintenance/reset_admin.py: admin_password_reset

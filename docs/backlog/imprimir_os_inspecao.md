@@ -92,3 +92,33 @@ Adicionar a funcionalidade de emissão e download automático de relatórios em 
 - [x] Bloco 4 (Inventário Completo) iniciado em página dedicada.
 - [x] Checklist de tarefas contém coluna de visto/assinatura e formatação para preenchimento manual de itens pendentes.
 - [x] Suíte de testes automatizados passando 100%.
+
+---
+
+## 📋 6. Extensão: Impressão de Checklist de Delineamento A-29
+
+### 6.1 Objetivo
+Adicionar o botão **`[Imprimir (Checklist)]`** à esquerda de **`[Imprimir (PDF)]`** na tela Detalhes da Inspeção, gerando o PDF do Checklist de Delineamento de Inspeções A-29 alinhado ao padrão `docs/CHECKLIST Delineamento A-29.pdf`.
+
+### 6.2 Componentes e Endpoints
+- **Rota HTTP:** `GET /inspecoes/{inspecao_id}/checklist`
+- **Serviço ReportLab:** `gerar_pdf_checklist_inspecao(db, inspecao_id)` em `app/modules/inspecoes/pdf_service.py`.
+- **Frontend Button:** `<button id="btn-imprimir-checklist">` posicionado à esquerda de `btn-imprimir-pdf` em `app/web/static/js/inspecao_detalhe.js`.
+
+### 6.3 Estrutura do Documento Checklist
+1. **Cabeçalho:** *FORÇA AÉREA BRASILEIRA — CHECKLIST DE ELETRÔNICA — DELINEAMENTO DE INSPEÇÕES A-29*.
+2. **1. Identificação da Aeronave e Inspeção:** Preenchimento automático de ANV, tipo(s) de inspeção, responsável e datas.
+3. **2. Relatório de Voo:** Itens 01 a 03 + Tabela *"VENCIMENTOS E CALIBRAÇÕES CONTROLADAS DA AERONAVE"*.
+4. **3. Inspeção Visual:** Itens 04 a 14 + Tabela de Versões OFP MDP1/MDP2.
+5. **4. Checks dos Sistemas:** 4.1 Cabine 1P (Itens 15 a 25 com parâmetros HDG EGIR / HDG BCKP) e 4.2 Cabine 2P (Itens 26 a 32).
+6. **5. Delineamento e SILOMS:** Item 33.
+7. **6. Discrepâncias / Observações Encontradas:** Quadro reservado para anotação manual.
+8. **Bloco de Assinatura:** Inspetor de Eletrônica e Data.
+
+### 6.4 Aceite do Checklist
+- [x] Botão `[Imprimir (Checklist)]` exibido à esquerda de `[Imprimir (PDF)]`.
+- [x] O clique gera um PDF com layout compatível com `docs/CHECKLIST Delineamento A-29.pdf`.
+- [x] Cabeçalho preenchido automaticamente com dados da inspeção.
+- [x] Seção 2 contém a tabela de vencimentos e calibrações controladas da aeronave.
+- [x] Conformidade estrita com a metodologia CSP (sem eventos `onclick` inline).
+

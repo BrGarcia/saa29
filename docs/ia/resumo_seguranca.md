@@ -61,3 +61,5 @@ recent_actions:
 - 2026-05-07: Added token reuse protection, fixed storage error masking, secured inventory RBAC.
 - 2026-05-07 (Rodada 2): Secured pane responsibility role, fixed inventory traceability, removed direct service rollbacks, fixed bcrypt byte limit.
 - 2026-05-27: Added length constraint to calendar event notes, added active inspections checks to toggle manual aircraft status, and added manual magic bytes fallback for file validators.
+- 2026-07-25: Refactored CSRFMiddleware (app/shared/middleware/csrf.py) to prevent token desynchronization on GET binary/file downloads (PDF/CSV/XLSX/images).
+- 2026-07-25: Implemented Imprimir (Checklist) button using event listener binding in inspecao_detalhe.js under strict script-src 'self' CSP compliance.
