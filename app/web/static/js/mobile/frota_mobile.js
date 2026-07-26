@@ -10,10 +10,7 @@ async function carregarFrotaMobile() {
     if (!container) return;
 
     try {
-        const response = await fetch('/aeronaves');
-        if (!response.ok) throw new Error('Falha ao carregar frota.');
-        
-        const aeronaves = await response.json();
+        const aeronaves = await apiFetch('/aeronaves/');
         
         if (!aeronaves || aeronaves.length === 0) {
             container.innerHTML = '<div class="mobile-loading">Nenhuma aeronave cadastrada.</div>';
@@ -25,11 +22,8 @@ async function carregarFrotaMobile() {
             // Busca contagem de pendências de panes para esta ANV
             let pendenciasCount = 0;
             try {
-                const resPanes = await fetch(`/panes?aeronave_id=${anv.id}&status=ABERTA`);
-                if (resPanes.ok) {
-                    const panes = await resPanes.json();
-                    pendenciasCount = panes ? panes.length : 0;
-                }
+                const panes = await apiFetch(`/panes/?aeronave_id=${anv.id}&status=ABERTA`);
+                pendenciasCount = Array.isArray(panes) ? panes.length : 0;
             } catch (e) {
                 console.warn('Não foi possível obter panes da ANV:', anv.matricula);
             }
