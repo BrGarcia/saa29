@@ -67,6 +67,53 @@ async def _get_ranking_subquery():
     ).subquery()
 
 
+async def _sincronizar_status_aeronave_pane(db: AsyncSession, aeronave_id: uuid.UUID) -> None:
+    """
+    Sincroniza o status da aeronave com base nas regras de negócio da frota:
+    1. Se possui inspeção ativa ➔ status é INSPEÇÃO.
+    2. Se possui pane aberta ➔ status muda para INDISPONIVEL (a menos que esteja sob inspeção, inativa ou estocada).
+    3. Se não possui pane aberta nem inspeção ➔ status retorna para DISPONIVEL (caso estivesse INDISPONIVEL).
+    """
+    from app.modules.aeronaves.service import buscar_aeronave
+    from app.modules.inspecoes.models import Inspecao
+    from app.modules.inspecoes.service import STATUS_ATIVOS
+
+    aeronave = await buscar_aeronave(db, aeronave_id)
+    if not aeronave:
+        return
+
+    # Verificar panes abertas ativas
+    q_panes = select(func.count(Pane.id)).where(
+        Pane.aeronave_id == aeronave_id,
+        Pane.status == StatusPane.ABERTA.value,
+        Pane.ativo == True,
+    )
+    res_panes = await db.execute(q_panes)
+    tem_panes_abertas = (res_panes.scalar() or 0) > 0
+
+    # Verificar inspeções ativas
+    q_insp = select(func.count(Inspecao.id)).where(
+        Inspecao.aeronave_id == aeronave_id,
+        Inspecao.status.in_(STATUS_ATIVOS),
+    )
+    res_insp = await db.execute(q_insp)
+    tem_inspecao_ativa = (res_insp.scalar() or 0) > 0
+
+    status_str = aeronave.status.value if hasattr(aeronave.status, 'value') else str(aeronave.status)
+
+    if tem_inspecao_ativa:
+        aeronave.status = StatusAeronave.INSPECAO
+    elif tem_panes_abertas:
+        if status_str not in [StatusAeronave.INSPECAO.value, "INSPEÇÃO", StatusAeronave.INATIVA.value, StatusAeronave.ESTOCADA.value]:
+            aeronave.status = StatusAeronave.INDISPONIVEL
+    else:
+        if status_str in [StatusAeronave.INDISPONIVEL.value, StatusAeronave.INSPECAO.value]:
+            aeronave.status = StatusAeronave.DISPONIVEL
+
+    db.add(aeronave)
+    await db.flush()
+
+
 async def criar_pane(
     db: AsyncSession,
     dados: PaneCreate,
@@ -132,8 +179,10 @@ async def criar_pane(
         # Importante: Carregar o usuário para que o trigrama esteja disponível na serialização
         await db.refresh(resp, ["usuario"])
     
+    # Sincroniza o status da aeronave para INDISPONIVEL (se estava DISPONIVEL)
+    await _sincronizar_status_aeronave_pane(db, dados.aeronave_id)
+
     # Garantir que as coleções estejam inicializadas para evitar erro de lazy-load no router
-    # Note: refresh(pane, ["responsaveis"]) carregará a lista, e o refresh(resp, ["usuario"]) acima garante o objeto interno
     await db.refresh(pane, ["aeronave", "anexos", "responsaveis", "sistema_ata"])
     
     return pane
@@ -409,6 +458,7 @@ async def concluir_pane(
             await db.refresh(resp, ["usuario"])
 
     await db.flush()
+    await _sincronizar_status_aeronave_pane(db, pane.aeronave_id)
     await db.refresh(pane, ["aeronave", "anexos", "responsaveis", "responsavel_conclusao"])
     return pane
 
@@ -428,6 +478,7 @@ async def excluir_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane:
         raise ValueError("Pane já está inativa.")
     pane.ativo = False
     await db.flush()
+    await _sincronizar_status_aeronave_pane(db, pane.aeronave_id)
     return pane
 
 
@@ -444,6 +495,7 @@ async def restaurar_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane:
         raise ValueError("Pane já está ativa.")
     pane.ativo = True
     await db.flush()
+    await _sincronizar_status_aeronave_pane(db, pane.aeronave_id)
     return pane
 
 

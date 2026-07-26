@@ -579,7 +579,18 @@ async def concluir_inspecao(
     )
     result_ativas = await db.execute(query_ativas)
     if result_ativas.scalar() == 0 and inspecao.aeronave:
-        inspecao.aeronave.status = StatusAeronave.DISPONIVEL.value
+        from app.modules.panes.models import Pane
+        from app.shared.core.enums import StatusPane
+        q_panes = select(func.count(Pane.id)).where(
+            Pane.aeronave_id == inspecao.aeronave_id,
+            Pane.status == StatusPane.ABERTA.value,
+            Pane.ativo == True
+        )
+        res_panes = await db.execute(q_panes)
+        if (res_panes.scalar() or 0) > 0:
+            inspecao.aeronave.status = StatusAeronave.INDISPONIVEL.value
+        else:
+            inspecao.aeronave.status = StatusAeronave.DISPONIVEL.value
 
     await db.flush()
     
@@ -604,7 +615,18 @@ async def cancelar_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> Inspeca
     )
     result_ativas = await db.execute(query_ativas)
     if result_ativas.scalar() == 0 and inspecao.aeronave:
-        inspecao.aeronave.status = StatusAeronave.DISPONIVEL.value
+        from app.modules.panes.models import Pane
+        from app.shared.core.enums import StatusPane
+        q_panes = select(func.count(Pane.id)).where(
+            Pane.aeronave_id == inspecao.aeronave_id,
+            Pane.status == StatusPane.ABERTA.value,
+            Pane.ativo == True
+        )
+        res_panes = await db.execute(q_panes)
+        if (res_panes.scalar() or 0) > 0:
+            inspecao.aeronave.status = StatusAeronave.INDISPONIVEL.value
+        else:
+            inspecao.aeronave.status = StatusAeronave.DISPONIVEL.value
 
     await db.flush()
     
