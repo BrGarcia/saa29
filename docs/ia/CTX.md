@@ -1,7 +1,7 @@
 # ctx
 
 meta:
-- sync_date: 2026-07-23
+- sync_date: 2026-07-26
 - docs_structure: reorganized and cleaned (core/, guides/, backlog/, summaries/, ia/*.ctx)
 - mode: machine
 - format: kv_short
@@ -12,8 +12,8 @@ project:
 - type: web_monolith_modular_ddd
 - domain: panes_aeronaves_inventario_a29
 - status: architecture_stabilized_ddd_active
-- version: 1.2.0
-- test_status: all tests passing (179 tests passed)
+- version: 1.4.0
+- test_status: all tests passing (205 tests passed)
 - db_state: active_db_preserve_no_schema_change_for_inspecoes
 
 operational_constraints:
@@ -123,7 +123,7 @@ backlog_inspecoes:
 - feature_desacoplamento_tarefas_catalogo: completed
 - feature_duracao_tipos_e_dpe: completed
 - feature_auditoria_trigrama_persistente: completed
-- feature_inspecao_pdf_ordem_servico: planned (spec: docs/backlog/imprimir_os_inspecao.md)
+- feature_inspecao_pdf_ordem_servico: completed (reportlab pdf endpoints /pdf and /checklist)
 - csp_compliance: mandatory_for_all_new_UI (no_inline_scripts_no_onclick_attrs)
 
 known_gaps_from_roadmap:
@@ -133,6 +133,8 @@ known_gaps_from_roadmap:
 - data_export_csv_xlsx_v1_2_0_resolved: true
 - ci_matrix_testing_workflow_resolved: true
 - feature_modo_calendario_p0_p5: completed (tests, data layer, service/router censorship, frontend, write modal, DPE aggregation)
+- mobile_linha_de_voo_module_completed: true (module /m/, off-canvas drawer menu, 1-touch task completion)
+- aircraft_status_hierarchy_sync_completed: true (DISPONIVEL -> INDISPONIVEL auto-sync via service and router SQL safety net)
 - bug_fix_inativar_anv_config_verified: true
 - logout_frontend_backend_alignment_verified: true
 - database_url_consistency_verified: true

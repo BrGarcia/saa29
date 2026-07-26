@@ -29,10 +29,10 @@ app:
 - shared/middleware/: csrf
 - shared/services/image/: image_processing_pipeline (validator,converter,resizer,optimizer,pipeline)
 - bootstrap/config/: split_config_package (__init__.py=app_settings, image.py=image_pipeline_constants)
-- web/pages/router.py: html_routes (panes,frota,inventario,vencimentos,configuracoes,efetivo,inspecoes)
-- web/templates/: jinja_templates (base,panes,aeronaves,inventario,vencimentos,configuracoes,efetivo,inspecoes)
-- web/static/js/: configuracoes.js,vencimentos.js,inventario.js,panes.js,app.js,auth_check.js,inspecoes.js,inspecao_detalhe.js
-- web/static/css/: index.css (design_system_tokens_and_components)
+- web/pages/router.py: html_routes (panes,frota,inventario,vencimentos,configuracoes,efetivo,inspecoes,mobile /m/)
+- web/templates/: jinja_templates (base,panes,aeronaves,inventario,vencimentos,configuracoes,efetivo,inspecoes,mobile/base_mobile,frota_mobile,tarefas_mobile)
+- web/static/js/: configuracoes.js,vencimentos.js,inventario.js,panes.js,app.js,auth_check.js,inspecoes.js,inspecao_detalhe.js,mobile/app_mobile.js,mobile/frota_mobile.js,mobile/tarefas_mobile.js
+- web/static/css/: index.css,mobile.css (mobile_linha_de_voo_off_canvas_drawer_styles)
 
 app/modules/inspecoes:
 - __init__.py: passive_package
@@ -67,7 +67,8 @@ scripts:
 - maintenance/reset_admin.py: admin_password_reset
 
 tests:
-- unit/: feature_and_api_behavior
+- unit/: feature_and_api_behavior (including test_mobile.py with 13 tests)
+- integration/: test_mobile_integration.py
 - test_exporter.py: csv_and_xlsx_export_unit_tests
 - unit/test_inspecoes.py: isolated_inspections_service_router_security_tests
 - unit/shared/services/image/: image_pipeline_unit_tests (test_validator,test_converter,test_resizer,test_optimizer,test_pipeline)
