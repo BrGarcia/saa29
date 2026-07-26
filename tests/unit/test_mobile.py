@@ -189,6 +189,24 @@ async def test_templates_mobile_conformidade_csp_zero_inline(db: AsyncSession):
 
 
 @pytest.mark.asyncio
+async def test_mobile_menu_sanduiche_estrutura_e_links(db: AsyncSession):
+    """Valida a presença do botão de menu sanduíche e estrutura do drawer off-canvas."""
+    usuario = await criar_usuario_teste(db)
+    app = criar_app_mobile(db, usuario=usuario)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        response = await client.get("/m/")
+
+    assert response.status_code == 200
+    assert 'id="btn-mobile-menu"' in response.text
+    assert 'id="mobile-menu-drawer"' in response.text
+    assert 'id="mobile-menu-overlay"' in response.text
+    assert "Linha de Voo (Início)" in response.text
+    assert "Modo Desktop / Dashboard" in response.text
+
+
+
+@pytest.mark.asyncio
 async def test_fluxo_concluir_pane_mobile_1_toque(db: AsyncSession):
     """Valida o endpoint de baixa de pane acionado pela interface mobile."""
     usuario = await criar_usuario_teste(db)
