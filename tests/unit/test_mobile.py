@@ -168,6 +168,7 @@ async def test_mobile_js_scripts_disponiveis(db: AsyncSession):
     assert res_tarefas.status_code == 200
     assert "calcularPrioridadeOperacional" in res_frota.text
     assert "prioridade" in res_frota.text
+    assert "INDISPONIVEL > INSPECAO > DISPONIVEL" in res_frota.text
 
 
 @pytest.mark.asyncio

@@ -36,10 +36,10 @@ async function carregarFrotaMobile() {
             })
         );
 
-        // Reordena por criticidade operacional:
-        // 1. Aeronaves com panes abertas (prioridade 1)
-        // 2. Aeronaves em inspeção (prioridade 2)
-        // 3. Aeronaves disponíveis sem panes (prioridade 3)
+        // Reordena por criticidade operacional (INDISPONIVEL > INSPECAO > DISPONIVEL):
+        // 1. Aeronaves INDISPONÍVEIS / com panes abertas (prioridade 1)
+        // 2. Aeronaves em INSPEÇÃO (prioridade 2)
+        // 3. Aeronaves DISPONÍVEIS sem panes (prioridade 3)
         // Desempate: quantidade de panes desc (se P1) e matrícula asc
         frotaComDados.sort((a, b) => {
             if (a.prioridade !== b.prioridade) {
@@ -79,15 +79,20 @@ async function carregarFrotaMobile() {
 }
 
 function calcularPrioridadeOperacional(anv, pendenciasCount) {
-    // 1. aeronaves com panes abertas
-    if (pendenciasCount > 0) {
+    const statusUpper = (anv.status || '').toUpperCase();
+
+    // 1. Aeronaves INDISPONÍVEIS (status INDISPONIVEL/INDISPONÍVEL ou possui panes abertas fora de inspeção)
+    if (
+        statusUpper.includes('INDISPONIVEL') ||
+        statusUpper.includes('INDISPONÍVEL') ||
+        (pendenciasCount > 0 && !statusUpper.includes('INSPEC'))
+    ) {
         return 1;
     }
-    // 2. aeronaves em inspeção
-    const statusUpper = (anv.status || '').toUpperCase();
-    if (statusUpper === 'INSPEÇÃO' || statusUpper === 'INSPECAO') {
+    // 2. Aeronaves em INSPEÇÃO (status INSPEÇÃO ou INSPECAO)
+    if (statusUpper.includes('INSPEC')) {
         return 2;
     }
-    // 3. aeronaves disponíveis sem panes
+    // 3. Aeronaves DISPONÍVEIS (status DISPONIVEL, OPERACIONAL ou outros)
     return 3;
 }
