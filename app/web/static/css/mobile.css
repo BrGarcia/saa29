@@ -13,7 +13,7 @@
     --mobile-success: #166534;
     --mobile-success-bright: #22C55E;
     --mobile-danger: #991B1B;
-    --mobile-warning: #854D0E;
+    --mobile-warning: #D97706;
     --mobile-touch-target: 56px;
 }
 
@@ -285,6 +285,11 @@ body.mobile-body {
     padding: 0.4rem 0.8rem;
     border-radius: 20px;
     white-space: nowrap;
+}
+
+.mobile-anv-badge-count.inspecao {
+    background: var(--mobile-warning, #D97706);
+    color: #FFFFFF;
 }
 
 .mobile-anv-badge-count.zero {

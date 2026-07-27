@@ -40,12 +40,12 @@ async function carregarFrotaMobile() {
         // 1. Aeronaves INDISPONÍVEIS / com panes abertas (prioridade 1)
         // 2. Aeronaves em INSPEÇÃO (prioridade 2)
         // 3. Aeronaves DISPONÍVEIS sem panes (prioridade 3)
-        // Desempate: quantidade de panes desc (se P1) e matrícula asc
+        // Desempate: quantidade de pendências desc e matrícula asc
         frotaComDados.sort((a, b) => {
             if (a.prioridade !== b.prioridade) {
                 return a.prioridade - b.prioridade;
             }
-            if (a.prioridade === 1 && a.pendenciasCount !== b.pendenciasCount) {
+            if (a.pendenciasCount !== b.pendenciasCount) {
                 return b.pendenciasCount - a.pendenciasCount;
             }
             return (a.anv.matricula || '').localeCompare(b.anv.matricula || '', undefined, { numeric: true });
@@ -58,7 +58,16 @@ async function carregarFrotaMobile() {
             card.className = 'mobile-anv-card';
             card.setAttribute('data-aeronave-id', anv.id);
 
-            const countBadgeClass = pendenciasCount > 0 ? 'mobile-anv-badge-count' : 'mobile-anv-badge-count zero';
+            const statusUpper = (anv.status || '').toUpperCase();
+            const isInspecao = statusUpper.includes('INSPEC') || statusUpper.includes('INSPEÇ');
+
+            let countBadgeClass = 'mobile-anv-badge-count';
+            if (isInspecao) {
+                countBadgeClass += ' inspecao';
+            } else if (pendenciasCount === 0) {
+                countBadgeClass += ' zero';
+            }
+
             const countText = pendenciasCount > 0 ? `${pendenciasCount} Pendência(s)` : '0 Pendências';
 
             card.innerHTML = `
@@ -81,18 +90,18 @@ async function carregarFrotaMobile() {
 function calcularPrioridadeOperacional(anv, pendenciasCount) {
     const statusUpper = (anv.status || '').toUpperCase();
 
-    // 1. Aeronaves INDISPONÍVEIS (status INDISPONIVEL/INDISPONÍVEL ou possui panes abertas fora de inspeção)
-    if (
-        statusUpper.includes('INDISPONIVEL') ||
-        statusUpper.includes('INDISPONÍVEL') ||
-        (pendenciasCount > 0 && !statusUpper.includes('INSPEC'))
-    ) {
+    // 1. Aeronaves INDISPONÍVEIS (status INDISPONIVEL ou INDISPONÍVEL)
+    if (statusUpper.includes('INDISPONIVEL') || statusUpper.includes('INDISPONÍVEL')) {
         return 1;
     }
     // 2. Aeronaves em INSPEÇÃO (status INSPEÇÃO ou INSPECAO)
-    if (statusUpper.includes('INSPEC')) {
+    if (statusUpper.includes('INSPEC') || statusUpper.includes('INSPEÇ')) {
         return 2;
     }
-    // 3. Aeronaves DISPONÍVEIS (status DISPONIVEL, OPERACIONAL ou outros)
+    // 3. Panes abertas fora de inspeção (se houver pendências e status não for de inspeção)
+    if (pendenciasCount > 0) {
+        return 1;
+    }
+    // 4. Aeronaves DISPONÍVEIS (status DISPONIVEL, OPERACIONAL ou outros sem pendências)
     return 3;
 }
