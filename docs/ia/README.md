@@ -3,7 +3,7 @@
 meta:
 - purpose: low_token_machine_context
 - scope: summarized_mirror_of_official_docs
-- source_of_truth: docs/README.md, docs/architecture/, docs/core/, docs/guides/, docs/backlog/, docs/summaries/, docs/SECURITY.md, docs/ROADMAP.md, docs/CHANGELOG.md, docs/methodology/merge_main.md
+- source_of_truth: docs/README.md, docs/architecture/, docs/core/, docs/guides/, docs/backlog/, docs/summaries/, docs/guides/SECURITY.md, docs/ROADMAP.md, docs/methodology/CHANGELOG.md, docs/methodology/merge_main.md
 - rule: if_conflict_use_official_docs
 
 read_order:

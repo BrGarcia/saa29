@@ -76,16 +76,16 @@ tests:
 - architecture/: architecture_and_perf_guards
 
 docs:
-- architecture/: source_for_architecture (Database.md, RBAC.md, overview.md, referencia-api.md)
+- architecture/: Database.md, RBAC.md, overview.md, referencia-api.md, adr/ (ADR-001..003, refatorações)
 - core/: source_of_truth_specs (SRS.md, SPECS.md)
-- ia/: ai_context_layer (CTX.md, *.ctx files, glossario.md, mapa_repositorio.md, prompts_base.md)
+- ia/: ai_context_layer (CTX.md, *.ctx files, glossario.md, mapa_repositorio.md, prompts_base.md, prompt_codex.md)
 - summaries/: condensed_human_docs (PROJECT_SUMMARY.md, SRS_SUMMARY.md, SPECS_SUMMARY.md, MODEL_DB_SUMMARY.md)
-- guides/: operational_setup_docs (guia-desenvolvimento.md, guia-testes.md, cloudflare_r2.md, migracao_postgresql.md)
-- backlog/: planning_and_bugs (implementacoes pendentes, resolvidos/)
-- legacy/: historical_docs_and_archive
+- guides/: operational_setup_and_governance (guia-desenvolvimento.md, guia-testes.md, cloudflare_r2.md, migracao_postgresql.md, CODE_OF_CONDUCT.md, CONTRIBUTING.md, SECURITY.md)
+- backlog/: active_planning_and_bugs (feature_controle_pedidos.md, mockup_pedidos.html, Melhorias Futuras/, resolvidos/)
+- legacy/: historical_docs (auditorias_antigas/)
 - tdd/: test_planning
-- relatorio/: audit_reports
-- methodology/: AKITA.md, DoD.md, DoR.md
+- manual/: manual_sistema.md
+- methodology/: project_lifecycle (ESTADO_ATUAL_E_FUTURO.MD, CHANGELOG.md, NEXT.md, CSP.md, merge_main.md)
 
 ignore_likely:
 - .venv/

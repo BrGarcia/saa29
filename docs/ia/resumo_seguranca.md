@@ -32,7 +32,7 @@ sensitive_env:
 - R2_SECRET_ACCESS_KEY
 
 security_docs:
-- docs/SECURITY.md
+- docs/guides/SECURITY.md
 - docs/guides/cloudflare_r2.md
 - docs/architecture/referencia-api.md
 - docs/architecture/RBAC.md
