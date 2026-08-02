@@ -86,17 +86,49 @@ ETAPA 5 ➔ Bootstrap, Shared Core & Exporter (database / storage / exporter)
 
 ---
 
-### 🔹 ETAPA 3: Módulo de Vencimentos & Inspeções
+### 🔹 ETAPA 3: Módulo de Vencimentos & Inspeções — ✅ CONCLUÍDA (02/08/2026)
 * **Arquivos Alvo:**
-  - `app/modules/vencimentos/service.py` & `models.py`
-  - `app/modules/inspecoes/service.py` & `models.py`
+  - `app/modules/vencimentos/service.py` & `router.py`
+  - `app/modules/inspecoes/service.py` & `router.py`
   - `app/modules/inspecoes/pdf_service.py`
-* **Relatório a Gerar:** `docs/backlog/Fable5/relatorio_vencimentos_inspecoes.md`
-* **Foco Técnico:**
-  - Otimização de cálculos de prazos e periodicidades (evitar consultas desnecessárias ao banco).
-  - Cascata de atualização de status do inventário quando uma inspeção é concluída ou aberta.
-  - Performance da geração de PDFs via ReportLab (alocação de memória e tratamento de imagens).
-  - RBAC e segregação de funções (validação de inspetor vs mantenedor).
+  - `app/modules/panes/service.py` (função de sincronização de status reaproveitada, ver abaixo)
+* **Plano de Execução:** `docs/backlog/Fable5/Etapa3.md` (evidências completas, testes por fase, decisões de escopo)
+* **Relatório de Referência:** `docs/backlog/Fable5/relatorio_vencimentos_inspecoes.md` (finalizado — Crítica 5/5, Média 6/6, Baixa 3/3)
+* **Foco Técnico (todos os pontos abaixo corrigidos):**
+  - 🔴 **Bug Crítico:** `domain_exc.NotFoundError` inexistente causava `AttributeError` (500) ao prorrogar vencimento inexistente. → ✅
+  - 🔴 **Bug de Domínio:** status de vencimento (`OK`/`VENCENDO`/`VENCIDO`) nunca era recalculado pela passagem do tempo — matriz de vencimentos ficava desatualizada indefinidamente. Corrigido derivando o status em tempo de leitura (`calcular_status_vencimento`), sem persistir o valor derivado (evita efeito colateral de escrita numa rota GET). → ✅
+  - 🔴 **Dívida Técnica:** duplicação integral do bloco de sincronização de status da aeronave entre `concluir_inspecao`/`cancelar_inspecao`, extraída para a função já existente e mais completa `panes.service.sincronizar_status_aeronave` (criada na Etapa 2, tornada pública). → ✅
+  - 🔴 **Bug adicional descoberto na reutilização acima:** guard defeituoso em `sincronizar_status_aeronave` deixava a aeronave presa em `INSPECAO` ao concluir/cancelar uma inspeção com pane aberta remanescente — capturado por teste de regressão antes de ir para produção. → ✅
+  - 🟡 **N+1 Queries:** `associar_controle_a_equipamento` (vencimentos) e `abrir_inspecao` (inspeções) otimizados com SELECTs batched via `IN`. → ✅
+  - 🟡 **Concorrência (TOCTOU):** SAVEPOINT + `IntegrityError` aplicado em 5 pontos de criação protegidos por UNIQUE (vencimentos e inspeções), mesmo padrão das Etapas 1-2. → ✅
+  - 🟡 **Contrato HTTP:** 36 `raise ValueError` sem tipo em inspeções migrados para exceções de domínio; 14 blocos `try/except ValueError` removidos do router (o status HTTP deixou de depender da posição do bloco). → ✅
+  - 🟢 **Limpeza:** strings mágicas em `calcular_progresso`, `== True` sem `.is_(True)`, ternário aninhado, `relativedelta`→`timedelta`, teto de paginação (`LIMITE_MAXIMO_LISTAGEM = 200`, mesmo padrão da Etapa 1). → ✅
+* **Efeitos colaterais aproveitados na mesma etapa:** `pdf_service.py` teve as duas queries duplicadas
+  (carregar inspeção + carregar instalações) extraídas para helpers compartilhados, com equivalência de
+  saída verificada via comparação de texto extraído (`pypdf`) antes/depois da mudança.
+* **⚠️ Achado sistêmico não corrigido, fora do escopo desta etapa (recomendado para a Etapa 5):** o padrão
+  SAVEPOINT (`db.begin_nested()`) usado desde a Etapa 1 para proteção TOCTOU parece não estar isolado
+  corretamente do `rollback()` externo no engine SQLite atual (uma inserção dentro de um SAVEPOINT
+  sobreviveu ao rollback de um teste, vazando para o teste seguinte). Consistente com uma lacuna de
+  configuração conhecida do SQLAlchemy para savepoints em SQLite (falta desabilitar o `BEGIN` implícito do
+  `pysqlite`/`aiosqlite`) em `tests/conftest.py` e `app/bootstrap/database.py`. **Implicação potencial:**
+  se o mesmo problema ocorrer em produção, o isolamento de escritas malsucedidas via SAVEPOINT (usado nas
+  Etapas 1, 2 e 3) pode não estar funcionando como pretendido. Não investigado nem corrigido — exige um
+  teste de regressão dedicado antes de mexer na configuração do engine.
+* **Ajuste de premissa vs. plano original:** o foco técnico previa *"tratamento de imagens"* na geração de
+  PDF — não há nenhuma manipulação de imagem em `pdf_service.py` (só `Paragraph`/`Table`); o foco real era
+  duplicação estrutural das queries, tratado acima.
+* **Pendências conscientes que saem do escopo desta etapa** (documentadas no relatório, não bloqueiam o fechamento):
+  duplicidade de inspeção ativa em `abrir_inspecao` sem proteção transacional (não há UNIQUE constraint
+  possível para essa regra condicional); índice único parcial para "uma só prorrogação ativa por controle"
+  (avaliado, não implementado, por prudência dado o achado do SAVEPOINT); unificação dos ~20
+  `ParagraphStyle` divergentes entre as duas funções de PDF (risco desproporcional ao ganho); `== True`
+  remanescente em `vencimentos/service.py` (3 ocorrências, fora da evidência original do item).
+* **Testes:** 20 testes novos (`test_vencimentos_criticos.py` — 6, `test_inspecoes_refatoracao.py` — 6,
+  `test_vencimentos_inspecoes_media_prioridade.py` — 8) + ajustes em `test_aeronaves.py`,
+  `test_inspecoes.py`, `test_panes_alta_prioridade.py`, `test_panes_baixa_prioridade.py` (referências ao
+  nome público da função de sincronização e ao novo tipo de exceção); suíte completa do projeto **281/281**.
+* **Git Sync:** ⬜ não executado — mudanças aplicadas no working tree, aguardando revisão/commit do usuário.
 
 ---
 
@@ -146,7 +178,7 @@ Para manter a consistência e o controle de versão em cada etapa:
 |:---:|---|:---:|:---:|:---:|
 | **Etapa 1** | Equipamentos & Inventário | ✅ Concluída (02/08/2026) | `relatorio_equipamentos_services.md` (finalizado) | 44/44 (módulo) · 220/220 (suíte) |
 | **Etapa 2** | Panes & Anexos | ✅ Concluída (02/08/2026) | `relatorio_panes_service.md` (finalizado) | 61/61 (módulo) · 250/250 (suíte) |
-| **Etapa 3** | Vencimentos & Inspeções | ⚪ Pendente | `relatorio_vencimentos_inspecoes.md` | — |
+| **Etapa 3** | Vencimentos & Inspeções | ✅ Concluída (02/08/2026) | `relatorio_vencimentos_inspecoes.md` (finalizado) | 20 novos (módulo) · 281/281 (suíte) |
 | **Etapa 4** | Auth & Segurança | ⚪ Pendente | `relatorio_auth_seguranca.md` | — |
 | **Etapa 5** | Core & Infraestrutura | ⚪ Pendente | `relatorio_core_bootstrap.md` | — |
 
