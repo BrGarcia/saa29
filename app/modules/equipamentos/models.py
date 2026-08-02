@@ -112,6 +112,13 @@ class Instalacao(Base):
     usuario_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
     data_instalacao: Mapped[date] = mapped_column(Date, nullable=False)
     data_remocao: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Timestamp do EVENTO de remoção. Não usar updated_at para isso: qualquer
+    # update posterior no registro corromperia o histórico.
+    removido_em: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Data/hora em que a remoção foi registrada (histórico imutável)",
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
