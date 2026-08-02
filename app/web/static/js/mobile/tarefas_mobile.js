@@ -19,17 +19,25 @@ async function carregarTarefasAeronave(anvId) {
     if (!container || !anvId) return;
 
     try {
-        // Carrega dados da ANV
-        const resAnv = await fetch(`/aeronaves/${anvId}`);
-        if (resAnv.ok) {
-            const anv = await resAnv.json();
-            if (anvTitleEl) anvTitleEl.textContent = `A-29 ${anv.matricula}`;
-            if (anvBadgeEl) anvBadgeEl.textContent = anv.status;
+        // Carrega dados da ANV via apiFetch (Garante Accept: application/json e cookie credentials)
+        try {
+            const anv = await apiFetch(`/aeronaves/${anvId}`);
+            if (anv && anv.matricula) {
+                if (anvTitleEl) anvTitleEl.textContent = `A-29 ${anv.matricula}`;
+                if (anvBadgeEl) anvBadgeEl.textContent = anv.status;
+            }
+        } catch (e) {
+            console.warn("Falha ao carregar detalhes da ANV:", e);
         }
 
-        // Carrega Panes Abertas da ANV
-        const resPanes = await fetch(`/panes?aeronave_id=${anvId}&status=ABERTA`);
-        const panes = resPanes.ok ? await resPanes.json() : [];
+        // Carrega Panes Abertas da ANV via apiFetch
+        let panes = [];
+        try {
+            const resPanes = await apiFetch(`/panes/?aeronave_id=${anvId}&status=ABERTA`);
+            panes = Array.isArray(resPanes) ? resPanes : [];
+        } catch (e) {
+            console.warn("Falha ao buscar panes da ANV:", e);
+        }
 
         container.innerHTML = '';
 
@@ -87,19 +95,10 @@ async function handleConcluirPaneMobile(event) {
     btn.textContent = 'Concluindo...';
 
     try {
-        const response = await fetch(`/panes/${paneId}/concluir`, {
+        await apiFetch(`/panes/${paneId}/concluir`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': getCsrfTokenFromCookie()
-            },
-            body: JSON.stringify({ observacao_conclusao: "Concluído via SAA29 Mobile (1 toque)" })
+            body: { observacao_conclusao: "Concluído via SAA29 Mobile (1 toque)" }
         });
-
-        if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.detail || 'Falha ao concluir pane.');
-        }
 
         showToast('Pane concluída com sucesso!', 'success');
         // Recarrega lista

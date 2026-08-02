@@ -48,7 +48,8 @@ v5.0: Ecossistema Total    ░░ Visão Final (IA & Supply)
 - [x] **v1.0.0**: Lançamento estável com CRUD de Panes, Frota e Efetivo.
 - [x] **v1.1.0**: Implementação de Soft Delete de usuários e Interface de Intervenção Direta.
 - [x] **v1.2.0**: Exportação universal de relatórios (CSV/XLSX), desacoplamento de contratos DDD (`AeronaveLookupProtocol`), matriz CI/CD no GitHub Actions e 179 testes automatizados com 100% de sucesso.
-- [ ] **v1.3.0**: Emissão de PDF da Ordem de Inspeção (OS com checklist, trigramas e inventário controlado A4 formato oficial).
+- [x] **v1.3.0**: Emissão de PDF da Ordem de Inspeção e Checklist de Manutenção (`/inspecoes/{id}/pdf` e `/inspecoes/{id}/checklist` no formato A4 oficial FAB).
+- [x] **v1.4.0**: Módulo Mobile da Linha de Voo (`/m/`), menu hambúrguer off-canvas drawer, baixa de tarefas em 1 toque, sincronização automatizada e atômica da hierarquia de status de aeronaves (DISPONÍVEL ➔ INDISPONÍVEL), conformidade estrita com CSP e 205 testes automatizados com 100% de sucesso.
 
 ---
 

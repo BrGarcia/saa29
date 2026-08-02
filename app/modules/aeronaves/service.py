@@ -33,7 +33,41 @@ async def listar_aeronaves(
     if not incluir_inativas:
         query = query.where(Aeronave.status != StatusAeronave.INATIVA)
     result = await db.execute(query.order_by(Aeronave.matricula).offset(skip).limit(limit))
-    return list(result.scalars().all())
+    aeronaves = list(result.scalars().all())
+
+    # Garantir integridade do status da frota com panes e inspeções abertas
+    if aeronaves:
+        from app.modules.inspecoes.models import Inspecao
+        from app.modules.inspecoes.service import STATUS_ATIVOS
+        from app.modules.panes.models import Pane
+        from app.shared.core.enums import StatusPane
+
+        q_insp = select(Inspecao.aeronave_id).where(Inspecao.status.in_(STATUS_ATIVOS))
+        inspecoes_ativas = set(str(i) for i in (await db.execute(q_insp)).scalars().all())
+
+        q_panes = select(Pane.aeronave_id).where(Pane.status == StatusPane.ABERTA.value, Pane.ativo == True)
+        panes_ativas = set(str(p) for p in (await db.execute(q_panes)).scalars().all())
+
+        for a in aeronaves:
+            ac_id_str = str(a.id)
+            status_base = a.status.value if hasattr(a.status, 'value') else str(a.status)
+
+            if ac_id_str in inspecoes_ativas:
+                novo_status = StatusAeronave.INSPECAO
+            elif ac_id_str in panes_ativas and status_base not in [StatusAeronave.INSPECAO.value, "INSPEÇÃO", StatusAeronave.INATIVA.value, StatusAeronave.ESTOCADA.value]:
+                novo_status = StatusAeronave.INDISPONIVEL
+            elif status_base == StatusAeronave.INDISPONIVEL.value and ac_id_str not in panes_ativas and ac_id_str not in inspecoes_ativas:
+                novo_status = StatusAeronave.DISPONIVEL
+            else:
+                novo_status = None
+
+            if novo_status and a.status != novo_status:
+                a.status = novo_status
+                db.add(a)
+
+        await db.flush()
+
+    return aeronaves
 
 
 async def alternar_status_aeronave(

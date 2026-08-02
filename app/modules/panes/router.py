@@ -45,7 +45,25 @@ async def criar_pane(
     """Abre uma nova pane vinculada a uma aeronave. Status inicial = ABERTA."""
     try:
         pane = await service.criar_pane(db, dados, usuario_atual.id)
-        return schemas.PaneOut.model_validate(pane)
+        result = schemas.PaneOut.model_validate(pane)
+
+        # Safety net: sincronizar status da aeronave via SQL direto.
+        # Garante que a aeronave transite para INDISPONIVEL quando recebe
+        # uma pane aberta, mesmo em cenários de cache de ORM.
+        from sqlalchemy import update as sql_update
+        from app.modules.aeronaves.models import Aeronave
+        from app.shared.core.enums import StatusAeronave
+        await db.execute(
+            sql_update(Aeronave)
+            .where(Aeronave.id == dados.aeronave_id)
+            .where(Aeronave.status.in_([
+                StatusAeronave.DISPONIVEL,
+                StatusAeronave.OPERACIONAL,
+            ]))
+            .values(status=StatusAeronave.INDISPONIVEL)
+        )
+
+        return result
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -206,9 +224,56 @@ async def concluir_pane(
     ensure_role(usuario_atual, "MANTENEDOR", "ENCARREGADO", "INSPETOR", "ADMINISTRADOR")
     """Conclui a pane. Preenche data_conclusao automaticamente (RN-04)."""
     try:
+        # Buscar aeronave_id da pane antes de concluir
+        pane_antes = await service.buscar_pane(db, pane_id)
+        aeronave_id_pane = pane_antes[0].aeronave_id if pane_antes else None
+
         await service.concluir_pane(
             db, pane_id, usuario_atual.id, dados.observacao_conclusao
         )
+
+        # Safety net: sincronizar status da aeronave via SQL direto apos conclusao.
+        if aeronave_id_pane:
+            from sqlalchemy import select as sql_select, update as sql_update, func
+            from app.modules.panes.models import Pane
+            from app.modules.aeronaves.models import Aeronave
+            from app.shared.core.enums import StatusAeronave, StatusPane
+            from app.modules.inspecoes.models import Inspecao
+            from app.modules.inspecoes.service import STATUS_ATIVOS
+
+            # Contar panes abertas restantes
+            res = await db.execute(
+                sql_select(func.count(Pane.id)).where(
+                    Pane.aeronave_id == aeronave_id_pane,
+                    Pane.status == StatusPane.ABERTA.value,
+                    Pane.ativo == True,
+                )
+            )
+            panes_restantes = res.scalar() or 0
+
+            # Contar inspecoes ativas
+            res_insp = await db.execute(
+                sql_select(func.count(Inspecao.id)).where(
+                    Inspecao.aeronave_id == aeronave_id_pane,
+                    Inspecao.status.in_(STATUS_ATIVOS),
+                )
+            )
+            insp_ativas = res_insp.scalar() or 0
+
+            if insp_ativas > 0:
+                await db.execute(
+                    sql_update(Aeronave)
+                    .where(Aeronave.id == aeronave_id_pane)
+                    .values(status=StatusAeronave.INSPECAO)
+                )
+            elif panes_restantes == 0:
+                await db.execute(
+                    sql_update(Aeronave)
+                    .where(Aeronave.id == aeronave_id_pane)
+                    .where(Aeronave.status == StatusAeronave.INDISPONIVEL)
+                    .values(status=StatusAeronave.DISPONIVEL)
+                )
+
         # Recarregar para pegar o ranking/código
         resultado = await service.buscar_pane(db, pane_id)
         if not resultado:

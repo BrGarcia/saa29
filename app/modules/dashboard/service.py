@@ -234,13 +234,13 @@ async def get_frota_summary(db: AsyncSession) -> FrotaSummary:
         # Forçar string para comparação de ID (garante compatibilidade UUID vs UUID)
         ac_id_str = str(a.id)
 
-        # 1. Se há inspeção ativa, o status é obrigatoriamente INSPEÇÃO no dashboard.
+        # Hierarquia de status do Controle de Frota:
+        # 1. Se há inspeção ativa ➔ INSPEÇÃO
+        # 2. Se há pane aberta e não está sob inspeção/inativa/estocada ➔ INDISPONIVEL
         if ac_id_str in inspecoes_ativas:
             status_final = "INSPEÇÃO"
-        
-        # Nota: Removemos o override automático de "INDISPONIVEL" para Panes.
-        # Agora o dashboard respeita o status definido pelo Encarregado no banco (Aeronave.status),
-        # a menos que a aeronave esteja em inspeção.
+        elif ac_id_str in panes_ativas and status_final not in ["INSPEÇÃO", "INSPECAO", "INATIVA", "ESTOCADA"]:
+            status_final = "INDISPONIVEL"
 
         # Incrementar contagem consolidada
         contagens[status_final] = contagens.get(status_final, 0) + 1

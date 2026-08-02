@@ -166,6 +166,10 @@ async def test_mobile_js_scripts_disponiveis(db: AsyncSession):
     assert res_app.status_code == 200
     assert res_frota.status_code == 200
     assert res_tarefas.status_code == 200
+    assert "calcularPrioridadeOperacional" in res_frota.text
+    assert "prioridade" in res_frota.text
+    assert "INDISPONIVEL > INSPECAO > DISPONIVEL" in res_frota.text
+    assert "inspecao" in res_frota.text
 
 
 @pytest.mark.asyncio
@@ -186,6 +190,24 @@ async def test_templates_mobile_conformidade_csp_zero_inline(db: AsyncSession):
         assert "onchange=" not in html_content.lower()
         assert "onsubmit=" not in html_content.lower()
         assert "onload=" not in html_content.lower()
+
+
+@pytest.mark.asyncio
+async def test_mobile_menu_sanduiche_estrutura_e_links(db: AsyncSession):
+    """Valida a presença do botão de menu sanduíche e estrutura do drawer off-canvas."""
+    usuario = await criar_usuario_teste(db)
+    app = criar_app_mobile(db, usuario=usuario)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        response = await client.get("/m/")
+
+    assert response.status_code == 200
+    assert 'id="btn-mobile-menu"' in response.text
+    assert 'id="mobile-menu-drawer"' in response.text
+    assert 'id="mobile-menu-overlay"' in response.text
+    assert "Linha de Voo (Início)" in response.text
+    assert "Modo Desktop / Dashboard" in response.text
+
 
 
 @pytest.mark.asyncio

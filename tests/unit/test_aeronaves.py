@@ -325,3 +325,76 @@ class TestEndpointsAdicionais:
         response = await client.post(f"{AERONAVES_URL}{aid}/toggle-status", headers=headers)
         assert response.status_code == 409
         assert "inspeção ativa" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_status_aeronave_atualiza_para_indisponivel_ao_abrir_pane(
+        self, client: AsyncClient, dados_aeronave_valida: dict, usuario_e_token: dict, db: AsyncSession
+    ):
+        """
+        DADO aeronave DISPONIVEL
+        QUANDO atribuída uma pane aberta
+        ENTÃO status da aeronave deve atualizar para INDISPONIVEL no Controle de Frota.
+        """
+        headers = usuario_e_token["headers"]
+        rnd = uuid.uuid4().hex[:6]
+        dados = dict(dados_aeronave_valida)
+        dados["matricula"] = f"59{rnd[:2]}"
+        dados["serial_number"] = f"SN-IND-{rnd}"
+        aeronave = await client.post(AERONAVES_URL, json=dados, headers=headers)
+        assert aeronave.status_code == 201
+        aid = aeronave.json()["id"]
+
+        # Criar pane para a aeronave
+        resp_pane = await client.post(
+            "/panes/",
+            json={"aeronave_id": aid, "descricao": "ATA 23 - COMUNICACAO INTERMITENTE"},
+            headers=headers
+        )
+        assert resp_pane.status_code == 201
+
+        # Verificar listagem de aeronaves (Controle de Frota)
+        res_list = await client.get(AERONAVES_URL, headers=headers)
+        assert res_list.status_code == 200
+        anv_found = next((a for a in res_list.json() if a["id"] == aid), None)
+        assert anv_found is not None
+        assert anv_found["status"] == "INDISPONIVEL"
+
+    @pytest.mark.asyncio
+    async def test_status_aeronave_permanece_inspecao_quando_pane_aberta(
+        self, client: AsyncClient, dados_aeronave_valida: dict, usuario_e_token: dict, db: AsyncSession
+    ):
+        """
+        DADO aeronave em INSPECAO
+        QUANDO atribuída uma pane aberta
+        ENTÃO status deve permanecer INSPECAO.
+        """
+        headers = usuario_e_token["headers"]
+        rnd = uuid.uuid4().hex[:6]
+        dados = dict(dados_aeronave_valida)
+        dados["matricula"] = f"58{rnd[:2]}"
+        dados["serial_number"] = f"SN-INSP-{rnd}"
+        aeronave = await client.post(AERONAVES_URL, json=dados, headers=headers)
+        assert aeronave.status_code == 201
+        aid = aeronave.json()["id"]
+
+        # Definir aeronave em inspeção no banco
+        from app.modules.aeronaves.service import buscar_aeronave
+        from app.shared.core.enums import StatusAeronave
+        anv_obj = await buscar_aeronave(db, uuid.UUID(aid))
+        anv_obj.status = StatusAeronave.INSPECAO
+        await db.flush()
+
+        # Criar pane na aeronave em inspeção
+        resp_pane = await client.post(
+            "/panes/",
+            json={"aeronave_id": aid, "descricao": "Pane em Inspeção"},
+            headers=headers
+        )
+        assert resp_pane.status_code == 201
+
+        # O status deve permanecer INSPEÇÃO
+        res_list = await client.get(AERONAVES_URL, headers=headers)
+        anv_found = next((a for a in res_list.json() if a["id"] == aid), None)
+        assert anv_found is not None
+        assert anv_found["status"] in ["INSPECAO", "INSPEÇÃO"]
+

@@ -36,6 +36,7 @@ from app.modules.inspecoes.router import router as inspecoes_router
 from app.modules.calendario.router import router as calendario_router
 from app.modules.dashboard.router import router as dashboard_router
 from app.web.pages.router import router as pages_router
+from app.web.pages.mobile_router import router as mobile_router
 
 
 def create_app() -> FastAPI:
@@ -118,6 +119,7 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(dashboard_router,    prefix="/dashboard",    tags=["Dashboard"])
     
     # Frontend Pages (Root / UI)
+    app.include_router(mobile_router)
     app.include_router(pages_router)
 
 

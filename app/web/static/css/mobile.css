@@ -13,7 +13,7 @@
     --mobile-success: #166534;
     --mobile-success-bright: #22C55E;
     --mobile-danger: #991B1B;
-    --mobile-warning: #854D0E;
+    --mobile-warning: #D97706;
     --mobile-touch-target: 56px;
 }
 
@@ -63,6 +63,12 @@ body.mobile-body {
     color: var(--mobile-text);
 }
 
+.mobile-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .mobile-user-badge {
     background: rgba(255, 255, 255, 0.1);
     padding: 0.25rem 0.6rem;
@@ -70,6 +76,149 @@ body.mobile-body {
     font-size: 0.8rem;
     font-weight: 600;
     border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.mobile-menu-btn {
+    background: transparent;
+    border: none;
+    color: var(--mobile-text);
+    padding: 0.4rem;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    min-height: 40px;
+    touch-action: manipulation;
+}
+
+.mobile-menu-btn:active {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Overlay do Menu Sanduíche */
+.mobile-menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(2, 6, 23, 0.7);
+    backdrop-filter: blur(2px);
+    z-index: 200;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.mobile-menu-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Off-Canvas Drawer (Menu Lateral) */
+.mobile-menu-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 280px;
+    max-width: 85vw;
+    height: 100vh;
+    background: #020617;
+    border-left: 1px solid var(--mobile-card-border);
+    z-index: 210;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.5);
+}
+
+.mobile-menu-drawer.active {
+    transform: translateX(0);
+}
+
+.mobile-drawer-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--mobile-card-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mobile-drawer-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--mobile-text);
+}
+
+.btn-close-drawer {
+    background: transparent;
+    border: none;
+    color: var(--mobile-text-muted);
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+}
+
+.btn-close-drawer:active {
+    color: #FFFFFF;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.mobile-drawer-nav {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow-y: auto;
+}
+
+.mobile-drawer-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.8rem 1rem;
+    color: var(--mobile-text);
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: background 0.15s ease;
+}
+
+.mobile-drawer-item:active, .mobile-drawer-item.active {
+    background: var(--mobile-card-bg);
+    color: var(--mobile-accent);
+}
+
+.mobile-drawer-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.mobile-drawer-divider {
+    height: 1px;
+    background: var(--mobile-card-border);
+    margin: 0.75rem 0;
+}
+
+.mobile-drawer-placeholder {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.placeholder-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05rem;
+    color: var(--mobile-text-muted);
+    padding-left: 0.5rem;
+    margin-bottom: 0.25rem;
 }
 
 /* Conteúdo Principal */
@@ -136,6 +285,11 @@ body.mobile-body {
     padding: 0.4rem 0.8rem;
     border-radius: 20px;
     white-space: nowrap;
+}
+
+.mobile-anv-badge-count.inspecao {
+    background: var(--mobile-warning, #D97706);
+    color: #FFFFFF;
 }
 
 .mobile-anv-badge-count.zero {

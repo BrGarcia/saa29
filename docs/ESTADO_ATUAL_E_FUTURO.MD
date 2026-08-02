@@ -18,31 +18,37 @@ O sistema garante que:
 
 ---
 
-## 2. O que o Sistema já Faz Hoje? (Funcionalidades Atuais - Versão 1.2.0)
+## 2. O que o Sistema já Faz Hoje? (Funcionalidades Atuais - Versão 1.4.0)
 
-O SAA29 é um software completo e funcional. Suas principais engrenagens são:
+O SAA29 é um software completo, estável e funcional. Suas principais engrenagens são:
 
 1.  **Dashboard Central (Painel de Controle):** 
     Uma tela visual moderna e limpa que resume a situação da frota inteira (quantos aviões estão prontos para voar, quantos estão em manutenção, as falhas mais críticas pendentes de conserto, e um calendário semanal resumido).
-2.  **Controle de Panes (Falhas):**
-    Registro detalhado de falhas eletrônicas. Permite anexar fotos dos problemas no avião, registrar quem trabalhou para resolver, e manter um histórico completo de manutenção da aeronave.
-3.  **Controle de Inventário e Equipamentos:**
+2.  **Controle de Panes (Falhas) e Sincronização Automática de Frota:**
+    Registro detalhado de falhas eletrônicas com anexos de fotos, histórico de manutenção e atribuição de responsáveis. Transição de status da aeronave **100% automatizada e atômica** no banco de dados: ao registrar uma pane aberta, a aeronave migra de `DISPONIVEL` para `INDISPONIVEL`. Ao concluir todas as panes, retorna para `DISPONIVEL` (respeitando a prioridade de `INSPEÇÃO`).
+3.  **Interface Otimizada para Celulares / Linha de Voo (`/m/`):**
+    Interface mobile dedicada para uso debaixo da asa da aeronave no celular ou tablet. Inclui menu sanduíche off-canvas responsivo, consulta rápida da frota por trigrama do usuário logado e conclusão de panes/tarefas em 1 toque na tela.
+4.  **Gestão de Inspeções e Emissão de PDF da Ordem de Serviço:**
+    Gerenciamento de revisões periódicas das aeronaves com checklist de tarefas obrigatórias. Inclui geração e impressão oficial em PDF da Ordem de Inspeção (`/inspecoes/{id}/pdf`) e do Checklist de Manutenção (`/inspecoes/{id}/checklist`).
+5.  **Controle de Inventário e Equipamentos:**
     Gerenciamento de "quem está onde". O sistema sabe quais equipamentos eletrônicos (com número de série único) estão instalados em quais posições físicas de cada aeronave, mantendo a rastreabilidade caso um rádio ou computador de bordo seja trocado de avião.
-4.  **Monitoramento de Vencimentos (Alertas):**
+6.  **Monitoramento de Vencimentos (Alertas):**
     Acompanhamento automático dos prazos de validade de calibrações e testes de vida útil dos equipamentos. O sistema emite alertas visuais coloridos (Verde = OK, Laranja = Próximo ao Vencimento, Vermelho = Vencido).
-5.  **Gestão de Inspeções Programadas:**
-    Gerenciamento de revisões periódicas das aeronaves. Cada revisão tem um checklist de tarefas obrigatórias. O sistema bloqueia a liberação da aeronave se houver tarefas pendentes ou panes impeditivas em aberto.
-6.  **Calendário de Escalas e Ausências:**
+7.  **Calendário de Escalas e Ausências:**
     Planejamento visual de equipe e prazos. Permite registrar quando um militar estará de férias, licença ou serviço, e exibe os prazos das inspeções das aeronaves (DPE).
-7.  **Controle de Níveis de Acesso (Perfis):**
-    *   **Mantenedor (Mecânico):** Executa o trabalho físico, abre panes, faz substituições no inventário.
+8.  **Conformidade Rigorosa com CSP (Content Security Policy):**
+    Proteção total contra ataques XSS, sem utilização de scripts inline ou atributos de eventos legados (`onclick`). Todos os comportamentos e eventos são vinculados externamente via JavaScript.
+9.  **Controle de Níveis de Acesso (Perfis):**
+    *   **Mantenedor (Mecânico):** Executa o trabalho físico, abre panes, baixa tarefas no mobile.
     *   **Inspetor:** Confere e valida o trabalho executado para garantir a segurança.
     *   **Encarregado (Chefe):** Coordena prioridades e altera a disponibilidade da frota.
     *   **Administrador:** Cadastra usuários e gerencia o catálogo geral.
-8.  **Exportação Universal de Relatórios (CSV / XLSX):**
+10. **Exportação Universal de Relatórios (CSV / XLSX):**
     Geração automatizada de relatórios tabulares em formato CSV (UTF-8 com BOM) ou Excel estilizado (`.xlsx`) para listagens de Panes, Inventário da Frota e Inspeções Programadas.
-9.  **Backup e Recuperação Automática no Cloudflare R2:**
-    Toda vez que a aplicação inicializa, ela baixa automaticamente o banco de dados seguro salvo na nuvem da Cloudflare (R2). Ao sofrer modificações, ela atualiza o backup remoto de forma inteligente. Se a conexão falhar criticamente, o sistema preserva o banco local para evitar perda de dados históricos.
+11. **Backup e Recuperação Automática no Cloudflare R2:**
+    Toda vez que a aplicação inicializa, ela baixa automaticamente o banco de dados seguro salvo na nuvem da Cloudflare (R2). Ao sofrer modificações, ela atualiza o backup remoto de forma inteligente.
+12. **Cobertura Completa de Testes Automatizados (205 Testes):**
+    Suíte completa de testes unitários, de integração, segurança (CSRF/Auth) e arquitetura (SOLID), mantendo 100% de taxa de sucesso.
 
 ---
 

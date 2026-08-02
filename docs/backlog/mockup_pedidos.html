@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAA29 — Central de Pedidos (Mockup)</title>
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ============================================ */
+        /* DESIGN SYSTEM — SAA29 Identity               */
+        /* ============================================ */
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --primary-color: #3b82f6;
+            --primary-hover: #2563eb;
+            --accent-color: #0f172a;
+
+            /* Status */
+            --status-ok: #10b981;
+            --status-ok-bg: #d1fae5;
+            --status-warning: #f59e0b;
+            --status-warning-bg: #fef3c7;
+            --status-danger: #ef4444;
+            --status-danger-bg: #fee2e2;
+            --status-incompleta: #64748b;
+            --status-incompleta-bg: #f1f5f9;
+
+            /* Pedidos Module Color */
+            --pedido-color: #e74c3c;
+            --pedido-hover: #c0392b;
+
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.4);
+
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+            --transition: all 0.3s ease;
+            --radius-md: 0.5rem;
+            --radius-lg: 1rem;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+            --primary-color: #60a5fa;
+            --primary-hover: #3b82f6;
+            --accent-color: #e2e8f0;
+            --pedido-color: #f87171;
+            --pedido-hover: #ef4444;
+
+            --status-ok-bg: rgba(16, 185, 129, 0.15);
+            --status-warning-bg: rgba(245, 158, 11, 0.15);
+            --status-danger-bg: rgba(239, 68, 68, 0.15);
+            --status-incompleta-bg: rgba(100, 116, 139, 0.15);
+
+            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Reset */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s, color 0.3s;
+            min-height: 100vh;
+        }
+
+        /* ============================================ */
+        /* LAYOUT                                       */
+        /* ============================================ */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 2.5rem;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* Header */
+        .top-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1.5rem;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--primary-color);
+        }
+
+        .header-brand h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .header-divider {
+            width: 1px;
+            height: 24px;
+            background: var(--border-color);
+        }
+
+        .header-title {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Button Icon */
+        .btn-icon {
+            background: transparent;
+            color: var(--text-secondary);
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            cursor: pointer;
+            width: 38px;
+            height: 38px;
+        }
+
+        .btn-icon:hover {
+            color: var(--primary-color);
+            background: var(--bg-tertiary);
+            border-color: var(--primary-color);
+        }
+
+        /* Navigation Icons */
+        .nav-icons {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-right: 0.5rem;
+            border-right: 1px solid var(--border-color);
+            padding-right: 1rem;
+        }
+
+        .nav-icon-active {
+            color: var(--primary-color) !important;
+            background: var(--bg-tertiary) !important;
+            border-color: var(--primary-color) !important;
+        }
+
+        /* ============================================ */
+        /* CARDS SUMMARY                                */
+        /* ============================================ */
+        .grid-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background-color: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .card-accent {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+        }
+
+        .card-title {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-value {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .card-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        /* ============================================ */
+        /* FILTERS BAR                                  */
+        /* ============================================ */
+        .filters-bar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filters-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+            flex-wrap: wrap;
+        }
+
+        .form-input {
+            padding: 0.6rem 1rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: var(--transition);
+            font-family: inherit;
+            font-size: 0.875rem;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        .filter-select {
+            min-width: 140px;
+        }
+
+        .search-input {
+            min-width: 200px;
+            flex: 1;
+            max-width: 300px;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.6rem 1.2rem;
+            border-radius: var(--radius-md);
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            gap: 0.5rem;
+            font-family: inherit;
+            font-size: 0.875rem;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .btn-pedido {
+            background-color: var(--pedido-color);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+        }
+
+        .btn-pedido:hover {
+            background-color: var(--pedido-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(231, 76, 60, 0.4);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background-color: var(--status-ok);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-success:hover {
+            filter: brightness(1.1);
+            transform: translateY(-2px);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .btn-outline:hover {
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-color: var(--text-secondary);
+        }
+
+        .btn-outline-primary {
+            background-color: #eff6ff;
+            border: 1px solid #3b82f6;
+            color: #1d4ed8;
+            font-weight: 600;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        [data-theme="dark"] .btn-outline-primary {
+            background-color: rgba(96, 165, 250, 0.15);
+            border-color: #60a5fa;
+            color: #93c5fd;
+        }
+
+        [data-theme="dark"] .btn-outline-primary:hover {
+            background-color: rgba(96, 165, 250, 0.25);
+            color: #ffffff;
+        }
+
+        .btn-outline-danger {
+            background-color: transparent;
+            border: 1px solid var(--status-danger);
+            color: var(--status-danger);
+        }
+
+        .btn-outline-danger:hover {
+            background-color: var(--status-danger-bg);
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        /* ============================================ */
+        /* PEDIDOS TABLE                                */
+        /* ============================================ */
+        .pedidos-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .pedido-row {
+            display: grid;
+            grid-template-columns: 120px 100px 80px 120px 140px 120px 60px 1fr;
+            gap: 0.75rem;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            align-items: center;
+            transition: background-color 0.2s ease;
+            font-size: 0.875rem;
+        }
+
+        .pedido-row:hover {
+            background-color: var(--bg-tertiary);
+        }
+
+        .pedido-row-header {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+        }
+
+        .pedido-row-header:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .pedido-expanded {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .pedido-detail {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 0 0.25rem 0;
+            gap: 1rem;
+        }
+
+        .pedido-obs {
+            font-size: 0.825rem;
+            color: var(--text-secondary);
+            font-style: italic;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1;
+        }
+
+        .pedido-obs svg {
+            flex-shrink: 0;
+            opacity: 0.6;
+        }
+
+        .pedido-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .pedido-row.is-atendido {
+            opacity: 0.65;
+        }
+
+        .pedido-row.is-cancelado {
+            opacity: 0.5;
+        }
+
+        /* ============================================ */
+        /* BADGES                                       */
+        /* ============================================ */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            gap: 0.35rem;
+        }
+
+        .badge-pendente {
+            background-color: var(--status-warning-bg);
+            color: var(--status-warning);
+        }
+
+        .badge-atendido {
+            background-color: var(--status-ok-bg);
+            color: var(--status-ok);
+        }
+
+        .badge-cancelado {
+            background-color: var(--status-incompleta-bg);
+            color: var(--status-incompleta);
+        }
+
+        .badge-emergencia {
+            background-color: var(--status-danger-bg);
+            color: var(--status-danger);
+        }
+
+        .badge-normal {
+            background-color: var(--bg-tertiary);
+            color: var(--text-secondary);
+        }
+
+        .badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .dot-pendente {
+            background: var(--status-warning);
+        }
+
+        .dot-atendido {
+            background: var(--status-ok);
+        }
+
+        .dot-cancelado {
+            background: var(--status-incompleta);
+        }
+
+        /* Cell Helpers */
+        .cell-matricula {
+            font-weight: 700;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.95rem;
+            color: var(--primary-color);
+        }
+
+        .cell-numero {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.825rem;
+        }
+
+        .cell-emergencia {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.825rem;
+            color: var(--status-danger);
+            font-weight: 600;
+        }
+
+        .cell-muted {
+            color: var(--text-secondary);
+            font-size: 0.825rem;
+        }
+
+        /* ============================================ */
+        /* PAGINATION                                   */
+        /* ============================================ */
+        .pagination-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            font-size: 0.825rem;
+            color: var(--text-secondary);
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .page-btn {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.825rem;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .page-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-color: var(--primary-color);
+        }
+
+        .page-btn.active {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+        }
+
+        /* ============================================ */
+        /* MODAL                                        */
+        /* ============================================ */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            max-width: 560px;
+            width: 92%;
+            padding: 2rem;
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.15rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: var(--radius-md);
+            transition: var(--transition);
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.4rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            font-size: 0.825rem;
+        }
+
+        .form-label .required {
+            color: var(--status-danger);
+        }
+
+        .form-input-full {
+            width: 100%;
+            padding: 0.7rem 1rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: var(--transition);
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+
+        .form-input-full:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        textarea.form-input-full {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 0.25rem;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .radio-option input[type="radio"] {
+            accent-color: var(--primary-color);
+            width: 16px;
+            height: 16px;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .field-emergencia {
+            display: none;
+        }
+
+        .field-emergencia.visible {
+            display: block;
+        }
+
+        /* ============================================ */
+        /* TOAST                                        */
+        /* ============================================ */
+        #toast-container {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .toast {
+            padding: 1rem 1.5rem;
+            border-radius: var(--radius-md);
+            color: #fff;
+            font-weight: 500;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            max-width: 380px;
+            font-size: 0.875rem;
+        }
+
+        .toast-success {
+            background-color: var(--status-ok);
+        }
+
+        .toast-error {
+            background-color: var(--status-danger);
+        }
+
+        .toast-warning {
+            background-color: var(--status-warning);
+        }
+
+        /* ============================================ */
+        /* EMPTY STATE                                  */
+        /* ============================================ */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state svg {
+            margin-bottom: 1rem;
+            opacity: 0.4;
+        }
+
+        .empty-state h3 {
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        /* ============================================ */
+        /* MOCKUP BANNER                                */
+        /* ============================================ */
+        .mockup-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 0.5rem 1rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* ============================================ */
+        /* ANIMATIONS                                   */
+        /* ============================================ */
+        @keyframes slideIn {
+            from {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* ============================================ */
+        /* RESPONSIVE                                   */
+        /* ============================================ */
+        @media (max-width: 960px) {
+            .main-content {
+                padding: 1.5rem;
+            }
+
+            .grid-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .pedido-row {
+                grid-template-columns: 1fr 1fr;
+                gap: 0.5rem;
+                padding: 1rem;
+            }
+
+            .pedido-row-header {
+                display: none;
+            }
+
+            .filters-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filters-group {
+                flex-direction: column;
+            }
+
+            .form-input,
+            .filter-select,
+            .search-input {
+                width: 100%;
+                max-width: none;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .grid-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-icons {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- MOCKUP Banner -->
+    <div class="mockup-banner">
+        ⚠ Mockup Visual — Protótipo de Interface (não conectado ao backend)
+    </div>
+
+    <div class="app-container">
+        <main class="main-content">
+            <!-- HEADER -->
+            <header class="top-header">
+                <div class="header-left">
+                    <div class="header-brand">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 2L11 13" />
+                            <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+                        </svg>
+                        <h1>Eletrônica A-29</h1>
+                    </div>
+                    <div class="header-divider"></div>
+                    <h2 class="header-title">Central de Pedidos</h2>
+                </div>
+                <div class="header-actions">
+                    <nav class="nav-icons">
+                        <a href="#" class="btn-icon" title="Dashboard">
+                            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <rect x="3" y="3" width="7" height="7" rx="1" stroke-width="2"></rect>
+                                <rect x="14" y="3" width="7" height="7" rx="1" stroke-width="2"></rect>
+                                <rect x="14" y="14" width="7" height="7" rx="1" stroke-width="2"></rect>
+                                <rect x="3" y="14" width="7" height="7" rx="1" stroke-width="2"></rect>
+                            </svg>
+                        </a>
+                        <a href="#" class="btn-icon" title="Panes">
+                            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                                </path>
+                            </svg>
+                        </a>
+                        <a href="#" class="btn-icon" title="Inventário">
+                            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4">
+                                </path>
+                            </svg>
+                        </a>
+                        <a href="#" class="btn-icon nav-icon-active" title="Pedidos">
+                            <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                                <line x1="12" y1="22.08" x2="12" y2="12" />
+                            </svg>
+                        </a>
+                        <a href="#" class="btn-icon" title="Vencimentos">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                        </a>
+                    </nav>
+                    <button class="btn-icon" id="theme-toggle" aria-label="Trocar Tema" title="Trocar Tema">
+                        <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24" id="theme-icon">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z">
+                            </path>
+                        </svg>
+                    </button>
+                </div>
+            </header>
+
+            <!-- SUMMARY CARDS -->
+            <div class="grid-cards">
+                <div class="card">
+                    <div class="card-accent" style="background: var(--primary-color);"></div>
+                    <div class="card-title">Total Pedidos</div>
+                    <div class="card-value">24</div>
+                    <div class="card-subtitle">Todos os registros</div>
+                </div>
+                <div class="card">
+                    <div class="card-accent" style="background: var(--status-warning);"></div>
+                    <div class="card-title">Pendentes</div>
+                    <div class="card-value" style="color: var(--status-warning);">8</div>
+                    <div class="card-subtitle">Aguardando atendimento</div>
+                </div>
+                <div class="card">
+                    <div class="card-accent" style="background: var(--status-ok);"></div>
+                    <div class="card-title">Atendidos</div>
+                    <div class="card-value" style="color: var(--status-ok);">14</div>
+                    <div class="card-subtitle">Concluídos com sucesso</div>
+                </div>
+                <div class="card">
+                    <div class="card-accent" style="background: var(--status-danger);"></div>
+                    <div class="card-title">Emergências</div>
+                    <div class="card-value" style="color: var(--status-danger);">2</div>
+                    <div class="card-subtitle">Pedidos prioritários</div>
+                </div>
+            </div>
+
+            <!-- FILTERS -->
+            <div class="filters-bar">
+                <div class="filters-group">
+                    <select class="form-input filter-select" id="filter-aeronave">
+                        <option value="">Todas Aeronaves</option>
+                        <option value="5906">ANV 5906</option>
+                        <option value="5912">ANV 5912</option>
+                        <option value="5916">ANV 5916</option>
+                        <option value="5920">ANV 5920</option>
+                        <option value="5930">ANV 5930</option>
+                    </select>
+                    <select class="form-input filter-select" id="filter-status">
+                        <option value="">Todos Status</option>
+                        <option value="PENDENTE">Pendente</option>
+                        <option value="ATENDIDO">Atendido</option>
+                        <option value="CANCELADO">Cancelado</option>
+                    </select>
+                    <select class="form-input filter-select" id="filter-tipo">
+                        <option value="">Todos Tipos</option>
+                        <option value="NORMAL">Normal</option>
+                        <option value="EMERGENCIA">Emergência</option>
+                    </select>
+                    <input type="text" class="form-input search-input" placeholder="🔍  Buscar por nº pedido..."
+                        id="search-input">
+                </div>
+                <button class="btn btn-pedido" id="btn-novo-pedido">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Novo Pedido
+                </button>
+            </div>
+
+            <!-- PEDIDOS TABLE -->
+            <div class="pedidos-container" id="pedidos-table">
+                <!-- Header -->
+                <div class="pedido-row pedido-row-header">
+                    <div>STATUS</div>
+                    <div>DATA</div>
+                    <div>ANV</div>
+                    <div>TIPO</div>
+                    <div>Nº PEDIDO</div>
+                    <div>Nº EMERGÊNCIA</div>
+                    <div>QTD</div>
+                    <div style="text-align: right;">AÇÕES</div>
+                </div>
+
+                <!-- Row 1: PENDENTE + EMERGÊNCIA -->
+                <div class="pedido-expanded">
+                    <div class="pedido-row">
+                        <div><span class="badge badge-pendente"><span class="badge-dot dot-pendente"></span>Pendente</span></div>
+                        <div class="cell-muted">01/08/2026</div>
+                        <div class="cell-matricula">5906</div>
+                        <div><span class="badge badge-emergencia">🔴 Emergência</span></div>
+                        <div class="cell-numero">P-2026-008</div>
+                        <div class="cell-emergencia">EMG-0052</div>
+                        <div style="text-align: center; font-weight: 600;">2</div>
+                        <div></div>
+                    </div>
+                    <div class="pedido-detail" style="padding: 0 1.5rem 1rem 1.5rem;">
+                        <div class="pedido-obs">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                            MDP1 danificado durante voo operacional. Necessário substituição urgente para manter aeronave DISPONÍVEL.
+                        </div>
+                        <div class="pedido-actions">
+                            <button class="btn btn-outline-danger btn-sm" data-action="cancelar">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                Cancelar
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm" data-action="alterar">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                Alterar
+                            </button>
+                            <button class="btn btn-success btn-sm" data-action="atendido">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                Atendido
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 2: PENDENTE NORMAL -->
+                <div class="pedido-expanded">
+                    <div class="pedido-row">
+                        <div><span class="badge badge-pendente"><span class="badge-dot dot-pendente"></span>Pendente</span></div>
+                        <div class="cell-muted">30/07/2026</div>
+                        <div class="cell-matricula">5912</div>
+                        <div><span class="badge badge-normal">Normal</span></div>
+                        <div class="cell-numero">P-2026-007</div>
+                        <div class="cell-muted">—</div>
+                        <div style="text-align: center; font-weight: 600;">1</div>
+                        <div></div>
+                    </div>
+                    <div class="pedido-detail" style="padding: 0 1.5rem 1rem 1.5rem;">
+                        <div class="pedido-obs">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                            CMFD2 — Slot vazio identificado no inventário. Aguardando recebimento do COMLOG.
+                        </div>
+                        <div class="pedido-actions">
+                            <button class="btn btn-outline-danger btn-sm" data-action="cancelar">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                Cancelar
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm" data-action="alterar">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                Alterar
+                            </button>
+                            <button class="btn btn-success btn-sm" data-action="atendido">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                Atendido
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 3: PENDENTE NORMAL -->
+                <div class="pedido-expanded">
+                    <div class="pedido-row">
+                        <div><span class="badge badge-pendente"><span class="badge-dot dot-pendente"></span>Pendente</span></div>
+                        <div class="cell-muted">28/07/2026</div>
+                        <div class="cell-matricula">5920</div>
+                        <div><span class="badge badge-normal">Normal</span></div>
+                        <div class="cell-numero">P-2026-006</div>
+                        <div class="cell-muted">—</div>
+                        <div style="text-align: center; font-weight: 600;">1</div>
+                        <div></div>
+                    </div>
+                    <div class="pedido-detail" style="padding: 0 1.5rem 1rem 1.5rem;">
+                        <div class="pedido-obs">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                            VUHF1 com TBV vencido. Equipamento necessita calibração — pedido de substituição.
+                        </div>
+                        <div class="pedido-actions">
+                            <button class="btn btn-outline-danger btn-sm" data-action="cancelar">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                Cancelar
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm" data-action="alterar">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                Alterar
+                            </button>
+                            <button class="btn btn-success btn-sm" data-action="atendido">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                Atendido
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 4: ATENDIDO -->
+                <div class="pedido-expanded">
+                    <div class="pedido-row is-atendido">
+                        <div><span class="badge badge-atendido"><span class="badge-dot dot-atendido"></span>Atendido</span></div>
+                        <div class="cell-muted">20/07/2026</div>
+                        <div class="cell-matricula">5906</div>
+                        <div><span class="badge badge-normal">Normal</span></div>
+                        <div class="cell-numero">P-2026-005</div>
+                        <div class="cell-muted">—</div>
+                        <div style="text-align: center; font-weight: 600;">1</div>
+                        <div></div>
+                    </div>
+                    <div class="pedido-detail" style="padding: 0 1.5rem 1rem 1.5rem;">
+                        <div class="pedido-obs">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                            GPS1 recebido e instalado com sucesso. S/N: GPA-2024-1188.
+                        </div>
+                        <div class="pedido-actions">
+                            <span class="cell-muted" style="font-style: italic; font-size: 0.8rem;">— Sem ações disponíveis —</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 5: CANCELADO -->
+                <div class="pedido-expanded">
+                    <div class="pedido-row is-cancelado">
+                        <div><span class="badge badge-cancelado"><span class="badge-dot dot-cancelado"></span>Cancelado</span></div>
+                        <div class="cell-muted">15/07/2026</div>
+                        <div class="cell-matricula">5916</div>
+                        <div><span class="badge badge-emergencia">🔴 Emergência</span></div>
+                        <div class="cell-numero">P-2026-004</div>
+                        <div class="cell-emergencia">EMG-0041</div>
+                        <div style="text-align: center; font-weight: 600;">1</div>
+                        <div></div>
+                    </div>
+                    <div class="pedido-detail" style="padding: 0 1.5rem 1rem 1.5rem;">
+                        <div class="pedido-obs">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                            Cancelado — Pane solucionada sem necessidade de substituição de equipamento.
+                        </div>
+                        <div class="pedido-actions">
+                            <span class="cell-muted" style="font-style: italic; font-size: 0.8rem;">— Sem ações disponíveis —</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 6: ATENDIDO + EMERGÊNCIA -->
+                <div class="pedido-expanded">
+                    <div class="pedido-row is-atendido">
+                        <div><span class="badge badge-atendido"><span class="badge-dot dot-atendido"></span>Atendido</span></div>
+                        <div class="cell-muted">10/07/2026</div>
+                        <div class="cell-matricula">5930</div>
+                        <div><span class="badge badge-emergencia">🔴 Emergência</span></div>
+                        <div class="cell-numero">P-2026-003</div>
+                        <div class="cell-emergencia">EMG-0039</div>
+                        <div style="text-align: center; font-weight: 600;">3</div>
+                        <div></div>
+                    </div>
+                    <div class="pedido-detail" style="padding: 0 1.5rem 1rem 1.5rem;">
+                        <div class="pedido-obs">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                            Emergência atendida. 3 unidades recebidas e instaladas para exercício CRUZEX.
+                        </div>
+                        <div class="pedido-actions">
+                            <span class="cell-muted" style="font-style: italic; font-size: 0.8rem;">— Sem ações disponíveis —</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination-bar">
+                    <div>Mostrando <strong>6</strong> de <strong>24</strong> registros</div>
+                    <div class="pagination-controls">
+                        <button class="page-btn">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                        </button>
+                        <button class="page-btn active">1</button>
+                        <button class="page-btn">2</button>
+                        <button class="page-btn">3</button>
+                        <button class="page-btn">4</button>
+                        <button class="page-btn">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL: Novo Pedido -->
+    <div class="modal-overlay" id="modal-pedido">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>
+                    <svg width="22" height="22" fill="none" stroke="var(--pedido-color)" viewBox="0 0 24 24"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                        <line x1="12" y1="22.08" x2="12" y2="12" />
+                    </svg>
+                    Novo Pedido
+                </h3>
+                <button class="modal-close" id="modal-close">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <form id="form-pedido">
+                <div class="form-group">
+                    <label class="form-label">Aeronave (Matrícula) <span class="required">*</span></label>
+                    <select class="form-input-full" id="input-aeronave" required>
+                        <option value="">Selecione a aeronave...</option>
+                        <option value="5906">5906</option>
+                        <option value="5912">5912</option>
+                        <option value="5916">5916</option>
+                        <option value="5920">5920</option>
+                        <option value="5930">5930</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Nº do Pedido <span class="required">*</span></label>
+                        <input type="text" class="form-input-full" id="input-numero" placeholder="P-2026-___" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Quantidade</label>
+                        <input type="number" class="form-input-full" id="input-quantidade" value="1" min="1">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Tipo de Pedido <span class="required">*</span></label>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="tipo_pedido" value="NORMAL" checked id="radio-normal">
+                            Normal
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="tipo_pedido" value="EMERGENCIA" id="radio-emergencia">
+                            <span style="color: var(--status-danger); font-weight: 600;">🔴 Emergência</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group field-emergencia" id="field-emergencia">
+                    <label class="form-label">Nº da Emergência <span class="required">*</span></label>
+                    <input type="text" class="form-input-full" id="input-emergencia" placeholder="EMG-____">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Equipamento / Posição (opcional)</label>
+                    <select class="form-input-full" id="input-slot">
+                        <option value="">Selecione um slot pendente...</option>
+                        <option value="mdp1">MDP1 — Multi Display Processor (PN: 2035600-203)</option>
+                        <option value="cmfd2">CMFD2 — Color Multi-Function Display (PN: 2034300-101)</option>
+                        <option value="vuhf1">VUHF1 — V/UHF Radio (PN: RT-1851A)</option>
+                        <option value="gps1">GPS1 — GPS Receiver (PN: 2044500-102)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Observações</label>
+                    <textarea class="form-input-full" id="input-obs"
+                        placeholder="Informações adicionais sobre o pedido..."></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline" id="btn-cancel-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-pedido">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                            <polyline points="7 3 7 8 15 8"></polyline>
+                        </svg>
+                        Salvar Pedido
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TOAST Container -->
+    <div id="toast-container"></div>
+
+    <!-- ============================================ -->
+    <!-- JAVASCRIPT INTERATIVO (mockup)               -->
+    <!-- ============================================ -->
+    <script>
+        // --- Theme Toggle ---
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        const html = document.documentElement;
+
+        const sunIcon = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>`;
+        const moonIcon = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>`;
+
+        themeToggle.addEventListener('click', () => {
+            const isDark = html.dataset.theme === 'dark';
+            html.dataset.theme = isDark ? 'light' : 'dark';
+            themeIcon.innerHTML = isDark ? moonIcon : sunIcon;
+        });
+
+        // --- Modal Controls ---
+        const modal = document.getElementById('modal-pedido');
+        const btnNovo = document.getElementById('btn-novo-pedido');
+        const btnCloseModal = document.getElementById('modal-close');
+        const btnCancelModal = document.getElementById('btn-cancel-modal');
+
+        function openModal() {
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        btnNovo.addEventListener('click', openModal);
+        btnCloseModal.addEventListener('click', closeModal);
+        btnCancelModal.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+
+        // --- Tipo Pedido Toggle (Emergência field) ---
+        const radioNormal = document.getElementById('radio-normal');
+        const radioEmergencia = document.getElementById('radio-emergencia');
+        const fieldEmergencia = document.getElementById('field-emergencia');
+
+        function toggleEmergencia() {
+            if (radioEmergencia.checked) {
+                fieldEmergencia.classList.add('visible');
+                document.getElementById('input-emergencia').setAttribute('required', '');
+            } else {
+                fieldEmergencia.classList.remove('visible');
+                document.getElementById('input-emergencia').removeAttribute('required');
+                document.getElementById('input-emergencia').value = '';
+            }
+        }
+
+        radioNormal.addEventListener('change', toggleEmergencia);
+        radioEmergencia.addEventListener('change', toggleEmergencia);
+
+        // --- Toast ---
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+
+            const icons = {
+                success: '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>',
+                error: '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+                warning: '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>'
+            };
+
+            toast.innerHTML = `${icons[type] || icons.success} ${message}`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(120%)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // --- Form Submit ---
+        document.getElementById('form-pedido').addEventListener('submit', (e) => {
+            e.preventDefault();
+            closeModal();
+            showToast('Pedido criado com sucesso!', 'success');
+        });
+
+        // --- Action Buttons ---
+        document.querySelectorAll('[data-action="atendido"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                showToast('Pedido marcado como ATENDIDO!', 'success');
+            });
+        });
+
+        document.querySelectorAll('[data-action="cancelar"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                showToast('Pedido cancelado.', 'warning');
+            });
+        });
+
+        document.querySelectorAll('[data-action="alterar"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                openModal();
+            });
+        });
+
+        // --- Filter Demo ---
+        document.getElementById('filter-status').addEventListener('change', (e) => {
+            const val = e.target.value;
+            if (val) {
+                showToast(`Filtrando por: ${val}`, 'success');
+            }
+        });
+
+        document.getElementById('filter-aeronave').addEventListener('change', (e) => {
+            const val = e.target.value;
+            if (val) {
+                showToast(`Aeronave selecionada: ${val}`, 'success');
+            }
+        });
+    </script>
+</body>
+
+</html>
