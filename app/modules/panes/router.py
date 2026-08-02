@@ -184,29 +184,25 @@ async def editar_pane(
     db: DBSession,
     usuario_atual: CurrentUser,
 ) -> schemas.PaneOut:
-    """Edita descrição e/ou status. RN-03: apenas panes não resolvidas."""
+    """Edita descrição e/ou status. RN-03: apenas panes não resolvidas.
+
+    Item #24 (relatorio_panes_service.md): o service levanta exceções de
+    domínio (`EntidadeNaoEncontradaError`/`ConflitoNegocioError`), que já
+    carregam o status HTTP correto — sem string-matching de mensagem aqui.
+    """
     if dados.descricao is not None or dados.sistema_ata_id is not None:
         ensure_role(usuario_atual, "ENCARREGADO", "INSPETOR", "ADMINISTRADOR")
-    try:
-        await service.editar_pane(db, pane_id, dados, usuario_atual.id)
-        # Recarregar com ranking para devolver o código correto
-        resultado = await service.buscar_pane(db, pane_id)
-        if not resultado:
-             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pane não encontrada.")
-        
-        pane, sequencia, ano = resultado
-        item = schemas.PaneOut.model_validate(pane).model_dump()
-        item["codigo"] = f"{sequencia:03d}/{str(ano)[-2:]}"
-        return schemas.PaneOut(**item)
-    except ValueError as e:
-        detail_str = str(e)
-        if "não encontrada" in detail_str:
-            status_code = status.HTTP_404_NOT_FOUND
-        elif "abertas" in detail_str or "resolvida" in detail_str or "Transição" in detail_str:
-            status_code = status.HTTP_409_CONFLICT
-        else:
-            status_code = status.HTTP_400_BAD_REQUEST
-        raise HTTPException(status_code=status_code, detail=detail_str)
+
+    await service.editar_pane(db, pane_id, dados, usuario_atual.id)
+    # Recarregar com ranking para devolver o código correto
+    resultado = await service.buscar_pane(db, pane_id)
+    if not resultado:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pane não encontrada.")
+
+    pane, sequencia, ano = resultado
+    item = schemas.PaneOut.model_validate(pane).model_dump()
+    item["codigo"] = f"{sequencia:03d}/{str(ano)[-2:]}"
+    return schemas.PaneOut(**item)
 
 
 @router.post(
@@ -222,76 +218,71 @@ async def concluir_pane(
 ) -> schemas.PaneOut:
     # RN: MANTENEDOR, ENCARREGADO, INSPETOR e ADMIN podem concluir.
     ensure_role(usuario_atual, "MANTENEDOR", "ENCARREGADO", "INSPETOR", "ADMINISTRADOR")
-    """Conclui a pane. Preenche data_conclusao automaticamente (RN-04)."""
-    try:
-        # Buscar aeronave_id da pane antes de concluir
-        pane_antes = await service.buscar_pane(db, pane_id)
-        aeronave_id_pane = pane_antes[0].aeronave_id if pane_antes else None
+    """Conclui a pane. Preenche data_conclusao automaticamente (RN-04).
 
-        await service.concluir_pane(
-            db, pane_id, usuario_atual.id, dados.observacao_conclusao
+    Item #24 (relatorio_panes_service.md): o service levanta exceções de
+    domínio (`EntidadeNaoEncontradaError`/`ConflitoNegocioError`), que já
+    carregam o status HTTP correto — sem string-matching de mensagem aqui.
+    """
+    # Buscar aeronave_id da pane antes de concluir
+    pane_antes = await service.buscar_pane(db, pane_id)
+    aeronave_id_pane = pane_antes[0].aeronave_id if pane_antes else None
+
+    await service.concluir_pane(
+        db, pane_id, usuario_atual.id, dados.observacao_conclusao
+    )
+
+    # Safety net: sincronizar status da aeronave via SQL direto apos conclusao.
+    if aeronave_id_pane:
+        from sqlalchemy import select as sql_select, update as sql_update, func
+        from app.modules.panes.models import Pane
+        from app.modules.aeronaves.models import Aeronave
+        from app.shared.core.enums import StatusAeronave, StatusPane
+        from app.modules.inspecoes.models import Inspecao
+        from app.modules.inspecoes.service import STATUS_ATIVOS
+
+        # Contar panes abertas restantes
+        res = await db.execute(
+            sql_select(func.count(Pane.id)).where(
+                Pane.aeronave_id == aeronave_id_pane,
+                Pane.status == StatusPane.ABERTA.value,
+                Pane.ativo == True,
+            )
         )
+        panes_restantes = res.scalar() or 0
 
-        # Safety net: sincronizar status da aeronave via SQL direto apos conclusao.
-        if aeronave_id_pane:
-            from sqlalchemy import select as sql_select, update as sql_update, func
-            from app.modules.panes.models import Pane
-            from app.modules.aeronaves.models import Aeronave
-            from app.shared.core.enums import StatusAeronave, StatusPane
-            from app.modules.inspecoes.models import Inspecao
-            from app.modules.inspecoes.service import STATUS_ATIVOS
-
-            # Contar panes abertas restantes
-            res = await db.execute(
-                sql_select(func.count(Pane.id)).where(
-                    Pane.aeronave_id == aeronave_id_pane,
-                    Pane.status == StatusPane.ABERTA.value,
-                    Pane.ativo == True,
-                )
+        # Contar inspecoes ativas
+        res_insp = await db.execute(
+            sql_select(func.count(Inspecao.id)).where(
+                Inspecao.aeronave_id == aeronave_id_pane,
+                Inspecao.status.in_(STATUS_ATIVOS),
             )
-            panes_restantes = res.scalar() or 0
+        )
+        insp_ativas = res_insp.scalar() or 0
 
-            # Contar inspecoes ativas
-            res_insp = await db.execute(
-                sql_select(func.count(Inspecao.id)).where(
-                    Inspecao.aeronave_id == aeronave_id_pane,
-                    Inspecao.status.in_(STATUS_ATIVOS),
-                )
+        if insp_ativas > 0:
+            await db.execute(
+                sql_update(Aeronave)
+                .where(Aeronave.id == aeronave_id_pane)
+                .values(status=StatusAeronave.INSPECAO)
             )
-            insp_ativas = res_insp.scalar() or 0
+        elif panes_restantes == 0:
+            await db.execute(
+                sql_update(Aeronave)
+                .where(Aeronave.id == aeronave_id_pane)
+                .where(Aeronave.status == StatusAeronave.INDISPONIVEL)
+                .values(status=StatusAeronave.DISPONIVEL)
+            )
 
-            if insp_ativas > 0:
-                await db.execute(
-                    sql_update(Aeronave)
-                    .where(Aeronave.id == aeronave_id_pane)
-                    .values(status=StatusAeronave.INSPECAO)
-                )
-            elif panes_restantes == 0:
-                await db.execute(
-                    sql_update(Aeronave)
-                    .where(Aeronave.id == aeronave_id_pane)
-                    .where(Aeronave.status == StatusAeronave.INDISPONIVEL)
-                    .values(status=StatusAeronave.DISPONIVEL)
-                )
+    # Recarregar para pegar o ranking/código
+    resultado = await service.buscar_pane(db, pane_id)
+    if not resultado:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pane não encontrada.")
 
-        # Recarregar para pegar o ranking/código
-        resultado = await service.buscar_pane(db, pane_id)
-        if not resultado:
-             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pane não encontrada.")
-        
-        pane, sequencia, ano = resultado
-        item = schemas.PaneOut.model_validate(pane).model_dump()
-        item["codigo"] = f"{sequencia:03d}/{str(ano)[-2:]}"
-        return schemas.PaneOut(**item)
-    except ValueError as e:
-        detail_str = str(e)
-        if "não encontrada" in detail_str:
-            status_code = status.HTTP_404_NOT_FOUND
-        elif "resolvida" in detail_str:
-            status_code = status.HTTP_409_CONFLICT
-        else:
-            status_code = status.HTTP_400_BAD_REQUEST
-        raise HTTPException(status_code=status_code, detail=detail_str)
+    pane, sequencia, ano = resultado
+    item = schemas.PaneOut.model_validate(pane).model_dump()
+    item["codigo"] = f"{sequencia:03d}/{str(ano)[-2:]}"
+    return schemas.PaneOut(**item)
 
 
 @router.post(

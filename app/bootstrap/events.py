@@ -40,11 +40,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # 5. Iniciar Tarefas em Segundo Plano
     cleanup_task = asyncio.create_task(tasks.token_cleanup_task())
+    anexos_cleanup_task = asyncio.create_task(tasks.anexos_travados_cleanup_task())
 
     yield
 
     # 6. Shutdown: Cancelar tasks de background
     cleanup_task.cancel()
+    anexos_cleanup_task.cancel()
 
     # 7. Shutdown: Backup final se houver dados não persistidos no R2
     if tasks.is_db_dirty() and current_settings.storage_backend.lower() == "r2" and current_settings.r2_bucket_name:

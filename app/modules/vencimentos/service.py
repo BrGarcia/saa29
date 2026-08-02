@@ -141,6 +141,45 @@ async def associar_controle_a_equipamento(
     await db.flush()
     return assoc
 
+async def criar_controles_para_item(
+    db: AsyncSession, item_id: uuid.UUID, modelo_id: uuid.UUID
+) -> int:
+    """Cria os controles de vencimento herdados do template do PN.
+
+    Ponto de entrada público para outros módulos (ex.: equipamentos) — evita que
+    eles conheçam regras internas deste domínio, como o status inicial dos
+    controles. Todo controle nasce VENCIDO: não há execução registrada para um
+    item recém-cadastrado.
+
+    Args:
+        item_id: Item físico (S/N) recém-criado.
+        modelo_id: PN cujos `EquipamentoControle` servem de template.
+
+    Returns:
+        Quantidade de controles criados.
+    """
+    res = await db.execute(
+        select(EquipamentoControle.tipo_controle_id).where(
+            EquipamentoControle.modelo_id == modelo_id
+        )
+    )
+    tipos_controle = list(res.scalars().all())
+
+    for tipo_controle_id in tipos_controle:
+        db.add(
+            ControleVencimento(
+                id=uuid.uuid4(),
+                item_id=item_id,
+                tipo_controle_id=tipo_controle_id,
+                status=StatusVencimento.VENCIDO.value,
+            )
+        )
+
+    if tipos_controle:
+        await db.flush()
+    return len(tipos_controle)
+
+
 async def listar_equipamento_controles(db: AsyncSession) -> list[EquipamentoControle]:
     result = await db.execute(
         select(EquipamentoControle)

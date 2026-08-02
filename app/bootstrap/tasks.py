@@ -102,6 +102,34 @@ async def token_cleanup_task() -> None:
         await asyncio.sleep(3600)  # Roda a cada 1 hora
 
 
+async def anexos_travados_cleanup_task() -> None:
+    """Marca anexos presos em 'processando' há mais de 30min como ERRO.
+
+    Mitigação mínima para a falta de durabilidade do BackgroundTasks do
+    FastAPI (relatorio_panes_service.md, item #5): sem isso, um anexo cuja
+    task de processamento não rodou (reinício/crash do processo) fica
+    eternamente como "processando" e trava a UI.
+    """
+    from app.bootstrap.database import get_session_factory
+    from app.modules.panes.service import limpar_anexos_processando_antigos
+
+    while True:
+        try:
+            async with get_session_factory()() as session:
+                quantidade = await limpar_anexos_processando_antigos(session)
+                await session.commit()
+            if quantidade:
+                logging.warning(
+                    "[Anexos Travados] %d anexo(s) preso(s) em 'processando' marcado(s) como ERRO.",
+                    quantidade,
+                )
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:
+            logging.error("[Anexos Travados] Erro na limpeza: %s", exc)
+        await asyncio.sleep(900)  # Roda a cada 15 minutos
+
+
 def is_db_dirty() -> bool:
     """Retorna se há alterações pendentes de backup."""
     return _db_dirty

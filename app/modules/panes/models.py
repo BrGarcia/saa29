@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, DateTime, Text, ForeignKey, func
+from sqlalchemy import String, DateTime, Text, ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.bootstrap.database import Base
@@ -221,6 +221,9 @@ class PaneResponsavel(Base):
     """
 
     __tablename__ = "pane_responsaveis"
+    __table_args__ = (
+        UniqueConstraint("pane_id", "usuario_id", name="uq_pane_responsavel_pane_usuario"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     pane_id: Mapped[uuid.UUID] = mapped_column(
