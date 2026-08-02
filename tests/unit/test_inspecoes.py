@@ -20,6 +20,7 @@ from app.modules.auth.models import Usuario
 from app.modules.auth.security import hash_senha
 from app.modules.inspecoes import schemas, service
 from app.modules.inspecoes.router import router as inspecoes_router
+from app.shared.core import exceptions as domain_exc
 from app.shared.core.enums import StatusAeronave, StatusInspecao, StatusTarefaInspecao
 
 
@@ -167,7 +168,7 @@ async def test_criar_tipo_inspecao_normaliza_codigo_e_rejeita_duplicado(db: Asyn
 
     assert tipo.codigo == "IF-50H"
 
-    with pytest.raises(ValueError, match="ja cadastrado"):
+    with pytest.raises(domain_exc.ConflitoNegocioError, match="ja cadastrado"):
         await service.criar_tipo_inspecao(
             db,
             schemas.TipoInspecaoCreate(
@@ -191,7 +192,7 @@ async def test_abrir_inspecao_instancia_tarefas_e_bloqueia_duplicidade_ativa(db:
     assert [t.ordem for t in inspecao.tarefas] == [1, 2, 3]
     assert all(t.status == StatusTarefaInspecao.PENDENTE.value for t in inspecao.tarefas)
 
-    with pytest.raises(ValueError, match="Ja existe inspecao ativa"):
+    with pytest.raises(domain_exc.ConflitoNegocioError, match="Ja existe inspecao ativa"):
         await abrir_inspecao_teste(db, usuario, aeronave, tipo.id)
 
 
@@ -203,7 +204,7 @@ async def test_atualizar_tarefa_concluida_exige_executor_e_move_inspecao_para_an
     inspecao = await abrir_inspecao_teste(db, usuario, aeronave, tipo.id)
     tarefa = inspecao.tarefas[0]
 
-    with pytest.raises(ValueError, match="Executor obrigatorio"):
+    with pytest.raises(domain_exc.ConflitoNegocioError, match="Executor obrigatorio"):
         await service.atualizar_tarefa_inspecao(
             db,
             tarefa.id,
@@ -239,7 +240,7 @@ async def test_concluir_inspecao_bloqueia_obrigatorias_pendentes(db: AsyncSessio
     tipo, _ = await criar_tipo_com_tarefas(db, obrigatorias=2, opcionais=1)
     inspecao = await abrir_inspecao_teste(db, usuario, aeronave, tipo.id)
 
-    with pytest.raises(ValueError, match="tarefas obrigatorias pendentes"):
+    with pytest.raises(domain_exc.ConflitoNegocioError, match="tarefas obrigatorias pendentes"):
         await service.concluir_inspecao(db, inspecao.id, usuario.id)
 
     for tarefa in inspecao.tarefas:
@@ -313,7 +314,9 @@ async def test_router_isolado_encarregado_pode_criar_tipo(db: AsyncSession):
     assert response.status_code == 201
     assert response.json()["codigo"] == "IF-200H"
 
-    result = await db.execute(select(inspecoes_models.TipoInspecao))
+    result = await db.execute(
+        select(inspecoes_models.TipoInspecao).where(inspecoes_models.TipoInspecao.codigo == "IF-200H")
+    )
     assert result.scalar_one_or_none() is not None
 
 

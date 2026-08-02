@@ -36,17 +36,10 @@ def _format_date(d: Any, fmt: str = "%d/%m/%Y") -> str:
     return str(d)
 
 
-async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> bytes:
-    """
-    Gera o PDF formatado (A4 Retrato) da Ordem de Inspeção com:
-    - 1. Identificação da Inspeção
-    - 2. Checklist de Tarefas da Inspeção (formatado para conferência e preenchimento manual)
-    - 3. Vencimentos e Calibrações Controladas da Aeronave (fluxo contínuo)
-    - 4. Inventário Completo da Aeronave (em página dedicada)
-    
-    Operação 100% passiva e somente-leitura.
-    """
-    # 1. Carregar dados completos da inspeção
+async def _carregar_inspecao_para_pdf(db: AsyncSession, inspecao_id: uuid.UUID) -> Inspecao:
+    """Carrega a inspeção com as relações usadas pelos dois relatórios PDF
+    (Ordem de Inspeção e Checklist). Query idêntica nas duas funções antes
+    desta extração."""
     result = await db.execute(
         select(Inspecao)
         .where(Inspecao.id == inspecao_id)
@@ -61,9 +54,19 @@ async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> 
     inspecao = result.scalar_one_or_none()
     if not inspecao:
         raise domain_exc.EntidadeNaoEncontradaError("Inspeção não encontrada.")
+    return inspecao
 
-    # 2. Carregar inventário instalado na aeronave
-    aeronave_id = inspecao.aeronave_id
+
+async def _carregar_instalacoes_aeronave(
+    db: AsyncSession, aeronave_id: uuid.UUID
+) -> tuple[list[Instalacao], list[Instalacao]]:
+    """Carrega as instalações ativas da aeronave (inventário completo) e o
+    subconjunto com controles de vencimento cadastrados. Query idêntica nas
+    duas funções de geração de PDF antes desta extração.
+
+    Returns:
+        (todas_instalacoes, itens_controlados)
+    """
     stmt_inst = (
         select(Instalacao)
         .where(Instalacao.aeronave_id == aeronave_id, Instalacao.data_remocao.is_(None))
@@ -78,10 +81,24 @@ async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> 
     res_inst = await db.execute(stmt_inst)
     todas_instalacoes = list(res_inst.scalars().all())
 
-    # Filtrar apenas instalações onde o item possui controles de vencimento cadastrados
     itens_controlados = [
         inst for inst in todas_instalacoes if inst.item and inst.item.controles_vencimento
     ]
+    return todas_instalacoes, itens_controlados
+
+
+async def gerar_pdf_ordem_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> bytes:
+    """
+    Gera o PDF formatado (A4 Retrato) da Ordem de Inspeção com:
+    - 1. Identificação da Inspeção
+    - 2. Checklist de Tarefas da Inspeção (formatado para conferência e preenchimento manual)
+    - 3. Vencimentos e Calibrações Controladas da Aeronave (fluxo contínuo)
+    - 4. Inventário Completo da Aeronave (em página dedicada)
+
+    Operação 100% passiva e somente-leitura.
+    """
+    inspecao = await _carregar_inspecao_para_pdf(db, inspecao_id)
+    todas_instalacoes, itens_controlados = await _carregar_instalacoes_aeronave(db, inspecao.aeronave_id)
 
     # 3. Montar documento PDF com ReportLab
     buffer = io.BytesIO()
@@ -469,41 +486,8 @@ async def gerar_pdf_checklist_inspecao(db: AsyncSession, inspecao_id: uuid.UUID)
     - 6. Discrepâncias / Observações Encontradas
     - Bloco de Assinatura do Inspetor de Eletrônica
     """
-    # 1. Carregar dados completos da inspeção
-    result = await db.execute(
-        select(Inspecao)
-        .where(Inspecao.id == inspecao_id)
-        .options(
-            selectinload(Inspecao.aeronave),
-            selectinload(Inspecao.tipos_aplicados),
-            selectinload(Inspecao.aberto_por),
-            selectinload(Inspecao.concluido_por),
-            selectinload(Inspecao.tarefas).selectinload(InspecaoTarefa.executado_por),
-        )
-    )
-    inspecao = result.scalar_one_or_none()
-    if not inspecao:
-        raise domain_exc.EntidadeNaoEncontradaError("Inspeção não encontrada.")
-
-    # 2. Carregar inventário instalado na aeronave para tabela de Vencimentos Controlados
-    aeronave_id = inspecao.aeronave_id
-    stmt_inst = (
-        select(Instalacao)
-        .where(Instalacao.aeronave_id == aeronave_id, Instalacao.data_remocao.is_(None))
-        .options(
-            selectinload(Instalacao.slot),
-            selectinload(Instalacao.item).selectinload(ItemEquipamento.modelo),
-            selectinload(Instalacao.item)
-            .selectinload(ItemEquipamento.controles_vencimento)
-            .selectinload(ControleVencimento.tipo_controle),
-        )
-    )
-    res_inst = await db.execute(stmt_inst)
-    todas_instalacoes = list(res_inst.scalars().all())
-
-    itens_controlados = [
-        inst for inst in todas_instalacoes if inst.item and inst.item.controles_vencimento
-    ]
+    inspecao = await _carregar_inspecao_para_pdf(db, inspecao_id)
+    todas_instalacoes, itens_controlados = await _carregar_instalacoes_aeronave(db, inspecao.aeronave_id)
 
     # 3. Montar documento PDF
     buffer = io.BytesIO()

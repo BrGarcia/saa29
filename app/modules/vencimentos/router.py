@@ -4,9 +4,11 @@ Endpoints para a inteligência temporal de manutenções e vencimentos.
 """
 
 import uuid
+from datetime import date
 from fastapi import APIRouter, HTTPException, status
 from app.modules.vencimentos import schemas, service
 from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin, AdminRequired, EncarregadoInspetorOuAdmin, ExecucaoPermitida
+from app.shared.core.enums import StatusVencimento
 
 router = APIRouter()
 
@@ -118,7 +120,15 @@ async def listar_controles_item(
     _: CurrentUser,
 ):
     vencimentos = await service.listar_vencimentos_por_item(db, item_id)
-    return [schemas.ControleVencimentoOut.model_validate(v) for v in vencimentos]
+    hoje = date.today()
+    out = []
+    for v in vencimentos:
+        item = schemas.ControleVencimentoOut.model_validate(v)
+        # Status exibido é derivado em tempo de leitura, não o valor persistido
+        # (que só é atualizado ao registrar execução) — ver vencimentos.service.calcular_status_vencimento.
+        item.status = StatusVencimento(service.calcular_status_vencimento(v.data_vencimento, hoje))
+        out.append(item)
+    return out
 
 @router.patch(
     "/{vencimento_id}/executar",

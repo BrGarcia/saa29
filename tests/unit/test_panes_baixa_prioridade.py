@@ -127,7 +127,7 @@ class TestExistsPreservaComportamento:
         await db.refresh(aeronave)
         assert aeronave.status == StatusAeronave.INDISPONIVEL
 
-        await service._sincronizar_status_aeronave_pane(db, aeronave.id)
+        await service.sincronizar_status_aeronave(db, aeronave.id)
         await db.refresh(aeronave)
         assert aeronave.status == StatusAeronave.INDISPONIVEL  # ainda há panes abertas
 

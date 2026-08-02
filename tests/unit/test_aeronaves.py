@@ -364,7 +364,9 @@ class TestEndpointsAdicionais:
         self, client: AsyncClient, dados_aeronave_valida: dict, usuario_e_token: dict, db: AsyncSession
     ):
         """
-        DADO aeronave em INSPECAO
+        DADO aeronave com uma inspeção ativa (registro real em `Inspecao`,
+             não apenas o campo `status` setado manualmente — a sincronização
+             consulta a tabela de inspeções como fonte de verdade)
         QUANDO atribuída uma pane aberta
         ENTÃO status deve permanecer INSPECAO.
         """
@@ -377,11 +379,19 @@ class TestEndpointsAdicionais:
         assert aeronave.status_code == 201
         aid = aeronave.json()["id"]
 
-        # Definir aeronave em inspeção no banco
+        # Definir aeronave em inspeção no banco, com o registro real de Inspecao
+        # que sustenta esse status (sincronizar_status_aeronave consulta a
+        # tabela `inspecoes`, não apenas o campo `status` da aeronave).
         from app.modules.aeronaves.service import buscar_aeronave
-        from app.shared.core.enums import StatusAeronave
+        from app.modules.inspecoes.models import Inspecao
+        from app.shared.core.enums import StatusAeronave, StatusInspecao
         anv_obj = await buscar_aeronave(db, uuid.UUID(aid))
         anv_obj.status = StatusAeronave.INSPECAO
+        db.add(Inspecao(
+            aeronave_id=anv_obj.id,
+            status=StatusInspecao.ABERTA.value,
+            aberto_por_id=usuario_e_token["usuario"].id,
+        ))
         await db.flush()
 
         # Criar pane na aeronave em inspeção

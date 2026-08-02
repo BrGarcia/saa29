@@ -8,7 +8,7 @@ docs/backlog/Fable5/relatorio_panes_service.md (linhas 300-312 do relatório):
     #5  Background task não durável — anexos presos em "processando"
     #34 Race entre exclusão de anexo e processamento background
     #2  Race conditions (responsável duplicado)
-    #3  Race condition em _sincronizar_status_aeronave_pane
+    #3  Race condition em sincronizar_status_aeronave
 
 Nota de isolamento: o banco de testes é SQLite in-memory compartilhado por
 toda a sessão de pytest (`test_engine`, escopo "session" em conftest.py). A
@@ -87,7 +87,7 @@ def _mock_session_factory(db: AsyncSession):
 class TestSincronizacaoStatusAeronave:
     @pytest.mark.asyncio
     async def test_editar_pane_para_resolvida_libera_aeronave(self, db: AsyncSession):
-        """Antes: editar_pane não chamava _sincronizar_status_aeronave_pane."""
+        """Antes: editar_pane não chamava sincronizar_status_aeronave."""
         prefixo = uuid.uuid4().hex[:6]
         aeronave = await _criar_aeronave(db, f"E{prefixo}", StatusAeronave.DISPONIVEL)
         usuario = await _criar_usuario(db, prefixo)
@@ -125,14 +125,14 @@ class TestSincronizacaoStatusAeronave:
         """Item #3: a função passou a usar db.get(..., with_for_update=True) — sem erros no SQLite."""
         prefixo = uuid.uuid4().hex[:6]
         aeronave = await _criar_aeronave(db, f"L{prefixo}", StatusAeronave.INDISPONIVEL)
-        await service._sincronizar_status_aeronave_pane(db, aeronave.id)
+        await service.sincronizar_status_aeronave(db, aeronave.id)
         await db.refresh(aeronave)
         assert aeronave.status == StatusAeronave.DISPONIVEL
 
     @pytest.mark.asyncio
     async def test_sincronizar_status_aeronave_inexistente_nao_falha(self, db: AsyncSession):
         """Sem aeronave, a função deve retornar silenciosamente (sem NameError/AttributeError)."""
-        await service._sincronizar_status_aeronave_pane(db, uuid.uuid4())
+        await service.sincronizar_status_aeronave(db, uuid.uuid4())
 
 
 # ================================================================== #

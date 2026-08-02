@@ -3,10 +3,12 @@ app/modules/vencimentos/service.py
 Camada de serviço para a inteligência temporal de manutenções e vencimentos.
 """
 
+import logging
 import uuid
-from datetime import date
+from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import select, and_, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -25,6 +27,29 @@ from app.modules.vencimentos.schemas import (
 from app.shared.core import exceptions as domain_exc
 from app.shared.core.enums import StatusVencimento, StatusAeronave
 
+logger = logging.getLogger(__name__)
+
+
+def calcular_status_vencimento(data_vencimento: date | None, hoje: date | None = None) -> str:
+    """Deriva o status OK/VENCENDO/VENCIDO a partir da data de vencimento.
+
+    A coluna `ControleVencimento.status` persiste apenas o último valor
+    conhecido (útil como histórico do momento da última execução), mas não é
+    recalculada pela simples passagem do tempo. Todo ponto de leitura (matriz,
+    listagem por item) deve derivar o status exibido a partir desta função,
+    em vez de confiar no valor gravado.
+    """
+    if hoje is None:
+        hoje = date.today()
+    if data_vencimento is None:
+        return StatusVencimento.VENCIDO.value
+    if data_vencimento < hoje:
+        return StatusVencimento.VENCIDO.value
+    if (data_vencimento - hoje).days <= 30:
+        return StatusVencimento.VENCENDO.value
+    return StatusVencimento.OK.value
+
+
 async def listar_tipos_controle(db: AsyncSession) -> list[TipoControle]:
     result = await db.execute(select(TipoControle).order_by(TipoControle.nome))
     return list(result.scalars().all())
@@ -34,8 +59,15 @@ async def criar_tipo_controle(db: AsyncSession, dados: TipoControleCreate) -> Ti
     if existing.scalar_one_or_none():
         raise ValueError(f"Tipo de controle '{dados.nome}' já existe.")
     tipo = TipoControle(nome=dados.nome.upper(), descricao=dados.descricao)
-    db.add(tipo)
-    await db.flush()
+    try:
+        # SAVEPOINT: em caso de criação concorrente com o mesmo nome, desfaz
+        # apenas este insert e mantém a transação da requisição utilizável.
+        async with db.begin_nested():
+            db.add(tipo)
+            await db.flush()
+    except IntegrityError as exc:
+        logger.warning("Conflito de UNIQUE ao criar tipo de controle %s: %s", dados.nome, exc.orig)
+        raise ValueError(f"Tipo de controle '{dados.nome}' já existe.") from exc
     return tipo
 
 async def atualizar_tipo_controle(db: AsyncSession, tipo_id: uuid.UUID, dados: TipoControleUpdate) -> TipoControle:
@@ -53,7 +85,12 @@ async def atualizar_tipo_controle(db: AsyncSession, tipo_id: uuid.UUID, dados: T
         tipo.nome = novo_nome
     if dados.descricao is not None:
         tipo.descricao = dados.descricao
-    await db.flush()
+    try:
+        async with db.begin_nested():
+            await db.flush()
+    except IntegrityError as exc:
+        logger.warning("Conflito de UNIQUE ao atualizar tipo de controle %s: %s", tipo_id, exc.orig)
+        raise ValueError(f"Já existe um tipo de controle com o código '{dados.nome}'.") from exc
     return tipo
 
 async def associar_controle_a_equipamento(
@@ -69,29 +106,9 @@ async def associar_controle_a_equipamento(
     if existing:
         old_periodicidade = existing.periodicidade_meses
         existing.periodicidade_meses = periodicidade
-        
-        # Bug 137: Se a periodicidade mudou, recalcular vencimentos dos itens existentes que já tenham sido executados
+
+        # Se a periodicidade mudou, recalcular vencimentos dos itens que já tenham sido executados
         if old_periodicidade != periodicidade:
-            from sqlalchemy import update
-            # Seleciona todos os vencimentos deste modelo e tipo de controle que já tenham uma data de última execução
-            stmt_update = (
-                update(ControleVencimento)
-                .where(
-                    ControleVencimento.tipo_controle_id == tipo_controle_id,
-                    ControleVencimento.item_id.in_(
-                        select(ItemEquipamento.id).where(ItemEquipamento.modelo_id == modelo_id)
-                    ),
-                    ControleVencimento.data_ultima_exec.is_not(None)
-                )
-                .values(
-                    # Nota: SQLite não suporta bem adição de meses complexa via SQL puro de forma portável, 
-                    # então em sistemas reais faríamos via ORM ou helper específico.
-                    # Mas para o SAA29, seguiremos a sugestão do auditor Claude.
-                    data_vencimento = func.date(ControleVencimento.data_ultima_exec, f'+{periodicidade} months')
-                )
-            )
-            # Como o cálculo de data no SQLite via string formatada é chato e o projeto usa SQLAlchemy async,
-            # vamos fazer via ORM para garantir precisão e portabilidade (conforme sugestão de segurança 152).
             res_vencs = await db.execute(
                 select(ControleVencimento)
                 .where(
@@ -105,38 +122,48 @@ async def associar_controle_a_equipamento(
             vencs_to_fix = res_vencs.scalars().all()
             for v in vencs_to_fix:
                 v.data_vencimento = v.data_ultima_exec + relativedelta(months=periodicidade)
-                # O status será recalculado na próxima visualização da matriz ou podemos forçar aqui
-        
+                # status é derivado em tempo de leitura por calcular_status_vencimento()
+
         await db.flush()
         return existing
 
     assoc = EquipamentoControle(
-        id=uuid.uuid4(), 
-        modelo_id=modelo_id, 
+        id=uuid.uuid4(),
+        modelo_id=modelo_id,
         tipo_controle_id=tipo_controle_id,
         periodicidade_meses=periodicidade
     )
-    db.add(assoc)
-    await db.flush()
+    try:
+        async with db.begin_nested():
+            db.add(assoc)
+            await db.flush()
+    except IntegrityError as exc:
+        logger.warning(
+            "Conflito de UNIQUE ao associar controle %s ao modelo %s: %s",
+            tipo_controle_id, modelo_id, exc.orig,
+        )
+        raise ValueError("Este tipo de controle já está associado a este equipamento.") from exc
 
-    res_itens = await db.execute(select(ItemEquipamento).where(ItemEquipamento.modelo_id == modelo_id))
-    itens = res_itens.scalars().all()
+    res_itens = await db.execute(select(ItemEquipamento.id).where(ItemEquipamento.modelo_id == modelo_id))
+    item_ids = set(res_itens.scalars().all())
 
-    for item in itens:
-        res_venc = await db.execute(
-            select(ControleVencimento).where(
-                ControleVencimento.item_id == item.id,
-                ControleVencimento.tipo_controle_id == tipo_controle_id
+    res_existentes = await db.execute(
+        select(ControleVencimento.item_id).where(
+            ControleVencimento.tipo_controle_id == tipo_controle_id,
+            ControleVencimento.item_id.in_(item_ids),
+        )
+    )
+    item_ids_com_controle = set(res_existentes.scalars().all())
+
+    for item_id in item_ids - item_ids_com_controle:
+        db.add(
+            ControleVencimento(
+                id=uuid.uuid4(),
+                item_id=item_id,
+                tipo_controle_id=tipo_controle_id,
+                status=StatusVencimento.VENCIDO.value,
             )
         )
-        if not res_venc.scalar_one_or_none():
-            venc = ControleVencimento(
-                id=uuid.uuid4(),
-                item_id=item.id,
-                tipo_controle_id=tipo_controle_id,
-                status=StatusVencimento.VENCIDO.value
-            )
-            db.add(venc)
 
     await db.flush()
     return assoc
@@ -330,11 +357,12 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
         if slot_modelo_id not in inst_map[inst.aeronave_id]:
             inst_map[inst.aeronave_id][slot_modelo_id] = inst
 
+    hoje = date.today()
     aeronaves_out = []
     for aeronave in aeronaves:
         acft_inst = inst_map.get(aeronave.id, {})
         slots_out = []
-        
+
         has_desinstalado = False
         has_vencido = False
         has_vencendo = False
@@ -356,7 +384,7 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
                 if not item:
                     status_final = "DESINSTALADO"
                 elif venc:
-                    status_final = venc.status
+                    status_final = calcular_status_vencimento(venc.data_vencimento, hoje)
                 else:
                     status_final = StatusVencimento.VENCIDO.value
                 prorrogado = False
@@ -369,8 +397,8 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
                         prorrogado = True
                         data_nova = prorrogacao_ativa.data_nova_vencimento
                         doc_prorrogacao = prorrogacao_ativa.numero_documento
-                        
-                        if date.today() > data_nova:
+
+                        if hoje > data_nova:
                             status_final = "VENCIDO"
                         else:
                             status_final = "PRORROGADO"
@@ -421,7 +449,7 @@ async def prorrogar_vencimento(
 ) -> ProrrogacaoVencimento:
     vencimento = await db.get(ControleVencimento, vencimento_id)
     if not vencimento:
-        raise domain_exc.NotFoundError(detail="Vencimento não encontrado.")
+        raise domain_exc.EntidadeNaoEncontradaError("Vencimento não encontrado.")
         
     await db.execute(
         ProrrogacaoVencimento.__table__.update()
@@ -436,11 +464,14 @@ async def prorrogar_vencimento(
     # Bug 147: Sincronizar cache
     db.expire(vencimento, ["prorrogacoes"])
     
+    data_base = vencimento.data_vencimento or dados_prorrogacao.data_concessao
+    data_nova_vencimento = data_base + timedelta(days=dados_prorrogacao.dias_adicionais)
+
     nova_prorrogacao = ProrrogacaoVencimento(
         controle_id=vencimento_id,
         numero_documento=dados_prorrogacao.numero_documento,
         data_concessao=dados_prorrogacao.data_concessao,
-        data_nova_vencimento=vencimento.data_vencimento + relativedelta(days=dados_prorrogacao.dias_adicionais) if vencimento.data_vencimento else dados_prorrogacao.data_concessao + relativedelta(days=dados_prorrogacao.dias_adicionais),
+        data_nova_vencimento=data_nova_vencimento,
         dias_adicionais=dados_prorrogacao.dias_adicionais,
         motivo=dados_prorrogacao.motivo,
         observacao=dados_prorrogacao.observacao,

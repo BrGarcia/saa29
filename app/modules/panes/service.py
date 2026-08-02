@@ -88,12 +88,12 @@ def _get_ranking_subquery(db: AsyncSession):
     ).subquery()
 
 
-async def _sincronizar_status_aeronave_pane(db: AsyncSession, aeronave_id: uuid.UUID) -> None:
+async def sincronizar_status_aeronave(db: AsyncSession, aeronave_id: uuid.UUID) -> None:
     """
     Sincroniza o status da aeronave com base nas regras de negócio da frota:
-    1. Se possui inspeção ativa ➔ status é INSPEÇÃO.
-    2. Se possui pane aberta ➔ status muda para INDISPONIVEL (a menos que esteja sob inspeção, inativa ou estocada).
-    3. Se não possui pane aberta nem inspeção ➔ status retorna para DISPONIVEL (caso estivesse INDISPONIVEL).
+    1. Se possui inspeção ativa ➔ status é INSPEÇÃO (prioridade sobre as demais regras).
+    2. Senão, se possui pane aberta ➔ status muda para INDISPONIVEL (a menos que esteja inativa ou estocada).
+    3. Senão ➔ status retorna para DISPONIVEL (caso estivesse INDISPONIVEL ou INSPEÇÃO).
 
     Item #3 (relatorio_panes_service.md): usa `with_for_update` para reduzir a
     janela de "lost update" quando duas panes da mesma aeronave são
@@ -126,13 +126,21 @@ async def _sincronizar_status_aeronave_pane(db: AsyncSession, aeronave_id: uuid.
 
     status_str = aeronave.status.value if hasattr(aeronave.status, 'value') else str(aeronave.status)
 
+    # `tem_inspecao_ativa` já é a fonte de verdade (consulta ao vivo) sobre se a
+    # aeronave está sob inspeção — por isso os ramos abaixo não reexaminam o
+    # status "INSPECAO"/"INSPEÇÃO" gravado anteriormente. Fazer isso é o bug
+    # original: quando uma inspeção é concluída/cancelada com uma pane ainda
+    # aberta, o status gravado no momento da chamada ainda é INSPECAO (foi
+    # setado pela própria inspeção que está sendo encerrada), e um guard que
+    # excluísse a transição nesse caso deixaria a aeronave presa em INSPECAO
+    # para sempre.
     if tem_inspecao_ativa:
         aeronave.status = StatusAeronave.INSPECAO
     elif tem_panes_abertas:
-        if status_str not in [StatusAeronave.INSPECAO.value, "INSPEÇÃO", StatusAeronave.INATIVA.value, StatusAeronave.ESTOCADA.value]:
+        if status_str not in [StatusAeronave.INATIVA.value, StatusAeronave.ESTOCADA.value]:
             aeronave.status = StatusAeronave.INDISPONIVEL
     else:
-        if status_str in [StatusAeronave.INDISPONIVEL.value, StatusAeronave.INSPECAO.value]:
+        if status_str in [StatusAeronave.INDISPONIVEL.value, StatusAeronave.INSPECAO.value, "INSPEÇÃO"]:
             aeronave.status = StatusAeronave.DISPONIVEL
 
     db.add(aeronave)
@@ -205,7 +213,7 @@ async def criar_pane(
         await db.refresh(resp, ["usuario"])
 
     # Sincroniza o status da aeronave para INDISPONIVEL (se estava DISPONIVEL)
-    await _sincronizar_status_aeronave_pane(db, dados.aeronave_id)
+    await sincronizar_status_aeronave(db, dados.aeronave_id)
 
     # Garantir que as coleções estejam inicializadas para evitar erro de lazy-load no router.
     #
@@ -440,7 +448,7 @@ async def editar_pane(
     # RESOLVIDA sem sincronizar o status da aeronave — ela permanecia
     # INDISPONIVEL mesmo sem panes abertas restantes.
     if dados.status == StatusPane.RESOLVIDA:
-        await _sincronizar_status_aeronave_pane(db, pane.aeronave_id)
+        await sincronizar_status_aeronave(db, pane.aeronave_id)
 
     return pane
 
@@ -506,11 +514,11 @@ async def concluir_pane(
                 pass  # já é responsável (inserido por outra transação) — ok, segue o fluxo
 
     await db.flush()
-    await _sincronizar_status_aeronave_pane(db, pane.aeronave_id)
+    await sincronizar_status_aeronave(db, pane.aeronave_id)
 
     # Item #16: só recarrega o que pode de fato ter mudado desde o load
     # inicial. `aeronave` foi mutada em memória (mesmo objeto identity-mapped)
-    # por `_sincronizar_status_aeronave_pane`, sem precisar de refresh; `anexos`
+    # por `sincronizar_status_aeronave`, sem precisar de refresh; `anexos`
     # nunca é tocado nesta função. `responsavel_conclusao` sempre precisa —
     # o FK `concluido_por_id` acabou de mudar. `responsaveis` só se um insert
     # foi tentado (com ou sem sucesso — bypassa a coleção via `db.add`).
@@ -535,7 +543,7 @@ async def excluir_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane:
         raise ValueError("Pane já está inativa.")
     pane.ativo = False
     await db.flush()
-    await _sincronizar_status_aeronave_pane(db, pane.aeronave_id)
+    await sincronizar_status_aeronave(db, pane.aeronave_id)
     return pane
 
 
@@ -551,7 +559,7 @@ async def restaurar_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane:
         raise ValueError("Pane já está ativa.")
     pane.ativo = True
     await db.flush()
-    await _sincronizar_status_aeronave_pane(db, pane.aeronave_id)
+    await sincronizar_status_aeronave(db, pane.aeronave_id)
     return pane
 
 
