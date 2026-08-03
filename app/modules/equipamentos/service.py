@@ -30,6 +30,7 @@ from app.modules.equipamentos.models import (
     ItemEquipamento,
     Instalacao,
 )
+from app.modules.vencimentos.models import EquipamentoControle
 from app.modules.equipamentos.schemas import (
     ModeloEquipamentoCreate,
     ModeloEquipamentoUpdate,
@@ -152,7 +153,8 @@ async def remover_modelo(db: AsyncSession, modelo_id: uuid.UUID) -> None:
 
     Raises:
         EntidadeNaoEncontradaError: PN inexistente.
-        ConflitoNegocioError: existem itens físicos ou slots dependentes do PN.
+        ConflitoNegocioError: existem itens físicos, slots ou controles de
+            vencimento (EquipamentoControle) dependentes do PN.
     """
     result = await db.execute(select(ModeloEquipamento).where(ModeloEquipamento.id == modelo_id))
     modelo = result.scalar_one_or_none()
@@ -171,6 +173,17 @@ async def remover_modelo(db: AsyncSession, modelo_id: uuid.UUID) -> None:
     if res_slots.first():
         raise domain_exc.ConflitoNegocioError(
             "Não é possível excluir: este PN está associado a slots na configuração da aeronave."
+        )
+
+    # Verificar se existem controles de vencimento (templates) atrelados —
+    # a FK usa ondelete=CASCADE, então sem esta checagem a exclusão apagaria
+    # esses templates silenciosamente (MELHORIA-06, achados_equipamentos.md).
+    res_controles = await db.execute(
+        select(EquipamentoControle.id).where(EquipamentoControle.modelo_id == modelo_id)
+    )
+    if res_controles.first():
+        raise domain_exc.ConflitoNegocioError(
+            "Não é possível excluir: este PN tem controles de vencimento (regras de periodicidade) cadastrados."
         )
 
     await db.delete(modelo)
@@ -255,11 +268,24 @@ def _aplicar_paginacao(stmt, limit: int | None, offset: int):
 # ============================================================
 
 async def criar_slot(db: AsyncSession, dados: SlotInventarioCreate) -> SlotInventario:
-    """Define um novo slot/posição de inventário."""
+    """Define um novo slot/posição de inventário.
+
+    Raises:
+        EntidadeNaoEncontradaError: `modelo_id` não corresponde a um PN cadastrado.
+    """
+    if not await db.get(ModeloEquipamento, dados.modelo_id):
+        raise domain_exc.EntidadeNaoEncontradaError(f"Equipamento {dados.modelo_id} não encontrado.")
+
     slot = SlotInventario(**dados.model_dump())
     db.add(slot)
     await db.flush()
     return slot
+
+
+async def listar_slots(db: AsyncSession) -> list[SlotInventario]:
+    """Lista todos os slots configurados."""
+    result = await db.execute(select(SlotInventario))
+    return list(result.scalars().all())
 
 
 # ============================================================
@@ -448,11 +474,17 @@ def _montar_linha_inventario(
 async def ajustar_inventario_item(
     db: AsyncSession,
     dados: AjusteInventarioCreate,
+    usuario_id: uuid.UUID | None = None,
 ) -> AjusteInventarioResponse:
     """Sincroniza o S/N REAL com um SLOT de uma aeronave.
 
     `dados.slot_id` e `dados.numero_serie_real` já chegam resolvidos/normalizados
     pelo schema. S/N vazio significa "slot vazio" (registra a remoção).
+
+    `usuario_id` é sempre o usuário autenticado da requisição — nunca deve vir
+    do payload do cliente (BUG-01, achados_equipamentos.md: a trilha de
+    auditoria do inventário era forjável, pois `usuario_id` era um campo
+    comum do payload).
 
     Efeitos colaterais: pode criar o item físico (e seus controles de vencimento)
     e encerrar instalações anteriores — inclusive em outra aeronave, quando
@@ -486,9 +518,30 @@ async def ajustar_inventario_item(
     if conflito_resp:
         return conflito_resp
 
-    _efetivar_troca_no_slot(db, inst_atual, item_real, aeronave_id, slot_id, dados.usuario_id)
+    nova_instalacao = _efetivar_troca_no_slot(db, inst_atual, item_real, aeronave_id, slot_id, usuario_id)
 
-    await db.flush()
+    try:
+        # SAVEPOINT: rede de segurança contra duas instalações concorrentes
+        # no mesmo slot/aeronave (RISCO-05) — o índice único parcial
+        # uq_instalacao_ativa_por_slot_aeronave é quem garante a invariante.
+        async with db.begin_nested():
+            await db.flush()
+    except IntegrityError as exc:
+        logger.warning(
+            "Conflito de instalação concorrente no slot %s da aeronave %s: %s",
+            slot_id, aeronave_id, exc.orig,
+        )
+        # Descarta o estado em memória da tentativa que falhou: sem isso, o
+        # objeto novo (ainda pendente) e a mutação de `inst_atual` (remoção)
+        # ficariam presos na sessão e seriam reenviados no commit final da
+        # requisição, reproduzindo o mesmo IntegrityError sem tratamento.
+        db.expunge(nova_instalacao)
+        if inst_atual:
+            db.expire(inst_atual)
+        return AjusteInventarioResponse(
+            sucesso=False,
+            mensagem="Este slot já foi alterado por outra operação simultânea. Tente novamente."
+        )
 
     return AjusteInventarioResponse(sucesso=True, mensagem="Inventário ajustado com sucesso.")
 
@@ -600,28 +653,33 @@ def _efetivar_troca_no_slot(
     aeronave_id: uuid.UUID,
     slot_id: uuid.UUID,
     usuario_id: uuid.UUID | None,
-) -> None:
+) -> Instalacao:
     """Encerra a instalação atual do slot (se houver) e registra a nova."""
     hoje = date.today()
     if inst_atual:
         _registrar_remocao(inst_atual, hoje)
 
-    db.add(
-        Instalacao(
-            id=uuid.uuid4(),
-            item_id=item_novo.id,
-            aeronave_id=aeronave_id,
-            slot_id=slot_id,
-            usuario_id=usuario_id,
-            data_instalacao=hoje
-        )
+    nova_instalacao = Instalacao(
+        id=uuid.uuid4(),
+        item_id=item_novo.id,
+        aeronave_id=aeronave_id,
+        slot_id=slot_id,
+        usuario_id=usuario_id,
+        data_instalacao=hoje
     )
+    db.add(nova_instalacao)
+    return nova_instalacao
 
 
 async def instalar_item(
     db: AsyncSession, item_id: uuid.UUID, aeronave_id: uuid.UUID, slot_id: uuid.UUID, data_instalacao: date, usuario_id: uuid.UUID
 ) -> Instalacao:
-    """Instala um item em um slot, encerrando a instalação anterior do item."""
+    """Instala um item em um slot, encerrando a instalação anterior do item.
+
+    Raises:
+        ConflitoNegocioError: já existe uma instalação ativa no slot/aeronave
+            de destino (RISCO-05: corrida entre duas chamadas concorrentes).
+    """
     stmt_old = select(Instalacao).where(Instalacao.item_id == item_id, Instalacao.data_remocao.is_(None))
     res_old = await db.execute(stmt_old)
     old_inst = res_old.scalar_one_or_none()
@@ -637,8 +695,20 @@ async def instalar_item(
         data_instalacao=data_instalacao,
         created_at=func.now()
     )
-    db.add(instalacao)
-    await db.flush()
+    try:
+        # SAVEPOINT: rede de segurança contra duas instalações concorrentes
+        # no mesmo slot/aeronave (RISCO-05).
+        async with db.begin_nested():
+            db.add(instalacao)
+            await db.flush()
+    except IntegrityError as exc:
+        logger.warning(
+            "Conflito de instalação concorrente no slot %s da aeronave %s: %s",
+            slot_id, aeronave_id, exc.orig,
+        )
+        raise domain_exc.ConflitoNegocioError(
+            "Já existe uma instalação ativa neste slot para esta aeronave."
+        ) from exc
     return instalacao
 
 async def remover_item(db: AsyncSession, instalacao_id: uuid.UUID, data_remocao: date, usuario_id: uuid.UUID | None = None) -> Instalacao:

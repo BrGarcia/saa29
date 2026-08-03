@@ -1906,7 +1906,8 @@ async function carregarOpcoesCatalogoTarefas() {
             itens: previewData.itens.map((/** @type {any} */ it) => ({
                 slot_id: it.slot_id,
                 sn_final: it.sn_encontrado
-            }))
+            })),
+            preview_token: previewData.preview_token
         };
 
         try {

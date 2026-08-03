@@ -14,7 +14,7 @@ import uuid
 from datetime import datetime, date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, DateTime, Date, Integer, ForeignKey, func, UniqueConstraint
+from sqlalchemy import String, DateTime, Date, Integer, ForeignKey, func, UniqueConstraint, Index, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.bootstrap.database import Base
@@ -104,6 +104,19 @@ class Instalacao(Base):
     Registro histórico e atual de um Item em um Slot de uma Aeronave.
     """
     __tablename__ = "instalacoes"
+    __table_args__ = (
+        # No máximo uma instalação ativa por (slot, aeronave) — RISCO-05,
+        # docs/backlog/revisor/achados_equipamentos.md. A invariante real é
+        # por par (slot_id, aeronave_id), não por slot_id isolado: um slot é
+        # uma posição compartilhada por toda a frota, então cada aeronave tem
+        # sua própria instalação ativa no mesmo slot_id — confirmado contra
+        # dados reais (0 violações agrupando por par; dezenas de "duplicatas"
+        # falsas agrupando só por slot_id, que são aeronaves diferentes).
+        Index(
+            "uq_instalacao_ativa_por_slot_aeronave", "slot_id", "aeronave_id",
+            unique=True, sqlite_where=text("data_remocao IS NULL"),
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("itens_equipamento.id"), nullable=False, index=True)

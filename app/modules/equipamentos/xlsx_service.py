@@ -2,18 +2,74 @@
 app/modules/equipamentos/xlsx_service.py
 Serviço de processamento de inventário via arquivo XLSX.
 """
+import logging
 import os
 import uuid
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from dataclasses import dataclass, field
 
+from jose import jwt, JWTError
 from openpyxl import load_workbook
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.bootstrap.config import get_settings
 from app.modules.aeronaves.models import Aeronave
 from app.modules.equipamentos.models import ModeloEquipamento, SlotInventario
 from app.modules.equipamentos import schemas, service as equip_service
+from app.shared.core import exceptions as domain_exc
+
+logger = logging.getLogger(__name__)
+
+# RISCO-02 (achados_equipamentos.md): a prévia e a confirmação do XLSX não
+# tinham nenhum vínculo do lado do servidor — a confirmação recebia
+# `aeronave_id` cru do payload, sem checar se era o mesmo que a prévia
+# calculou pelo nome do arquivo, nem se os slots confirmados pertenciam de
+# fato à prévia. O token abaixo assina (aeronave_id + slot_ids da prévia)
+# para que a confirmação possa validar contra o que foi realmente exibido.
+_PREVIEW_TOKEN_TYPE = "xlsx_inventario_preview"
+_PREVIEW_TOKEN_TTL_MINUTES = 15
+
+
+def _gerar_preview_token(aeronave_id: uuid.UUID, slot_ids: list[uuid.UUID]) -> str:
+    settings = get_settings()
+    payload = {
+        "type": _PREVIEW_TOKEN_TYPE,
+        "aeronave_id": str(aeronave_id),
+        "slot_ids": sorted(str(s) for s in slot_ids),
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=_PREVIEW_TOKEN_TTL_MINUTES),
+    }
+    return jwt.encode(payload, settings.app_secret_key, algorithm=settings.jwt_algorithm)
+
+
+def _validar_preview_token(token: str, aeronave_id: uuid.UUID, slot_ids: list[uuid.UUID]) -> None:
+    """Confirma que a confirmação corresponde à prévia que a originou.
+
+    Raises:
+        ConflitoNegocioError: token ausente/expirado/adulterado, aeronave
+            diferente da prévia, ou slot confirmado que não fazia parte dela.
+    """
+    settings = get_settings()
+    try:
+        payload = jwt.decode(token, settings.app_secret_key, algorithms=[settings.jwt_algorithm])
+    except JWTError as exc:
+        raise domain_exc.ConflitoNegocioError(
+            "Prévia expirada ou inválida. Gere uma nova prévia antes de confirmar."
+        ) from exc
+
+    if payload.get("type") != _PREVIEW_TOKEN_TYPE:
+        raise domain_exc.ConflitoNegocioError("Token de prévia inválido.")
+    if payload.get("aeronave_id") != str(aeronave_id):
+        raise domain_exc.ConflitoNegocioError(
+            "A aeronave da confirmação não corresponde à aeronave da prévia."
+        )
+    slots_previstos = set(payload.get("slot_ids", []))
+    slots_confirmados = {str(s) for s in slot_ids}
+    if not slots_confirmados.issubset(slots_previstos):
+        raise domain_exc.ConflitoNegocioError(
+            "Um ou mais slots confirmados não pertencem à prévia original."
+        )
 
 
 @dataclass
@@ -48,6 +104,7 @@ class XlsxPreviewResultado:
     pns_ignorados: int = 0
     itens: list[XlsxPreviewItem] = field(default_factory=list)
     erros: list[str] = field(default_factory=list)
+    preview_token: str | None = None
 
 async def obter_previa_xlsx_inventario(
     db: AsyncSession,
@@ -98,6 +155,7 @@ async def obter_previa_xlsx_inventario(
             if pn_xlsx:
                 xlsx_data[(pn_xlsx, pos_xlsx)] = sn_xlsx
     except Exception as e:
+        logger.exception("Erro ao ler arquivo XLSX de prévia (matrícula %s)", nome_base)
         resultado.erros.append(f"Erro ao ler arquivo XLSX: {str(e)}")
         return resultado
 
@@ -147,59 +205,10 @@ async def obter_previa_xlsx_inventario(
         ))
 
     if hasattr(wb, 'close'): wb.close()
-    return resultado
 
-async def processar_xlsx_inventario(
-    db: AsyncSession,
-    file_content: bytes,
-    filename: str,
-    usuario_id: uuid.UUID,
-) -> XlsxResultado:
-    """
-    Processa um arquivo XLSX de inventário e atualiza os seriais da aeronave.
-    Mantido para compatibilidade ou se decidirmos processar direto.
-    """
-    # Podemos reutilizar obter_previa e apenas aplicar
-    previa = await obter_previa_xlsx_inventario(db, file_content, filename)
-    
-    resultado = XlsxResultado(
-        matricula=previa.matricula,
-        total_linhas=previa.total_linhas,
-        pns_encontrados=previa.pns_encontrados,
-        pns_ignorados=previa.pns_ignorados,
-        erros=previa.erros
+    resultado.preview_token = _gerar_preview_token(
+        aeronave.id, [item.slot_id for item in resultado.itens]
     )
-
-    if previa.erros:
-        return resultado
-
-    if not previa.aeronave_id:
-        resultado.erros.append("ID da aeronave não identificado.")
-        return resultado
-
-    # Aplicar cada item
-    for item in previa.itens:
-        try:
-            dados = schemas.AjusteInventarioCreate(
-                aeronave_id=previa.aeronave_id,
-                slot_id=item.slot_id,
-                numero_serie_real=item.sn_encontrado,
-                forcar_transferencia=False,
-                usuario_id=usuario_id,
-            )
-            resp = await equip_service.ajustar_inventario_item(db, dados)
-            if resp.sucesso:
-                resultado.itens_atualizados += 1
-                resultado.detalhes.append(f"{item.nome_posicao} ({item.pn}): {item.status_msg}")
-            else:
-                resultado.detalhes.append(
-                    f"⚠️ {item.nome_posicao}: {resp.mensagem}"
-                )
-        except Exception as e:
-            resultado.erros.append(
-                f"Slot {item.nome_posicao} ({item.pn}): {str(e)}"
-            )
-
     return resultado
 
 async def processar_confirmacao_xlsx(
@@ -207,10 +216,18 @@ async def processar_confirmacao_xlsx(
     aeronave_id: uuid.UUID,
     itens: list[schemas.XlsxProcessConfirmItem],
     usuario_id: uuid.UUID,
+    preview_token: str,
 ) -> XlsxResultado:
     """
     Processa a lista de itens confirmados e persiste no banco.
+
+    Raises:
+        ConflitoNegocioError: `preview_token` ausente/expirado/adulterado, ou
+            `aeronave_id`/slots não correspondem à prévia que o gerou
+            (RISCO-02, achados_equipamentos.md).
     """
+    _validar_preview_token(preview_token, aeronave_id, [item.slot_id for item in itens])
+
     resultado = XlsxResultado()
     resultado.total_linhas = len(itens)
 
@@ -221,9 +238,8 @@ async def processar_confirmacao_xlsx(
                 slot_id=item.slot_id,
                 numero_serie_real=item.sn_final,
                 forcar_transferencia=False,
-                usuario_id=usuario_id,
             )
-            resp = await equip_service.ajustar_inventario_item(db, dados)
+            resp = await equip_service.ajustar_inventario_item(db, dados, usuario_id)
             if resp.sucesso:
                 resultado.itens_atualizados += 1
                 # resultado.detalhes.append(f"Sucesso: {item.slot_id} → {item.sn_final}")
@@ -232,6 +248,7 @@ async def processar_confirmacao_xlsx(
                     f"⚠️ Falha no Slot {item.slot_id}: {resp.mensagem}"
                 )
         except Exception as e:
+            logger.exception("Erro ao processar confirmação de XLSX no slot %s", item.slot_id)
             resultado.erros.append(
                 f"Erro no Slot {item.slot_id}: {str(e)}"
             )

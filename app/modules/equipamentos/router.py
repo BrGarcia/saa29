@@ -87,10 +87,8 @@ async def remover_equipamento(
     summary="Listar todos os slots configurados",
 )
 async def listar_slots(db: DBSession, _: CurrentUser):
-    from app.modules.equipamentos.models import SlotInventario
-    from sqlalchemy import select
-    result = await db.execute(select(SlotInventario))
-    return [schemas.SlotInventarioOut.model_validate(s) for s in result.scalars().all()]
+    slots = await service.listar_slots(db)
+    return [schemas.SlotInventarioOut.model_validate(s) for s in slots]
 
 
 @router.post(
@@ -104,12 +102,9 @@ async def criar_slot(
     db: DBSession,
     _: AdminRequired,
 ):
-    try:
-        slot = await service.criar_slot(db, dados)
-        # O commit é feito automaticamente pela dependência get_db ao final do request
-        return schemas.SlotInventarioOut.model_validate(slot)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    slot = await service.criar_slot(db, dados)
+    # O commit é feito automaticamente pela dependência get_db ao final do request
+    return schemas.SlotInventarioOut.model_validate(slot)
 
 
 # ---- Itens (Serial Number) ----
@@ -263,7 +258,7 @@ async def listar_inventario(
 async def ajustar_inventario(
     dados: schemas.AjusteInventarioCreate,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    current_user: EncarregadoOuAdmin,
 ):
     """
     Ajusta o número de série físico de um equipamento.
@@ -271,7 +266,7 @@ async def ajustar_inventario(
     """
     from sqlalchemy.exc import IntegrityError
     try:
-        return await service.ajustar_inventario_item(db, dados)
+        return await service.ajustar_inventario_item(db, dados, current_user.id)
     except IntegrityError as e:
         if "FOREIGN KEY constraint failed" in str(e):
             return schemas.AjusteInventarioResponse(
@@ -292,7 +287,7 @@ async def upload_inventario_xlsx_preview(
     file: UploadFile = File(...),
 ):
     """
-    Recebe um arquivo XLSX, cruza os PNs com o catálogo e retorna 
+    Recebe um arquivo XLSX, cruza os PNs com o catálogo e retorna
     uma prévia das alterações sem persistir.
     """
     if not file.filename or not file.filename.lower().endswith(".xlsx"):
@@ -301,7 +296,9 @@ async def upload_inventario_xlsx_preview(
             detail="O arquivo deve ser do tipo .xlsx"
         )
 
-    content = await file.read()
+    from app.shared.core.file_validators import ler_upload_com_limite
+    content = await ler_upload_com_limite(file, max_bytes=5 * 1024 * 1024)
+
     from app.modules.equipamentos.xlsx_service import obter_previa_xlsx_inventario
     return await obter_previa_xlsx_inventario(db, content, file.filename)
 
@@ -320,57 +317,12 @@ async def upload_inventario_xlsx_process(
     """
     from app.modules.equipamentos.xlsx_service import processar_confirmacao_xlsx
     resultado = await processar_confirmacao_xlsx(
-        db, dados.aeronave_id, dados.itens, current_user.id
+        db, dados.aeronave_id, dados.itens, current_user.id, dados.preview_token
     )
 
     return {
         "sucesso": len(resultado.erros) == 0,
         "total_linhas": resultado.total_linhas,
-        "itens_atualizados": resultado.itens_atualizados,
-        "erros": resultado.erros,
-        "detalhes": resultado.detalhes,
-    }
-
-
-@router.post(
-    "/inventario/upload-xlsx",
-    summary="Carregar inventário via XLSX (Legado/Direto)",
-)
-async def upload_inventario_xlsx(
-    db: DBSession,
-    current_user: EncarregadoOuAdmin,
-    file: UploadFile = File(...),
-):
-    """
-    Recebe um arquivo XLSX nomeado como MATRICULA.xlsx,
-    cruza os PNs com o catálogo e atualiza os seriais da aeronave.
-    """
-    # Validar extensão
-    if not file.filename or not file.filename.lower().endswith(".xlsx"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="O arquivo deve ser do tipo .xlsx"
-        )
-
-    # Validar tamanho (máximo 5MB)
-    content = await file.read()
-    if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Arquivo excede o tamanho máximo de 5MB."
-        )
-
-    from app.modules.equipamentos.xlsx_service import processar_xlsx_inventario
-    resultado = await processar_xlsx_inventario(
-        db, content, file.filename, current_user.id
-    )
-
-    return {
-        "sucesso": len(resultado.erros) == 0,
-        "matricula": resultado.matricula,
-        "total_linhas": resultado.total_linhas,
-        "pns_encontrados": resultado.pns_encontrados,
-        "pns_ignorados": resultado.pns_ignorados,
         "itens_atualizados": resultado.itens_atualizados,
         "erros": resultado.erros,
         "detalhes": resultado.detalhes,

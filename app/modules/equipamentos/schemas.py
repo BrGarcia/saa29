@@ -129,7 +129,6 @@ class AjusteInventarioCreate(BaseModel):
     equipamento_id: uuid.UUID | None = None  # DEPRECATED: compatibilidade Frontend (V1)
     numero_serie_real: Identificador = Field(..., min_length=0)
     forcar_transferencia: bool = False
-    usuario_id: uuid.UUID | None = None
 
     @model_validator(mode="after")
     def _resolver_slot_id(self) -> "AjusteInventarioCreate":
@@ -184,6 +183,9 @@ class XlsxPreviewOut(BaseModel):
     pns_ignorados: int
     itens: list[XlsxPreviewItemOut]
     erros: list[str]
+    # RISCO-02 (achados_equipamentos.md): vincula esta prévia à confirmação —
+    # o cliente deve reenviar este valor em XlsxProcessRequest.preview_token.
+    preview_token: str | None = None
 
 class XlsxProcessConfirmItem(BaseModel):
     slot_id: uuid.UUID
@@ -192,3 +194,4 @@ class XlsxProcessConfirmItem(BaseModel):
 class XlsxProcessRequest(BaseModel):
     aeronave_id: uuid.UUID
     itens: list[XlsxProcessConfirmItem]
+    preview_token: str
