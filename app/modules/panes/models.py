@@ -252,7 +252,17 @@ class PaneResponsavel(Base):
 
     @property
     def trigrama(self) -> str | None:
-        """Atalho para obter o trigrama do usuário vinculado."""
+        """Atalho para obter o trigrama do usuário vinculado.
+
+        RISCO-16: `usuario` é `lazy="select"` (carregamento lazy síncrono) —
+        sob `AsyncSession`, acessar esta property sem a relação já carregada
+        em memória levanta `MissingGreenlet`. Todo call site atual garante o
+        carregamento explicitamente (`db.refresh(resp, ["usuario"])` em
+        `service.criar_pane`/`concluir_pane`/`adicionar_responsavel`, ou
+        `selectinload(...).selectinload(PaneResponsavel.usuario)` em
+        `listar_panes`/`buscar_pane`). Qualquer novo call site que serialize
+        `PaneResponsavel`/`ResponsavelOut` precisa fazer o mesmo.
+        """
         return self.usuario.trigrama if self.usuario else None
 
     def __repr__(self) -> str:

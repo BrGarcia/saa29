@@ -118,7 +118,9 @@ class TestCriarPane:
             },
             headers=headers,
         )
-        assert response.status_code == 404
+        # BUG-03 (achados_panes.md): aeronave inativa é um conflito de
+        # estado, não ausência de recurso — 409, não 404.
+        assert response.status_code == 409
 
     @pytest.mark.asyncio
     async def test_criar_pane_aeronave_indisponivel_permitida(

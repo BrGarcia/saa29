@@ -33,6 +33,7 @@ from app.modules.auth.security import hash_senha
 from app.modules.panes import service
 from app.modules.panes.models import Anexo, Pane, PaneResponsavel
 from app.modules.panes.schemas import AdicionarResponsavel, PaneCreate, PaneUpdate
+from app.shared.core import exceptions as domain_exc
 from app.shared.core.enums import StatusAeronave, StatusPane, TipoPapel
 
 
@@ -86,8 +87,13 @@ def _mock_session_factory(db: AsyncSession):
 
 class TestSincronizacaoStatusAeronave:
     @pytest.mark.asyncio
-    async def test_editar_pane_para_resolvida_libera_aeronave(self, db: AsyncSession):
-        """Antes: editar_pane não chamava sincronizar_status_aeronave."""
+    async def test_editar_pane_para_resolvida_e_bloqueada(self, db: AsyncSession):
+        """BUG-02/RISCO-05 (achados_panes.md): resolver uma pane via PUT
+        (editar_pane) produzia efeitos colaterais diferentes de resolver via
+        POST /concluir (sem observação, sem adicionar responsável) — e sem
+        checagem de papel para o caso `status` sozinho. Agora o caminho é
+        bloqueado por completo: editar_pane rejeita qualquer `status` com
+        409, independente de quem chama."""
         prefixo = uuid.uuid4().hex[:6]
         aeronave = await _criar_aeronave(db, f"E{prefixo}", StatusAeronave.DISPONIVEL)
         usuario = await _criar_usuario(db, prefixo)
@@ -98,9 +104,35 @@ class TestSincronizacaoStatusAeronave:
         await db.refresh(aeronave)
         assert aeronave.status == StatusAeronave.INDISPONIVEL
 
-        await service.editar_pane(
-            db, pane.id, PaneUpdate(status=StatusPane.RESOLVIDA), usuario.id
+        with pytest.raises(domain_exc.ConflitoNegocioError):
+            await service.editar_pane(
+                db, pane.id, PaneUpdate(status=StatusPane.RESOLVIDA), usuario.id
+            )
+
+        # A pane não foi resolvida nem a aeronave liberada pela tentativa via PUT.
+        await db.refresh(pane)
+        await db.refresh(aeronave)
+        assert pane.status == StatusPane.ABERTA.value
+        assert aeronave.status == StatusAeronave.INDISPONIVEL
+
+    @pytest.mark.asyncio
+    async def test_concluir_pane_libera_aeronave(self, db: AsyncSession):
+        """POST /concluir (service.concluir_pane) é o único caminho de
+        conclusão e continua sincronizando o status da aeronave — a
+        sincronização é feita inteiramente pelo service
+        (`sincronizar_status_aeronave`), sem depender do "safety net" de SQL
+        direto que existia no router (removido em MELHORIA-06/07)."""
+        prefixo = uuid.uuid4().hex[:6]
+        aeronave = await _criar_aeronave(db, f"F{prefixo}", StatusAeronave.DISPONIVEL)
+        usuario = await _criar_usuario(db, prefixo)
+
+        pane = await service.criar_pane(
+            db, PaneCreate(aeronave_id=aeronave.id, descricao="Pane teste"), usuario.id
         )
+        await db.refresh(aeronave)
+        assert aeronave.status == StatusAeronave.INDISPONIVEL
+
+        await service.concluir_pane(db, pane.id, usuario.id, "Ação corretiva aplicada")
         await db.refresh(aeronave)
         assert aeronave.status == StatusAeronave.DISPONIVEL
 
@@ -324,7 +356,7 @@ class TestRaceResponsaveis:
 
         monkeypatch.setattr(service, "_ja_e_responsavel", checagem_enganada)
 
-        with pytest.raises(ValueError, match="já é responsável"):
+        with pytest.raises(domain_exc.ConflitoNegocioError, match="já é responsável"):
             await service.adicionar_responsavel(
                 db, pane.id, AdicionarResponsavel(usuario_id=usuario.id, papel=TipoPapel.MANTENEDOR)
             )

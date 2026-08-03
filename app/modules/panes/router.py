@@ -7,12 +7,15 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, File, UploadFile, Query, status, BackgroundTasks
+from fastapi import APIRouter, HTTPException, File, Request, UploadFile, Query, status, BackgroundTasks
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from app.shared.exporter import gerar_csv, gerar_xlsx
+from app.shared.core.limiter import limiter
 
 from app.modules.panes import schemas, service
-from app.bootstrap.dependencies import DBSession, CurrentUser, ensure_role, ExecucaoPermitida
+from app.bootstrap.dependencies import (
+    DBSession, CurrentUser, ensure_role, ExecucaoPermitida, EncarregadoOuAdmin,
+)
 
 router = APIRouter()
 
@@ -42,33 +45,17 @@ async def criar_pane(
     db: DBSession,
     usuario_atual: CurrentUser,
 ) -> schemas.PaneOut:
-    """Abre uma nova pane vinculada a uma aeronave. Status inicial = ABERTA."""
-    try:
-        pane = await service.criar_pane(db, dados, usuario_atual.id)
-        result = schemas.PaneOut.model_validate(pane)
+    """Abre uma nova pane vinculada a uma aeronave. Status inicial = ABERTA.
 
-        # Safety net: sincronizar status da aeronave via SQL direto.
-        # Garante que a aeronave transite para INDISPONIVEL quando recebe
-        # uma pane aberta, mesmo em cenários de cache de ORM.
-        from sqlalchemy import update as sql_update
-        from app.modules.aeronaves.models import Aeronave
-        from app.shared.core.enums import StatusAeronave
-        await db.execute(
-            sql_update(Aeronave)
-            .where(Aeronave.id == dados.aeronave_id)
-            .where(Aeronave.status.in_([
-                StatusAeronave.DISPONIVEL,
-                StatusAeronave.OPERACIONAL,
-            ]))
-            .values(status=StatusAeronave.INDISPONIVEL)
-        )
-
-        return result
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
+    MELHORIA-06: o "safety net" de SQL direto que recalculava e sobrescrevia
+    o status da aeronave aqui foi removido — `service.criar_pane` já chama
+    `sincronizar_status_aeronave`, que é a única fonte de verdade dessa
+    regra. Mantê-lo aqui duplicava a lógica de negócio no router (precisando
+    ser atualizado manualmente a cada mudança na regra) sem cobrir nenhum
+    cenário que o service não cobrisse.
+    """
+    pane = await service.criar_pane(db, dados, usuario_atual.id)
+    return schemas.PaneOut.model_validate(pane)
 
 
 @router.get(
@@ -80,7 +67,11 @@ async def listar_panes(
     db: DBSession,
     _: CurrentUser,
     texto: str | None = Query(default=None),
-    status: schemas.StatusPane | None = Query(default=None),
+    # RISCO-11: parâmetro renomeado para não sombrear `fastapi.status`
+    # importado neste módulo (usado em `status.HTTP_*` nos outros
+    # handlers) — `alias="status"` preserva a query string `?status=` já
+    # usada pelo frontend.
+    status_filtro: schemas.StatusPane | None = Query(default=None, alias="status"),
     aeronave_id: uuid.UUID | None = Query(default=None),
     data_inicio: datetime | None = Query(default=None),
     data_fim: datetime | None = Query(default=None),
@@ -91,7 +82,7 @@ async def listar_panes(
     """Lista panes com filtros opcionais (texto, status, aeronave, data) e paginação."""
     filtros = schemas.FiltroPane(
         texto=texto,
-        status=status,
+        status=status_filtro,
         aeronave_id=aeronave_id,
         data_inicio=data_inicio,
         data_fim=data_fim,
@@ -112,17 +103,35 @@ async def listar_panes(
     "/export",
     summary="Exportar relatório de panes (CSV/XLSX)",
 )
+@limiter.limit("10/minute")
 async def exportar_panes(
+    request: Request,
     db: DBSession,
     _: CurrentUser,
     fmt: str = Query("csv", alias="format", pattern="^(csv|xlsx)$"),
-    status: schemas.StatusPane | None = None,
+    texto: str | None = Query(default=None),
+    status_filtro: schemas.StatusPane | None = Query(default=None, alias="status"),
     aeronave_id: uuid.UUID | None = None,
+    data_inicio: datetime | None = Query(default=None),
+    data_fim: datetime | None = Query(default=None),
 ):
-    """Exporta relatórios de panes em formato CSV ou XLSX."""
-    filtros = schemas.PaneFilter(status=status, aeronave_id=aeronave_id, skip=0, limit=1000)
+    """Exporta relatórios de panes em formato CSV ou XLSX.
+
+    BUG-01: usava `schemas.PaneFilter`, uma classe inexistente — toda
+    chamada retornava 500. Corrigido para `schemas.FiltroPane`.
+    """
+    limit_export = 1000
+    filtros = schemas.FiltroPane(
+        texto=texto,
+        status=status_filtro,
+        aeronave_id=aeronave_id,
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        skip=0,
+        limit=limit_export,
+    )
     panes = await service.listar_panes(db, filtros)
-    
+
     headers = ["Código", "Aeronave", "Status", "Descrição", "Data Abertura", "Data Conclusão"]
     rows = []
     for pane, sequencia, ano in panes:
@@ -133,19 +142,32 @@ async def exportar_panes(
         dt_con = pane.data_conclusao.strftime("%d/%m/%Y %H:%M") if pane.data_conclusao else ""
         rows.append([codigo, anv, pane.status, desc, dt_ab, dt_con])
 
+    # RISCO-10: sem contagem total disponível, sinaliza truncamento via
+    # heurística (bateu no teto do limite fixo de exportação) em vez de
+    # entregar um relatório cortado sem qualquer indicação ao usuário.
+    extra_headers = {}
+    if len(rows) >= limit_export:
+        extra_headers["X-Export-Truncated"] = "true"
+
     if fmt == "xlsx":
         content = gerar_xlsx("Panes", headers, rows)
         return Response(
             content=content,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": 'attachment; filename="relatorio_panes.xlsx"'}
+            headers={
+                "Content-Disposition": 'attachment; filename="relatorio_panes.xlsx"',
+                **extra_headers,
+            }
         )
     else:
         content_str = gerar_csv(headers, rows)
         return Response(
             content=content_str.encode("utf-8-sig"),
             media_type="text/csv; charset=utf-8",
-            headers={"Content-Disposition": 'attachment; filename="relatorio_panes.csv"'}
+            headers={
+                "Content-Disposition": 'attachment; filename="relatorio_panes.csv"',
+                **extra_headers,
+            }
         )
 
 
@@ -184,7 +206,15 @@ async def editar_pane(
     db: DBSession,
     usuario_atual: CurrentUser,
 ) -> schemas.PaneOut:
-    """Edita descrição e/ou status. RN-03: apenas panes não resolvidas.
+    """Edita descrição, comentários e/ou sistema ATA. RN-03: apenas panes abertas.
+
+    BUG-02/RISCO-05: resolver a pane (status=RESOLVIDA) não é mais aceito
+    por este endpoint — `service.editar_pane` rejeita com 409 para
+    qualquer usuário, direcionando para `POST /{pane_id}/concluir`. Isso
+    fecha, ao mesmo tempo, a divergência de efeitos colaterais entre os
+    dois caminhos de conclusão (BUG-02) e a checagem de papel que faltava
+    para esse caminho (RISCO-05) — ninguém mais consegue resolver por aqui,
+    independente de papel.
 
     Item #24 (relatorio_panes_service.md): o service levanta exceções de
     domínio (`EntidadeNaoEncontradaError`/`ConflitoNegocioError`), que já
@@ -216,63 +246,26 @@ async def concluir_pane(
     db: DBSession,
     usuario_atual: CurrentUser,
 ) -> schemas.PaneOut:
-    # RN: MANTENEDOR, ENCARREGADO, INSPETOR e ADMIN podem concluir.
-    ensure_role(usuario_atual, "MANTENEDOR", "ENCARREGADO", "INSPETOR", "ADMINISTRADOR")
     """Conclui a pane. Preenche data_conclusao automaticamente (RN-04).
+
+    MELHORIA-06/07: o "safety net" de SQL direto que recalculava o status
+    da aeronave (INSPECAO/DISPONIVEL) foi removido daqui — `service.
+    concluir_pane` já chama `sincronizar_status_aeronave`, a única fonte de
+    verdade dessa regra. O bloco duplicava a lógica de negócio no router
+    (haveria que ser mantido em sincronia manualmente a cada mudança futura
+    na regra) e exigia uma busca extra da pane só para alimentá-lo, que
+    também foi removida.
 
     Item #24 (relatorio_panes_service.md): o service levanta exceções de
     domínio (`EntidadeNaoEncontradaError`/`ConflitoNegocioError`), que já
     carregam o status HTTP correto — sem string-matching de mensagem aqui.
     """
-    # Buscar aeronave_id da pane antes de concluir
-    pane_antes = await service.buscar_pane(db, pane_id)
-    aeronave_id_pane = pane_antes[0].aeronave_id if pane_antes else None
+    # RN: MANTENEDOR, ENCARREGADO, INSPETOR e ADMIN podem concluir.
+    ensure_role(usuario_atual, "MANTENEDOR", "ENCARREGADO", "INSPETOR", "ADMINISTRADOR")
 
     await service.concluir_pane(
         db, pane_id, usuario_atual.id, dados.observacao_conclusao
     )
-
-    # Safety net: sincronizar status da aeronave via SQL direto apos conclusao.
-    if aeronave_id_pane:
-        from sqlalchemy import select as sql_select, update as sql_update, func
-        from app.modules.panes.models import Pane
-        from app.modules.aeronaves.models import Aeronave
-        from app.shared.core.enums import StatusAeronave, StatusPane
-        from app.modules.inspecoes.models import Inspecao
-        from app.modules.inspecoes.service import STATUS_ATIVOS
-
-        # Contar panes abertas restantes
-        res = await db.execute(
-            sql_select(func.count(Pane.id)).where(
-                Pane.aeronave_id == aeronave_id_pane,
-                Pane.status == StatusPane.ABERTA.value,
-                Pane.ativo == True,
-            )
-        )
-        panes_restantes = res.scalar() or 0
-
-        # Contar inspecoes ativas
-        res_insp = await db.execute(
-            sql_select(func.count(Inspecao.id)).where(
-                Inspecao.aeronave_id == aeronave_id_pane,
-                Inspecao.status.in_(STATUS_ATIVOS),
-            )
-        )
-        insp_ativas = res_insp.scalar() or 0
-
-        if insp_ativas > 0:
-            await db.execute(
-                sql_update(Aeronave)
-                .where(Aeronave.id == aeronave_id_pane)
-                .values(status=StatusAeronave.INSPECAO)
-            )
-        elif panes_restantes == 0:
-            await db.execute(
-                sql_update(Aeronave)
-                .where(Aeronave.id == aeronave_id_pane)
-                .where(Aeronave.status == StatusAeronave.INDISPONIVEL)
-                .values(status=StatusAeronave.DISPONIVEL)
-            )
 
     # Recarregar para pegar o ranking/código
     resultado = await service.buscar_pane(db, pane_id)
@@ -350,10 +343,9 @@ async def excluir_anexo(
     pane_id: uuid.UUID,
     anexo_id: uuid.UUID,
     db: DBSession,
-    usuario_atual: CurrentUser,
+    usuario_atual: EncarregadoOuAdmin,
 ) -> None:
     """Remove o anexo (banco e arquivo físico). Restrito a Encarregados/Admins."""
-    ensure_role(usuario_atual, "ENCARREGADO", "ADMINISTRADOR")
     try:
         await service.excluir_anexo(db, pane_id, anexo_id)
     except ValueError as e:
@@ -422,6 +414,12 @@ async def adicionar_responsavel(
     db: DBSession,
     usuario_atual: ExecucaoPermitida,
 ) -> schemas.ResponsavelOut:
+    """Vincula um responsável à pane.
+
+    BUG-03/MELHORIA-13: `service.adicionar_responsavel` agora levanta
+    exceções de domínio (404/409 já corretos) em vez de `ValueError` —
+    sem try/except aqui para adivinhar o status pelo texto.
+    """
     # GESTORES podem atribuir qualquer um. MANTENEDORES podem atribuir apenas a si mesmos.
     if usuario_atual.funcao not in ["ENCARREGADO", "ADMINISTRADOR"]:
         if usuario_atual.id != dados.usuario_id:
@@ -429,15 +427,9 @@ async def adicionar_responsavel(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Acesso restrito: você só pode assumir responsabilidades para si mesmo.",
             )
-    
-    try:
-        resp = await service.adicionar_responsavel(db, pane_id, dados)
-        return schemas.ResponsavelOut.model_validate(resp)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(e),
-        )
+
+    resp = await service.adicionar_responsavel(db, pane_id, dados)
+    return schemas.ResponsavelOut.model_validate(resp)
 
 
 @router.delete(
@@ -449,16 +441,11 @@ async def adicionar_responsavel(
 async def deletar_pane(
     pane_id: uuid.UUID,
     db: DBSession,
-    usuario_atual: CurrentUser,
+    usuario_atual: EncarregadoOuAdmin,
 ) -> None:
-    ensure_role(usuario_atual, "ENCARREGADO", "ADMINISTRADOR")
-    try:
-        await service.excluir_pane(db, pane_id)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
+    """BUG-03/MELHORIA-13: `service.excluir_pane` agora levanta exceções de
+    domínio (404/409 já corretos) em vez de `ValueError`."""
+    await service.excluir_pane(db, pane_id)
 
 
 @router.post(
@@ -469,23 +456,20 @@ async def deletar_pane(
 async def restaurar_pane(
     pane_id: uuid.UUID,
     db: DBSession,
-    usuario_atual: CurrentUser,
+    usuario_atual: EncarregadoOuAdmin,
 ) -> schemas.PaneOut:
-    """Reativa uma pane que foi removida logicamente."""
-    ensure_role(usuario_atual, "ENCARREGADO", "ADMINISTRADOR")
-    try:
-        await service.restaurar_pane(db, pane_id)
-        # Recarregar para ranking
-        resultado = await service.buscar_pane(db, pane_id)
-        if not resultado:
-             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pane não encontrada.")
-        
-        pane, sequencia, ano = resultado
-        item = schemas.PaneOut.model_validate(pane).model_dump()
-        item["codigo"] = f"{sequencia:03d}/{str(ano)[-2:]}"
-        return schemas.PaneOut(**item)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
+    """Reativa uma pane que foi removida logicamente.
+
+    BUG-03/MELHORIA-13: `service.restaurar_pane` agora levanta exceções de
+    domínio (404/409 já corretos) em vez de `ValueError`.
+    """
+    await service.restaurar_pane(db, pane_id)
+    # Recarregar para ranking
+    resultado = await service.buscar_pane(db, pane_id)
+    if not resultado:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pane não encontrada.")
+
+    pane, sequencia, ano = resultado
+    item = schemas.PaneOut.model_validate(pane).model_dump()
+    item["codigo"] = f"{sequencia:03d}/{str(ano)[-2:]}"
+    return schemas.PaneOut(**item)

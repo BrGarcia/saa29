@@ -43,12 +43,6 @@ def _get_year_func(db: AsyncSession, column):
     return func.extract("year", column).cast(Integer)
 
 
-# Transições de status permitidas (SPECS §8)
-_TRANSICOES_VALIDAS = {
-    StatusPane.ABERTA: {StatusPane.RESOLVIDA},
-    StatusPane.RESOLVIDA: set(),  # Pane resolvida não pode transicionar
-}
-
 # Extensões/MIMEs permitidos para upload — fonte única em
 # app/shared/core/file_validators.py (item #3/Etapa 5). Antes, este módulo
 # mantinha sua própria cópia com HEIC/HEIF, mas o router chama
@@ -66,6 +60,33 @@ _MIMES_PERMITIDOS = file_validators.MIMES_PERMITIDOS
 _EXTENSAO_MIME_MAP = file_validators.EXTENSAO_MIME_MAP
 
 logger = logging.getLogger(__name__)
+
+
+def _detectar_mime_real(conteudo: bytes) -> str | None:
+    """Detecta o MIME real a partir dos bytes (magic bytes / assinatura),
+    nunca do Content-Type declarado pelo cliente (RISCO-04: um arquivo
+    poliglota — bytes válidos de imagem que também são HTML/JS válido —
+    com Content-Type forjado não pode ser servido de volta com esse
+    Content-Type, senão vira XSS armazenado quando o storage backend é R2).
+    """
+    if _MAGIC_AVAILABLE:
+        try:
+            return magic.from_buffer(conteudo[:2048], mime=True)
+        except Exception as exc:
+            logger.warning(
+                "Falha ao detectar MIME via libmagic, usando fallback de assinaturas: %s", exc
+            )
+    return file_validators._detect_mime_type_fallback(conteudo[:2048])
+
+
+async def _pane_existe_ativa(db: AsyncSession, pane_id: uuid.UUID) -> bool:
+    """Checagem de existência barata (MELHORIA-15) — evita carregar a pane
+    inteira com 5 `selectinload` (`_buscar_pane_por_id`) só para saber se
+    ela existe e está ativa."""
+    result = await db.execute(
+        select(exists().where(Pane.id == pane_id, Pane.ativo == True))  # noqa: E712
+    )
+    return bool(result.scalar())
 
 
 def _get_ranking_subquery(db: AsyncSession):
@@ -173,9 +194,11 @@ async def criar_pane(
     from app.modules.aeronaves.service import buscar_aeronave
     aeronave = await buscar_aeronave(db, dados.aeronave_id)
     if not aeronave:
-        raise ValueError("Aeronave não encontrada.")
+        raise domain_exc.EntidadeNaoEncontradaError("Aeronave não encontrada.")
     if aeronave.status == StatusAeronave.INATIVA:
-        raise ValueError("Aeronave inativa. Reative a aeronave antes de registrar uma pane.")
+        raise domain_exc.ConflitoNegocioError(
+            "Aeronave inativa. Reative a aeronave antes de registrar uma pane."
+        )
 
     # RN-05: descrição padrão se vazia
     descricao = dados.descricao.strip() if dados.descricao else ""
@@ -196,9 +219,11 @@ async def criar_pane(
         from app.modules.auth.service import buscar_por_id
         usuario_responsavel = await buscar_por_id(db, dados.mantenedor_responsavel_id)
         if not usuario_responsavel:
-            raise ValueError("Mantenedor responsável não encontrado.")
+            raise domain_exc.EntidadeNaoEncontradaError("Mantenedor responsável não encontrado.")
         if usuario_responsavel.funcao not in ["MANTENEDOR", "ENCARREGADO"]:
-            raise ValueError("O responsável selecionado deve ser um mantenedor ou encarregado.")
+            raise domain_exc.ConflitoNegocioError(
+                "O responsável selecionado deve ser um mantenedor ou encarregado."
+            )
 
         resp = PaneResponsavel(
             pane_id=pane.id,
@@ -388,20 +413,23 @@ async def editar_pane(
     usuario_id: uuid.UUID | None = None,
 ) -> Pane:
     """
-    Edita descrição e/ou status de uma pane.
+    Edita descrição, comentários e/ou sistema ATA de uma pane.
 
     RN-03: Apenas panes com status ABERTA podem ser editadas.
-    Validar transições de status permitidas (SPECS §8):
-        ABERTA → RESOLVIDA ✓
-        RESOLVIDA → qualquer ✗
 
-    COR-03: Ao transicionar para RESOLVIDA via edição, preenche
-    concluido_por_id com o usuário que fez a edição.
+    BUG-02/RISCO-05: resolver uma pane (transição para RESOLVIDA) não é mais
+    possível por este caminho. `concluir_pane` (POST /{pane_id}/concluir) é
+    o único caminho de conclusão — ele grava `observacao_conclusao` e
+    adiciona o executor como responsável quando necessário, o que esta
+    função nunca fez, produzindo dados finais divergentes para a mesma
+    transição de negócio dependendo de qual endpoint o cliente chamasse.
+    Duplicar aquela lógica aqui correria o risco de divergir de novo no
+    futuro; bloquear é a opção que garante uma única fonte de verdade.
 
     Raises:
         EntidadeNaoEncontradaError: pane inexistente (404).
-        ConflitoNegocioError: pane não está aberta, ou transição de status
-            inválida (409).
+        ConflitoNegocioError: pane não está aberta, ou tentativa de resolver
+            via PUT (409) — usar POST /{pane_id}/concluir.
     """
     pane = await _buscar_pane_por_id(db, pane_id)
     if not pane:
@@ -417,6 +445,12 @@ async def editar_pane(
     if status_atual != StatusPane.ABERTA and (dados.descricao is not None or dados.sistema_ata_id is not None or dados.status is not None):
         raise domain_exc.ConflitoNegocioError("Apenas panes abertas podem ter descrição ou status alterados.")
 
+    if dados.status is not None:
+        raise domain_exc.ConflitoNegocioError(
+            "Não é possível resolver uma pane por este endpoint. "
+            "Use POST /{pane_id}/concluir."
+        )
+
     # Atualizar campos
     if dados.descricao is not None:
         pane.descricao = dados.descricao
@@ -424,30 +458,7 @@ async def editar_pane(
     if dados.sistema_ata_id is not None:
         pane.sistema_ata_id = dados.sistema_ata_id
 
-    # Validar transição de status
-    if dados.status is not None:
-        novo_status = dados.status
-        transicoes_permitidas = _TRANSICOES_VALIDAS.get(status_atual, set())
-        if novo_status not in transicoes_permitidas:
-            raise domain_exc.ConflitoNegocioError(
-                f"Transição inválida: {status_atual.value} → {novo_status.value}. "
-                f"Transições permitidas: {[s.value for s in transicoes_permitidas]}"
-            )
-        pane.status = novo_status.value
-
-        # COR-03: Se transicionou para RESOLVIDA, preencher rastreabilidade
-        if novo_status == StatusPane.RESOLVIDA:
-            pane.data_conclusao = datetime.now(timezone.utc)
-            pane.concluido_por_id = usuario_id
-
     await db.flush()
-
-    # Item #9 (relatorio_panes_service.md): editar_pane transicionava para
-    # RESOLVIDA sem sincronizar o status da aeronave — ela permanecia
-    # INDISPONIVEL mesmo sem panes abertas restantes.
-    if dados.status == StatusPane.RESOLVIDA:
-        await sincronizar_status_aeronave(db, pane.aeronave_id)
-
     return pane
 
 
@@ -535,10 +546,10 @@ async def excluir_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane:
     """
     pane = await _buscar_pane_por_id(db, pane_id, incluir_inativos=True)
     if not pane:
-        raise ValueError("Pane não encontrada.")
+        raise domain_exc.EntidadeNaoEncontradaError("Pane não encontrada.")
 
     if not pane.ativo:
-        raise ValueError("Pane já está inativa.")
+        raise domain_exc.ConflitoNegocioError("Pane já está inativa.")
     pane.ativo = False
     await db.flush()
     await sincronizar_status_aeronave(db, pane.aeronave_id)
@@ -551,10 +562,10 @@ async def restaurar_pane(db: AsyncSession, pane_id: uuid.UUID) -> Pane:
     """
     pane = await _buscar_pane_por_id(db, pane_id, incluir_inativos=True)
     if not pane:
-        raise ValueError("Pane não encontrada.")
+        raise domain_exc.EntidadeNaoEncontradaError("Pane não encontrada.")
 
     if pane.ativo:
-        raise ValueError("Pane já está ativa.")
+        raise domain_exc.ConflitoNegocioError("Pane já está ativa.")
     pane.ativo = True
     await db.flush()
     await sincronizar_status_aeronave(db, pane.aeronave_id)
@@ -584,11 +595,12 @@ async def upload_anexo(
     (anexo, True) para que o chamador execute a otimização em background.
 
     Raises:
-        ValueError: se tipo ou tamanho inválidos.
+        EntidadeNaoEncontradaError: pane inexistente ou inativa (404).
+        ValueError: tipo ou tamanho inválidos (422, tratado no router).
     """
     settings = get_settings()
-    if not await _buscar_pane_por_id(db, pane_id):
-        raise ValueError("Pane não encontrada.")
+    if not await _pane_existe_ativa(db, pane_id):
+        raise domain_exc.EntidadeNaoEncontradaError("Pane não encontrada.")
 
     # Validar extensão
     nome_original = nome_original or "arquivo"
@@ -600,15 +612,7 @@ async def upload_anexo(
         )
 
     # SEC-05: Validar MIME type real do conteúdo (não confiar na extensão) (AUD-09)
-    if _MAGIC_AVAILABLE:
-        try:
-            mime_real = magic.from_buffer(arquivo_bytes[:2048], mime=True)
-        except Exception as e:
-            from app.shared.core.file_validators import _detect_mime_type_fallback
-            mime_real = _detect_mime_type_fallback(arquivo_bytes[:2048])
-    else:
-        from app.shared.core.file_validators import _detect_mime_type_fallback
-        mime_real = _detect_mime_type_fallback(arquivo_bytes[:2048])
+    mime_real = _detectar_mime_real(arquivo_bytes)
 
     if not mime_real:
         raise ValueError("Não foi possível identificar o tipo de arquivo de forma segura por sua assinatura.")
@@ -708,11 +712,18 @@ async def processar_imagem_background(
     anexo_id: uuid.UUID,
     arquivo_bytes: bytes,
     nome_original: str,
-    mime_real: str,
+    content_type_informado_pelo_cliente: str,
 ) -> None:
     """
     Tarefa em background para otimização de imagem via imgdiet. (IMGDIET - Etapa 4 e 5)
     Processa e salva o arquivo otimizado no Storage, atualizando o Anexo.
+
+    RISCO-04: `content_type_informado_pelo_cliente` vem direto do header
+    HTTP do upload e nunca é verificado contra o conteúdo real — não pode
+    ser usado como Content-Type do objeto salvo no storage (um arquivo
+    poliglota com Content-Type forjado, servido de volta com esse mesmo
+    Content-Type via R2, é um XSS armazenado). Existe só para log; o
+    caminho de fallback abaixo recalcula o MIME real a partir dos bytes.
     """
     import asyncio
     from app.shared.services.image.pipeline import process_image
@@ -736,6 +747,10 @@ async def processar_imagem_background(
         # Lógica de Fallback (Etapa 4): salva a original em caso de erro
         try:
             storage_svc = get_storage_service()
+            # RISCO-04: recalcula o MIME real a partir dos bytes (mesma
+            # lógica do caminho síncrono) em vez de confiar no Content-Type
+            # do cliente.
+            mime_real = _detectar_mime_real(arquivo_bytes) or "application/octet-stream"
             caminho_salvo = await storage_svc.upload(arquivo_bytes, nome_original, mime_real)
             await _atualizar_caminho_anexo_se_pendente(
                 anexo_id, caminho_salvo, arquivo_para_limpar=caminho_salvo
@@ -787,7 +802,18 @@ async def limpar_anexos_processando_antigos(db: AsyncSession, minutos_limite: in
 
 
 async def listar_anexos(db: AsyncSession, pane_id: uuid.UUID) -> list[Anexo]:
-    """Lista todos os anexos de uma pane."""
+    """Lista todos os anexos de uma pane ativa.
+
+    MELHORIA-17: antes não validava existência/estado da pane — um
+    `pane_id` de pane soft-deleted (ou inexistente) retornava 200 com lista
+    vazia em vez de 404, divergindo de `buscar_pane`.
+
+    Raises:
+        EntidadeNaoEncontradaError: pane inexistente ou inativa (404).
+    """
+    if not await _pane_existe_ativa(db, pane_id):
+        raise domain_exc.EntidadeNaoEncontradaError("Pane não encontrada.")
+
     result = await db.execute(
         select(Anexo).where(Anexo.pane_id == pane_id).order_by(Anexo.created_at)
     )
@@ -885,22 +911,23 @@ async def adicionar_responsavel(
     Vincula um responsável a uma pane com papel definido.
 
     Raises:
-        ValueError: se a pane/usuário não existir, ou se o usuário já for
-            responsável por esta pane (verificação prévia ou, em caso de
-            requisições concorrentes, violação da constraint UNIQUE).
+        EntidadeNaoEncontradaError: pane ou usuário inexistente (404).
+        ConflitoNegocioError: usuário já é responsável por esta pane (409) —
+            verificação prévia ou, em caso de requisições concorrentes,
+            violação da constraint UNIQUE.
     """
-    if not await _buscar_pane_por_id(db, pane_id):
-        raise ValueError("Pane não encontrada.")
+    if not await _pane_existe_ativa(db, pane_id):
+        raise domain_exc.EntidadeNaoEncontradaError("Pane não encontrada.")
 
     # Verificar duplicidade (mensagem amigável no caso comum; a constraint
     # UNIQUE(pane_id, usuario_id) é a rede de segurança para o caso concorrente)
     if await _ja_e_responsavel(db, pane_id, dados.usuario_id):
-        raise ValueError("Usuário já é responsável por esta pane.")
+        raise domain_exc.ConflitoNegocioError("Usuário já é responsável por esta pane.")
 
     from app.modules.auth.service import buscar_por_id
     usuario = await buscar_por_id(db, dados.usuario_id)
     if not usuario:
-        raise ValueError("Usuário não encontrado.")
+        raise domain_exc.EntidadeNaoEncontradaError("Usuário não encontrado.")
 
     responsavel = PaneResponsavel(
         pane_id=pane_id,
@@ -914,7 +941,7 @@ async def adicionar_responsavel(
             db.add(responsavel)
             await db.flush()
     except IntegrityError as exc:
-        raise ValueError("Usuário já é responsável por esta pane.") from exc
+        raise domain_exc.ConflitoNegocioError("Usuário já é responsável por esta pane.") from exc
 
     # Refresh 'usuario' para garantir que o trigrama esteja carregado para o schema Pydantic
     await db.refresh(responsavel, ["usuario"])
