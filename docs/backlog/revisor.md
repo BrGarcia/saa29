@@ -235,3 +235,55 @@ O documento `achados_<MODULO>.md` deve terminar com:
 ## Perguntas para o desenvolvedor
 - itens marcados como DÚVIDA que precisam de decisão humana
 ```
+
+---
+
+## 11. Sinalização de status após correção
+
+Diferente da sessão de revisão (que só produz o documento), uma sessão de **correção** que
+implementa itens de um `achados_<MODULO>.md` **altera o próprio documento** para registrar o
+resultado — sem precisar que o desenvolvedor peça. Isso mantém o achado e o desfecho no mesmo
+lugar, em vez de um ledger separado que pode divergir do código real.
+
+**Regra:** ao corrigir (ou decidir conscientemente não corrigir) um item, adicionar um campo
+`- **Status:**` como última linha do bloco desse achado, antes do `---` de separação:
+
+```markdown
+- **Precisa de teste antes?** SIM | NÃO
+- **Status:** ✅ CORRIGIDO — commit `<hash curto>`. <nota breve opcional: o que foi feito>
+```
+
+Valores possíveis:
+
+| Status | Quando usar |
+|---|---|
+| `✅ CORRIGIDO` | Implementado e coberto por teste (quando o achado pedia teste). Citar o commit. |
+| `⚠️ CORRIGIDO PARCIALMENTE` | Parte do achado foi endereçada; citar o commit e, em uma frase, o que ficou de fora e por quê. |
+| `🚫 NÃO CORRIGIDO` | Decisão consciente de não corrigir nesta sessão — sempre com o motivo (decisão de produto pendente, fora de escopo, risco de regressão alto demais sem confirmação, etc.). Nunca deixar um item sem status por esquecimento. |
+| `⏳ PENDENTE` | Documento ainda não passou por uma sessão de correção. É o estado implícito de um achado recém-criado — só é necessário escrever explicitamente se o documento já tem outros itens com status (para deixar claro que este não foi esquecido). |
+
+Ao final da sessão de correção, atualizar também a seção `## Resumo` do documento com a
+contagem de itens por status (ex.: `Corrigidos: 20/24 · Não corrigidos: 3 (decisão de produto)
+· Parciais: 1`), no mesmo padrão da contagem por classificação já existente. Adicionar também um
+banner logo abaixo do cabeçalho do documento (mesmo padrão de `docs/backlog/Fable5/relatorio_auth_seguranca.md`):
+
+```markdown
+> ## ✅ SESSÃO DE CORREÇÃO CONCLUÍDA — <DD/MM/AAAA>
+> X/N achados corrigidos, Y parciais, Z não corrigidos por exigirem decisão de produto/desenvolvedor
+> ou risco de regressão fora do escopo (ver `## Perguntas para o desenvolvedor` ao final). Commit
+> `<hash curto>`. Suite completa: <N> testes, 0 falhas. Status por item marcado inline em cada
+> achado abaixo (campo `**Status:**`).
+```
+
+**Não criar um documento de status separado** (ex. `status_<MODULO>.md`) para este propósito —
+o objetivo é que `achados_<MODULO>.md` continue sendo a fonte única de verdade sobre cada item,
+da descoberta à resolução.
+
+**Mover para `docs/backlog/revisor/concluido/`:** depois de marcar o status de todo item do
+documento (nenhum item sem campo `**Status:**`, mesmo que seja `🚫 NÃO CORRIGIDO`), mover o
+arquivo com `git mv docs/backlog/revisor/achados_<MODULO>.md docs/backlog/revisor/concluido/`.
+"Concluído" aqui significa que a sessão de correção processou todos os achados — não que 100%
+foram corrigidos; itens `🚫`/`⚠️` documentados contam como processados. Depois de mover, corrigir
+qualquer referência cruzada de outros `achados_<MODULO>.md` que apontem para o arquivo movido
+(`grep -rl "achados_<MODULO>.md" docs/backlog/revisor/`), atualizando o caminho para incluir
+`concluido/`.

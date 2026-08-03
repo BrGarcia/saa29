@@ -1,7 +1,12 @@
 # Achados de Revisão — Módulo `auth`
 
 > Revisão conforme `docs/backlog/revisor.md`, com contexto de `docs/backlog/00_mapa_arquitetural.md`.
-> Nenhum arquivo de código foi alterado nesta sessão.
+> Nenhum arquivo de código foi alterado nesta sessão de revisão.
+
+> ## ✅ SESSÃO DE CORREÇÃO CONCLUÍDA — 03/08/2026
+> 19/24 achados corrigidos, 1 parcial, 4 não corrigidos por exigirem decisão de produto/desenvolvedor
+> (ver `## Perguntas para o desenvolvedor` ao final). Commit `872690b`. Suite completa: 334 testes, 0
+> falhas. Status por item marcado inline em cada achado abaixo (campo `**Status:**`).
 
 ---
 
@@ -16,6 +21,7 @@
 - **Correção proposta:** ou (a) emitir o cookie `saa29_refresh_token` com `path="/"` para que acompanhe o POST de logout, ou (b) fazer o endpoint `/auth/logout` também ler o refresh token do body/header explicitamente enviado pelo cliente, e ajustar `app.js` para enviá-lo.
 - **Risco de regressão:** MÉDIO — mudar o `path` do cookie afeta todos os fluxos que o setam/leem (`login`, `refresh`).
 - **Precisa de teste antes?** SIM
+- **Status:** ✅ CORRIGIDO — commit `872690b`. Opção (a): cookie `saa29_refresh_token` passou a `path="/"` em login, refresh e logout. Teste de regressão em `tests/security/test_auth_achados_revisor.py`.
 
 ---
 
@@ -30,6 +36,7 @@
 - **Correção proposta:** ao final de `alterar_senha` e `admin_resetar_senha`, revogar (via `UPDATE ... SET revogado_em = now()`) todos os `TokenRefresh` ativos do `usuario_id`. Access tokens em voo continuam expirando naturalmente em até 15 min (aceitável, mas registrar como trade-off).
 - **Risco de regressão:** BAIXO — o próprio usuário que troca a senha esperaria ter que logar de novo nos outros dispositivos.
 - **Precisa de teste antes?** SIM
+- **Status:** ✅ CORRIGIDO — commit `872690b`. `alterar_senha`/`admin_resetar_senha` revogam todos os `TokenRefresh` ativos do usuário via `_revogar_refresh_tokens_ativos`. Testado em `tests/security/test_auth_achados_revisor.py`.
 
 ---
 
@@ -44,6 +51,7 @@
 - **Correção proposta:** replicar em `atualizar_usuario` a mesma checagem de "não é o último admin ativo" quando `campo == "funcao"` e o valor antigo é `ADMINISTRADOR` e o novo não é.
 - **Risco de regressão:** BAIXO — a checagem só bloqueia o caso degenerado (zero admins), não altera o fluxo normal.
 - **Precisa de teste antes?** SIM
+- **Status:** ✅ CORRIGIDO — commit `872690b`. `atualizar_usuario` replica a proteção do AUD-17 via `UPDATE` atômico condicional (mesma correção do RISCO-07). Testado.
 
 ---
 
@@ -58,6 +66,7 @@
 - **Correção proposta:** normalizar para minúsculas antes de todas as buscas/inserções em `garantir_usuarios_essenciais` (`admin_user.lower()` e os literais da lista `usuarios_teste`), ou — melhor — impor a normalização na própria migration via `COLLATE NOCASE` / constraint, para que nenhum caminho futuro possa reintroduzir o problema.
 - **Risco de regressão:** BAIXO — normalizar é estritamente mais restritivo, não quebra nenhum fluxo existente.
 - **Precisa de teste antes?** SIM
+- **Status:** ✅ CORRIGIDO — commit `872690b`. `garantir_usuarios_essenciais` normaliza para lowercase antes de toda busca/insert. Testado.
 
 ---
 
@@ -72,6 +81,7 @@
 - **Correção proposta:** mover as chamadas de hash/verificação para um threadpool (`asyncio.to_thread` ou `run_in_executor`), mantendo a API `async` dos services que as chamam.
 - **Risco de regressão:** MÉDIO — muda o modelo de execução de um caminho crítico (login); precisa validar que o dummy-hash de equalização de tempo (`_DUMMY_HASH`) continua cumprindo seu papel de mitigação de timing-oracle após a mudança.
 - **Precisa de teste antes?** SIM
+- **Status:** ✅ CORRIGIDO — commit `872690b`. Todas as chamadas de `hash_senha`/`verificar_senha` em `service.py` (incluindo o `_DUMMY_HASH`) passaram por `asyncio.to_thread`. Suite completa (334 testes) permanece verde.
 
 ---
 
@@ -86,6 +96,7 @@
 - **Correção proposta:** decidir explicitamente: (a) integrar `apiFetch` para tentar `/auth/refresh` antes de deslogar no 401, ou (b) documentar que o refresh token é só para consumidores de API/mobile e simplificar a expectativa sobre a sessão web.
 - **Risco de regressão:** BAIXO (é decisão de produto, não uma correção de bug isolado).
 - **Precisa de teste antes?** NÃO (é decisão a tomar antes de qualquer código)
+- **Status:** 🚫 NÃO CORRIGIDO — decisão de produto pendente (ver "Perguntas para o desenvolvedor" ao final deste documento). Nenhuma ação de código tomada nesta sessão de correção.
 
 ---
 
@@ -100,6 +111,7 @@
 - **Correção proposta:** usar `SELECT ... FOR UPDATE` (se o backend suportar) ou reformular como um `UPDATE` condicional atômico que só desative se a contagem de admins ativos, calculada na mesma query, for maior que 1.
 - **Risco de regressão:** MÉDIO — mexe no mecanismo de proteção crítico; precisa de teste de concorrência dedicado.
 - **Precisa de teste antes?** SIM
+- **Status:** ✅ CORRIGIDO — commit `872690b`. `excluir_usuario` reescrito como `UPDATE` atômico condicional (contagem + update na mesma instrução), fechando a janela de TOCTOU. Testado (cenário determinístico via `_isolar_administradores_ativos`; concorrência real de duas requisições simultâneas não foi simulada — ver nota abaixo).
 
 ---
 
@@ -114,6 +126,7 @@
 - **Correção proposta:** usar um `UPDATE ... WHERE jti = ? AND revogado_em IS NULL RETURNING *` atômico para decidir "ganhou a corrida" antes de prosseguir, em vez de `SELECT` seguido de `UPDATE` separado.
 - **Risco de regressão:** MÉDIO — é o coração da lógica de segurança de refresh; exige teste de concorrência.
 - **Precisa de teste antes?** SIM
+- **Status:** ✅ CORRIGIDO — commit `872690b`. Claim atômico via `UPDATE ... WHERE jti = ? AND revogado_em IS NULL` antes de rotacionar; perdedor da corrida cai no caminho de revogação de família. Coberto pelos testes existentes de replay (`tests/security/test_refresh_token*.py`); concorrência real de duas requisições simultâneas não foi simulada.
 
 ---
 
@@ -128,6 +141,7 @@
 - **Correção proposta:** logar a exceção (`logger.exception(...)`) antes de converter para 401, e considerar não capturar exceções de infraestrutura (ex. erros de banco) no mesmo bloco que trata falhas de token — deixá-las propagar para o handler genérico de 500 (`app/shared/core/exceptions.py:91-97`).
 - **Risco de regressão:** BAIXO — é aditivo (log) e mudança de escopo do `except`.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `872690b`. `logger.exception("Erro inesperado em /auth/refresh")` adicionado antes do 401. Escopo do `except` mantido (não separado de erros de infraestrutura, ver observação abaixo).
 
 ---
 
@@ -142,6 +156,7 @@
 - **Correção proposta:** ao menos logar a exceção em ambos os blocos (`logger.warning`/`logger.exception`) para permitir diagnóstico; avaliar se a falha na blacklist deveria propagar como 500 em vez de 204 silencioso.
 - **Risco de regressão:** BAIXO — logging é aditivo.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `872690b`. `logger.warning(...)` adicionado nos dois blocos (blacklist e revogação de refresh), com `exc_info=True`. Avaliação de propagar como 500 não foi feita (mantido 204 silencioso após log).
 
 ---
 
@@ -156,6 +171,7 @@
 - **Correção proposta:** decidir `secure` a partir de uma flag explícita (ex. `settings.force_secure_cookies` ou detectar o esquema real da requisição) em vez de comparar string de ambiente; ou documentar que qualquer ambiente não-dev **deve** usar `APP_ENV=production`.
 - **Risco de regressão:** BAIXO — tende a ser estritamente mais seguro.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `872690b`. Novo `settings.force_secure_cookies` (env `FORCE_SECURE_COOKIES`); `secure = app_env == "production" or force_secure_cookies` em login e refresh.
 
 ---
 
@@ -170,6 +186,7 @@
 - **Correção proposta:** confirmar com o desenvolvedor a intenção; se confirmado "cookie-only", simplificar o schema (remover os campos ou documentá-los como sempre opacos) e considerar remover o suporte a header Authorization desse fluxo para não sugerir uma capacidade que não existe.
 - **Risco de regressão:** BAIXO (é decisão de contrato, não bug).
 - **Precisa de teste antes?** NÃO
+- **Status:** 🚫 NÃO CORRIGIDO — decisão de produto pendente (ver "Perguntas para o desenvolvedor"). Nenhuma ação de código tomada nesta sessão de correção.
 
 ---
 
@@ -184,6 +201,7 @@
 - **Correção proposta:** usar `settings.jwt_expire_minutes * 60` como `max_age`, igual ao padrão já aplicado ao refresh token.
 - **Risco de regressão:** BAIXO.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `872690b`. `max_age` dos dois `set_cookie` do access token passou a `settings.jwt_expire_minutes * 60`.
 
 ---
 
@@ -198,6 +216,7 @@
 - **Correção proposta:** adicionar `ForeignKey("usuarios.id", ondelete=...)` e migration correspondente — decidir a política de cascade (provavelmente `CASCADE`, já que exclusão de usuário é lógica/soft-delete, então na prática isso só importa se um dia existir hard-delete).
 - **Risco de regressão:** MÉDIO — requer migration em tabela existente.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `872690b`. `ForeignKey("usuarios.id", ondelete="CASCADE")` adicionada em `models.py` + migration `20260803_0900_c9d8e7f6a5b4`, validada com upgrade/downgrade em banco de teste.
 
 ---
 
@@ -212,6 +231,7 @@
 - **Correção proposta:** criar um índice funcional `CREATE INDEX ON usuarios (lower(username))`, ou normalizar a coluna para minúsculas na gravação (já é o caso hoje, ver BUG-04) e comparar diretamente sem `func.lower()` nos dois lados.
 - **Risco de regressão:** BAIXO.
 - **Precisa de teste antes?** NÃO
+- **Status:** 🚫 NÃO CORRIGIDO — otimização de baixa prioridade, sem impacto hoje (poucas dezenas de usuários). BUG-04 já garante que a gravação é sempre lowercase, mas `helpers.buscar_usuario_por_username` continua comparando via `func.lower()` dos dois lados (não usa o índice). Índice funcional não foi criado.
 
 ---
 
@@ -226,6 +246,7 @@
 - **Correção proposta:** criar uma exceção de domínio dedicada (ex. `ContaBloqueadaError`, status 429) em `app/shared/core/exceptions.py` e usá-la aqui.
 - **Risco de regressão:** BAIXO.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `872690b`. Nova `domain_exc.ContaBloqueadaError` (429) em `app/shared/core/exceptions.py`, usada em `autenticar_usuario` no lugar do `HTTPException` cru.
 
 ---
 
@@ -240,6 +261,7 @@
 - **Correção proposta:** substituir os literais por referências a `roles.ADMIN_FUNCTIONS`/etc. em `auth` e `dependencies.py`.
 - **Risco de regressão:** BAIXO — refatoração mecânica, sem mudança de comportamento.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `872690b`. `roles.py` ganhou constantes escalares (`ADMINISTRADOR`, `ENCARREGADO`, etc.); `service.py` e `dependencies.py` (atalhos `AdminRequired`/`EncarregadoOuAdmin`/etc.) passaram a referenciá-las em vez de literais.
 
 ---
 
@@ -254,6 +276,7 @@
 - **Correção proposta:** promover `ADMIN_PASSWORD_RESET` a um campo de `Settings` (`app/bootstrap/config/__init__.py`) e usá-lo daqui, igual ao padrão já aplicado para `app_env`.
 - **Risco de regressão:** BAIXO.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `872690b`. Novo campo `settings.admin_password_reset` (env `ADMIN_PASSWORD_RESET`, case-insensitive via pydantic-settings); `service.py` usa `settings.admin_password_reset` no lugar de `os.getenv`.
 
 ---
 
@@ -268,6 +291,7 @@
 - **Correção proposta:** remover os três schemas não usados e os dois imports órfãos (ou, se forem parte de um contrato público planejado, adicionar um comentário explicando por que existem sem uso).
 - **Risco de regressão:** BAIXO.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `872690b`. `LoginRequest`, `RefreshTokenRequest`, `TokenPayload` removidos de `schemas.py`; imports órfãos `EncarregadoRequired`/`oauth2_scheme` removidos de `router.py`.
 
 ---
 
@@ -282,6 +306,7 @@
 - **Correção proposta:** corrigir o comentário para citar `enable_test_users`.
 - **Risco de regressão:** BAIXO — é só o comentário.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `872690b`. Comentário corrigido para citar `enable_test_users`.
 
 ---
 
@@ -296,6 +321,7 @@
 - **Correção proposta:** documentar explicitamente "nunca acessar estes atributos fora de `selectinload` explícito", ou considerar `lazy="raise"` para falhar cedo e de forma clara em vez de silenciosamente funcionar até alguém tropeçar.
 - **Risco de regressão:** BAIXO se apenas documentado; MÉDIO se `lazy="raise"` quebrar algum uso indireto não mapeado nesta revisão (módulos `panes`/`inspecoes` declaram o outro lado desses relacionamentos e não foram revisados aqui).
 - **Precisa de teste antes?** SIM (para a opção `lazy="raise"`)
+- **Status:** ⚠️ CORRIGIDO PARCIALMENTE — commit `872690b`. Optou-se pela opção mais segura (documentar) em vez de `lazy="raise"`, exatamente pelo risco MÉDIO citado acima (módulos `panes`/`inspecoes` não foram revisados). Comentário de alerta adicionado em `models.py` sobre os 6 relacionamentos.
 
 ---
 
@@ -310,6 +336,7 @@
 - **Correção proposta:** adicionar parâmetros opcionais de paginação, mantendo o comportamento atual como default se não fornecidos (evita breaking change).
 - **Risco de regressão:** BAIXO.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `872690b`. `GET /usuarios` ganhou `limit`/`offset` opcionais (default preserva o comportamento atual — retorna tudo).
 
 ---
 
@@ -324,6 +351,7 @@
 - **Correção proposta:** avaliar se a política atual é aceitável para o contexto do sistema (efetivo militar, ambiente interno) antes de propor mudança — não é claramente um bug, mas vale registrar como melhoria de postura de segurança.
 - **Risco de regressão:** BAIXO.
 - **Precisa de teste antes?** NÃO
+- **Status:** 🚫 NÃO CORRIGIDO — o próprio achado já classifica como "não claramente um bug"; decisão de postura de segurança para o contexto (efetivo militar, ambiente interno), não tomada nesta sessão.
 
 ---
 
@@ -338,6 +366,7 @@
 - **Correção proposta:** aplicar `@limiter.limit(...)` também em `alterar_senha` e `/auth/refresh`.
 - **Risco de regressão:** BAIXO.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `872690b`. `@limiter.limit` aplicado em `/auth/refresh` (20/minute) e `PUT /auth/usuarios/senha` (5/minute).
 
 ---
 
@@ -348,6 +377,12 @@
 - RISCO: 9 (ALTA: 1, MÉDIA: 5, BAIXA: 3)
 - MELHORIA: 10 (todas BAIXA)
 - DÚVIDA: 1 (BAIXA)
+
+### Status da correção (03/08/2026, commit `872690b`)
+
+- ✅ Corrigidos: 19/24 (BUG-01, 02, 03, 04 · RISCO-05, 07, 08, 09, 10, 11 · MELHORIA-13, 14, 16, 17, 18, 19, 20, 22, 24)
+- ⚠️ Parcial: 1/24 (RISCO-21 — documentado, não migrado para `lazy="raise"`)
+- 🚫 Não corrigidos: 4/24 (RISCO-06, DÚVIDA-12, MELHORIA-15, MELHORIA-23 — decisão de produto/desenvolvedor pendente ou otimização de baixa prioridade)
 
 ## Arquivos revisados
 

@@ -1,7 +1,13 @@
 # Achados de Revisão — Módulo `panes`
 
 > Revisão conforme `docs/backlog/revisor.md`, com contexto de `docs/backlog/00_mapa_arquitetural.md`.
-> Nenhum arquivo de código foi alterado nesta sessão.
+> Nenhum arquivo de código foi alterado nesta sessão de revisão.
+
+> ## ✅ SESSÃO DE CORREÇÃO CONCLUÍDA — 03/08/2026
+> 12/18 achados corrigidos, 4 parciais, 2 não corrigidos por exigirem decisão de produto ou migração
+> de schema fora do escopo desta sessão (ver `## Perguntas para o desenvolvedor` ao final). Commit
+> `b786ef8`. Suite completa: 341 testes, 0 falhas. Status por item marcado inline em cada achado
+> abaixo (campo `**Status:**`).
 
 ---
 
@@ -16,6 +22,7 @@
 - **Correção proposta:** trocar `schemas.PaneFilter` por `schemas.FiltroPane` em `router.py:123`.
 - **Risco de regressão:** BAIXO — troca mecânica de nome de classe com assinatura de campos idêntica.
 - **Precisa de teste antes?** SIM (o bug só foi pego porque não existe teste de integração para este endpoint — corrigir sem adicionar teste deixaria a regressão futura igualmente invisível)
+- **Status:** ✅ CORRIGIDO — commit `b786ef8`. `schemas.PaneFilter` → `schemas.FiltroPane`. Teste de integração novo em `tests/security/test_panes_achados_revisor.py` (CSV e XLSX).
 
 ---
 
@@ -30,6 +37,7 @@
 - **Correção proposta:** decidir se `PUT .../status=RESOLVIDA` deve ser bloqueado (forçando `/concluir` como único caminho de conclusão) ou se `editar_pane` deve replicar a mesma lógica de responsável/observação de `concluir_pane`. Ver também RISCO-03, que trata da autorização desse mesmo caminho.
 - **Risco de regressão:** MÉDIO — qualquer cliente que hoje dependa do `PUT` para resolver precisa ser identificado antes de bloquear o caminho.
 - **Precisa de teste antes?** SIM
+- **Status:** ✅ CORRIGIDO — commit `b786ef8`. Optou-se por bloquear: `editar_pane` rejeita qualquer `status` com 409, direcionando para `POST /{pane_id}/concluir`. Nenhum cliente identificado dependendo do `PUT` para resolver (frontend não foi auditado a fundo — risco residual, ver observação). Testado em `tests/unit/test_panes_alta_prioridade.py`.
 
 ---
 
@@ -49,6 +57,7 @@
 - **Correção proposta:** migrar os `raise ValueError` restantes do service para `domain_exc.EntidadeNaoEncontradaError`/`ConflitoNegocioError` (ver MELHORIA-13) e simplificar os `except` do router para não precisar adivinhar pelo texto.
 - **Risco de regressão:** MÉDIO — muda o status HTTP retornado hoje; qualquer cliente que já trate (incorretamente) o código atual como "sucesso silencioso" ou dependa do código específico precisa ser revisto.
 - **Precisa de teste antes?** SIM
+- **Status:** ✅ CORRIGIDO — commit `b786ef8`. Os 5 pontos citados (e mais os equivalentes em `criar_pane`) migrados para `EntidadeNaoEncontradaError`/`ConflitoNegocioError`; `except ValueError` correspondentes removidos do router. `excluir_anexo` não foi tocado (já mapeava corretamente, fora do escopo listado). Teste de regressão para "aeronave inativa" (404→409) em `tests/unit/test_panes.py`.
 
 ---
 
@@ -63,6 +72,7 @@
 - **Correção proposta:** no fallback (`service.py:736-744`), recalcular o MIME real a partir dos bytes (mesma lógica de `service.py:603-611`) em vez de reusar o `mime_real` recebido como argumento, que na verdade carrega o `content_type` não confiável do cliente.
 - **Risco de regressão:** BAIXO — o caminho normal (sem fallback) já faz a coisa certa; a correção só alinha o caminho de exceção ao mesmo padrão.
 - **Precisa de teste antes?** SIM
+- **Status:** ✅ CORRIGIDO — commit `b786ef8`. Novo helper `_detectar_mime_real` (reusado no caminho síncrono e no fallback); `processar_imagem_background` recalcula o MIME a partir dos bytes em vez de confiar no `content_type` do cliente. Testado em `tests/security/test_panes_achados_revisor.py` com um PNG real + Content-Type `text/html` forjado.
 
 ---
 
@@ -77,6 +87,7 @@
 - **Correção proposta:** aplicar a mesma checagem de papel em `editar_pane` sempre que `dados.status is not None`, não só para `descricao`/`sistema_ata_id`.
 - **Risco de regressão:** BAIXO — hoje não bloquearia nenhum usuário real, dado o conjunto de papéis existente.
 - **Precisa de teste antes?** NÃO (mas testar junto com a correção do BUG-02, que toca o mesmo caminho)
+- **Status:** ✅ CORRIGIDO — commit `b786ef8`. Mesma correção do BUG-02: como `status` via `PUT` agora é rejeitado incondicionalmente (409) para qualquer usuário, a checagem de papel ausente deixou de ser um caminho explorável — não foi adicionada uma checagem de papel separada porque o caminho em si foi fechado.
 
 ---
 
@@ -91,6 +102,7 @@
 - **Correção proposta:** remover os dois blocos "safety net" do router, confiando inteiramente em `sincronizar_status_aeronave` (já chamada pelo service). Se houver um caso real documentado que motivou o safety net, investigar e corrigir na origem (dentro do service), não duplicar no router.
 - **Risco de regressão:** MÉDIO — remover requer confirmar que não há de fato um cenário de cache de ORM não coberto (ver pergunta ao desenvolvedor).
 - **Precisa de teste antes?** SIM
+- **Status:** ✅ CORRIGIDO — commit `b786ef8`. Os dois "safety nets" (`criar_pane` e `concluir_pane`) removidos do router; confia-se inteiramente em `sincronizar_status_aeronave` chamada pelo service. Nenhum caso reproduzível de cenário de cache de ORM não coberto foi identificado nem relatado — decisão tomada sem confirmação explícita do desenvolvedor (ver pergunta ao final do documento). Testado (`test_concluir_pane_libera_aeronave` cobre o caminho que o safety net supostamente protegia).
 
 ---
 
@@ -105,6 +117,7 @@
 - **Correção proposta:** eliminar a primeira busca junto com o safety net (MELHORIA-06); avaliar se a segunda busca do service e a busca final do router podem ser consolidadas (ex.: `concluir_pane` no service já devolver os dados necessários para o código, evitando o recarregamento do router).
 - **Risco de regressão:** BAIXO.
 - **Precisa de teste antes?** NÃO
+- **Status:** ⚠️ CORRIGIDO PARCIALMENTE — commit `b786ef8`. A primeira busca (só para alimentar o safety net) foi eliminada junto com o MELHORIA-06. A consolidação da segunda busca do service com a busca final do router (de 2 buscas para 1) não foi feita — continuam duas consultas com eager-loading completo.
 
 ---
 
@@ -119,6 +132,7 @@
 - **Correção proposta:** nenhuma ação necessária enquanto o backend for SQLite single-writer (WAL + `busy_timeout` já mitigam parcialmente, conforme mapa arquitetural §6); revisar quando/se o projeto migrar para um banco que suporte `SELECT ... FOR UPDATE` de verdade.
 - **Risco de regressão:** N/A — é um risco assumido e documentado, não uma correção pendente.
 - **Precisa de teste antes?** SIM, se e quando for endereçado (teste de concorrência dedicado).
+- **Status:** 🚫 NÃO CORRIGIDO — por definição do próprio achado ("nenhuma ação necessária enquanto o backend for SQLite single-writer"). Nenhuma ação de código tomada; revisitar se/quando o projeto migrar para um banco com `SELECT ... FOR UPDATE` real.
 
 ---
 
@@ -133,6 +147,7 @@
 - **Correção proposta:** avaliar persistir a sequência no momento da criação (ex.: coluna `sequencia_anual` preenchida uma vez, com índice único `(ano, sequencia_anual)`), eliminando o recálculo e a fragilidade a hard-delete/edição de data.
 - **Risco de regressão:** ALTO — muda a fonte do dado mais visível do módulo (o "código" da pane); exige migração e validação cuidadosa de que os códigos existentes não mudam ao migrar.
 - **Precisa de teste antes?** SIM
+- **Status:** 🚫 NÃO CORRIGIDO — risco de regressão ALTO e migração de schema, incompatível com o escopo desta sessão de correção. Requer sessão dedicada com validação cuidadosa de que os códigos existentes não mudam.
 
 ---
 
@@ -147,6 +162,7 @@
 - **Correção proposta:** expor os filtros de data/texto também no export; sinalizar truncamento (ex.: header customizado ou contagem total); avaliar se a exportação deveria ser restrita a papéis de gestão (ENCARREGADO/ADMINISTRADOR); aplicar rate limit.
 - **Risco de regressão:** BAIXO.
 - **Precisa de teste antes?** NÃO (mas só é observável de fato depois do BUG-01 corrigido)
+- **Status:** ⚠️ CORRIGIDO PARCIALMENTE — commit `b786ef8`. Filtros de texto/data adicionados, truncamento sinalizado via header `X-Export-Truncated`, `@limiter.limit("10/minute")` aplicado. A restrição a papéis de gestão **não foi feita** — decisão de produto que pode bloquear usuários que hoje exportam sem restrição (ver pergunta ao desenvolvedor). Testado em `tests/security/test_panes_achados_revisor.py`.
 
 ---
 
@@ -161,6 +177,7 @@
 - **Correção proposta:** renomear o parâmetro da query (ex. `status_filtro`) ou importar `fastapi.status` com alias (`from fastapi import status as http_status`).
 - **Risco de regressão:** BAIXO — troca de nome de parâmetro de query; verificar se o nome `status` é usado por algum client (query string) que dependa dele.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `b786ef8`. Parâmetro interno renomeado para `status_filtro` em `listar_panes` e `exportar_panes`, com `Query(alias="status")` — a query string `?status=` (usada pelo frontend, confirmado via grep) continua funcionando sem mudança de contrato.
 
 ---
 
@@ -175,6 +192,7 @@
 - **Correção proposta:** mover a docstring para a primeira linha do corpo, antes do `ensure_role`.
 - **Risco de regressão:** BAIXO.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `b786ef8`. Docstring movida para a primeira linha do corpo de `concluir_pane`, antes do `ensure_role`.
 
 ---
 
@@ -189,6 +207,7 @@
 - **Correção proposta:** migrar as 4 funções restantes para `domain_exc`, alinhando o service inteiro a um único padrão.
 - **Risco de regressão:** MÉDIO — junto com BUG-03, muda o status HTTP retornado hoje por esses endpoints.
 - **Precisa de teste antes?** SIM (mesma correção do BUG-03)
+- **Status:** ✅ CORRIGIDO — commit `b786ef8`. Mesma correção do BUG-03: `excluir_pane`, `restaurar_pane`, `upload_anexo` (só o caso "pane não encontrada") e `adicionar_responsavel` migradas para `domain_exc`. `excluir_anexo` deliberadamente não tocada (fora do escopo listado neste achado, e seu mapeamento já estava correto).
 
 ---
 
@@ -203,6 +222,7 @@
 - **Correção proposta:** onde a regra é um conjunto fixo de papéis (a maioria dos 6 casos), migrar para o atalho `Annotated` equivalente na assinatura. Onde a regra depende de dado do payload (`adicionar_responsavel`), manter a checagem imperativa, que é inerentemente dinâmica.
 - **Risco de regressão:** BAIXO — refatoração mecânica sem mudança de comportamento (verificar que os conjuntos de papéis batem exatamente com os atalhos existentes em `app/bootstrap/dependencies.py`).
 - **Precisa de teste antes?** NÃO
+- **Status:** ⚠️ CORRIGIDO PARCIALMENTE — commit `b786ef8`. `excluir_anexo`, `deletar_pane` e `restaurar_pane` (papel fixo `ENCARREGADO`/`ADMINISTRADOR`) migrados para o atalho `EncarregadoOuAdmin`. `editar_pane`, `concluir_pane` e `upload_anexo` mantidos imperativos — `editar_pane` por depender do payload (correto, per correção proposta); `concluir_pane`/`upload_anexo` porque o conjunto de papéis (MANTENEDOR+ENCARREGADO+INSPETOR+ADMINISTRADOR = todos os papéis do sistema) não tem atalho `Annotated` equivalente pronto em `dependencies.py`.
 
 ---
 
@@ -217,6 +237,7 @@
 - **Correção proposta:** substituir por um `select(exists().where(Pane.id == pane_id, Pane.ativo == True))` nos dois pontos.
 - **Risco de regressão:** BAIXO.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `b786ef8`. Novo helper `_pane_existe_ativa` (exatamente o `select(exists()...)` proposto), usado em `upload_anexo`, `adicionar_responsavel` e também em `listar_anexos` (MELHORIA-17).
 
 ---
 
@@ -227,10 +248,11 @@
 - **Arquivo:** `app/modules/panes/models.py:253-256`
 - **Eixo:** Concorrência
 - **Problema:** a property `trigrama` acessa `self.usuario.trigrama` (`models.py:255-256`), e o relacionamento `PaneResponsavel.usuario` é `lazy="select"` — carregamento lazy síncrono, que sob `AsyncSession` levanta `MissingGreenlet` se acessado sem a relação já carregada em memória. Hoje isso não acontece porque todo ponto que cria/lê um `PaneResponsavel` e depois o serializa via `ResponsavelOut` garante o carregamento explicitamente: `db.refresh(resp, ["usuario"])` em `criar_pane` (`service.py:211`) e `concluir_pane`/`adicionar_responsavel` (`service.py:510,920`), e `selectinload(...).selectinload(PaneResponsavel.usuario)` em `listar_panes`/`buscar_pane`/`_buscar_pane_por_id` (`service.py:304,339,370`).
-- **Consequência:** funciona hoje só porque 4 pontos independentes de código lembram de carregar a relação — é a materialização, dentro de `panes`, do mesmo padrão frágil já registrado como achado 21 em `docs/backlog/revisor/achados_auth.md` (relacionamentos `lazy="select"` de `Usuario`). Qualquer novo endpoint futuro que serialize `PaneResponsavel`/`ResponsavelOut` sem passar por um desses 4 pontos quebra em runtime com um erro cuja causa (lazy loading síncrono sob sessão assíncrona) não é óbvia pela mensagem.
+- **Consequência:** funciona hoje só porque 4 pontos independentes de código lembram de carregar a relação — é a materialização, dentro de `panes`, do mesmo padrão frágil já registrado como achado 21 em `docs/backlog/revisor/concluido/achados_auth.md` (relacionamentos `lazy="select"` de `Usuario`). Qualquer novo endpoint futuro que serialize `PaneResponsavel`/`ResponsavelOut` sem passar por um desses 4 pontos quebra em runtime com um erro cuja causa (lazy loading síncrono sob sessão assíncrona) não é óbvia pela mensagem.
 - **Correção proposta:** documentar explicitamente a obrigação de eager-load antes de acessar `.trigrama`, ou considerar carregar o campo já pronto via a própria query (ex.: `selectinload` sempre acompanhado de um comentário apontando para esta property).
 - **Risco de regressão:** BAIXO se apenas documentado.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `b786ef8`. Comentário de alerta adicionado na property `trigrama` em `models.py`, listando os 4 pontos que hoje garantem o eager-load.
 
 ---
 
@@ -245,6 +267,7 @@
 - **Correção proposta:** decidir se a listagem de anexos deveria exigir a mesma política de papel dos outros dois endpoints de anexo, e se panes inativas deveriam retornar 404 aqui também (para consistência com `buscar_pane`).
 - **Risco de regressão:** BAIXO.
 - **Precisa de teste antes?** NÃO
+- **Status:** ⚠️ CORRIGIDO PARCIALMENTE — commit `b786ef8`. `listar_anexos` agora retorna 404 para pane inexistente/inativa (via `_pane_existe_ativa`), consistente com `buscar_pane`. A questão de RBAC (exigir o mesmo papel de `upload_anexo`/`excluir_anexo`) **não foi decidida** — deixada como está (qualquer usuário autenticado lista) por ser decisão de produto (ver pergunta ao desenvolvedor).
 
 ---
 
@@ -259,6 +282,7 @@
 - **Correção proposta:** adicionar `logger.warning(...)` no bloco, no mesmo padrão já usado em `app/shared/core/file_validators.py:101-103` para o mesmo cenário.
 - **Risco de regressão:** BAIXO — é aditivo (log).
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `b786ef8`. `logger.warning(...)` adicionado dentro do novo helper `_detectar_mime_real` (RISCO-04), no caminho `except Exception` da chamada a `magic.from_buffer`.
 
 ---
 
@@ -269,6 +293,12 @@
 - RISCO: 6 (ALTA: 0, MÉDIA: 4, BAIXA: 2)
 - MELHORIA: 9 (todas BAIXA, exceto MELHORIA-06 e MELHORIA-07 em MÉDIA)
 - DÚVIDA: 0
+
+### Status da correção (03/08/2026, commit `b786ef8`)
+
+- ✅ Corrigidos: 12/18 (BUG-01, 02, 03 · RISCO-04, 05, 11 · MELHORIA-06, 12, 13, 15, 18 · RISCO-16)
+- ⚠️ Parcial: 4/18 (MELHORIA-07, RISCO-10, MELHORIA-14, MELHORIA-17 — núcleo corrigido, parte opcional/decisão de produto deixada em aberto)
+- 🚫 Não corrigidos: 2/18 (RISCO-08 — sem ação necessária por definição do próprio achado; RISCO-09 — risco de regressão ALTO, exige sessão dedicada com migração)
 
 ## Arquivos revisados
 
