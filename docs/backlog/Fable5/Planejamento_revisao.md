@@ -132,16 +132,48 @@ ETAPA 5 ➔ Bootstrap, Shared Core & Exporter (database / storage / exporter)
 
 ---
 
-### 🔹 ETAPA 4: Autenticação, Usuários & Segurança Central
+### 🔹 ETAPA 4: Autenticação, Usuários & Segurança Central — ✅ CONCLUÍDA (02/08/2026)
 * **Arquivos Alvo:**
   - `app/modules/auth/service.py`, `security.py`, `router.py`
-  - `app/shared/middleware/csrf.py` & `dependencies.py`
-* **Relatório a Gerar:** `docs/backlog/Fable5/relatorio_auth_seguranca.md`
-* **Foco Técnico:**
-  - Validação rigorosa de rotação de Refresh Tokens e invalidação de família em tentativa de reuso.
-  - Mitigação de ataques de Timing em comparações de tokens e senhas (bcrypt/sha256).
-  - Verificação de headers CSRF e tratamento de Cookies `HttpOnly` / `SameSite`.
-  - Prevenção de vazamento de informações técnicas em respostas de erro da API.
+  - `app/shared/middleware/csrf.py` & `app/bootstrap/dependencies.py`
+    (caminho corrigido: o plano original citava `app/shared/dependencies.py`, que não existe)
+  - `app/bootstrap/config/__init__.py` (2 campos novos: `refresh_token_expire_days`, `enable_test_users`)
+* **Plano de Execução:** `docs/backlog/Fable5/Etapa4.md` (evidências completas, testes por fase, decisões de escopo)
+* **Relatório de Referência:** `docs/backlog/Fable5/relatorio_auth_seguranca.md` (finalizado — Crítica 4/4, Média 6/6, Baixa 1/1)
+* **Foco Técnico (todos os pontos abaixo corrigidos):**
+  - 🔴 **Vulnerabilidade Crítica:** revogação de família de refresh tokens (defesa contra reuso) era
+    desfeita pelo `rollback()` automático da dependency `get_db` — a mensagem "todos os tokens foram
+    revogados" era falsa. Corrigido com `db.commit()` explícito, comprovado por teste que falha sem a
+    correção. → ✅
+  - 🔴 **Vulnerabilidade Latente:** `get_current_user` não validava o claim `type` do JWT — um refresh
+    token (7 dias) seria aceito como access token (15 min) numa refatoração aparentemente inofensiva do
+    campo `sub`. → ✅
+  - 🔴 **Bug Operacional:** senha do admin sobrescrita a cada execução do script de seed, tornando a
+    rotação de senha pela UI inefetiva. Corrigido: só na criação; redefinição exige
+    `ADMIN_PASSWORD_RESET=1` explícito. → ✅
+  - 🔴 **Vulnerabilidade:** criação de 3 contas privilegiadas com senha fixa protegida por um único
+    gatilho (`APP_ENV`) e duas fontes de verdade divergentes para o ambiente
+    (`os.getenv` vs `settings.app_env`). Corrigido: dois gatilhos explícitos + fonte única. → ✅
+  - 🟡 **CSRF:** bypass de teste com header previsível (segredo aleatório por processo), vazamento de
+    detalhe de exceção, isenção desnecessária de `/auth/login`/`/auth/logout`, geração de token
+    desperdiçada em assets estáticos. → ✅
+  - 🟡 **Timing:** enumeração de usernames via diferença de tempo (~227ms vs <0.001ms, medido antes de
+    corrigir) mitigada com hash dummy. → ✅
+  - 🟢 **Limpeza:** 8 `raise ValueError` → exceções de domínio; TOCTOU em `criar_usuario` protegido por
+    SAVEPOINT; pré-hash de senha deduplicado; `CsrfSettings` corrigido para resolver configuração em
+    runtime (não em tempo de import). → ✅
+* **Achado adicional descoberto durante a correção do item #4:** `scripts/db/init_db.py` tinha uma
+  segunda implementação, divergente e não documentada, de criação de usuários de teste (usuários/senhas
+  diferentes dos criados por `garantir_usuarios_essenciais`) — removida; e o campo `ENABLE_TEST_USERS`,
+  já citado em `.env.example`, nunca tinha sido adicionado à classe `Settings`.
+* **Pendências conscientes que saem do escopo desta etapa** (documentadas no relatório, não bloqueiam o
+  fechamento): magic numbers de lockout viraram constantes de módulo, não campos de `Settings` (decisão:
+  são regra de negócio, não configuração de ambiente); `decodificar_token(token, tipo_esperado)` como
+  alternativa mais robusta ao item do `type` claim não foi implementada (mudaria assinatura usada em
+  múltiplos pontos, risco desproporcional).
+* **Testes:** 11 testes novos (`test_refresh_token_rotacao.py` — 2, `test_auth_contas.py` — 9); suíte
+  completa do projeto **292/292**.
+* **Git Sync:** ⬜ não executado — mudanças aplicadas no working tree, aguardando revisão/commit do usuário.
 
 ---
 
@@ -179,7 +211,7 @@ Para manter a consistência e o controle de versão em cada etapa:
 | **Etapa 1** | Equipamentos & Inventário | ✅ Concluída (02/08/2026) | `relatorio_equipamentos_services.md` (finalizado) | 44/44 (módulo) · 220/220 (suíte) |
 | **Etapa 2** | Panes & Anexos | ✅ Concluída (02/08/2026) | `relatorio_panes_service.md` (finalizado) | 61/61 (módulo) · 250/250 (suíte) |
 | **Etapa 3** | Vencimentos & Inspeções | ✅ Concluída (02/08/2026) | `relatorio_vencimentos_inspecoes.md` (finalizado) | 20 novos (módulo) · 281/281 (suíte) |
-| **Etapa 4** | Auth & Segurança | ⚪ Pendente | `relatorio_auth_seguranca.md` | — |
+| **Etapa 4** | Auth & Segurança | ✅ Concluída (02/08/2026) | `relatorio_auth_seguranca.md` (finalizado) | 11 novos (módulo) · 292/292 (suíte) |
 | **Etapa 5** | Core & Infraestrutura | ⚪ Pendente | `relatorio_core_bootstrap.md` | — |
 
 ---
