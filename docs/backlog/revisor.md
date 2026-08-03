@@ -31,7 +31,7 @@ Uma sessão de revisão = **um módulo** (ou um submódulo, se o módulo for gra
 2. `/model opusplan`
 3. Entrar em **Plan Mode** (`Shift+Tab` duas vezes)
 4. Prompt:
-   > Leia `docs/backlog/Fable5/00_mapa_arquitetural.md` e `docs/backlog/Fable5/Planejamento_revisao.md`. Revise `app/modules/<MODULO>/` conforme as orientações deste último. Não altere nenhum arquivo. Salve os achados em `docs/backlog/Fable5/achados_<MODULO>.md`.
+   > Leia `docs/backlog/00_mapa_arquitetural.md` e `docs/backlog/revisor.md`. Revise `app/modules/<MODULO>/` conforme as orientações deste último. Não altere nenhum arquivo. Salve os achados em `docs/backlog/revisor/achados_<MODULO>.md`.
 5. Ao final, `/clear` antes do próximo módulo
 
 **Ordem sugerida:** `auth` → módulos com escrita em banco → módulos de leitura/relatório.
