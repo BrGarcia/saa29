@@ -177,17 +177,44 @@ ETAPA 5 ➔ Bootstrap, Shared Core & Exporter (database / storage / exporter)
 
 ---
 
-### 🔹 ETAPA 5: Shared Core, Database Bootstrap & Exportadores
+### 🔹 ETAPA 5: Shared Core, Database Bootstrap & Exportadores — ✅ CONCLUÍDA (02/08/2026)
 * **Arquivos Alvo:**
-  - `app/bootstrap/database.py` & `main.py`
+  - `app/bootstrap/database.py`, `main.py` & `events.py`
   - `app/shared/exporter.py`
-  - `app/shared/core/file_validators.py` & `storage.py`
-* **Relatório a Gerar:** `docs/backlog/Fable5/relatorio_core_bootstrap.md`
-* **Foco Técnico:**
-  - Garantia de PRAGMAs de performance no SQLite (`WAL mode`, `synchronous=NORMAL`).
-  - Otimização da geração de relatórios CSV/XLSX em lote para evitar picos de memória.
-  - Tratamento de exceções e resiliência em uploads/rollbacks com o storage Cloudflare R2.
-  - Centralização dos Exception Handlers globais no FastAPI.
+  - `app/shared/core/file_validators.py`, `storage.py` & `exceptions.py`
+* **Plano de Execução:** `docs/backlog/Fable5/Etapa5.md` (evidências completas, testes por fase, decisões de escopo)
+* **Relatório de Referência:** `docs/backlog/Fable5/relatorio_core_bootstrap.md` (finalizado — Crítica 4/4, Média 6/6, Baixa 1/1)
+* **Ajuste de premissa vs. plano original:** o foco técnico previa *"garantia de PRAGMAs de performance
+  (WAL mode, synchronous=NORMAL)"* — **já estava implementado** desde antes desta etapa. A lacuna real era
+  `busy_timeout`, tratada abaixo.
+* **Foco Técnico (todos os pontos abaixo corrigidos):**
+  - 🔴 **Vulnerabilidade Crítica:** CSV/Formula Injection nos exportadores — dados de campos livres
+    (descrição de pane, observações) podiam conter fórmulas maliciosas que executam ao abrir o relatório
+    no Excel. Corrigido neutralizando o primeiro caractere de gatilho, preservando números negativos
+    legítimos. → ✅
+  - 🔴 **Concorrência:** SQLite sem `busy_timeout` suficiente para os escritores de fundo introduzidos nas
+    Etapas 1-2. Confirmado experimentalmente (13/30 falhas sem PRAGMA suficiente, 0/30 com 15000ms) antes
+    de corrigir. → ✅
+  - 🔴 **Vulnerabilidade + Bug de Produto:** allowlist de upload divergente em 5 lugares (não 4) — o mais
+    grave: o pipeline inteiro de conversão HEIC→JPEG (fotos de iPhone) era **código morto**, inalcançável
+    a partir do endpoint real de upload, porque o validador que roda primeiro no router não conhecia
+    HEIC/HEIF. Unificado numa única fonte de verdade. → ✅
+  - 🔴 **Vulnerabilidade (DoS):** upload sem limite de tamanho lido antes de qualquer rejeição — corrigido
+    com leitura em chunks que aborta assim que ultrapassa o limite configurado. → ✅
+  - 🟡 **Robustez:** escrita local bloqueante corrigida (`asyncio.to_thread`); shutdown passou a aguardar
+    o cancelamento das tasks de background; handler de exceção 401/403 corrigido para reconhecer o
+    prefixo do calendário (fonte única de prefixos de API, não mais duplicada); handler genérico para
+    exceções não tratadas adicionado (antes, um erro inesperado podia expor stack trace ao cliente). → ✅
+  - 🟢 **Limpeza:** validação de path traversal (3 cópias idênticas) unificada; numeração de comentários
+    corrigida; fallback silencioso de CORS agora loga um aviso. → ✅
+* **Pendências conscientes que saem do escopo desta etapa** (documentadas no relatório, não bloqueiam o
+  fechamento): `write_only=True`/`StreamingResponse` para reduzir o pico de memória dos exportadores
+  (exigiria reescrever a estilização célula a célula, sem problema de memória medido concretamente);
+  `raise ValueError` em `storage.py`/`bootstrap/config` mantido (infraestrutura, não domínio);
+  `os.makedirs`/`app = create_app()` em tempo de import não alterados.
+* **Testes:** 34 testes novos (`test_exporter_injection.py` — 17, `test_storage_hardening.py` — 11,
+  `test_bootstrap_resiliencia.py` — 5, `test_exporter.py` — +1); suíte completa do projeto **326/326**.
+* **Git Sync:** ⬜ não executado — mudanças aplicadas no working tree, aguardando revisão/commit do usuário.
 
 ---
 
@@ -212,7 +239,67 @@ Para manter a consistência e o controle de versão em cada etapa:
 | **Etapa 2** | Panes & Anexos | ✅ Concluída (02/08/2026) | `relatorio_panes_service.md` (finalizado) | 61/61 (módulo) · 250/250 (suíte) |
 | **Etapa 3** | Vencimentos & Inspeções | ✅ Concluída (02/08/2026) | `relatorio_vencimentos_inspecoes.md` (finalizado) | 20 novos (módulo) · 281/281 (suíte) |
 | **Etapa 4** | Auth & Segurança | ✅ Concluída (02/08/2026) | `relatorio_auth_seguranca.md` (finalizado) | 11 novos (módulo) · 292/292 (suíte) |
-| **Etapa 5** | Core & Infraestrutura | ⚪ Pendente | `relatorio_core_bootstrap.md` | — |
+| **Etapa 5** | Core & Infraestrutura | ✅ Concluída (02/08/2026) | `relatorio_core_bootstrap.md` (finalizado) | 34 novos (módulo) · 326/326 (suíte) |
+
+---
+
+## 🏁 Encerramento do Plano FABLE 5 (02/08/2026)
+
+As 5 etapas foram concluídas. Suíte completa final do projeto: **326/326 testes**, partindo de um
+baseline de 220 no início da Etapa 1 — **106 testes novos** ao longo de todo o plano. Nenhum commit foi
+enviado automaticamente ao remoto; cada etapa aguardou revisão e autorização explícita do usuário antes
+do `git push`.
+
+### 📋 Apanhado Final das Pendências Conscientes (Etapas 1-5)
+
+Itens identificados, avaliados e **deliberadamente deixados fora do escopo** de cada etapa, com a
+justificativa registrada no momento da decisão. Consolidados aqui para virar o ponto de partida de um
+eventual backlog pós-FABLE-5 — nenhum é um bug esquecido, todos foram uma escolha registrada.
+
+**Concorrência / Banco de dados**
+- `with_for_update` é no-op no SQLite atual — só produz exclusão mútua real se o projeto migrar para
+  outro banco (ex.: PostgreSQL). (Etapa 2)
+- **Achado sistêmico não investigado, descoberto na Etapa 3:** o padrão SAVEPOINT (`db.begin_nested()`)
+  usado desde a Etapa 1 para proteção TOCTOU pode não estar isolado corretamente do `rollback()` externo
+  no engine SQLite atual — uma inserção dentro de um SAVEPOINT sobreviveu ao rollback de um teste,
+  vazando para o teste seguinte. Consistente com uma lacuna de configuração conhecida do SQLAlchemy para
+  savepoints em SQLite (falta desabilitar o `BEGIN` implícito do `pysqlite`/`aiosqlite`). **Recomendação:**
+  tratar como item dedicado, com um teste de regressão específico do comportamento do SAVEPOINT antes de
+  mexer na configuração do engine — pode afetar a garantia real de isolamento de todas as correções TOCTOU
+  aplicadas nas Etapas 1, 2, 3 e 4.
+- Duplicidade de inspeção ativa em `abrir_inspecao` (Etapa 3) permanece com janela de corrida — não há
+  UNIQUE constraint possível para essa regra condicional ao status.
+- Índice único parcial para "uma só prorrogação ativa por controle" (`ProrrogacaoVencimento`, Etapa 3) —
+  avaliado, não implementado, por prudência dado o achado do SAVEPOINT acima.
+
+**Durabilidade / Infraestrutura**
+- Correção definitiva de durabilidade do processamento de anexos em background (fila persistente tipo
+  Celery/ARQ/RQ) — a Etapa 2 aplicou apenas uma mitigação mínima (job de limpeza periódico). (Etapa 2)
+- `openpyxl.Workbook(write_only=True)` e `StreamingResponse` para reduzir o pico de memória (não só o
+  CPU, já resolvido) dos exportadores CSV/XLSX — exigiria reescrever a estilização célula a célula.
+  (Etapa 5)
+
+**Dados / Schema**
+- Migration `String → sqlalchemy.Enum` para colunas de status (`StatusPane`, `StatusAeronave`, etc.) —
+  levantada na Etapa 1, nunca endereçada. (Etapa 1)
+- Paginação (`limit`/`offset`) adicionada em `equipamentos`/`inspeções` ainda sem suporte no frontend.
+  (Etapas 1, 3)
+
+**Segurança (itens menores, não críticos)**
+- `decodificar_token(token, tipo_esperado)` como alternativa mais robusta à checagem inline do claim
+  `type` — não implementada por mudar assinatura usada em múltiplos pontos. (Etapa 4)
+- Magic numbers de lockout (5 tentativas / 15 min) viraram constantes de módulo em `auth/service.py`, não
+  campos de `Settings` — decisão: são regra de negócio de domínio, não configuração de ambiente. (Etapa 4)
+
+**Ferramentas de CI/qualidade (nunca fizeram parte do escopo de nenhuma etapa)**
+- `mypy` (type checking estático) não configurado.
+- `import-linter` (checagem de dependências entre camadas/módulos) não configurado.
+- Regras `D` do `ruff` (docstrings) não configuradas.
+
+**Decisão para o próximo passo:** este apanhado não vira automaticamente uma "Etapa 6" — fica registrado
+aqui como candidato a um novo ciclo de backlog, a ser priorizado pelo usuário quando fizer sentido. O item
+de maior risco potencial é o achado do SAVEPOINT/rollback (pode enfraquecer proteções de concorrência já
+aplicadas), seguido pela durabilidade do processamento de anexos em background.
 
 ---
 *Plano de Otimização e Refatoração FABLE 5 — Sistema SAA29.*
