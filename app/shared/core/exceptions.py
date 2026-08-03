@@ -36,6 +36,11 @@ class PermissaoNegadaError(SAA29BaseException):
     def __init__(self, detail: str = "Acesso negado"):
         super().__init__(detail=detail, status_code=status.HTTP_403_FORBIDDEN)
 
+class ContaBloqueadaError(SAA29BaseException):
+    """Lançada quando a conta está temporariamente bloqueada por excesso de tentativas de login falhas."""
+    def __init__(self, detail: str = "Conta temporariamente bloqueada."):
+        super().__init__(detail=detail, status_code=status.HTTP_429_TOO_MANY_REQUESTS)
+
 
 # ===========================================================================
 # Configuração de Handlers (Fábrica)

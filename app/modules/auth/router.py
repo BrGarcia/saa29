@@ -3,24 +3,35 @@ app/auth/router.py
 Endpoints de autenticação e gestão de usuários.
 """
 
+import logging
 import uuid
 from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Response, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select, update
 
 from app.bootstrap.config import get_settings
 from app.bootstrap.dependencies import (
-    DBSession, CurrentUser, AdminRequired, EncarregadoRequired,
-    get_token_from_request, oauth2_scheme,
+    DBSession, CurrentUser, AdminRequired,
+    get_token_from_request,
 )
 from app.modules.auth import schemas, service
 from app.modules.auth.models import TokenBlacklist, TokenRefresh, Usuario
 from app.modules.auth.security import criar_token, criar_refresh_token, decodificar_token
 from app.shared.core.limiter import limiter
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
+
+
+def _cookies_secure(settings) -> bool:
+    """RISCO-11: Secure não pode depender só de app_env=='production' — um
+    ambiente intermediário (staging/homolog) servido via HTTPS também
+    precisa marcar os cookies como HTTPS-only, senão um downgrade/MITM pode
+    fazer o browser enviá-los por HTTP."""
+    return settings.app_env == "production" or settings.force_secure_cookies
 
 
 # ------------------------------------------------------------------ #
@@ -73,23 +84,27 @@ async def login(
     # O commit é feito automaticamente pela dependência get_db ao final do request
 
     # Set secure cookie for access token (HttpOnly, Secure em produção)
-    secure = settings.app_env == "production"
+    secure = _cookies_secure(settings)
     response.set_cookie(
         key="saa29_token",
         value=access_token,
         httponly=True,
         samesite="lax",
-        max_age=15*60,  # 15 minutos
+        max_age=settings.jwt_expire_minutes * 60,
         secure=secure
     )
 
+    # BUG-01: path="/" (não mais restrito a "/auth/refresh") — com o path
+    # restrito, o POST para /auth/logout não estava sob esse path e o
+    # browser nunca enviava o cookie, então a revogação do refresh token no
+    # logout nunca executava de fato via navegador.
     response.set_cookie(
         key="saa29_refresh_token",
         value=refresh_token_str,
         httponly=True,
         samesite="lax",
         max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
-        path="/auth/refresh",
+        path="/",
         secure=secure
     )
 
@@ -107,6 +122,7 @@ async def login(
     summary="Refresh access token",
     description="Usa um refresh token válido para obter um novo access token (15 min)",
 )
+@limiter.limit("20/minute")
 async def refresh_access_token(
     request: Request,
     response: Response,
@@ -184,7 +200,33 @@ async def refresh_access_token(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Reuso de token detectado. Todos os tokens foram revogados por segurança.",
             )
-        
+
+        # RISCO-08: claim atômico via UPDATE condicional — evita que duas
+        # requisições concorrentes com o mesmo refresh token (duas abas,
+        # retry de rede) leiam o mesmo estado "ainda não revogado" antes de
+        # qualquer commit e ambas rotacionem o mesmo token pai. Só quem
+        # conseguir marcar revogado_em nesta instrução (rowcount == 1)
+        # segue; o perdedor da corrida cai no mesmo caminho de reuso acima.
+        claim = await db.execute(
+            update(TokenRefresh)
+            .where(TokenRefresh.jti == jti, TokenRefresh.revogado_em.is_(None))
+            .values(revogado_em=agora)
+        )
+        if claim.rowcount == 0:
+            await db.execute(
+                update(TokenRefresh)
+                .where(
+                    (TokenRefresh.usuario_id == stored_token.usuario_id) &
+                    (TokenRefresh.revogado_em.is_(None))
+                )
+                .values(revogado_em=agora)
+            )
+            await db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Reuso de token detectado. Todos os tokens foram revogados por segurança.",
+            )
+
         # Buscar usuário
         try:
             val_usuario_id = uuid.UUID(usuario_id)
@@ -218,19 +260,18 @@ async def refresh_access_token(
         )
         db.add(new_token_model)
 
-        # Revogar refresh token antigo (opcional, mas mais seguro)
-        stored_token.revogado_em = agora
+        # Refresh token antigo já foi revogado atomicamente pelo claim acima.
 
         # O commit é feito automaticamente pela dependência get_db ao final do request
 
         # Set cookies
-        secure = settings.app_env == "production"
+        secure = _cookies_secure(settings)
         response.set_cookie(
             key="saa29_token",
             value=new_access_token,
             httponly=True,
             samesite="lax",
-            max_age=15*60,
+            max_age=settings.jwt_expire_minutes * 60,
             secure=secure
         )
 
@@ -240,7 +281,7 @@ async def refresh_access_token(
             httponly=True,
             samesite="lax",
             max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
-            path="/auth/refresh",
+            path="/",
             secure=secure
         )
         
@@ -253,8 +294,12 @@ async def refresh_access_token(
         
     except HTTPException:
         raise
-    except Exception as e:
-        # Qualquer erro na decodificação é acesso negado
+    except Exception:
+        # RISCO-09: antes engolia qualquer exceção sem log — inclusive
+        # falha de infraestrutura (banco fora do ar, erro de driver), que
+        # ficava indistinguível de "token inválido" e sem rastro para
+        # diagnóstico.
+        logger.exception("Erro inesperado em /auth/refresh")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token inválido",
@@ -277,9 +322,10 @@ async def logout(
     Invalida a sessão do usuário via blacklist do JTI e expurga o Cookie (HttpOnly).
     Também revoga o Refresh Token se presente.
     """
-    # Deleta cookies do lado do client
+    # Deleta cookies do lado do client (BUG-01: path="/" para bater com o
+    # path usado ao setar o cookie — ver comentário em login/refresh)
     response.delete_cookie(key="saa29_token")
-    response.delete_cookie(key="saa29_refresh_token", path="/auth/refresh")
+    response.delete_cookie(key="saa29_refresh_token", path="/")
 
     # 1. Invalida Access Token (Blacklist)
     try:
@@ -292,7 +338,10 @@ async def logout(
                 expira_em=datetime.fromtimestamp(exp, tz=timezone.utc)
             ))
     except Exception:
-        pass
+        # RISCO-10: sem log, uma falha aqui (ex.: erro transitório de banco)
+        # respondia 204 como se o logout tivesse funcionado, mas o access
+        # token continuava válido e utilizável até expirar naturalmente.
+        logger.warning("Falha ao adicionar access token à blacklist no logout do usuário %s.", usuario_atual.id, exc_info=True)
 
     # 2. Revoga Refresh Token no Banco
     refresh_token = request.cookies.get("saa29_refresh_token")
@@ -308,7 +357,7 @@ async def logout(
                 if stored_rt:
                     stored_rt.revogado_em = datetime.now(timezone.utc)
         except Exception:
-            pass
+            logger.warning("Falha ao revogar refresh token no logout do usuário %s.", usuario_atual.id, exc_info=True)
 
     return None
 
@@ -353,9 +402,11 @@ async def listar_usuarios(
     db: DBSession,
     _: CurrentUser,
     inativos: bool = False,
+    limit: int | None = Query(default=None, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
 ) -> list[schemas.UsuarioOut]:
-    """Retorna a lista de usuários cadastrados."""
-    usuarios = await service.listar_usuarios(db, incluir_inativos=inativos)
+    """Retorna a lista de usuários cadastrados. `limit`/`offset` são opcionais."""
+    usuarios = await service.listar_usuarios(db, incluir_inativos=inativos, limit=limit, offset=offset)
     return [schemas.UsuarioOut.model_validate(u) for u in usuarios]
 
 
@@ -364,12 +415,19 @@ async def listar_usuarios(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Alterar senha do usuário autenticado",
 )
+@limiter.limit("5/minute")
 async def alterar_senha(
+    request: Request,
     dados: schemas.SenhaUpdate,
     db: DBSession,
     usuario_atual: CurrentUser,
 ) -> None:
-    """Permite ao usuário autenticado trocar sua própria senha."""
+    """Permite ao usuário autenticado trocar sua própria senha.
+
+    MELHORIA-24: `senha_atual` é um segundo oráculo de senha (compara contra
+    o hash armazenado) e, sem rate limit próprio, podia ser atacado por
+    força bruta sem o lockout dedicado que o login tem.
+    """
     await service.alterar_senha(
         db, usuario_atual, dados.senha_atual, dados.nova_senha
     )

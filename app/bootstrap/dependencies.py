@@ -11,6 +11,7 @@ from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bootstrap.database import get_session_factory
+from app.modules.auth import roles
 from app.modules.auth.models import Usuario
 
 # Esquema OAuth2 – endpoint de token em /auth/login
@@ -145,22 +146,22 @@ def require_role(*roles: str):
 
 
 # Atalhos de RBAC para uso direto nos routers
-AdminRequired = Annotated[Usuario, Depends(require_role("ADMINISTRADOR"))]
-EncarregadoRequired = Annotated[Usuario, Depends(require_role("ENCARREGADO"))]
-InspetorRequired = Annotated[Usuario, Depends(require_role("INSPETOR"))]
+AdminRequired = Annotated[Usuario, Depends(require_role(roles.ADMINISTRADOR))]
+EncarregadoRequired = Annotated[Usuario, Depends(require_role(roles.ENCARREGADO))]
+InspetorRequired = Annotated[Usuario, Depends(require_role(roles.INSPETOR))]
 
 EncarregadoOuAdmin = Annotated[
-    Usuario, Depends(require_role("ENCARREGADO", "ADMINISTRADOR"))
+    Usuario, Depends(require_role(*roles.PRIVILEGED_FUNCTIONS))
 ]
 
 InspetorOuAdmin = Annotated[
-    Usuario, Depends(require_role("INSPETOR", "ADMINISTRADOR"))
+    Usuario, Depends(require_role(roles.INSPETOR, roles.ADMINISTRADOR))
 ]
 
 EncarregadoInspetorOuAdmin = Annotated[
-    Usuario, Depends(require_role("ENCARREGADO", "INSPETOR", "ADMINISTRADOR"))
+    Usuario, Depends(require_role(roles.ENCARREGADO, roles.INSPETOR, roles.ADMINISTRADOR))
 ]
 
 ExecucaoPermitida = Annotated[
-    Usuario, Depends(require_role("MANTENEDOR", "ENCARREGADO", "ADMINISTRADOR"))
+    Usuario, Depends(require_role(roles.MANTENEDOR, roles.ENCARREGADO, roles.ADMINISTRADOR))
 ]

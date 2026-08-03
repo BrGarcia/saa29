@@ -30,10 +30,26 @@ class Settings(BaseSettings):
         default="",
         description="Secret key for JWT encoding. MUST be set securely."
     )
+    force_secure_cookies: bool = Field(
+        default=False,
+        description=(
+            "Força o atributo Secure nos cookies de sessão mesmo quando "
+            "app_env != 'production' — para ambientes intermediários "
+            "(staging/homolog) servidos via HTTPS."
+        ),
+    )
 
     # --- Usuário Inicial ---
     default_admin_user: str = "admin"
     default_admin_password: str | None = None
+    admin_password_reset: bool = Field(
+        default=False,
+        description=(
+            "Flag temporária para o cenário de restore de banco: quando "
+            "True, garantir_usuarios_essenciais redefine a senha do admin "
+            "para o valor de default_admin_password no próximo boot/seed."
+        ),
+    )
 
     # --- Banco de Dados ---
     # Padrão: SQLite para instalação local ou produção básica (monolito).

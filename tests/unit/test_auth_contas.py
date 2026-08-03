@@ -37,7 +37,7 @@ async def test_garantir_usuarios_essenciais_nao_sobrescreve_senha_do_admin_ja_tr
     admin_user = f"admin_{uuid.uuid4().hex[:6]}"
     monkeypatch.setattr(settings, "default_admin_user", admin_user)
     monkeypatch.setattr(settings, "default_admin_password", "senha-do-env-123")
-    monkeypatch.delenv("ADMIN_PASSWORD_RESET", raising=False)
+    monkeypatch.setattr(settings, "admin_password_reset", False)
 
     admin = Usuario(
         nome="Administrador Sistema",
@@ -71,7 +71,7 @@ async def test_garantir_usuarios_essenciais_com_admin_password_reset_redefine_se
     admin_user = f"admin_{uuid.uuid4().hex[:6]}"
     monkeypatch.setattr(settings, "default_admin_user", admin_user)
     monkeypatch.setattr(settings, "default_admin_password", "senha-do-env-456")
-    monkeypatch.setenv("ADMIN_PASSWORD_RESET", "1")
+    monkeypatch.setattr(settings, "admin_password_reset", True)
 
     admin = Usuario(
         nome="Administrador Sistema",
