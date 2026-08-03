@@ -266,9 +266,11 @@ async def listar_inspecoes(
         limit=limit,
     )
     inspecoes = await service.listar_inspecoes(db, filtros)
+    contagens = await service.contar_tarefas_por_inspecao(db, [i.id for i in inspecoes])
     resposta: list[schemas.InspecaoListItem] = []
     for inspecao in inspecoes:
-        total, concluidas, percentual = service.calcular_progresso(inspecao)
+        total, concluidas = contagens.get(inspecao.id, (0, 0))
+        percentual = round((concluidas / total) * 100) if total else 0
         item = schemas.InspecaoListItem.model_validate(inspecao).model_dump()
         item["total_tarefas"] = total
         item["tarefas_concluidas"] = concluidas
@@ -296,14 +298,21 @@ async def exportar_inspecoes(
         limit=1000,
     )
     inspecoes = await service.listar_inspecoes(db, filtros)
+    contagens = await service.contar_tarefas_por_inspecao(db, [i.id for i in inspecoes])
     headers = ["Aeronave", "Tipo Inspeção", "Status", "Data Início", "Data Prevista (DPE)", "Progresso %"]
     rows = []
     for insp in inspecoes:
-        total, concluidas, percentual = service.calcular_progresso(insp)
+        total, concluidas = contagens.get(insp.id, (0, 0))
+        percentual = (concluidas / total) * 100 if total else 0
         anv = insp.aeronave.matricula if insp.aeronave else ""
-        tipo = insp.tipo_inspecao.nome if insp.tipo_inspecao else ""
+        # BUG-01: `insp.tipo_inspecao` (singular) nunca existiu no modelo — o
+        # relacionamento real é `tipos_aplicados` (lista); toda chamada a
+        # este endpoint levantava AttributeError -> 500.
+        tipo = ", ".join(t.nome for t in insp.tipos_aplicados) if insp.tipos_aplicados else ""
         dt_ini = insp.data_inicio.strftime("%d/%m/%Y") if insp.data_inicio else ""
-        dt_dpe = insp.dpe.strftime("%d/%m/%Y") if insp.dpe else ""
+        # BUG-01: `insp.dpe` também nunca existiu — o campo se chama
+        # `data_fim_prevista`.
+        dt_dpe = insp.data_fim_prevista.strftime("%d/%m/%Y") if insp.data_fim_prevista else ""
         rows.append([anv, tipo, insp.status.value if hasattr(insp.status, "value") else str(insp.status), dt_ini, dt_dpe, f"{percentual:.1f}%"])
 
     if fmt == "xlsx":

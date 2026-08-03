@@ -8,7 +8,7 @@ import logging
 import uuid
 from datetime import datetime, timezone, timedelta
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -43,6 +43,35 @@ def _normalizar_codigo(codigo: str) -> str:
 def _garantir_inspecao_editavel(inspecao: Inspecao) -> None:
     if inspecao.status in STATUS_FINAIS:
         raise domain_exc.ConflitoNegocioError("Inspecoes concluidas ou canceladas nao podem ser editadas.")
+
+
+def _aplicar_mudancas(
+    entidade,
+    changes: dict,
+    campos: set[str] = frozenset(),
+    campos_nulaveis: set[str] = frozenset(),
+    campos_strip: set[str] = frozenset(),
+) -> None:
+    """Aplica um dict de mudanças (`model_dump(exclude_unset=True)`) a uma
+    entidade, campo a campo — reduz a duplicação do padrão repetido em
+    atualizar_tipo_inspecao/atualizar_tarefa_catalogo/atualizar_tarefa_template
+    (MELHORIA-13, achados_inspecoes.md).
+
+    Args:
+        campos: só aplicados se presentes E não-None (ex.: `ativo`, `titulo`).
+        campos_nulaveis: aplicados sempre que presentes, mesmo com valor
+            None (ex.: `descricao`, que o cliente pode querer limpar).
+        campos_strip: valores de texto que recebem `.strip()` antes de gravar.
+    """
+    for campo in campos:
+        if campo in changes and changes[campo] is not None:
+            valor = changes[campo]
+            if campo in campos_strip:
+                valor = valor.strip()
+            setattr(entidade, campo, valor)
+    for campo in campos_nulaveis:
+        if campo in changes:
+            setattr(entidade, campo, changes[campo])
 
 
 async def _buscar_aeronave(db: AsyncSession, aeronave_id: uuid.UUID) -> Aeronave | None:
@@ -128,16 +157,22 @@ async def atualizar_tipo_inspecao(
                 raise domain_exc.ConflitoNegocioError(f"Tipo de inspecao '{codigo}' ja cadastrado.")
         tipo.codigo = codigo
 
-    if "nome" in changes and changes["nome"] is not None:
-        tipo.nome = changes["nome"].strip()
-    if "descricao" in changes:
-        tipo.descricao = changes["descricao"]
-    if "duracao_dias" in changes and changes["duracao_dias"] is not None:
-        tipo.duracao_dias = changes["duracao_dias"]
-    if "ativo" in changes and changes["ativo"] is not None:
-        tipo.ativo = changes["ativo"]
+    _aplicar_mudancas(
+        tipo, changes,
+        campos={"nome", "duracao_dias", "ativo"},
+        campos_nulaveis={"descricao"},
+        campos_strip={"nome"},
+    )
 
-    await db.flush()
+    try:
+        # SAVEPOINT: mesmo padrão de criar_tipo_inspecao — em caso de corrida
+        # com outra requisição trocando o código para o mesmo valor, desfaz
+        # apenas este flush em vez de vazar um IntegrityError cru (500).
+        async with db.begin_nested():
+            await db.flush()
+    except IntegrityError as exc:
+        logger.warning("Conflito de UNIQUE ao atualizar tipo de inspecao %s: %s", tipo_id, exc.orig)
+        raise domain_exc.ConflitoNegocioError(f"Tipo de inspecao '{tipo.codigo}' ja cadastrado.") from exc
     await db.refresh(tipo)
     return tipo
 
@@ -185,14 +220,12 @@ async def atualizar_tarefa_catalogo(db: AsyncSession, tarefa_id: uuid.UUID, dado
         raise domain_exc.EntidadeNaoEncontradaError("Tarefa do catalogo nao encontrada.")
 
     changes = dados.model_dump(exclude_unset=True)
-    if "titulo" in changes and changes["titulo"] is not None:
-        tarefa.titulo = changes["titulo"].strip()
-    if "descricao" in changes:
-        tarefa.descricao = changes["descricao"]
-    if "sistema" in changes:
-        tarefa.sistema = changes["sistema"]
-    if "ativa" in changes and changes["ativa"] is not None:
-        tarefa.ativa = changes["ativa"]
+    _aplicar_mudancas(
+        tarefa, changes,
+        campos={"titulo", "ativa"},
+        campos_nulaveis={"descricao", "sistema"},
+        campos_strip={"titulo"},
+    )
 
     await db.flush()
     await db.refresh(tarefa)
@@ -293,8 +326,7 @@ async def atualizar_tarefa_template(
             raise domain_exc.ConflitoNegocioError("Ja existe uma tarefa template com esta ordem para o tipo selecionado.")
         tarefa.ordem = changes["ordem"]
 
-    if "obrigatoria" in changes and changes["obrigatoria"] is not None:
-        tarefa.obrigatoria = changes["obrigatoria"]
+    _aplicar_mudancas(tarefa, changes, campos={"obrigatoria"})
 
     await db.flush()
     return tarefa
@@ -338,24 +370,58 @@ async def listar_inspecoes(
     db: AsyncSession,
     filtros: schemas.FiltroInspecao | None = None,
 ) -> list[Inspecao]:
+    # RISCO-07: sem `Inspecao.tarefas` no eager-load — o único consumidor
+    # (calcular_progresso, via router) só precisa de duas contagens por
+    # inspeção, não das linhas completas de tarefa (título, descrição,
+    # observação, executor). Use `contar_tarefas_por_inspecao` para isso.
     query = select(Inspecao).options(
         selectinload(Inspecao.aeronave),
         selectinload(Inspecao.tipos_aplicados),
-        selectinload(Inspecao.tarefas),
     )
     if filtros:
         if filtros.aeronave_id:
             query = query.where(Inspecao.aeronave_id == filtros.aeronave_id)
         if filtros.tipo_inspecao_id:
-            query = query.join(Inspecao.tipos_aplicados).where(TipoInspecao.id == filtros.tipo_inspecao_id)
+            # MELHORIA-11: .distinct() evita linhas repetidas se a inspeção
+            # tiver mais de um vínculo para o mesmo tipo (cenário do BUG-04).
+            query = query.join(Inspecao.tipos_aplicados).where(TipoInspecao.id == filtros.tipo_inspecao_id).distinct()
         if filtros.status:
             query = query.where(Inspecao.status == filtros.status.value)
         query = query.offset(filtros.skip).limit(min(filtros.limit, LIMITE_MAXIMO_LISTAGEM))
     else:
         query = query.limit(LIMITE_MAXIMO_LISTAGEM)
 
-    result = await db.execute(query.order_by(Inspecao.data_abertura.desc()))
+    # MELHORIA-11: desempate por `id` — sem isso, duas inspeções abertas no
+    # mesmo instante podem ter ordem instável entre páginas.
+    result = await db.execute(query.order_by(Inspecao.data_abertura.desc(), Inspecao.id))
     return list(result.scalars().all())
+
+
+async def contar_tarefas_por_inspecao(
+    db: AsyncSession, inspecao_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, tuple[int, int]]:
+    """Mapa inspecao_id -> (total_tarefas, tarefas_concluidas), via agregação
+    no banco — usado por `listar_inspecoes`/`exportar_inspecoes` em vez de
+    carregar as linhas completas de `InspecaoTarefa` só para contar (RISCO-07).
+    """
+    if not inspecao_ids:
+        return {}
+    status_concluida = (
+        StatusTarefaInspecao.CONCLUIDA.value,
+        StatusTarefaInspecao.NA.value,
+    )
+    result = await db.execute(
+        select(
+            InspecaoTarefa.inspecao_id,
+            func.count().label("total"),
+            func.sum(
+                case((InspecaoTarefa.status.in_(status_concluida), 1), else_=0)
+            ).label("concluidas"),
+        )
+        .where(InspecaoTarefa.inspecao_id.in_(inspecao_ids))
+        .group_by(InspecaoTarefa.inspecao_id)
+    )
+    return {row.inspecao_id: (row.total, int(row.concluidas or 0)) for row in result.all()}
 
 
 async def buscar_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> Inspecao | None:
@@ -384,18 +450,25 @@ async def abrir_inspecao(
     if aeronave.status == StatusAeronave.INATIVA.value:
         raise domain_exc.ConflitoNegocioError("Aeronave inativa. Reative a aeronave antes de registrar uma inspecao.")
 
+    # BUG-04: deduplica preservando a ordem de chegada — sem isso, um payload
+    # com IDs repetidos ([A, A, B]) sobrevivia à checagem de "faltantes" (que
+    # já deduplicava via dict) mas reconstruía a lista a partir do payload
+    # original, inserindo duas linhas de vínculo (InspecaoEventoTipo) para o
+    # mesmo par (inspecao, tipo).
+    tipos_ids = list(dict.fromkeys(dados.tipos_inspecao_ids))
+
     res_tipos = await db.execute(
         select(TipoInspecao).where(
-            TipoInspecao.id.in_(dados.tipos_inspecao_ids),
+            TipoInspecao.id.in_(tipos_ids),
             TipoInspecao.ativo.is_(True),
         )
     )
     tipos_por_id = {t.id: t for t in res_tipos.scalars().all()}
-    faltantes = [tid for tid in dados.tipos_inspecao_ids if tid not in tipos_por_id]
+    faltantes = [tid for tid in tipos_ids if tid not in tipos_por_id]
     if faltantes:
         raise domain_exc.EntidadeNaoEncontradaError(f"Tipo de inspecao {faltantes[0]} nao encontrado ou inativo.")
     # Preserva a ordem de chegada (usada para calcular a duracao maxima abaixo).
-    tipos = [tipos_por_id[tid] for tid in dados.tipos_inspecao_ids]
+    tipos = [tipos_por_id[tid] for tid in tipos_ids]
 
     usuario = await _buscar_usuario(db, aberto_por_id)
     if not usuario:
@@ -407,12 +480,33 @@ async def abrir_inspecao(
         .where(
             Inspecao.aeronave_id == dados.aeronave_id,
             Inspecao.status.in_(STATUS_ATIVOS),
-            InspecaoEventoTipo.tipo_inspecao_id.in_(dados.tipos_inspecao_ids),
+            InspecaoEventoTipo.tipo_inspecao_id.in_(tipos_ids),
         )
     )
     ativa = await db.execute(query_ativa)
     if ativa.scalars().first():
         raise domain_exc.ConflitoNegocioError("Ja existe inspecao ativa com um dos tipos selecionados para esta aeronave.")
+
+    # MELHORIA-10: valida a disponibilidade de templates ANTES de qualquer
+    # db.add/mutação de estado (aeronave.status) — antes, essa checagem só
+    # acontecia depois da Inspecao já criada e da aeronave já movida para
+    # INSPECAO, dependendo do rollback automático de get_db() para não deixar
+    # a aeronave presa nesse status com uma inspeção órfã.
+    res_templates = await db.execute(
+        select(TarefaTemplate)
+        .options(selectinload(TarefaTemplate.tarefa_catalogo))
+        .where(TarefaTemplate.tipo_inspecao_id.in_([t.id for t in tipos]))
+        .order_by(TarefaTemplate.ordem)
+    )
+    templates_por_tipo: dict[uuid.UUID, list[TarefaTemplate]] = {}
+    for tmpl in res_templates.scalars().all():
+        templates_por_tipo.setdefault(tmpl.tipo_inspecao_id, []).append(tmpl)
+    # Preserva a mesma ordem de iteração original: por tipo (na ordem informada
+    # pelo cliente), depois por `ordem` dentro de cada tipo.
+    templates = [tmpl for tipo in tipos for tmpl in templates_por_tipo.get(tipo.id, [])]
+
+    if not templates:
+        raise domain_exc.ConflitoNegocioError("Os tipos de inspecao nao possuem tarefas template cadastradas.")
 
     inspecao = Inspecao(
         aeronave_id=dados.aeronave_id,
@@ -438,22 +532,16 @@ async def abrir_inspecao(
 
     aeronave.status = StatusAeronave.INSPECAO.value
 
-    res_templates = await db.execute(
-        select(TarefaTemplate)
-        .options(selectinload(TarefaTemplate.tarefa_catalogo))
-        .where(TarefaTemplate.tipo_inspecao_id.in_([t.id for t in tipos]))
-        .order_by(TarefaTemplate.ordem)
-    )
-    templates_por_tipo: dict[uuid.UUID, list[TarefaTemplate]] = {}
-    for tmpl in res_templates.scalars().all():
-        templates_por_tipo.setdefault(tmpl.tipo_inspecao_id, []).append(tmpl)
-    # Preserva a mesma ordem de iteração original: por tipo (na ordem informada
-    # pelo cliente), depois por `ordem` dentro de cada tipo.
-    templates = [tmpl for tipo in tipos for tmpl in templates_por_tipo.get(tipo.id, [])]
-
-    if not templates:
-        raise domain_exc.ConflitoNegocioError("Os tipos de inspecao nao possuem tarefas template cadastradas.")
-
+    # DÚVIDA-08 (achados_inspecoes.md), respondida pelo desenvolvedor: a
+    # deduplicação é por TÍTULO (case-insensitive), não por
+    # `tarefa_catalogo_id` — intencional e coberta por
+    # test_rn01_abrir_inspecao_com_multiplos_tipos_e_deduplicar_tarefas.
+    # Combinar dois tipos de inspeção que tenham, por coincidência, uma
+    # tarefa de catálogo com o mesmo título produz UMA tarefa na inspeção
+    # (obrigatória se qualquer um dos templates de origem for obrigatório),
+    # em vez de duas entradas repetidas — o `tarefa_catalogo_id` gravado é o
+    # do primeiro template visto na ordem de iteração (por tipo, depois por
+    # `ordem`), não uma escolha aleatória.
     vistos = {}  # chave -> {'template': t, 'obrigatoria': bool}
     for t in templates:
         chave = t.tarefa_catalogo.titulo.strip().lower()
@@ -496,13 +584,23 @@ async def atualizar_inspecao(
     if not inspecao:
         raise domain_exc.EntidadeNaoEncontradaError("Inspecao nao encontrada.")
     _garantir_inspecao_editavel(inspecao)
-    inspecao.observacoes = dados.observacoes
+
+    # BUG-03: exclude_unset — omitir `observacoes` no payload não deve mais
+    # apagá-las (antes, `inspecao.observacoes = dados.observacoes` zerava o
+    # campo sempre que o cliente não reenviava o texto completo de volta).
+    changes = dados.model_dump(exclude_unset=True)
+    if "observacoes" in changes:
+        inspecao.observacoes = changes["observacoes"]
+
     await db.flush()
-    
-    inspecao_carregada = await buscar_inspecao(db, inspecao_id)
-    if not inspecao_carregada:
-        raise domain_exc.ConflitoNegocioError("Falha ao carregar inspecao atualizada.")
-    return inspecao_carregada
+    # MELHORIA-12: esta função não cria/altera nenhuma relação (aeronave,
+    # tipos_aplicados, aberto_por, concluido_por, tarefas) — `inspecao` já
+    # está carregado e atualizado na mesma sessão, refazer os 5 selectinload
+    # de buscar_inspecao() aqui seria uma consulta redundante. `updated_at`
+    # (onupdate=func.now()) fica expirado após o flush — refresh pontual
+    # evita MissingGreenlet num lazy-load implícito ao serializar a resposta.
+    await db.refresh(inspecao, attribute_names=["updated_at"])
+    return inspecao
 
 
 async def adicionar_tarefa_avulsa(
@@ -554,8 +652,14 @@ async def atualizar_tarefa_inspecao(
 
     _garantir_inspecao_editavel(tarefa.inspecao)
 
+    changes = dados.model_dump(exclude_unset=True)
     status_novo = dados.status
     executor_id = dados.executado_por_id or usuario_padrao_id
+    # BUG-02 (achados_inspecoes.md): só carimbar executor/data na TRANSIÇÃO de
+    # status — sem isso, reeditar uma tarefa já concluída (ex.: só para trocar
+    # a observação, reenviando o mesmo status) apagava o registro original de
+    # quem executou e quando, mesmo sem nenhuma execução nova ter ocorrido.
+    transicionou = tarefa.status != status_novo.value
 
     if status_novo in {StatusTarefaInspecao.CONCLUIDA, StatusTarefaInspecao.NA}:
         if not executor_id:
@@ -563,17 +667,35 @@ async def atualizar_tarefa_inspecao(
         executor = await _buscar_usuario(db, executor_id)
         if not executor:
             raise domain_exc.EntidadeNaoEncontradaError("Executor nao encontrado ou inativo.")
-        tarefa.executado_por_id = executor_id
-        tarefa.data_execucao = datetime.now(timezone.utc)
+        if transicionou or dados.executado_por_id is not None:
+            tarefa.executado_por_id = executor_id
+        if transicionou:
+            tarefa.data_execucao = datetime.now(timezone.utc)
     elif status_novo == StatusTarefaInspecao.PENDENTE:
         tarefa.executado_por_id = None
         tarefa.data_execucao = None
 
     tarefa.status = status_novo.value
-    tarefa.observacao_execucao = dados.observacao_execucao
-    
-    if dados.pane_id:
-        tarefa.pane_id = dados.pane_id
+
+    # BUG-03: só grava campos opcionais realmente enviados pelo cliente
+    # (exclude_unset) — antes, omitir `observacao_execucao` apagava a
+    # observação já registrada em qualquer PATCH que só mudasse o status.
+    if "observacao_execucao" in changes:
+        tarefa.observacao_execucao = changes["observacao_execucao"]
+
+    if "pane_id" in changes:
+        novo_pane_id = changes["pane_id"]
+        if novo_pane_id is not None:
+            # BUG-05: valida a existência da Pane antes de gravar — sem isso,
+            # um pane_id inexistente (mas UUID válido) só falhava no flush()
+            # com IntegrityError cru, virando 500 em vez de 404.
+            from app.modules.panes.models import Pane
+            existe = await db.execute(select(Pane.id).where(Pane.id == novo_pane_id))
+            if existe.first() is None:
+                raise domain_exc.EntidadeNaoEncontradaError("Pane nao encontrada.")
+        # BUG-03: `if dados.pane_id:` (truthy) tornava impossível desvincular
+        # uma pane já associada — enviar `pane_id: null` agora limpa o vínculo.
+        tarefa.pane_id = novo_pane_id
 
     if tarefa.inspecao.status == StatusInspecao.ABERTA.value and status_novo != StatusTarefaInspecao.PENDENTE:
         tarefa.inspecao.status = StatusInspecao.EM_ANDAMENTO.value
@@ -618,17 +740,24 @@ async def concluir_inspecao(
 
     inspecao.status = StatusInspecao.CONCLUIDA.value
     inspecao.data_conclusao = datetime.now(timezone.utc)
-    inspecao.concluido_por_id = concluido_por_id
+    # Atribui o objeto (não só o FK cru): mantém `inspecao.concluido_por` já
+    # populado em memória, sem precisar de um refetch só para essa relação —
+    # `usuario` já foi carregado acima.
+    inspecao.concluido_por = usuario
     inspecao.concluido_por_trigrama = usuario.trigrama
 
     await db.flush()
     if inspecao.aeronave_id:
         await _sincronizar_status_aeronave(db, inspecao.aeronave_id)
 
-    inspecao_carregada = await buscar_inspecao(db, inspecao_id)
-    if not inspecao_carregada:
-        raise domain_exc.ConflitoNegocioError("Falha ao carregar inspecao concluida.")
-    return inspecao_carregada
+    # MELHORIA-12: nenhuma das relações eager-loaded por buscar_inspecao()
+    # (aeronave, tipos_aplicados, aberto_por, tarefas) muda aqui; `aeronave`
+    # é o mesmo objeto do identity map, já refletindo o status sincronizado
+    # acima; `concluido_por` foi atribuído diretamente. Refazer os 5
+    # selectinload seria uma consulta redundante. `updated_at` é refrescado
+    # à parte (onupdate=func.now() fica expirado após o flush).
+    await db.refresh(inspecao, attribute_names=["updated_at"])
+    return inspecao
 
 
 async def cancelar_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> Inspecao:
@@ -642,10 +771,10 @@ async def cancelar_inspecao(db: AsyncSession, inspecao_id: uuid.UUID) -> Inspeca
     if inspecao.aeronave_id:
         await _sincronizar_status_aeronave(db, inspecao.aeronave_id)
 
-    inspecao_carregada = await buscar_inspecao(db, inspecao_id)
-    if not inspecao_carregada:
-        raise domain_exc.ConflitoNegocioError("Falha ao carregar inspecao cancelada.")
-    return inspecao_carregada
+    # MELHORIA-12: nenhuma relação eager-loaded muda aqui — ver nota em
+    # concluir_inspecao. `updated_at` refrescado pelo mesmo motivo.
+    await db.refresh(inspecao, attribute_names=["updated_at"])
+    return inspecao
 
 
 _STATUS_TAREFA_CONCLUIDA = {StatusTarefaInspecao.CONCLUIDA.value, StatusTarefaInspecao.NA.value}

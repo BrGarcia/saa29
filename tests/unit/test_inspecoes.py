@@ -354,13 +354,17 @@ async def test_rn04_tarefa_com_anomalia_deve_gerar_pane_vinculada(db: AsyncSessi
     """
     RN-04: Se houver anomalia, uma Pane deve ser criada e vinculada via inspecao_tarefas.pane_id.
     """
+    from app.modules.panes.models import Pane
+
     usuario = await criar_usuario_teste(db)
     aeronave = await criar_aeronave_teste(db)
     tipo, _ = await criar_tipo_com_tarefas(db, obrigatorias=1)
     inspecao = await abrir_inspecao_teste(db, usuario, aeronave, tipo.id)
     tarefa = inspecao.tarefas[0]
 
-    mock_pane_id = uuid.uuid4()
+    pane = Pane(aeronave_id=aeronave.id, criado_por_id=usuario.id, descricao="Vazamento no pneu direito")
+    db.add(pane)
+    await db.flush()
 
     atualizada = await service.atualizar_tarefa_inspecao(
         db,
@@ -368,12 +372,12 @@ async def test_rn04_tarefa_com_anomalia_deve_gerar_pane_vinculada(db: AsyncSessi
         schemas.InspecaoTarefaUpdate(
             status=StatusTarefaInspecao.CONCLUIDA,
             observacao_execucao="Vazamento encontrado no pneu direito",
-            pane_id=mock_pane_id,
+            pane_id=pane.id,
         ),
         usuario_padrao_id=usuario.id,
     )
-    
-    assert atualizada.pane_id == mock_pane_id
+
+    assert atualizada.pane_id == pane.id
 
 
 @pytest.mark.asyncio
