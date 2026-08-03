@@ -6,8 +6,8 @@
 > ## ✅ SESSÃO DE CORREÇÃO CONCLUÍDA — 03/08/2026
 > 11/14 corrigidos, 0 parciais, 3 não corrigidos por decisão consciente (as duas DÚVIDAs,
 > respondidas pelo desenvolvedor, e MELHORIA-14, que o próprio achado já classificava como não
-> urgente). Suite completa: 390 testes, 0 falhas. Status por item marcado inline em cada achado
-> abaixo (campo `**Status:**`).
+> urgente). Commit `523552b`. Suite completa: 390 testes, 0 falhas. Status por item marcado
+> inline em cada achado abaixo (campo `**Status:**`).
 
 ---
 
