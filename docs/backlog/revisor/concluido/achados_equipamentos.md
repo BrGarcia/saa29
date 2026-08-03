@@ -1,7 +1,15 @@
 # Achados de Revisão — Módulo `equipamentos`
 
 > Revisão conforme `docs/backlog/revisor.md`, com contexto de `docs/backlog/00_mapa_arquitetural.md`.
-> Nenhum arquivo de código foi alterado nesta sessão.
+> Nenhum arquivo de código foi alterado nesta sessão de revisão.
+
+> ## ✅ SESSÃO DE CORREÇÃO CONCLUÍDA — 03/08/2026
+> 9/9 achados corrigidos, 0 parciais, 0 não corrigidos. As 3 perguntas ao desenvolvedor
+> (MELHORIA-08, RISCO-02, MELHORIA-06) foram respondidas antes da implementação — ver decisões
+> inline em cada achado. Commit `55eda8b`. Suite completa: 377 testes, 0 falhas. `xlsx_service.py`
+> não tinha nenhum teste no repositório antes desta sessão — cobertura nova em
+> `tests/unit/test_equipamentos_xlsx.py`. Status por item marcado inline em cada achado abaixo
+> (campo `**Status:**`).
 
 ---
 
@@ -16,6 +24,7 @@
 - **Correção proposta:** trocar `_: EncarregadoOuAdmin` por `current_user: EncarregadoOuAdmin` e usar `current_user.id` ao construir a instalação em `ajustar_inventario_item`, ignorando (ou removendo do schema) o `usuario_id` vindo do cliente — no mesmo padrão já usado por `instalar_item`/`remover_item` e pelos dois fluxos de XLSX (que corretamente passam `current_user.id` do router para o service, `router.py:322-323,364-366`).
 - **Risco de regressão:** BAIXO — remove uma capacidade que nunca deveria ter existido; nenhum cliente legítimo depende de forjar o autor da alteração.
 - **Precisa de teste antes?** SIM
+- **Status:** ✅ CORRIGIDO — commit `55eda8b`. `ajustar_inventario_item` passa a receber `usuario_id` como parâmetro do service (sempre `current_user.id` do router), e o campo `usuario_id` foi removido de `AjusteInventarioCreate`. Teste: `test_ajuste_ignora_usuario_id_forjado_no_payload` (tests/unit/test_inventario.py) — cria um "atacante" autenticado que tenta forjar a autoria em nome de outro usuário e confirma que o histórico registra sempre quem autenticou a requisição.
 
 ---
 
@@ -30,6 +39,8 @@
 - **Correção proposta:** incluir na resposta da prévia um identificador de sessão (ou reenviar e validar o `aeronave_id` já resolvido pela prévia) e validar, no passo de confirmação, que o `aeronave_id` recebido é exatamente o que a prévia calculou para aquele arquivo — rejeitando a confirmação caso divirja.
 - **Risco de regressão:** MÉDIO — muda o contrato entre prévia e confirmação; exige que o frontend realmente reenvie o valor correto.
 - **Precisa de teste antes?** SIM
+- **Resposta do desenvolvedor:** fechar a lacuna — não foi simplificação deliberada.
+- **Status:** ✅ CORRIGIDO — commit `55eda8b`. `obter_previa_xlsx_inventario` gera um `preview_token` JWT assinado (mesma chave/algoritmo já usados para tokens de auth, `app_secret_key`/`jwt_algorithm`, TTL de 15 min) contendo `aeronave_id` + os `slot_ids` que a prévia efetivamente incluiu. `processar_confirmacao_xlsx` exige e valida o token antes de aplicar qualquer alteração — rejeita (`ConflitoNegocioError`) se o token estiver ausente/expirado/adulterado, se a `aeronave_id` divergir, ou se algum slot confirmado não fizer parte da prévia original. `XlsxProcessRequest.preview_token` agora é campo obrigatório; frontend (`configuracoes.js`) atualizado para reenviar `previewData.preview_token`. Testes: `test_confirmacao_com_token_valido_sucede`, `test_confirmacao_com_aeronave_diferente_da_previa_e_rejeitada`, `test_confirmacao_com_slot_fora_da_previa_e_rejeitada`, `test_confirmacao_com_token_invalido_e_rejeitada`, `test_confirmacao_com_token_expirado_e_rejeitada`, `test_endpoint_process_sem_preview_token_retorna_422` (tests/unit/test_equipamentos_xlsx.py).
 
 ---
 
@@ -44,6 +55,7 @@
 - **Correção proposta:** aplicar `ler_upload_com_limite` (já existente em `app/shared/core/file_validators.py`) nos dois endpoints, com um teto de tamanho apropriado para planilhas de inventário.
 - **Risco de regressão:** BAIXO — mesmo padrão já validado em produção no módulo `panes`.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `55eda8b`. Aplicado `ler_upload_com_limite` (teto de 5 MB) no endpoint de prévia. O endpoint legado que tinha a checagem tardia foi removido (ver MELHORIA-08), então o risco desaparece por completo — sobra um único caminho de upload, já protegido. Teste: `test_endpoint_preview_arquivo_grande_e_rejeitado` (tests/unit/test_equipamentos_xlsx.py).
 
 ---
 
@@ -58,6 +70,7 @@
 - **Correção proposta:** validar em `service.criar_slot` que `modelo_id` existe (levantando `domain_exc.EntidadeNaoEncontradaError`) antes do insert, e trocar o `except Exception` do router por um bloco que não vaze a mensagem crua de exceções não previstas — deixando-as propagar para o handler genérico (`app/shared/core/exceptions.py:91-97`), que já responde com uma mensagem genérica seguindo o padrão do resto do arquivo.
 - **Risco de regressão:** BAIXO — restrito a um endpoint só acessível por ADMIN.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `55eda8b`. `criar_slot` valida `modelo_id` via `db.get` antes do insert; `except Exception` genérico removido do router (a exceção de domínio propaga para o handler global). Testes: `test_criar_slot_modelo_inexistente_levanta_404_nao_400_cru`, `test_criar_slot_modelo_existente_sucede` (tests/unit/test_equipamentos_achados_revisor.py).
 
 ---
 
@@ -72,6 +85,7 @@
 - **Correção proposta:** adicionar um índice único parcial em SQLite (`CREATE UNIQUE INDEX ... ON instalacoes(slot_id) WHERE data_remocao IS NULL`) e envolver a criação da nova `Instalacao` em `SAVEPOINT`/`except IntegrityError`, no mesmo padrão já usado no restante do módulo.
 - **Risco de regressão:** MÉDIO — requer migration; validar que nenhum dado existente já viola a invariante antes de aplicar a constraint.
 - **Precisa de teste antes?** SIM
+- **Status:** ✅ CORRIGIDO — commit `55eda8b`, com uma correção sobre o achado original. A constraint proposta (`UNIQUE` só em `slot_id`) estava **errada**: `SlotInventario` é uma posição compartilhada por toda a frota (ex.: "MDP1" existe uma vez no catálogo, mas cada aeronave tem sua própria `Instalacao` ativa apontando para o mesmo `slot_id`). Aplicar a constraint como escrita no achado bloquearia o funcionamento normal do sistema — confirmado contra `var/db`: agrupar só por `slot_id` reportava 33 "duplicatas" de até 22 instalações ativas cada, que eram simplesmente aeronaves diferentes com uma instalação ativa no mesmo slot (comportamento correto). A invariante real, confirmada em `_obter_instalacao_ativa_no_slot` (que sempre filtra por `slot_id` **e** `aeronave_id`), é por par — 0 violações agrupando dessa forma. Implementado: índice único parcial `uq_instalacao_ativa_por_slot_aeronave` em `(slot_id, aeronave_id)` + SAVEPOINT/`IntegrityError` em `ajustar_inventario_item` e `instalar_item`. Testes: `test_indice_unico_barra_duas_instalacoes_ativas_no_mesmo_slot_e_aeronave`, `test_mesmo_slot_aceita_instalacoes_ativas_em_aeronaves_diferentes`, `test_instalar_item_concorrente_no_mesmo_slot_levanta_conflito_de_dominio` (tests/unit/test_equipamentos_achados_revisor.py).
 
 ---
 
@@ -86,6 +100,8 @@
 - **Correção proposta:** adicionar a mesma checagem amigável para `EquipamentoControle` antes da exclusão (ou, se a intenção for permitir a exclusão em cascata deliberadamente, ao menos informar na resposta quantos templates de controle foram removidos junto).
 - **Risco de regressão:** BAIXO.
 - **Precisa de teste antes?** NÃO
+- **Resposta do desenvolvedor:** bloquear a exclusão, no mesmo padrão já usado para itens físicos e slots.
+- **Status:** ✅ CORRIGIDO — commit `55eda8b`. `remover_modelo` agora verifica `EquipamentoControle` dependente e recusa (409) antes de excluir, na mesma sequência de checagens já usada para itens/slots. Testes: `test_remover_modelo_com_equipamento_controle_dependente_levanta_409`, `test_remover_modelo_sem_dependentes_sucede` (tests/unit/test_equipamentos_achados_revisor.py).
 
 ---
 
@@ -100,6 +116,7 @@
 - **Correção proposta:** mover a query para uma função em `service.py` (ex. `listar_slots`), seguindo o padrão do resto do arquivo.
 - **Risco de regressão:** BAIXO.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `55eda8b`. Query movida para `service.listar_slots(db)`; o router agora chama o service, como os outros 17 endpoints. Coberto indiretamente pelos testes existentes de `GET /equipamentos/slots/`.
 
 ---
 
@@ -114,6 +131,8 @@
 - **Correção proposta:** confirmar com o desenvolvedor se o endpoint legado ainda é necessário (algum cliente/integração depende dele) ou se pode ser removido em favor do fluxo prévia+confirmação, reduzindo a superfície de manutenção.
 - **Risco de regressão:** ALTO se removido sem confirmar dependência ativa — por isso é registrado como pergunta ao desenvolvedor, não como correção a aplicar diretamente.
 - **Precisa de teste antes?** NÃO (decisão primeiro)
+- **Resposta do desenvolvedor:** remover o legado — sem cliente/integração ativa dependente.
+- **Status:** ✅ CORRIGIDO — commit `55eda8b`. Confirmado por grep que o frontend (`configuracoes.js`) só chama `/preview` e `/process`; nenhuma referência a `/inventario/upload-xlsx` (legado) em nenhum lugar do código. Endpoint e a função `processar_xlsx_inventario` (única usuária) removidos. Teste: `test_endpoint_legado_upload_xlsx_removido` (tests/unit/test_equipamentos_xlsx.py) confirma que não há mais handler POST para o path.
 
 ---
 
@@ -128,6 +147,7 @@
 - **Correção proposta:** adicionar `logger.exception(...)` em cada um dos três blocos antes de anexar a mensagem à resposta.
 - **Risco de regressão:** BAIXO — é aditivo (log).
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO — commit `55eda8b`. `logger.exception(...)` adicionado nos dois blocos que restaram após a remoção do legado (MELHORIA-08): leitura do XLSX na prévia e aplicação de cada item na confirmação.
 
 ---
 
@@ -138,6 +158,7 @@
 - RISCO: 3 (MÉDIA: 3)
 - MELHORIA: 5 (MÉDIA: 1, BAIXA: 4)
 - DÚVIDA: 0
+- **Corrigidos: 9/9** (commit `55eda8b`)
 
 ## Arquivos revisados
 
@@ -161,8 +182,8 @@
 - **Dependência com `vencimentos.service.criar_controles_para_item`**: lida apenas o suficiente para confirmar o efeito colateral em `criar_item_com_heranca`/`_obter_ou_criar_item_por_pn` — a revisão de fundo do módulo `vencimentos` fica para sua própria sessão.
 - **Cobertura de testes**: forte para o catálogo (PN/SN), instalação/remoção manual e o fluxo de ajuste de inventário via `POST /inventario/ajuste` (concorrência de criação de item, conflito de transferência, contagem de queries). **Lacuna total identificada**: `xlsx_service.py` (239 linhas — prévia, processamento direto e confirmação de upload) não tem **nenhum** teste no repositório — nem de caminho feliz, nem de erro. Isso inclui os três endpoints de upload do router. Essa é a razão pela qual RISCO-02 e RISCO-03 nunca foram exercitados.
 
-## Perguntas para o desenvolvedor
+## Perguntas para o desenvolvedor (respondidas)
 
-- O endpoint legado `POST /inventario/upload-xlsx` (MELHORIA-08) ainda tem algum cliente/integração ativa, ou pode ser removido em favor do fluxo prévia+confirmação?
-- O vínculo entre a prévia de XLSX e a confirmação (RISCO-02) — hoje inexistente do lado do servidor — foi uma simplificação deliberada (confiando no frontend controlado pelo próprio time) ou é uma lacuna a fechar?
-- `EquipamentoControle` sendo apagado em cascata ao remover um PN (MELHORIA-06) é o comportamento desejado, ou deveria bloquear a exclusão como as outras duas dependências do PN?
+- O endpoint legado `POST /inventario/upload-xlsx` (MELHORIA-08) ainda tem algum cliente/integração ativa, ou pode ser removido em favor do fluxo prévia+confirmação? **Resposta: removido — sem dependência ativa.**
+- O vínculo entre a prévia de XLSX e a confirmação (RISCO-02) — hoje inexistente do lado do servidor — foi uma simplificação deliberada (confiando no frontend controlado pelo próprio time) ou é uma lacuna a fechar? **Resposta: fechar a lacuna.**
+- `EquipamentoControle` sendo apagado em cascata ao remover um PN (MELHORIA-06) é o comportamento desejado, ou deveria bloquear a exclusão como as outras duas dependências do PN? **Resposta: bloquear, no mesmo padrão das outras duas.**
