@@ -3,15 +3,36 @@ app/auth/service.py
 Camada de serviço (regras de negócio) para autenticação e usuários.
 """
 
+import logging
+import os
 import uuid
+from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import select, func
+from fastapi import HTTPException, status
+from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.auth.models import Usuario
+from app.bootstrap.config import get_settings
+from app.modules.auth.models import TokenBlacklist, TokenRefresh, Usuario
 from app.modules.auth.schemas import UsuarioCreate, UsuarioUpdate
 from app.modules.auth.security import hash_senha, verificar_senha
+from app.shared.core import exceptions as domain_exc
 from app.shared.core import helpers
+
+logger = logging.getLogger(__name__)
+
+_LOCKOUT_MAX_TENTATIVAS = 5
+_LOCKOUT_DURACAO_MINUTOS = 15
+
+# Hash dummy fixo para equalizar o tempo de resposta do login quando o
+# usuário não existe ou está inativo (item #9/Etapa 4). Medido: o caminho
+# com hashing bcrypt real leva ~227ms; o early-return sem hashing leva
+# <1ms — um oráculo de timing trivial para enumerar usernames válidos,
+# mesmo com o rate limit de 5/min do endpoint (a diferença é grande o
+# suficiente para ser distinguível numa única requisição). O valor em si é
+# irrelevante — nunca precisa bater com nada, só pagar o custo do bcrypt.
+_DUMMY_HASH = hash_senha("dummy-timing-equalizer-nao-e-senha-real")
 
 
 async def autenticar_usuario(
@@ -23,18 +44,19 @@ async def autenticar_usuario(
     Valida as credenciais de login com proteção contra brute force (Account Lockout).
     Em APP_ENV=development, o bloqueio é ignorado para facilitar testes locais.
     """
-    import os
-    from datetime import datetime, timezone, timedelta
-    from fastapi import HTTPException, status
-
     usuario = await buscar_por_username(db, username)
-    if not usuario:
-        return None
-    if not usuario.ativo:
+    if not usuario or not usuario.ativo:
+        # Paga o custo do bcrypt mesmo quando o usuário não existe/está
+        # inativo, para que a resposta não revele — pelo tempo — se o
+        # username é válido.
+        verificar_senha(senha, _DUMMY_HASH)
         return None
 
-    # Em ambiente de desenvolvimento, ignorar o bloqueio por brute force
-    _is_dev = os.getenv("APP_ENV", "production").strip().lower() == "development"
+    # Fonte única de verdade para o ambiente (settings.app_env, não os.getenv
+    # direto — duas fontes divergentes para a mesma decisão de segurança era
+    # o próprio risco: settings.app_env é o valor validado/cacheado usado no
+    # resto da aplicação, inclusive no middleware de CSRF).
+    _is_dev = get_settings().app_env == "development"
 
     if not _is_dev:
         # Verificar se a conta está bloqueada
@@ -55,8 +77,8 @@ async def autenticar_usuario(
             # Incrementar contador de falhas apenas em produção
             usuario.failed_login_attempts += 1
             agora = datetime.now(timezone.utc)
-            if usuario.failed_login_attempts >= 5:
-                usuario.locked_until = agora + timedelta(minutes=15)
+            if usuario.failed_login_attempts >= _LOCKOUT_MAX_TENTATIVAS:
+                usuario.locked_until = agora + timedelta(minutes=_LOCKOUT_DURACAO_MINUTOS)
             await db.flush()
         return None
 
@@ -64,7 +86,7 @@ async def autenticar_usuario(
     usuario.failed_login_attempts = 0
     usuario.locked_until = None
     await db.flush()
-    
+
     return usuario
 
 
@@ -79,7 +101,7 @@ async def criar_usuario(
     username_lower = dados.username.lower()
     existente = await buscar_por_username(db, username_lower)
     if existente:
-        raise ValueError(f"Username '{dados.username}' já está em uso.")
+        raise domain_exc.ConflitoNegocioError(f"Username '{dados.username}' já está em uso.")
     usuario = Usuario(
         nome=dados.nome,
         posto=dados.posto,
@@ -90,8 +112,16 @@ async def criar_usuario(
         username=username_lower,
         senha_hash=hash_senha(dados.password),
     )
-    db.add(usuario)
-    await db.flush()
+    try:
+        # SAVEPOINT: em caso de criação concorrente com o mesmo username,
+        # desfaz apenas este insert e mantém a transação da requisição
+        # utilizável (mesmo padrão das Etapas 1-3).
+        async with db.begin_nested():
+            db.add(usuario)
+            await db.flush()
+    except IntegrityError as exc:
+        logger.warning("Conflito de UNIQUE ao criar usuário %s: %s", username_lower, exc.orig)
+        raise domain_exc.ConflitoNegocioError(f"Username '{dados.username}' já está em uso.") from exc
     return usuario
 
 
@@ -119,7 +149,7 @@ async def listar_usuarios(
     """
     query = select(Usuario)
     if not incluir_inativos:
-        query = query.where(Usuario.ativo == True)
+        query = query.where(Usuario.ativo.is_(True))
     result = await db.execute(query.order_by(Usuario.nome))
     return list(result.scalars().all())
 
@@ -134,7 +164,7 @@ async def atualizar_usuario(
     """
     usuario = await buscar_por_id(db, usuario_id)
     if not usuario:
-        raise ValueError("Usuário não encontrado.")
+        raise domain_exc.EntidadeNaoEncontradaError("Usuário não encontrado.")
     
     CAMPOS_EDITAVEIS = {"nome", "posto", "especialidade", "funcao", "ramal", "trigrama"}
 
@@ -160,7 +190,7 @@ async def alterar_senha(
     Altera a senha de um usuário autenticado.
     """
     if not verificar_senha(senha_atual, usuario.senha_hash):
-        raise ValueError("Senha atual incorreta.")
+        raise domain_exc.ConflitoNegocioError("Senha atual incorreta.")
     usuario.senha_hash = hash_senha(nova_senha)
     await db.flush()
 
@@ -175,7 +205,7 @@ async def admin_resetar_senha(
     """
     usuario = await buscar_por_id(db, usuario_id)
     if not usuario:
-        raise ValueError("Usuário não encontrado.")
+        raise domain_exc.EntidadeNaoEncontradaError("Usuário não encontrado.")
     
     usuario.senha_hash = hash_senha(nova_senha)
     await db.flush()
@@ -190,22 +220,22 @@ async def excluir_usuario(
     Desativa (exclusão lógica) um usuário do efetivo.
     """
     if usuario_id == usuario_logado_id:
-        raise ValueError("Não é possível desativar o próprio usuário (AUD-17).")
+        raise domain_exc.ConflitoNegocioError("Não é possível desativar o próprio usuário (AUD-17).")
 
     usuario = await buscar_por_id(db, usuario_id)
     if not usuario:
-        raise ValueError("Usuário não encontrado.")
+        raise domain_exc.EntidadeNaoEncontradaError("Usuário não encontrado.")
 
     if usuario.funcao == "ADMINISTRADOR":
         result = await db.execute(
             select(func.count(Usuario.id)).where(
                 Usuario.funcao == "ADMINISTRADOR",
-                Usuario.ativo == True
+                Usuario.ativo.is_(True)
             )
         )
         admins_ativos = result.scalar()
         if admins_ativos <= 1:
-            raise ValueError("Não é possível desativar o último administrador do sistema (AUD-17).")
+            raise domain_exc.ConflitoNegocioError("Não é possível desativar o último administrador do sistema (AUD-17).")
 
     usuario.ativo = False
     await db.flush()
@@ -220,7 +250,7 @@ async def restaurar_usuario(
     """
     usuario = await buscar_por_id(db, usuario_id)
     if not usuario:
-        raise ValueError("Usuário não encontrado.")
+        raise domain_exc.EntidadeNaoEncontradaError("Usuário não encontrado.")
 
     usuario.ativo = True
     await db.flush()
@@ -231,11 +261,9 @@ async def garantir_usuarios_essenciais(db: AsyncSession) -> None:
     """
     Garante que os usuários vitais (Admin) e de teste existam.
     Esta função centraliza a lógica que antes estava espalhada em scripts de fix/seed.
+    Invocada manualmente por `scripts/db/init_db.py` / `scripts/seed/seed_auth.py`
+    (não faz parte do lifespan da aplicação).
     """
-    from app.bootstrap.config import get_settings
-    from app.modules.auth.models import Usuario
-    from app.modules.auth.security import hash_senha
-    from sqlalchemy import select
     settings = get_settings()
 
     # 1. Garantir Admin Oficial (via Settings/.env)
@@ -246,7 +274,7 @@ async def garantir_usuarios_essenciais(db: AsyncSession) -> None:
         res = await db.execute(select(Usuario).where(Usuario.username == admin_user))
         admin = res.scalar_one_or_none()
         if not admin:
-            print(f"AuthService: Criando admin padrão ({admin_user})...")
+            logger.info("Criando admin padrão (%s).", admin_user)
             admin = Usuario(
                 nome="Administrador Sistema",
                 posto="Cap",
@@ -261,15 +289,26 @@ async def garantir_usuarios_essenciais(db: AsyncSession) -> None:
             # Garantir que o admin tenha o papel correto
             if admin.funcao != "ADMINISTRADOR":
                 admin.funcao = "ADMINISTRADOR"
-                print(f"AuthService: Corrigindo papel do admin para ADMINISTRADOR.")
-            
-            # Garantir que a senha seja a que está nas configurações (útil após restore do R2)
-            if not verificar_senha(admin_pass, admin.senha_hash):
-                admin.senha_hash = hash_senha(admin_pass)
-                print(f"AuthService: Senha do admin atualizada para coincidir com as configurações.")
+                logger.warning("Corrigindo papel do admin (%s) para ADMINISTRADOR.", admin_user)
 
-    # 2. Garantir Usuários de Teste (apenas se APP_ENV for development)
-    if settings.app_env == "development":
+            # A senha do admin NÃO é sobrescrita aqui a cada execução — isso
+            # tornava impossível rotacionar a senha pela UI (ela "voltava"
+            # sozinha ao valor do .env no próximo boot/seed). Redefinição só
+            # ocorre com o flag explícito e temporário ADMIN_PASSWORD_RESET=1,
+            # para o cenário legítimo de restore de banco após backup do R2.
+            if os.getenv("ADMIN_PASSWORD_RESET", "").strip().lower() in {"1", "true", "yes"}:
+                if not verificar_senha(admin_pass, admin.senha_hash):
+                    admin.senha_hash = hash_senha(admin_pass)
+                    logger.warning(
+                        "ADMIN_PASSWORD_RESET ativo: senha do admin (%s) redefinida para o valor do .env.",
+                        admin_user,
+                    )
+
+    # 2. Garantir Usuários de Teste — exige DOIS gatilhos explícitos (defesa
+    # em profundidade): app_env=="development" E enable_dev_seeds=True. Um
+    # único gatilho (só APP_ENV) é frágil — um deploy com a variável
+    # ausente/errada instalaria 3 contas privilegiadas com senha trivial.
+    if settings.app_env == "development" and settings.enable_test_users:
         usuarios_teste = [
             ("encarregado", "ENCARREGADO", "Chefe de Linha", "Cap"),
             ("inspetor", "INSPETOR", "Inspetor de Qualidade", "SO"),
@@ -279,7 +318,7 @@ async def garantir_usuarios_essenciais(db: AsyncSession) -> None:
             res = await db.execute(select(Usuario).where(Usuario.username == user))
             u = res.scalar_one_or_none()
             if not u:
-                print(f"AuthService: Criando usuário de teste ({user})...")
+                logger.info("Criando usuário de teste (%s).", user)
                 u = Usuario(
                     nome=nome,
                     posto=posto,
@@ -291,13 +330,12 @@ async def garantir_usuarios_essenciais(db: AsyncSession) -> None:
                 )
                 db.add(u)
                 await db.flush()
-                
+
                 # Opcionalmente, inicializar indisponibilidade para o mantenedor em dev
                 if user == "mantenedor":
                     from app.modules.efetivo.models import Indisponibilidade
                     from app.shared.core.enums import TipoIndisponibilidade
-                    from datetime import date, timedelta
-                    print(f"AuthService: Adicionando indisponibilidade de teste para {user}.")
+                    logger.info("Adicionando indisponibilidade de teste para %s.", user)
                     indisp = Indisponibilidade(
                         usuario_id=u.id,
                         tipo=TipoIndisponibilidade.FERIAS.value,
@@ -310,9 +348,6 @@ async def garantir_usuarios_essenciais(db: AsyncSession) -> None:
                     await db.flush()
 
 async def limpar_tokens_expirados(db: AsyncSession) -> None:
-    from sqlalchemy import delete
-    from datetime import datetime, timezone
-    from app.modules.auth.models import TokenBlacklist, TokenRefresh
     agora = datetime.now(timezone.utc)
 
     # Limpa blacklist

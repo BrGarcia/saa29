@@ -21,25 +21,21 @@ _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 
-def hash_senha(senha_plana: str) -> str:
-    """
-    Gera o hash bcrypt de uma senha em texto plano.
-    Utiliza SHA-256 prévio para evitar o limite de 72 bytes do bcrypt.
-    """
+def _preparar_senha(senha_plana: str) -> str:
+    """Pré-hash SHA-256 + base64 para contornar o limite de 72 bytes do bcrypt."""
     senha_bytes = senha_plana.encode("utf-8")
     hash_sha256 = hashlib.sha256(senha_bytes).digest()
-    bcrypt_input = base64.b64encode(hash_sha256).decode("utf-8")
-    return _pwd_context.hash(bcrypt_input)
+    return base64.b64encode(hash_sha256).decode("utf-8")
+
+
+def hash_senha(senha_plana: str) -> str:
+    """Gera o hash bcrypt de uma senha em texto plano."""
+    return _pwd_context.hash(_preparar_senha(senha_plana))
 
 
 def verificar_senha(senha_plana: str, senha_hash: str) -> bool:
-    """
-    Compara a senha em texto plano com o hash armazenado.
-    """
-    senha_bytes = senha_plana.encode("utf-8")
-    hash_sha256 = hashlib.sha256(senha_bytes).digest()
-    bcrypt_input = base64.b64encode(hash_sha256).decode("utf-8")
-    return _pwd_context.verify(bcrypt_input, senha_hash)
+    """Compara a senha em texto plano com o hash armazenado."""
+    return _pwd_context.verify(_preparar_senha(senha_plana), senha_hash)
 
 
 def criar_token(dados: dict) -> str:
@@ -69,13 +65,13 @@ def criar_token(dados: dict) -> str:
 
 def criar_refresh_token(usuario_id: str | uuid.UUID) -> tuple[str, uuid.UUID]:
     """
-    Cria um refresh token válido por 7 dias.
-    
+    Cria um refresh token válido por `settings.refresh_token_expire_days` dias.
+
     Returns:
         Tupla (token_jwt, jti) onde jti é o ID único para rastreamento no DB
     """
     jti = str(uuid.uuid4())
-    expira = datetime.now(timezone.utc) + timedelta(days=7)
+    expira = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
     payload = {
         "sub": str(usuario_id),
         "exp": expira,

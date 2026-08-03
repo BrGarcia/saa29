@@ -1,15 +1,35 @@
+import logging
+import secrets
+
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi_csrf_protect import CsrfProtect
 from fastapi_csrf_protect.exceptions import CsrfProtectError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.bootstrap.config import get_settings
 
+logger = logging.getLogger(__name__)
+
+# Segredo gerado uma única vez por processo, só relevante quando
+# APP_ENV=testing. Antes, o bypass dependia só do valor fixo "true" no
+# header X-Skip-CSRF — se APP_ENV=testing vazasse para produção (ambiente
+# mal configurado, típico de staging), qualquer cliente externo derrubaria
+# a proteção CSRF inteira com um header previsível. Agora o valor precisa
+# coincidir com este segredo aleatório, conhecido apenas pelo processo da
+# aplicação em memória — tests/conftest.py o importa diretamente daqui.
+TESTING_CSRF_BYPASS_SECRET = secrets.token_urlsafe(32)
+
+
 class CsrfSettings(BaseModel):
-    secret_key: str = get_settings().app_secret_key
+    # default_factory (não um valor fixo) para que secret_key/cookie_secure
+    # sejam resolvidos a cada instanciação de CsrfSettings, não uma única
+    # vez em tempo de definição da classe (import do módulo) — do jeito
+    # anterior, trocar `get_settings()` em runtime (ex.: monkeypatch em
+    # teste) não tinha efeito algum sobre esta configuração.
+    secret_key: str = Field(default_factory=lambda: get_settings().app_secret_key)
     cookie_samesite: str = "lax"
-    cookie_secure: bool = get_settings().app_env == "production"
+    cookie_secure: bool = Field(default_factory=lambda: get_settings().app_env == "production")
     # O contrato exige que o token assinado fique no cookie
     # e o token bruto seja enviado pelo Header.
     cookie_name: str = "fastapi-csrf-token"
@@ -25,33 +45,50 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         csrf_protect = CsrfProtect()
         
         # 1. Validação CSRF (Somente mutações)
-        # Bypassa validação apenas se o header de bypass estiver presente (injetado no conftest.py)
-        # Isso permite que a suite de testes de lógica funcione enquanto test_csrf.py testa a trava real.
+        # Bypassa validação apenas se o header de bypass estiver presente com o
+        # segredo correto (injetado no conftest.py). Isso permite que a suite de
+        # testes de lógica funcione enquanto test_csrf.py testa a trava real.
         settings = get_settings()
         skip_csrf = (
-            settings.app_env == "testing" 
-            and request.headers.get("X-Skip-CSRF") == "true"
+            settings.app_env == "testing"
+            and request.headers.get("X-Skip-CSRF") == TESTING_CSRF_BYPASS_SECRET
         )
 
         if request.method in ["POST", "PUT", "PATCH", "DELETE"] and not skip_csrf:
-            # Excessão para rotas de entrada de sessão
-            if request.url.path not in ["/auth/login", "/auth/logout"]:
-                try:
-                    await csrf_protect.validate_csrf(request)
-                except Exception as exc:
-                    # Retornamos 403 Forbidden para não deslogar o usuário via app.js
-                    return JSONResponse(
-                        status_code=403, 
-                        content={"detail": f"Erro de Segurança (CSRF): {str(exc)}. Recarregue a página."}
-                    )
+            # A isenção que existia aqui para /auth/login e /auth/logout foi
+            # removida: verificado que login.js já lê o token da meta tag
+            # <meta name="csrf-token"> (renderizada em base.html a partir de
+            # request.state.csrf_token, disponível na página de login antes
+            # do POST) e o envia via X-CSRF-Token; e app.js:clearAuth() já
+            # faz o mesmo para /auth/logout. A isenção não protegia nenhum
+            # fluxo real — apenas abria login CSRF (atacante força a vítima
+            # a autenticar numa conta do atacante) e logout CSRF sem
+            # necessidade.
+            try:
+                await csrf_protect.validate_csrf(request)
+            except CsrfProtectError as exc:
+                # Mensagem genérica ao cliente; detalhe fica só no log do
+                # servidor (item #6 — evita vazar informação técnica interna).
+                logger.warning("Falha de validação CSRF em %s: %s", request.url.path, exc)
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "Erro de segurança (CSRF). Recarregue a página."}
+                )
         
         # 2. Geração Inicial de Token no Request State
-        # Sempre geramos o token no request.state para o caso de um template HTML ser renderizado.
-        token_pair = csrf_protect.generate_csrf()
-        raw_token, signed_token = (
-            token_pair if isinstance(token_pair, tuple) else (token_pair, token_pair)
-        )
-        request.state.csrf_token = raw_token
+        # Necessário ANTES de call_next só para o caso de a rota renderizar um
+        # template HTML que embuta o token (só acontece em GET). Para
+        # arquivos estáticos (`/static/...`) isso nunca acontece — pular a
+        # geração aqui evita trabalho desperdiçado em toda requisição de
+        # imagem/JS/CSS, que antes gerava um par de tokens só para descartar
+        # depois (should_issue_token normalmente é False para esses casos).
+        raw_token = signed_token = None
+        if not request.url.path.startswith("/static/"):
+            token_pair = csrf_protect.generate_csrf()
+            raw_token, signed_token = (
+                token_pair if isinstance(token_pair, tuple) else (token_pair, token_pair)
+            )
+            request.state.csrf_token = raw_token
 
         # 3. Processa a requisição
         response = await call_next(request)

@@ -79,6 +79,12 @@ async def get_current_user(
     try:
         from app.modules.auth.security import decodificar_token
         payload = decodificar_token(token)
+        # Access e refresh tokens são assinados com a mesma chave/algoritmo —
+        # sem esta checagem, um refresh token (validade de 7 dias) seria
+        # aceito aqui como access token, ignorando a blacklist de access e a
+        # janela de expiração de 15 minutos.
+        if payload.get("type") != "access":
+            raise credentials_exception
         username: str | None = payload.get("sub")
         jti: str | None = payload.get("jti")
         if username is None or jti is None:

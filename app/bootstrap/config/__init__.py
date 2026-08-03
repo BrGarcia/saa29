@@ -48,6 +48,15 @@ class Settings(BaseSettings):
         default=15,
         description="JWT token expiry in minutes (AUD-18: reduced from 480 to 15)"
     )
+    refresh_token_expire_days: int = Field(
+        default=7,
+        description=(
+            "Validade do refresh token, usada para expirar o JWT, o registro "
+            "TokenRefresh.expira_em e o max_age do cookie saa29_refresh_token "
+            "— fonte única para os três, que antes tinham o valor 7 hardcoded "
+            "em separado em security.py e router.py e podiam divergir."
+        ),
+    )
 
     # --- Upload e Storage ---
     upload_dir: str = "var/uploads"
@@ -70,6 +79,14 @@ class Settings(BaseSettings):
     enable_dev_seeds: bool = Field(
         default=False,
         description="Permite carregar dados de teste (panes, inspeções, etc) durante o seed."
+    )
+    enable_test_users: bool = Field(
+        default=False,
+        description=(
+            "Segundo gatilho explícito (além de APP_ENV=development) exigido para criar as contas de "
+            "teste (encarregado/inspetor/mantenedor) em garantir_usuarios_essenciais. Documentado em "
+            ".env.example, mas não existia como campo de Settings até esta correção."
+        ),
     )
 
     @model_validator(mode="after")

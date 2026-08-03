@@ -26,6 +26,7 @@ from app.bootstrap.database import Base
 from app.bootstrap.dependencies import get_db, get_current_user
 from app.modules.auth.models import Usuario
 from app.modules.auth.security import hash_senha, criar_token
+from app.shared.middleware.csrf import TESTING_CSRF_BYPASS_SECRET
 
 # --- Engine de testes (SQLite in-memory) ---
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -93,7 +94,7 @@ async def client(db: AsyncSession) -> AsyncClient:
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://testserver",
-        headers={"X-Skip-CSRF": "true"}
+        headers={"X-Skip-CSRF": TESTING_CSRF_BYPASS_SECRET}
     ) as ac:
         yield ac
 

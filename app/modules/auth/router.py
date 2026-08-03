@@ -4,13 +4,21 @@ Endpoints de autenticação e gestão de usuários.
 """
 
 import uuid
+from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import select, update
 
+from app.bootstrap.config import get_settings
+from app.bootstrap.dependencies import (
+    DBSession, CurrentUser, AdminRequired, EncarregadoRequired,
+    get_token_from_request, oauth2_scheme,
+)
 from app.modules.auth import schemas, service
-from app.modules.auth.security import criar_token, decodificar_token
-from app.bootstrap.dependencies import DBSession, CurrentUser, AdminRequired, EncarregadoRequired, oauth2_scheme
+from app.modules.auth.models import TokenBlacklist, TokenRefresh, Usuario
+from app.modules.auth.security import criar_token, criar_refresh_token, decodificar_token
+from app.shared.core.limiter import limiter
 
 router = APIRouter()
 
@@ -18,11 +26,6 @@ router = APIRouter()
 # ------------------------------------------------------------------ #
 #  Autenticação
 # ------------------------------------------------------------------ #
-
-from fastapi import Response, Request
-from app.bootstrap.dependencies import get_token_from_request
-
-from app.shared.core.limiter import limiter
 
 @router.post(
     "/login",
@@ -55,25 +58,22 @@ async def login(
     # Criar access token (15 min)
     access_token = criar_token(dados={"sub": usuario.username})
     
-    # Criar refresh token (7 dias)
-    from app.modules.auth.security import criar_refresh_token
-    from app.modules.auth.models import TokenRefresh
-    from datetime import datetime, timezone, timedelta
-    
+    # Criar refresh token (settings.refresh_token_expire_days)
+    settings = get_settings()
+
     refresh_token_str, jti = criar_refresh_token(usuario.id)
-    
+
     # Armazenar refresh token no banco (para rastreamento e revogação)
     refresh_token_model = TokenRefresh(
         usuario_id=usuario.id,
         jti=str(jti),
-        expira_em=datetime.now(timezone.utc) + timedelta(days=7)
+        expira_em=datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days),
     )
     db.add(refresh_token_model)
     # O commit é feito automaticamente pela dependência get_db ao final do request
-    
+
     # Set secure cookie for access token (HttpOnly, Secure em produção)
-    from app.bootstrap.config import get_settings
-    secure = get_settings().app_env == "production"
+    secure = settings.app_env == "production"
     response.set_cookie(
         key="saa29_token",
         value=access_token,
@@ -82,13 +82,13 @@ async def login(
         max_age=15*60,  # 15 minutos
         secure=secure
     )
-    
+
     response.set_cookie(
         key="saa29_refresh_token",
         value=refresh_token_str,
         httponly=True,
         samesite="lax",
-        max_age=7*24*60*60,  # 7 dias
+        max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
         path="/auth/refresh",
         secure=secure
     )
@@ -120,12 +120,6 @@ async def refresh_access_token(
         4. Gerar novo access token
         5. Opcionalmente gerar novo refresh token (rotate) e setar nos cookies
     """
-    from app.modules.auth.security import decodificar_token, criar_refresh_token
-    from app.modules.auth.models import TokenRefresh
-    from datetime import datetime, timezone, timedelta
-    from sqlalchemy import select
-    from app.bootstrap.config import get_settings
-    
     refresh_token = request.cookies.get("saa29_refresh_token")
     if not refresh_token:
         raise HTTPException(
@@ -172,7 +166,6 @@ async def refresh_access_token(
             )
             
         if stored_token.revogado_em is not None:
-            from sqlalchemy import update
             await db.execute(
                 update(TokenRefresh)
                 .where(
@@ -181,14 +174,18 @@ async def refresh_access_token(
                 )
                 .values(revogado_em=agora)
             )
+            # Commit explícito: sem isso, o HTTPException abaixo propaga pela
+            # dependência get_db, que faz rollback em qualquer exceção — a
+            # revogação de família seria desfeita e a mensagem "todos os
+            # tokens foram revogados" ficaria falsa. Mesmo padrão já usado no
+            # login para persistir o incremento de tentativas falhas.
+            await db.commit()
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Reuso de token detectado. Todos os tokens foram revogados por segurança.",
             )
         
         # Buscar usuário
-        from app.modules.auth.models import Usuario
-        import uuid
         try:
             val_usuario_id = uuid.UUID(usuario_id)
         except (ValueError, TypeError):
@@ -212,21 +209,22 @@ async def refresh_access_token(
         new_access_token = criar_token(dados={"sub": usuario.username})
         
         # Gerar novo refresh token (token rotation)
+        settings = get_settings()
         new_refresh_token, new_jti = criar_refresh_token(usuario.id)
         new_token_model = TokenRefresh(
             usuario_id=usuario.id,
             jti=str(new_jti),
-            expira_em=agora + timedelta(days=7)
+            expira_em=agora + timedelta(days=settings.refresh_token_expire_days),
         )
         db.add(new_token_model)
-        
+
         # Revogar refresh token antigo (opcional, mas mais seguro)
         stored_token.revogado_em = agora
-        
+
         # O commit é feito automaticamente pela dependência get_db ao final do request
-        
+
         # Set cookies
-        secure = get_settings().app_env == "production"
+        secure = settings.app_env == "production"
         response.set_cookie(
             key="saa29_token",
             value=new_access_token,
@@ -235,13 +233,13 @@ async def refresh_access_token(
             max_age=15*60,
             secure=secure
         )
-        
+
         response.set_cookie(
             key="saa29_refresh_token",
             value=new_refresh_token,
             httponly=True,
             samesite="lax",
-            max_age=7*24*60*60,
+            max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
             path="/auth/refresh",
             secure=secure
         )
@@ -289,8 +287,6 @@ async def logout(
         jti = payload.get("jti")
         exp = payload.get("exp")
         if jti and exp:
-            from datetime import datetime, timezone
-            from app.modules.auth.models import TokenBlacklist
             db.add(TokenBlacklist(
                 jti=jti,
                 expira_em=datetime.fromtimestamp(exp, tz=timezone.utc)
@@ -302,10 +298,6 @@ async def logout(
     refresh_token = request.cookies.get("saa29_refresh_token")
     if refresh_token:
         try:
-            from app.modules.auth.models import TokenRefresh
-            from sqlalchemy import select
-            from datetime import datetime, timezone
-            
             rt_payload = decodificar_token(refresh_token)
             rt_jti = rt_payload.get("jti")
             if rt_jti:
@@ -348,14 +340,8 @@ async def criar_usuario(
     _: AdminRequired,
 ) -> schemas.UsuarioOut:
     """Cria um novo membro do efetivo. Restrito a Administradores."""
-    try:
-        usuario = await service.criar_usuario(db, dados)
-        return schemas.UsuarioOut.model_validate(usuario)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(e),
-        )
+    usuario = await service.criar_usuario(db, dados)
+    return schemas.UsuarioOut.model_validate(usuario)
 
 
 @router.get(
@@ -384,15 +370,9 @@ async def alterar_senha(
     usuario_atual: CurrentUser,
 ) -> None:
     """Permite ao usuário autenticado trocar sua própria senha."""
-    try:
-        await service.alterar_senha(
-            db, usuario_atual, dados.senha_atual, dados.nova_senha
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
+    await service.alterar_senha(
+        db, usuario_atual, dados.senha_atual, dados.nova_senha
+    )
 
 
 @router.put(
@@ -407,13 +387,7 @@ async def admin_resetar_senha(
     _: AdminRequired,
 ) -> None:
     """Redefine a senha de um membro do efetivo sem precisar da senha atual. Restrito a Administradores."""
-    try:
-        await service.admin_resetar_senha(db, usuario_id, dados.nova_senha)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
+    await service.admin_resetar_senha(db, usuario_id, dados.nova_senha)
 
 
 @router.put(
@@ -428,14 +402,8 @@ async def atualizar_usuario(
     _: AdminRequired,
 ) -> schemas.UsuarioOut:
     """Atualiza os dados de um membro do efetivo. Restrito a Administradores."""
-    try:
-        usuario = await service.atualizar_usuario(db, usuario_id, dados)
-        return schemas.UsuarioOut.model_validate(usuario)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
+    usuario = await service.atualizar_usuario(db, usuario_id, dados)
+    return schemas.UsuarioOut.model_validate(usuario)
 
 
 @router.delete(
@@ -449,13 +417,7 @@ async def excluir_usuario(
     usuario_atual: AdminRequired,
 ) -> None:
     """Desativa um membro do efetivo. Restrito a Administradores."""
-    try:
-        await service.excluir_usuario(db, usuario_id, usuario_atual.id)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
+    await service.excluir_usuario(db, usuario_id, usuario_atual.id)
 
 
 @router.post(
@@ -469,11 +431,5 @@ async def restaurar_usuario(
     _: AdminRequired,
 ) -> schemas.UsuarioOut:
     """Reativa um membro do efetivo que foi desativado. Restrito a Administradores."""
-    try:
-        usuario = await service.restaurar_usuario(db, usuario_id)
-        return schemas.UsuarioOut.model_validate(usuario)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
+    usuario = await service.restaurar_usuario(db, usuario_id)
+    return schemas.UsuarioOut.model_validate(usuario)
