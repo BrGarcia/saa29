@@ -19,6 +19,8 @@
 
 /**
  * @typedef {Object} VencimentoSlot
+ * @property {string} [slot_id]
+ * @property {string} [nome_posicao]
  * @property {string} sistema
  * @property {string} [numero_serie]
  * @property {VencimentoControle[]} controles
@@ -276,6 +278,10 @@ function criarChipEquipamento(slot, aeronave) {
     const chip = document.createElement('div');
     chip.className = 'equip-chip';
 
+    // nome_posicao identifica o slot físico (ex.: CMFD1, CMFD2); sistema é o
+    // nome genérico do PN e não distingue slots que compartilham o mesmo PN.
+    const nomeChip = slot.nome_posicao || slot.sistema;
+
     const snClass = slot.numero_serie ? '' : 'empty';
     const snText = slot.numero_serie || '— vazio —';
 
@@ -285,7 +291,7 @@ function criarChipEquipamento(slot, aeronave) {
         const dataVenc = (ctrl.status === 'PRORROGADO') ? ctrl.data_nova_vencimento : ctrl.data_vencimento;
         const dataText = dataVenc ? formatarData(dataVenc) : (ctrl.status === 'FALTANTE' ? 'NÃO INSTALADO' : '---');
         const vencId = ctrl.vencimento_id || '';
-        const infoLabel = `${aeronave.matricula} / ${slot.sistema} / ${ctrl.tipo_controle_nome}`;
+        const infoLabel = `${aeronave.matricula} / ${nomeChip} / ${ctrl.tipo_controle_nome}`;
 
         const isProrrogado = ctrl.status === 'PRORROGADO';
         const isFaltante = ctrl.status === 'FALTANTE';
@@ -322,7 +328,7 @@ function criarChipEquipamento(slot, aeronave) {
 
     // @ts-ignore
     chip.innerHTML = `
-        <div class="equip-chip-name">${escapeHtml(slot.sistema)}</div>
+        <div class="equip-chip-name">${escapeHtml(nomeChip)}</div>
         <div class="equip-chip-sn ${snClass}">${escapeHtml(snText)}</div>
         <div class="equip-chip-controls">${controlesHtml}</div>
     `;
@@ -387,7 +393,10 @@ function aplicarFiltros() {
         // Filtro por texto
         if (termo) {
             const matchMatricula = a.matricula.toLowerCase().includes(termo);
-            const matchSlot = a.slots.some(s => s.sistema.toLowerCase().includes(termo));
+            const matchSlot = a.slots.some(s =>
+                s.sistema.toLowerCase().includes(termo) ||
+                (s.nome_posicao || '').toLowerCase().includes(termo)
+            );
             if (!matchMatricula && !matchSlot) return false;
         }
         // Filtro por status
@@ -439,7 +448,7 @@ function renderizarCronograma(aeronaves) {
                 if (dataVenc >= hoje && dataVenc <= limite) {
                     itens.push({
                         aeronave: acft.matricula,
-                        sistema: slot.sistema,
+                        sistema: slot.nome_posicao || slot.sistema,
                         controle: ctrl.tipo_controle_nome,
                         vencimento: dataVenc,
                         vencimentoStr: dataStr,

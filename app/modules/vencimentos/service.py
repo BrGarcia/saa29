@@ -13,12 +13,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.modules.aeronaves.models import Aeronave
-from app.modules.equipamentos.models import ModeloEquipamento, ItemEquipamento, Instalacao
+from app.modules.equipamentos.models import ModeloEquipamento, ItemEquipamento, Instalacao, SlotInventario
 from app.modules.vencimentos.models import (
     TipoControle,
     EquipamentoControle,
     ControleVencimento,
     ProrrogacaoVencimento,
+    ExecucaoVencimentoHistorico,
 )
 from app.modules.vencimentos.schemas import (
     TipoControleCreate, TipoControleUpdate,
@@ -57,7 +58,7 @@ async def listar_tipos_controle(db: AsyncSession) -> list[TipoControle]:
 async def criar_tipo_controle(db: AsyncSession, dados: TipoControleCreate) -> TipoControle:
     existing = await db.execute(select(TipoControle).where(TipoControle.nome == dados.nome.upper()))
     if existing.scalar_one_or_none():
-        raise ValueError(f"Tipo de controle '{dados.nome}' já existe.")
+        raise domain_exc.ConflitoNegocioError(f"Tipo de controle '{dados.nome}' já existe.")
     tipo = TipoControle(nome=dados.nome.upper(), descricao=dados.descricao)
     try:
         # SAVEPOINT: em caso de criação concorrente com o mesmo nome, desfaz
@@ -67,21 +68,21 @@ async def criar_tipo_controle(db: AsyncSession, dados: TipoControleCreate) -> Ti
             await db.flush()
     except IntegrityError as exc:
         logger.warning("Conflito de UNIQUE ao criar tipo de controle %s: %s", dados.nome, exc.orig)
-        raise ValueError(f"Tipo de controle '{dados.nome}' já existe.") from exc
+        raise domain_exc.ConflitoNegocioError(f"Tipo de controle '{dados.nome}' já existe.") from exc
     return tipo
 
 async def atualizar_tipo_controle(db: AsyncSession, tipo_id: uuid.UUID, dados: TipoControleUpdate) -> TipoControle:
     result = await db.execute(select(TipoControle).where(TipoControle.id == tipo_id))
     tipo = result.scalar_one_or_none()
     if not tipo:
-        raise ValueError("Tipo de controle não encontrado.")
+        raise domain_exc.EntidadeNaoEncontradaError("Tipo de controle não encontrado.")
     if dados.nome is not None:
         novo_nome = dados.nome.strip().upper()
         dup = await db.execute(
             select(TipoControle).where(TipoControle.nome == novo_nome, TipoControle.id != tipo_id)
         )
         if dup.scalar_one_or_none():
-            raise ValueError(f"Já existe um tipo de controle com o código '{novo_nome}'.")
+            raise domain_exc.ConflitoNegocioError(f"Já existe um tipo de controle com o código '{novo_nome}'.")
         tipo.nome = novo_nome
     if dados.descricao is not None:
         tipo.descricao = dados.descricao
@@ -90,12 +91,18 @@ async def atualizar_tipo_controle(db: AsyncSession, tipo_id: uuid.UUID, dados: T
             await db.flush()
     except IntegrityError as exc:
         logger.warning("Conflito de UNIQUE ao atualizar tipo de controle %s: %s", tipo_id, exc.orig)
-        raise ValueError(f"Já existe um tipo de controle com o código '{dados.nome}'.") from exc
+        raise domain_exc.ConflitoNegocioError(f"Já existe um tipo de controle com o código '{dados.nome}'.") from exc
     return tipo
 
 async def associar_controle_a_equipamento(
-    db: AsyncSession, modelo_id: uuid.UUID, tipo_controle_id: uuid.UUID, periodicidade: int
+    db: AsyncSession, modelo_id: uuid.UUID, tipo_controle_id: uuid.UUID, periodicidade: int,
+    usuario_id: uuid.UUID | None = None,
 ) -> EquipamentoControle:
+    if not await db.get(ModeloEquipamento, modelo_id):
+        raise domain_exc.EntidadeNaoEncontradaError(f"Modelo de equipamento {modelo_id} não encontrado.")
+    if not await db.get(TipoControle, tipo_controle_id):
+        raise domain_exc.EntidadeNaoEncontradaError(f"Tipo de controle {tipo_controle_id} não encontrado.")
+
     res = await db.execute(
         select(EquipamentoControle).where(
             EquipamentoControle.modelo_id == modelo_id,
@@ -106,6 +113,7 @@ async def associar_controle_a_equipamento(
     if existing:
         old_periodicidade = existing.periodicidade_meses
         existing.periodicidade_meses = periodicidade
+        existing.alterado_por_id = usuario_id
 
         # Se a periodicidade mudou, recalcular vencimentos dos itens que já tenham sido executados
         if old_periodicidade != periodicidade:
@@ -131,7 +139,8 @@ async def associar_controle_a_equipamento(
         id=uuid.uuid4(),
         modelo_id=modelo_id,
         tipo_controle_id=tipo_controle_id,
-        periodicidade_meses=periodicidade
+        periodicidade_meses=periodicidade,
+        alterado_por_id=usuario_id,
     )
     try:
         async with db.begin_nested():
@@ -142,7 +151,9 @@ async def associar_controle_a_equipamento(
             "Conflito de UNIQUE ao associar controle %s ao modelo %s: %s",
             tipo_controle_id, modelo_id, exc.orig,
         )
-        raise ValueError("Este tipo de controle já está associado a este equipamento.") from exc
+        raise domain_exc.ConflitoNegocioError(
+            "Este tipo de controle já está associado a este equipamento."
+        ) from exc
 
     res_itens = await db.execute(select(ItemEquipamento.id).where(ItemEquipamento.modelo_id == modelo_id))
     item_ids = set(res_itens.scalars().all())
@@ -227,19 +238,70 @@ async def remover_controle_de_equipamento(
         )
     )
     assoc = result.scalar_one_or_none()
-    if assoc:
-        await db.delete(assoc)
-        await db.flush()
+    if not assoc:
+        raise domain_exc.EntidadeNaoEncontradaError("Regra de periodicidade não encontrada.")
 
-async def registrar_execucao(db: AsyncSession, vencimento_id: uuid.UUID, data_exec: date, usuario_id: uuid.UUID) -> ControleVencimento:
+    # Bloqueia a remoção da regra enquanto existirem ControleVencimento
+    # dependentes: como não há CASCADE entre ControleVencimento e
+    # EquipamentoControle, apagar a regra deixaria esses vencimentos "zumbis"
+    # — visíveis na matriz, marchando para VENCIDO, e sem como dar baixa
+    # (registrar_execucao passaria a falhar sempre, pois a regra de
+    # periodicidade não existiria mais). Achado adicional (ALTA) de
+    # docs/backlog/revisor/achados_vencimentos.md.
+    res_vencs = await db.execute(
+        select(ControleVencimento.id).where(
+            ControleVencimento.tipo_controle_id == tipo_controle_id,
+            ControleVencimento.item_id.in_(
+                select(ItemEquipamento.id).where(ItemEquipamento.modelo_id == modelo_id)
+            ),
+        ).limit(1)
+    )
+    if res_vencs.first():
+        raise domain_exc.ConflitoNegocioError(
+            "Não é possível remover: existem vencimentos registrados para este controle "
+            "neste equipamento. Remova ou migre os vencimentos antes de excluir a regra."
+        )
+
+    await db.delete(assoc)
+    await db.flush()
+
+async def _desativar_prorrogacoes_ativas(db: AsyncSession, vencimento: ControleVencimento) -> None:
+    """Desativa toda prorrogação ativa do controle e sincroniza o cache da sessão.
+
+    Usado por `registrar_execucao`, `prorrogar_vencimento` e `cancelar_prorrogacao`
+    (Bug 147: sem o `db.expire`, a coleção `vencimento.prorrogacoes` em memória
+    fica desatualizada após o UPDATE via SQL puro).
+    """
+    await db.execute(
+        ProrrogacaoVencimento.__table__.update()
+        .where(
+            and_(
+                ProrrogacaoVencimento.controle_id == vencimento.id,
+                ProrrogacaoVencimento.ativo == True
+            )
+        )
+        .values(ativo=False)
+    )
+    db.expire(vencimento, ["prorrogacoes"])
+
+async def registrar_execucao(
+    db: AsyncSession, vencimento_id: uuid.UUID, data_exec: date, usuario_id: uuid.UUID,
+    observacao: str | None = None,
+) -> ControleVencimento:
     result = await db.execute(
         select(ControleVencimento)
         .where(ControleVencimento.id == vencimento_id)
         .options(selectinload(ControleVencimento.item))
     )
     vencimento = result.scalar_one_or_none()
-    if not vencimento: 
+    if not vencimento:
         raise domain_exc.EntidadeNaoEncontradaError("Vencimento não encontrado.")
+
+    if vencimento.data_ultima_exec and data_exec < vencimento.data_ultima_exec:
+        raise domain_exc.ConflitoNegocioError(
+            f"Data de execução ({data_exec.isoformat()}) não pode ser anterior à última "
+            f"execução registrada ({vencimento.data_ultima_exec.isoformat()})."
+        )
 
     res_regra = await db.execute(
         select(EquipamentoControle).where(
@@ -248,44 +310,50 @@ async def registrar_execucao(db: AsyncSession, vencimento_id: uuid.UUID, data_ex
         )
     )
     regra = res_regra.scalar_one_or_none()
-    
+
     if not regra:
         raise domain_exc.EntidadeNaoEncontradaError(
             f"Regra de periodicidade não encontrada para o modelo {vencimento.item.modelo_id}. "
             "Configure o controle para este equipamento antes de registrar a execução."
         )
-    
+
     periodicidade = regra.periodicidade_meses
-    
+    nova_data_vencimento = data_exec + relativedelta(months=periodicidade)
+
     vencimento.data_ultima_exec = data_exec
-    vencimento.data_vencimento = data_exec + relativedelta(months=periodicidade)
+    vencimento.data_vencimento = nova_data_vencimento
     vencimento.executado_por_id = usuario_id
 
-    await db.execute(
-        ProrrogacaoVencimento.__table__.update()
-        .where(
-            and_(
-                ProrrogacaoVencimento.controle_id == vencimento_id,
-                ProrrogacaoVencimento.ativo == True
-            )
-        )
-        .values(ativo=False)
-    )
-    # Bug 147: Sincronizar cache da sessão após update via SQL puro
-    db.expire(vencimento, ["prorrogacoes"])
+    await _desativar_prorrogacoes_ativas(db, vencimento)
 
-    hoje = date.today()
-    if not vencimento.data_ultima_exec:
-        vencimento.status = StatusVencimento.VENCIDO.value
-    elif vencimento.data_vencimento < hoje: 
-        vencimento.status = StatusVencimento.VENCIDO.value
-    elif (vencimento.data_vencimento - hoje).days <= 30: 
-        vencimento.status = StatusVencimento.VENCENDO.value
-    else: 
-        vencimento.status = StatusVencimento.OK.value
+    # Status exibido na leitura é sempre derivado por calcular_status_vencimento
+    # (matriz, listagem por item); a coluna persistida é só o último valor
+    # conhecido no momento desta execução.
+    vencimento.status = calcular_status_vencimento(nova_data_vencimento)
+
+    # Registro imutável da execução (achado adicional de achados_vencimentos.md:
+    # sem isto, cada execução sobrescreve a anterior sem deixar rastro de quem
+    # fez o quê e quando — inaceitável para manutenção de aeronave).
+    db.add(ExecucaoVencimentoHistorico(
+        id=uuid.uuid4(),
+        controle_id=vencimento.id,
+        data_execucao=data_exec,
+        data_vencimento_calculada=nova_data_vencimento,
+        periodicidade_meses=periodicidade,
+        executado_por_id=usuario_id,
+        observacao=observacao,
+    ))
 
     await db.flush()
     return vencimento
+
+async def listar_historico_execucao(db: AsyncSession, vencimento_id: uuid.UUID) -> list[ExecucaoVencimentoHistorico]:
+    result = await db.execute(
+        select(ExecucaoVencimentoHistorico)
+        .where(ExecucaoVencimentoHistorico.controle_id == vencimento_id)
+        .order_by(ExecucaoVencimentoHistorico.registrado_em.desc())
+    )
+    return list(result.scalars().all())
 
 async def listar_vencimentos_por_item(db: AsyncSession, item_id: uuid.UUID) -> list[ControleVencimento]:
     result = await db.execute(
@@ -318,6 +386,19 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
         cabecalho[nome] = [ctrl.tipo_controle.nome for ctrl in modelo.controles_template]
         modelo_map[modelo.id] = modelo
 
+    # Slots físicos (não PNs): cada posição (ex.: CMFD1..CMFD4) vira sua
+    # própria linha na matriz, mesmo quando compartilha PN com outro slot da
+    # mesma aeronave — ver BUG-01 em docs/backlog/revisor/achados_vencimentos.md.
+    res_slots = await db.execute(
+        select(SlotInventario)
+        .where(SlotInventario.modelo_id.in_(modelo_map.keys()))
+        .order_by(SlotInventario.sistema, SlotInventario.nome_posicao)
+    )
+    slots = list(res_slots.scalars().all())
+
+    if not slots:
+        return {"cabecalho": cabecalho, "aeronaves": []}
+
     res_acft = await db.execute(
         select(Aeronave)
         .where(Aeronave.status != StatusAeronave.INATIVA)
@@ -329,10 +410,10 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
         return {"cabecalho": cabecalho, "aeronaves": []}
 
     aeronave_ids = [a.id for a in aeronaves]
+    slot_ids = [s.id for s in slots]
     res_inst = await db.execute(
         select(Instalacao)
         .options(
-            selectinload(Instalacao.slot),
             selectinload(Instalacao.item)
             .selectinload(ItemEquipamento.controles_vencimento).options(
                 selectinload(ControleVencimento.tipo_controle),
@@ -342,20 +423,25 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
         )
         .where(
             Instalacao.aeronave_id.in_(aeronave_ids),
+            Instalacao.slot_id.in_(slot_ids),
             Instalacao.data_remocao.is_(None),
         )
+        # Determinístico mesmo se a invariante "uma instalação ativa por
+        # slot" for violada por uma corrida (RISCO-05 de achados_equipamentos.md,
+        # ainda sem constraint no banco): ASC + last-write-wins no dict abaixo
+        # faz a mais recente prevalecer, em vez de depender da ordem
+        # arbitrária de retorno do banco.
+        .order_by(Instalacao.data_instalacao.asc())
     )
     instalacoes = res_inst.scalars().all()
 
+    # Chave (aeronave_id, slot_id): um slot só pode ter uma instalação ativa
+    # por vez (RISCO-05 de achados_equipamentos.md cobre a corrida disso).
     inst_map: dict[uuid.UUID, dict[uuid.UUID, Instalacao]] = {}
     for inst in instalacoes:
-        slot_modelo_id = inst.slot.modelo_id
-        if slot_modelo_id not in modelo_map:
-            continue
         if inst.aeronave_id not in inst_map:
             inst_map[inst.aeronave_id] = {}
-        if slot_modelo_id not in inst_map[inst.aeronave_id]:
-            inst_map[inst.aeronave_id][slot_modelo_id] = inst
+        inst_map[inst.aeronave_id][inst.slot_id] = inst
 
     hoje = date.today()
     aeronaves_out = []
@@ -367,8 +453,9 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
         has_vencido = False
         has_vencendo = False
 
-        for modelo in modelos:
-            inst = acft_inst.get(modelo.id)
+        for slot in slots:
+            modelo = modelo_map[slot.modelo_id]
+            inst = acft_inst.get(slot.id)
             item = inst.item if inst else None
 
             venc_map: dict[str, ControleVencimento] = {}
@@ -420,6 +507,8 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
                 })
 
             slots_out.append({
+                "slot_id": str(slot.id),
+                "nome_posicao": slot.nome_posicao,
                 "sistema": modelo.nome_generico,
                 "part_number": modelo.part_number,
                 "numero_serie": item.numero_serie if item else None,
@@ -450,20 +539,9 @@ async def prorrogar_vencimento(
     vencimento = await db.get(ControleVencimento, vencimento_id)
     if not vencimento:
         raise domain_exc.EntidadeNaoEncontradaError("Vencimento não encontrado.")
-        
-    await db.execute(
-        ProrrogacaoVencimento.__table__.update()
-        .where(
-            and_(
-                ProrrogacaoVencimento.controle_id == vencimento_id,
-                ProrrogacaoVencimento.ativo == True
-            )
-        )
-        .values(ativo=False)
-    )
-    # Bug 147: Sincronizar cache
-    db.expire(vencimento, ["prorrogacoes"])
-    
+
+    await _desativar_prorrogacoes_ativas(db, vencimento)
+
     data_base = vencimento.data_vencimento or dados_prorrogacao.data_concessao
     data_nova_vencimento = data_base + timedelta(days=dados_prorrogacao.dias_adicionais)
 
@@ -478,13 +556,31 @@ async def prorrogar_vencimento(
         registrado_por_id=usuario_id,
         ativo=True
     )
-    
-    db.add(nova_prorrogacao)
-    await db.flush()
+
+    try:
+        # SAVEPOINT: rede de segurança contra duas prorrogações concorrentes
+        # para o mesmo controle (RISCO-03) — o índice único parcial
+        # uq_prorrogacao_ativa_por_controle é quem garante a invariante.
+        async with db.begin_nested():
+            db.add(nova_prorrogacao)
+            await db.flush()
+    except IntegrityError as exc:
+        logger.warning(
+            "Conflito de prorrogação ativa concorrente para o controle %s: %s",
+            vencimento_id, exc.orig,
+        )
+        raise domain_exc.ConflitoNegocioError(
+            "Já existe uma prorrogação ativa para este vencimento. Tente novamente."
+        ) from exc
+
     await db.refresh(nova_prorrogacao)
     return nova_prorrogacao
 
 async def cancelar_prorrogacao(db: AsyncSession, vencimento_id: uuid.UUID) -> bool:
+    vencimento = await db.get(ControleVencimento, vencimento_id)
+    if not vencimento:
+        raise domain_exc.EntidadeNaoEncontradaError("Vencimento não encontrado.")
+
     result = await db.execute(
         ProrrogacaoVencimento.__table__.update()
         .where(
@@ -495,9 +591,10 @@ async def cancelar_prorrogacao(db: AsyncSession, vencimento_id: uuid.UUID) -> bo
         )
         .values(ativo=False)
     )
+    if result.rowcount == 0:
+        raise domain_exc.ConflitoNegocioError("Nenhuma prorrogação ativa para este vencimento.")
+
     # Bug 147: Sincronizar cache
-    vencimento = await db.get(ControleVencimento, vencimento_id)
-    if vencimento:
-        db.expire(vencimento, ["prorrogacoes"])
+    db.expire(vencimento, ["prorrogacoes"])
     await db.flush()
-    return result.rowcount > 0
+    return True

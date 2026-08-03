@@ -12,6 +12,7 @@ docs/backlog/Fable5/Etapa3.md:
 
 import uuid
 import pytest
+from datetime import date, timedelta
 
 from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,8 +22,8 @@ from app.modules.equipamentos.models import ItemEquipamento, ModeloEquipamento
 from app.modules.inspecoes import schemas as insp_schemas
 from app.modules.inspecoes import service as insp_service
 from app.modules.vencimentos import service as venc_service
-from app.modules.vencimentos.models import ControleVencimento, TipoControle
-from app.modules.vencimentos.schemas import TipoControleCreate
+from app.modules.vencimentos.models import ControleVencimento, EquipamentoControle, TipoControle
+from app.modules.vencimentos.schemas import ProrrogacaoVencimentoCreate, TipoControleCreate
 from app.shared.core import exceptions as domain_exc
 
 
@@ -124,7 +125,7 @@ async def test_criar_tipo_controle_duplicado_retorna_conflito_de_dominio(db: Asy
     nome = f"TC-{uuid.uuid4().hex[:6]}"
     await venc_service.criar_tipo_controle(db, TipoControleCreate(nome=nome))
 
-    with pytest.raises(ValueError, match="já existe"):
+    with pytest.raises(domain_exc.ConflitoNegocioError, match="já existe"):
         await venc_service.criar_tipo_controle(db, TipoControleCreate(nome=nome))
 
 
@@ -141,12 +142,135 @@ async def test_criar_tipo_controle_savepoint_absorve_integrity_error_sem_derruba
     db.add(TipoControle(id=tipo_id, nome=nome))
     await db.flush()
 
-    with pytest.raises(ValueError, match="já existe"):
+    with pytest.raises(domain_exc.ConflitoNegocioError, match="já existe"):
         await venc_service.criar_tipo_controle(db, TipoControleCreate(nome=nome))
 
     # A sessão continua utilizável após o SAVEPOINT reverter só o insert conflitante.
     outro = await venc_service.criar_tipo_controle(db, TipoControleCreate(nome=f"TC-{uuid.uuid4().hex[:6]}"))
     assert outro.id is not None
+
+
+@pytest.mark.asyncio
+async def test_atualizar_tipo_controle_inexistente_levanta_404_nao_409(db: AsyncSession):
+    """BUG-02 (achados_vencimentos.md): antes, `atualizar_tipo_controle`
+    levantava um `ValueError` genérico que o router mapeava sempre para 409,
+    mesmo quando a causa era "não encontrado". Agora o service diferencia:
+    404 para ID inexistente, 409 apenas para nome duplicado."""
+    from app.modules.vencimentos.schemas import TipoControleUpdate
+
+    with pytest.raises(domain_exc.EntidadeNaoEncontradaError):
+        await venc_service.atualizar_tipo_controle(
+            db, uuid.uuid4(), TipoControleUpdate(nome="X")
+        )
+
+
+@pytest.mark.asyncio
+async def test_atualizar_tipo_controle_nome_duplicado_levanta_409(db: AsyncSession):
+    nome_a = f"TC-{uuid.uuid4().hex[:6]}"
+    nome_b = f"TC-{uuid.uuid4().hex[:6]}"
+    tipo_a = await venc_service.criar_tipo_controle(db, TipoControleCreate(nome=nome_a))
+    await venc_service.criar_tipo_controle(db, TipoControleCreate(nome=nome_b))
+
+    from app.modules.vencimentos.schemas import TipoControleUpdate
+
+    with pytest.raises(domain_exc.ConflitoNegocioError):
+        await venc_service.atualizar_tipo_controle(
+            db, tipo_a.id, TipoControleUpdate(nome=nome_b)
+        )
+
+
+@pytest.mark.asyncio
+async def test_associar_controle_modelo_inexistente_levanta_404_nao_409(db: AsyncSession):
+    """MELHORIA-04 (achados_vencimentos.md): antes, um `modelo_id` inexistente
+    caía no `except IntegrityError` (violação de FK) e sempre retornava a
+    mensagem enganosa "já está associado". Agora é validado explicitamente."""
+    tipo = TipoControle(id=uuid.uuid4(), nome=f"TC-{uuid.uuid4().hex[:6]}")
+    db.add(tipo)
+    await db.flush()
+
+    with pytest.raises(domain_exc.EntidadeNaoEncontradaError):
+        await venc_service.associar_controle_a_equipamento(db, uuid.uuid4(), tipo.id, 12)
+
+
+@pytest.mark.asyncio
+async def test_associar_controle_tipo_controle_inexistente_levanta_404_nao_409(db: AsyncSession):
+    modelo = await _criar_modelo(db, f"PN-{uuid.uuid4().hex[:8]}")
+
+    with pytest.raises(domain_exc.EntidadeNaoEncontradaError):
+        await venc_service.associar_controle_a_equipamento(db, modelo.id, uuid.uuid4(), 12)
+
+
+@pytest.mark.asyncio
+async def test_remover_controle_de_equipamento_inexistente_levanta_404(db: AsyncSession):
+    """MELHORIA-05 (achados_vencimentos.md): antes, remover uma associação
+    inexistente retornava sucesso silencioso (`if assoc: ...` sem `else`)."""
+    with pytest.raises(domain_exc.EntidadeNaoEncontradaError):
+        await venc_service.remover_controle_de_equipamento(db, uuid.uuid4(), uuid.uuid4())
+
+
+@pytest.mark.asyncio
+async def test_remover_controle_de_equipamento_com_vencimentos_dependentes_levanta_409(db: AsyncSession):
+    """Achado adicional ALTA (achados_vencimentos.md): sem essa checagem,
+    remover a regra deixava os `ControleVencimento` já criados para os itens
+    do PN "zumbis" — visíveis na matriz, marchando para VENCIDO, e
+    impossíveis de dar baixa (`registrar_execucao` passaria a falhar sempre,
+    pois a regra de periodicidade não existiria mais)."""
+    modelo = await _criar_modelo(db, f"PN-{uuid.uuid4().hex[:8]}")
+    tipo = TipoControle(id=uuid.uuid4(), nome=f"TC-{uuid.uuid4().hex[:6]}")
+    db.add(tipo)
+    await db.flush()
+    # associar_controle_a_equipamento cria o ControleVencimento retroativo
+    # para os itens já existentes do PN.
+    await _criar_itens(db, modelo.id, qtd=1)
+    await venc_service.associar_controle_a_equipamento(db, modelo.id, tipo.id, 12)
+
+    with pytest.raises(domain_exc.ConflitoNegocioError):
+        await venc_service.remover_controle_de_equipamento(db, modelo.id, tipo.id)
+
+
+@pytest.mark.asyncio
+async def test_remover_controle_de_equipamento_sem_vencimentos_dependentes_sucede(db: AsyncSession):
+    modelo = await _criar_modelo(db, f"PN-{uuid.uuid4().hex[:8]}")
+    tipo = TipoControle(id=uuid.uuid4(), nome=f"TC-{uuid.uuid4().hex[:6]}")
+    db.add(tipo)
+    await db.flush()
+    # Nenhum item existente para o PN -> nenhum ControleVencimento criado.
+    await venc_service.associar_controle_a_equipamento(db, modelo.id, tipo.id, 12)
+
+    await venc_service.remover_controle_de_equipamento(db, modelo.id, tipo.id)
+
+    res = await db.execute(
+        select(EquipamentoControle).where(
+            EquipamentoControle.modelo_id == modelo.id, EquipamentoControle.tipo_controle_id == tipo.id
+        )
+    )
+    assert res.scalar_one_or_none() is None
+
+
+@pytest.mark.asyncio
+async def test_cancelar_prorrogacao_vencimento_inexistente_levanta_404(db: AsyncSession):
+    with pytest.raises(domain_exc.EntidadeNaoEncontradaError):
+        await venc_service.cancelar_prorrogacao(db, uuid.uuid4())
+
+
+@pytest.mark.asyncio
+async def test_cancelar_prorrogacao_sem_prorrogacao_ativa_levanta_409(db: AsyncSession):
+    """MELHORIA-05: antes, cancelar quando não há prorrogação ativa retornava
+    `{"success": False}` (200) em vez de sinalizar o conflito. Decisão do
+    desenvolvedor (achados_vencimentos.md): 404 é reservado para
+    `vencimento_id` inexistente; "existe mas sem prorrogação ativa" é um
+    conflito de estado (409), não "recurso não encontrado"."""
+    modelo = await _criar_modelo(db, f"PN-{uuid.uuid4().hex[:8]}")
+    item = (await _criar_itens(db, modelo.id, qtd=1))[0]
+    tipo = TipoControle(id=uuid.uuid4(), nome=f"TC-{uuid.uuid4().hex[:6]}")
+    db.add(tipo)
+    await db.flush()
+    venc = ControleVencimento(id=uuid.uuid4(), item_id=item.id, tipo_controle_id=tipo.id)
+    db.add(venc)
+    await db.flush()
+
+    with pytest.raises(domain_exc.ConflitoNegocioError):
+        await venc_service.cancelar_prorrogacao(db, venc.id)
 
 
 @pytest.mark.asyncio
@@ -253,3 +377,175 @@ async def test_listar_inspecoes_respeita_teto_de_seguranca(db: AsyncSession, mon
         db, insp_schemas.FiltroInspecao(skip=0, limit=1000)
     )
     assert len(resultado) <= 3
+
+
+# ------------------------------------------------------------------ #
+#  RISCO-03 — no máximo uma prorrogação ativa por controle
+# ------------------------------------------------------------------ #
+
+async def _criar_venc_para_prorrogacao(db: AsyncSession) -> ControleVencimento:
+    modelo = await _criar_modelo(db, f"PN-{uuid.uuid4().hex[:8]}")
+    item = (await _criar_itens(db, modelo.id, qtd=1))[0]
+    tipo = TipoControle(id=uuid.uuid4(), nome=f"TC-{uuid.uuid4().hex[:6]}")
+    db.add(tipo)
+    await db.flush()
+    venc = ControleVencimento(id=uuid.uuid4(), item_id=item.id, tipo_controle_id=tipo.id)
+    db.add(venc)
+    await db.flush()
+    return venc
+
+
+@pytest.mark.asyncio
+async def test_indice_unico_barra_duas_prorrogacoes_ativas_para_mesmo_controle(db: AsyncSession):
+    """Confirma que a constraint do banco (não apenas a lógica de aplicação)
+    impede duas prorrogações `ativo=True` simultâneas para o mesmo controle —
+    a rede de segurança real contra a corrida descrita no RISCO-03."""
+    from app.modules.vencimentos.models import ProrrogacaoVencimento
+    from sqlalchemy.exc import IntegrityError
+
+    venc = await _criar_venc_para_prorrogacao(db)
+
+    db.add(ProrrogacaoVencimento(
+        controle_id=venc.id, numero_documento="DOC-1",
+        data_concessao=date.today(), data_nova_vencimento=date.today() + timedelta(days=30),
+        dias_adicionais=30, ativo=True,
+    ))
+    await db.flush()
+
+    db.add(ProrrogacaoVencimento(
+        controle_id=venc.id, numero_documento="DOC-2",
+        data_concessao=date.today(), data_nova_vencimento=date.today() + timedelta(days=60),
+        dias_adicionais=60, ativo=True,
+    ))
+    with pytest.raises(IntegrityError):
+        await db.flush()
+
+
+@pytest.mark.asyncio
+async def test_prorrogar_vencimento_concorrente_levanta_conflito_de_dominio(db: AsyncSession, monkeypatch):
+    """Simula a corrida de duas requisições concorrentes de prorrogação:
+    neutraliza a desativação prévia (equivalente a duas transações lendo
+    "nenhuma prorrogação ativa" antes de qualquer commit) e confirma que o
+    SAVEPOINT converte o IntegrityError do índice único em um erro de
+    domínio, sem derrubar a sessão."""
+    async def _no_op(db, vencimento):
+        return None
+
+    monkeypatch.setattr(venc_service, "_desativar_prorrogacoes_ativas", _no_op)
+
+    venc = await _criar_venc_para_prorrogacao(db)
+    dados = ProrrogacaoVencimentoCreate(
+        numero_documento="DOC-1", data_concessao=date.today(), dias_adicionais=10
+    )
+
+    await venc_service.prorrogar_vencimento(db, venc.id, dados)
+
+    with pytest.raises(domain_exc.ConflitoNegocioError):
+        await venc_service.prorrogar_vencimento(db, venc.id, dados)
+
+    # A sessão continua utilizável após o SAVEPOINT reverter só o insert conflitante.
+    monkeypatch.undo()
+    await venc_service.cancelar_prorrogacao(db, venc.id)
+
+
+# ------------------------------------------------------------------ #
+#  MELHORIA-06 — data de execução não pode estar no futuro
+# ------------------------------------------------------------------ #
+
+def test_controle_vencimento_update_rejeita_data_futura():
+    from pydantic import ValidationError
+    from app.modules.vencimentos.schemas import ControleVencimentoUpdate
+
+    with pytest.raises(ValidationError):
+        ControleVencimentoUpdate(data_ultima_exec=date.today() + timedelta(days=1))
+
+    # Data de hoje é permitida (limite exato, não é "futuro").
+    valido = ControleVencimentoUpdate(data_ultima_exec=date.today())
+    assert valido.data_ultima_exec == date.today()
+
+
+# ------------------------------------------------------------------ #
+#  Achados adicionais (fora do escopo das 7 perguntas originais)
+# ------------------------------------------------------------------ #
+
+async def _criar_venc_executavel(db: AsyncSession, periodicidade: int = 12) -> ControleVencimento:
+    modelo = await _criar_modelo(db, f"PN-{uuid.uuid4().hex[:8]}")
+    item = (await _criar_itens(db, modelo.id, qtd=1))[0]
+    tipo = TipoControle(id=uuid.uuid4(), nome=f"TC-{uuid.uuid4().hex[:6]}")
+    db.add(tipo)
+    await db.flush()
+    db.add(EquipamentoControle(id=uuid.uuid4(), modelo_id=modelo.id, tipo_controle_id=tipo.id, periodicidade_meses=periodicidade))
+    await db.flush()
+    venc = ControleVencimento(id=uuid.uuid4(), item_id=item.id, tipo_controle_id=tipo.id)
+    db.add(venc)
+    await db.flush()
+    return venc
+
+
+@pytest.mark.asyncio
+async def test_registrar_execucao_rejeita_data_anterior_a_ultima_execucao(db: AsyncSession):
+    """Achado adicional (achados_vencimentos.md, seção 'Em registrar_execucao'):
+    sem essa checagem, uma data anterior à última execução registrada causava
+    um retrocesso silencioso do último serviço realizado."""
+    venc = await _criar_venc_executavel(db)
+    usuario_id = uuid.uuid4()
+
+    await venc_service.registrar_execucao(db, venc.id, date(2026, 6, 1), usuario_id)
+
+    with pytest.raises(domain_exc.ConflitoNegocioError):
+        await venc_service.registrar_execucao(db, venc.id, date(2026, 5, 1), usuario_id)
+
+
+@pytest.mark.asyncio
+async def test_registrar_execucao_grava_historico_imutavel_com_observacao(db: AsyncSession):
+    """Achado adicional: antes, `registrar_execucao` sobrescrevia
+    `data_ultima_exec` sem deixar rastro da execução anterior, e o campo
+    `observacao` do schema era aceito pela API mas nunca persistido em
+    lugar nenhum."""
+    venc = await _criar_venc_executavel(db, periodicidade=6)
+    usuario_id = uuid.uuid4()
+
+    await venc_service.registrar_execucao(db, venc.id, date(2026, 1, 1), usuario_id, observacao="Primeira execução")
+    await venc_service.registrar_execucao(db, venc.id, date(2026, 3, 1), usuario_id, observacao="Segunda execução")
+
+    historico = await venc_service.listar_historico_execucao(db, venc.id)
+    assert len(historico) == 2
+    por_data = {h.data_execucao: h for h in historico}
+    assert por_data[date(2026, 1, 1)].observacao == "Primeira execução"
+    assert por_data[date(2026, 3, 1)].observacao == "Segunda execução"
+    assert por_data[date(2026, 3, 1)].data_vencimento_calculada == date(2026, 9, 1)
+
+
+@pytest.mark.asyncio
+async def test_check_constraint_bloqueia_periodicidade_nao_positiva(db: AsyncSession):
+    """Achado adicional: `periodicidade_meses` só era validado no schema
+    Pydantic (`Field(gt=0)`), sem nenhuma rede de segurança no banco."""
+    from sqlalchemy.exc import IntegrityError
+
+    modelo = await _criar_modelo(db, f"PN-{uuid.uuid4().hex[:8]}")
+    tipo = TipoControle(id=uuid.uuid4(), nome=f"TC-{uuid.uuid4().hex[:6]}")
+    db.add(tipo)
+    await db.flush()
+
+    db.add(EquipamentoControle(id=uuid.uuid4(), modelo_id=modelo.id, tipo_controle_id=tipo.id, periodicidade_meses=0))
+    with pytest.raises(IntegrityError):
+        await db.flush()
+
+
+@pytest.mark.asyncio
+async def test_associar_controle_registra_alterado_por_id(db: AsyncSession):
+    """Achado adicional: `EquipamentoControle` não tinha trilha de quem
+    alterou a periodicidade — relevante para auditoria regulatória."""
+    modelo = await _criar_modelo(db, f"PN-{uuid.uuid4().hex[:8]}")
+    tipo = TipoControle(id=uuid.uuid4(), nome=f"TC-{uuid.uuid4().hex[:6]}")
+    db.add(tipo)
+    await db.flush()
+    usuario_id = uuid.uuid4()
+
+    assoc = await venc_service.associar_controle_a_equipamento(db, modelo.id, tipo.id, 12, usuario_id)
+    assert assoc.alterado_por_id == usuario_id
+    assert assoc.created_at is not None
+
+    outro_usuario_id = uuid.uuid4()
+    assoc2 = await venc_service.associar_controle_a_equipamento(db, modelo.id, tipo.id, 24, outro_usuario_id)
+    assert assoc2.alterado_por_id == outro_usuario_id

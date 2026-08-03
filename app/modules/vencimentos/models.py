@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime, date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, DateTime, Date, Integer, ForeignKey, func, UniqueConstraint
+from sqlalchemy import String, DateTime, Date, Integer, ForeignKey, func, UniqueConstraint, Index, text, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.bootstrap.database import Base
@@ -43,6 +43,7 @@ class EquipamentoControle(Base):
     __tablename__ = "equipamento_controles"
     __table_args__ = (
         UniqueConstraint("modelo_id", "tipo_controle_id", name="uq_equip_controle"),
+        CheckConstraint("periodicidade_meses > 0", name="ck_equipamento_controle_periodicidade_positiva"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -53,10 +54,14 @@ class EquipamentoControle(Base):
         ForeignKey("tipos_controle.id", ondelete="CASCADE"), nullable=False
     )
     periodicidade_meses: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+    alterado_por_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
 
     # --- Relacionamentos ---
     modelo: Mapped["ModeloEquipamento"] = relationship(back_populates="controles_template")
     tipo_controle: Mapped["TipoControle"] = relationship(back_populates="equipamento_controles")
+    alterado_por: Mapped["Usuario"] = relationship() # type: ignore
 
 
 class ControleVencimento(Base):
@@ -90,6 +95,15 @@ class ProrrogacaoVencimento(Base):
     Registro de prorrogação (extensão de prazo) de um vencimento pela Engenharia.
     """
     __tablename__ = "prorrogacoes_vencimento"
+    __table_args__ = (
+        # No máximo uma prorrogação ativa por controle (RISCO-03,
+        # docs/backlog/revisor/achados_vencimentos.md) — rede de segurança
+        # contra a corrida de duas requisições concorrentes de prorrogação.
+        Index(
+            "uq_prorrogacao_ativa_por_controle", "controle_id",
+            unique=True, sqlite_where=text("ativo = 1"),
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     controle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("controle_vencimentos.id"), nullable=False, index=True)
@@ -106,3 +120,33 @@ class ProrrogacaoVencimento(Base):
     # --- Relacionamentos ---
     controle: Mapped["ControleVencimento"] = relationship(back_populates="prorrogacoes")
     registrado_por: Mapped["Usuario"] = relationship() # type: ignore
+
+
+class ExecucaoVencimentoHistorico(Base):
+    """
+    Registro append-only de cada execução de um ControleVencimento.
+
+    `ControleVencimento` guarda apenas o estado atual (última execução) —
+    sem esta tabela, cada nova chamada de `registrar_execucao` sobrescreve
+    `data_ultima_exec`/`executado_por_id` sem deixar rastro do que havia
+    antes. Para manutenção de aeronave isso é uma lacuna de auditoria: quem
+    executou o quê, quando, e com qual periodicidade vigente, precisa ser
+    reconstituível mesmo depois de execuções futuras. Nenhum código deve
+    fazer UPDATE/DELETE nesta tabela — apenas INSERT.
+    """
+    __tablename__ = "execucoes_vencimento_historico"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    controle_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("controle_vencimentos.id"), nullable=False, index=True
+    )
+    data_execucao: Mapped[date] = mapped_column(Date, nullable=False)
+    data_vencimento_calculada: Mapped[date] = mapped_column(Date, nullable=False)
+    periodicidade_meses: Mapped[int] = mapped_column(Integer, nullable=False)
+    executado_por_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
+    observacao: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    registrado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+
+    # --- Relacionamentos ---
+    controle: Mapped["ControleVencimento"] = relationship()
+    executado_por: Mapped["Usuario"] = relationship() # type: ignore

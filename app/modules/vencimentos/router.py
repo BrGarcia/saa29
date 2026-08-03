@@ -5,7 +5,7 @@ Endpoints para a inteligência temporal de manutenções e vencimentos.
 
 import uuid
 from datetime import date
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from app.modules.vencimentos import schemas, service
 from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin, AdminRequired, EncarregadoInspetorOuAdmin, ExecucaoPermitida
 from app.shared.core.enums import StatusVencimento
@@ -34,11 +34,8 @@ async def criar_tipo_controle(
     db: DBSession,
     _: AdminRequired,
 ):
-    try:
-        tipo = await service.criar_tipo_controle(db, dados)
-        return schemas.TipoControleOut.model_validate(tipo)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    tipo = await service.criar_tipo_controle(db, dados)
+    return schemas.TipoControleOut.model_validate(tipo)
 
 @router.put(
     "/tipos-controle/{tipo_id}",
@@ -51,11 +48,8 @@ async def atualizar_tipo_controle(
     db: DBSession,
     _: AdminRequired,
 ):
-    try:
-        tipo = await service.atualizar_tipo_controle(db, tipo_id, dados)
-        return schemas.TipoControleOut.model_validate(tipo)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    tipo = await service.atualizar_tipo_controle(db, tipo_id, dados)
+    return schemas.TipoControleOut.model_validate(tipo)
 
 # ---- Regras de Periodicidade (EquipamentoControle) ----
 
@@ -83,16 +77,13 @@ async def listar_regras_periodicidade(db: DBSession, _: CurrentUser):
 async def associar_controle(
     dados: schemas.EquipamentoControleCreate,
     db: DBSession,
-    _: AdminRequired,
+    admin: AdminRequired,
 ):
-    try:
-        assoc = await service.associar_controle_a_equipamento(
-            db, dados.modelo_id, dados.tipo_controle_id, dados.periodicidade_meses
-        )
-        # O commit é feito automaticamente pela dependência get_db ao final do request
-        return schemas.EquipamentoControleOut.model_validate(assoc)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    assoc = await service.associar_controle_a_equipamento(
+        db, dados.modelo_id, dados.tipo_controle_id, dados.periodicidade_meses, admin.id
+    )
+    # O commit é feito automaticamente pela dependência get_db ao final do request
+    return schemas.EquipamentoControleOut.model_validate(assoc)
 
 @router.delete(
     "/regras/{modelo_id}/{tipo_controle_id}",
@@ -142,9 +133,22 @@ async def registrar_execucao(
     current_user: ExecucaoPermitida,
 ):
     vencimento = await service.registrar_execucao(
-        db, vencimento_id, dados.data_ultima_exec, current_user.id
+        db, vencimento_id, dados.data_ultima_exec, current_user.id, dados.observacao
     )
     return schemas.ControleVencimentoOut.model_validate(vencimento)
+
+@router.get(
+    "/{vencimento_id}/historico",
+    response_model=list[schemas.ExecucaoVencimentoHistoricoOut],
+    summary="Histórico imutável de execuções de um controle de vencimento",
+)
+async def historico_execucao(
+    vencimento_id: uuid.UUID,
+    db: DBSession,
+    _: CurrentUser,
+):
+    historico = await service.listar_historico_execucao(db, vencimento_id)
+    return [schemas.ExecucaoVencimentoHistoricoOut.model_validate(h) for h in historico]
 
 @router.post(
     "/{vencimento_id}/prorrogar",

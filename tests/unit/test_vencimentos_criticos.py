@@ -270,3 +270,110 @@ async def test_status_derivado_reflete_mudanca_de_periodicidade(db: AsyncSession
     await db.refresh(venc)
 
     assert service.calcular_status_vencimento(venc.data_vencimento) == StatusVencimento.OK.value
+
+
+# ------------------------------------------------------------------ #
+#  BUG-01 — matriz não pode esconder slots que compartilham PN
+#  (docs/backlog/revisor/achados_vencimentos.md)
+# ------------------------------------------------------------------ #
+
+@pytest.mark.asyncio
+async def test_matriz_nao_esconde_slots_com_mesmo_pn_na_mesma_aeronave(db: AsyncSession):
+    """Reproduz o cenário real da frota (CMFD1..CMFD4, MDP1/MDP2): dois slots
+    físicos distintos compartilhando o mesmo PN na mesma aeronave. Antes da
+    correção, o dicionário de instalações era chaveado por (aeronave, PN) e a
+    segunda instalação sobrescrevia a primeira — a matriz perdia a linha."""
+    from app.modules.aeronaves.models import Aeronave
+    from app.modules.equipamentos.models import Instalacao, SlotInventario
+    from app.shared.core.enums import StatusAeronave
+
+    modelo = await _criar_modelo(db, f"PN-{uuid.uuid4().hex[:8]}")
+    tipo = await _criar_tipo_controle(db, f"TC-{uuid.uuid4().hex[:6]}")
+    db.add(EquipamentoControle(id=uuid.uuid4(), modelo_id=modelo.id, tipo_controle_id=tipo.id, periodicidade_meses=12))
+    await db.flush()
+
+    slot1 = SlotInventario(id=uuid.uuid4(), nome_posicao="CMFD1", sistema="1P", modelo_id=modelo.id)
+    slot2 = SlotInventario(id=uuid.uuid4(), nome_posicao="CMFD2", sistema="1P", modelo_id=modelo.id)
+    db.add_all([slot1, slot2])
+    await db.flush()
+
+    item1 = await _criar_item(db, modelo.id, f"SN-A-{uuid.uuid4().hex[:8]}")
+    item2 = await _criar_item(db, modelo.id, f"SN-B-{uuid.uuid4().hex[:8]}")
+
+    # item1 (slot1) está VENCIDO; item2 (slot2) está OK — se a matriz
+    # colapsar os dois slots em uma linha só, um dos dois status desaparece.
+    await _criar_controle_vencimento(
+        db, item1.id, tipo.id, data_vencimento=date.today() - timedelta(days=5), status=StatusVencimento.VENCIDO
+    )
+    await _criar_controle_vencimento(
+        db, item2.id, tipo.id, data_vencimento=date.today() + timedelta(days=300), status=StatusVencimento.OK
+    )
+
+    aeronave = Aeronave(
+        id=uuid.uuid4(),
+        serial_number=f"SN-ACFT-{uuid.uuid4().hex[:6]}",
+        matricula=f"VC-{uuid.uuid4().hex[:6]}",
+        modelo="A-29",
+        status=StatusAeronave.DISPONIVEL,
+        data_inicio_operacao=date(2020, 1, 1),
+    )
+    db.add(aeronave)
+    await db.flush()
+
+    db.add(Instalacao(id=uuid.uuid4(), item_id=item1.id, aeronave_id=aeronave.id, slot_id=slot1.id, data_instalacao=date(2020, 1, 1)))
+    db.add(Instalacao(id=uuid.uuid4(), item_id=item2.id, aeronave_id=aeronave.id, slot_id=slot2.id, data_instalacao=date(2020, 1, 1)))
+    await db.flush()
+
+    matriz = await service.montar_matriz_vencimentos(db)
+
+    linha = next(a for a in matriz["aeronaves"] if a["aeronave_id"] == str(aeronave.id))
+    slots_por_nome_posicao = {s["nome_posicao"]: s for s in linha["slots"]}
+
+    # As duas posições físicas devem aparecer como linhas independentes.
+    assert set(slots_por_nome_posicao.keys()) == {"CMFD1", "CMFD2"}
+    assert slots_por_nome_posicao["CMFD1"]["numero_serie"] == item1.numero_serie
+    assert slots_por_nome_posicao["CMFD2"]["numero_serie"] == item2.numero_serie
+    assert slots_por_nome_posicao["CMFD1"]["controles"][0]["status"] == StatusVencimento.VENCIDO.value
+    assert slots_por_nome_posicao["CMFD2"]["controles"][0]["status"] == StatusVencimento.OK.value
+    assert linha["status_vencimento"] == "VENCIDO"
+
+
+@pytest.mark.asyncio
+async def test_matriz_mostra_slot_configurado_vazio_como_desinstalado(db: AsyncSession):
+    """Resposta do desenvolvedor à 'pergunta de produto' de BUG-01
+    (achados_vencimentos.md): um slot físico configurado, mas sem item
+    instalado no momento, deve aparecer como linha na matriz com status
+    DESINSTALADO — componente removido é informação relevante para a
+    liberação da aeronave, omiti-lo repetiria o mesmo silêncio do BUG-01."""
+    from app.modules.aeronaves.models import Aeronave
+    from app.modules.equipamentos.models import SlotInventario
+    from app.shared.core.enums import StatusAeronave
+
+    modelo = await _criar_modelo(db, f"PN-{uuid.uuid4().hex[:8]}")
+    tipo = await _criar_tipo_controle(db, f"TC-{uuid.uuid4().hex[:6]}")
+    db.add(EquipamentoControle(id=uuid.uuid4(), modelo_id=modelo.id, tipo_controle_id=tipo.id, periodicidade_meses=12))
+    await db.flush()
+    slot = SlotInventario(id=uuid.uuid4(), nome_posicao="ELT", sistema="CES", modelo_id=modelo.id)
+    db.add(slot)
+    await db.flush()
+
+    aeronave = Aeronave(
+        id=uuid.uuid4(),
+        serial_number=f"SN-ACFT-{uuid.uuid4().hex[:6]}",
+        matricula=f"VC-{uuid.uuid4().hex[:6]}",
+        modelo="A-29",
+        status=StatusAeronave.DISPONIVEL,
+        data_inicio_operacao=date(2020, 1, 1),
+    )
+    db.add(aeronave)
+    await db.flush()
+    # Nenhuma Instalacao criada -> slot permanece vazio.
+
+    matriz = await service.montar_matriz_vencimentos(db)
+
+    linha = next(a for a in matriz["aeronaves"] if a["aeronave_id"] == str(aeronave.id))
+    assert len(linha["slots"]) == 1
+    slot_out = linha["slots"][0]
+    assert slot_out["nome_posicao"] == "ELT"
+    assert slot_out["numero_serie"] is None
+    assert slot_out["controles"][0]["status"] == "DESINSTALADO"
