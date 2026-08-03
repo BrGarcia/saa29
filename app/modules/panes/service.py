@@ -24,6 +24,7 @@ from app.modules.panes.schemas import PaneCreate, PaneUpdate, FiltroPane, Adicio
 from app.shared.core.enums import StatusPane, StatusAeronave
 from app.shared.core.db_utils import escape_like
 from app.shared.core import exceptions as domain_exc
+from app.shared.core import file_validators
 from app.bootstrap.config import get_settings
 from app.shared.core.storage import get_storage_service
 
@@ -48,24 +49,21 @@ _TRANSICOES_VALIDAS = {
     StatusPane.RESOLVIDA: set(),  # Pane resolvida não pode transicionar
 }
 
-# Extensões permitidas para upload
-_EXTENSOES_PERMITIDAS = {".jpg", ".jpeg", ".png", ".pdf", ".heic", ".heif"}
-
-# MIME types reais permitidos (SEC-05: validação por conteúdo, não só extensão)
-_MIMES_PERMITIDOS = {"image/jpeg", "image/png", "application/pdf", "image/heic", "image/heif"}
+# Extensões/MIMEs permitidos para upload — fonte única em
+# app/shared/core/file_validators.py (item #3/Etapa 5). Antes, este módulo
+# mantinha sua própria cópia com HEIC/HEIF, mas o router chama
+# `file_validators.validate_file_upload` ANTES de qualquer código deste
+# arquivo — como aquele validador não conhecia HEIC/HEIF, todo upload real
+# desse formato já era rejeitado com 422 ali, tornando esta allowlist (e o
+# pipeline de conversão HEIC em app/shared/services/image/) inalcançável.
+_EXTENSOES_PERMITIDAS = file_validators.EXTENSOES_PERMITIDAS
+_MIMES_PERMITIDOS = file_validators.MIMES_PERMITIDOS
 
 # Item #31 (relatorio_panes_service.md): extensão e MIME eram validados
 # separadamente, sem checar coerência entre eles — um "foto.pdf" com bytes de
 # PNG passava (extensão .pdf permitida, MIME image/png permitido) e virava
 # imagem com extensão de PDF.
-_EXTENSAO_MIME_MAP = {
-    ".jpg": {"image/jpeg"},
-    ".jpeg": {"image/jpeg"},
-    ".png": {"image/png"},
-    ".pdf": {"application/pdf"},
-    ".heic": {"image/heic", "image/heif"},
-    ".heif": {"image/heif", "image/heic"},
-}
+_EXTENSAO_MIME_MAP = file_validators.EXTENSAO_MIME_MAP
 
 logger = logging.getLogger(__name__)
 

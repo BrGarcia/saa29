@@ -4,6 +4,7 @@ Factory da aplicação FastAPI para o SAA29.
 Orquestrador central seguindo o Princípio da Responsabilidade Única (SRP).
 """
 
+import logging
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,6 +39,19 @@ from app.modules.dashboard.router import router as dashboard_router
 from app.web.pages.router import router as pages_router
 from app.web.pages.mobile_router import router as mobile_router
 
+# Fonte única de verdade dos prefixos de API (JSON) — usada tanto para
+# registrar os routers quanto pelo exception handler global (item #8/Etapa
+# 5) para decidir se um 401/403 deve redirecionar para /login (rota de
+# página) ou devolver JSON (chamada de API). Manter isso como uma lista
+# duplicada e mantida manualmente em dois lugares foi o que causou o bug
+# original: o calendário usa /api/v1/calendario, prefixo fora do padrão
+# /<modulo> dos demais, e ficou de fora da cópia que existia em
+# exceptions.py.
+API_PREFIXES = [
+    "/auth/", "/efetivo/", "/aeronaves/", "/equipamentos/", "/vencimentos/",
+    "/panes/", "/inspecoes/", "/api/v1/calendario/", "/dashboard/",
+]
+
 
 def create_app() -> FastAPI:
     """
@@ -63,7 +77,7 @@ def create_app() -> FastAPI:
 
     # 2. Exception Handlers (Redirects UI e Rate Limits)
     from app.shared.core.exceptions import setup_exception_handlers
-    setup_exception_handlers(app)
+    setup_exception_handlers(app, api_prefixes=API_PREFIXES)
 
     # 3. Middlewares e Rotas
     _register_middlewares(app)
@@ -95,6 +109,18 @@ def _register_middlewares(app: FastAPI) -> None:
     # CORS Configuration
     cors_origins = settings.allowed_origins
     if "*" in cors_origins:
+        # allow_credentials=True proíbe usar "*" como origem (regra do
+        # CORS): sem este fallback, o middleware simplesmente rejeitaria
+        # toda origem em runtime. Silenciosamente trocado por um conjunto
+        # fixo de origens de desenvolvimento — se ALLOWED_ORIGINS="*" for
+        # deixado assim em produção por engano, o CORS quebra sem que
+        # ninguém saiba o motivo. Logado como warning para não passar
+        # despercebido num deploy real.
+        logging.warning(
+            "ALLOWED_ORIGINS=\"*\" não é compatível com allow_credentials=True — "
+            "usando origens de desenvolvimento (localhost) como fallback. "
+            "Configure ALLOWED_ORIGINS explicitamente em produção."
+        )
         cors_origins = ["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:3000"]
 
     app.add_middleware(

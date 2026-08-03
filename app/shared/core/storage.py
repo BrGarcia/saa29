@@ -13,6 +13,7 @@ from typing import Optional
 from pathlib import Path
 
 from app.bootstrap.config import get_settings
+from app.shared.core.file_validators import EXTENSOES_PERMITIDAS, validar_nome_arquivo_seguro
 
 
 class StorageService(ABC):
@@ -44,20 +45,20 @@ class LocalStorageService(StorageService):
 
     async def upload(self, file_content: bytes, original_filename: str, content_type: str) -> str:
         # Sanitizar nome de arquivo contra path traversal (Defesa em Profundidade)
-        if '..' in original_filename or '/' in original_filename or '\\' in original_filename:
-            raise ValueError("Tentativa de path traversal detectada no nome do arquivo.")
-            
+        validar_nome_arquivo_seguro(original_filename)
+
         ext = os.path.splitext(original_filename)[1].lower()
-        ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf', '.doc', '.docx']
-        if ext not in ALLOWED_EXTENSIONS:
+        if ext not in EXTENSOES_PERMITIDAS:
             raise ValueError(f"Extensão de arquivo não permitida: {ext}")
             
         new_filename = f"{uuid.uuid4().hex}{ext}"
         file_path = self.upload_dir / new_filename
 
-        # Gravação local (pode bloquear levemente event loop em arquivos grandes, mas é local)
-        with open(file_path, "wb") as f:
-            f.write(file_content)
+        # Gravação em thread separada — I/O de arquivo é bloqueante e, feita
+        # direto na coroutine, trava o event loop inteiro (todas as outras
+        # requisições concorrentes) pela duração da escrita. Mesmo padrão já
+        # usado por R2StorageService._run_in_executor ao lado.
+        await asyncio.to_thread(file_path.write_bytes, file_content)
 
         return str(file_path)
 
@@ -100,12 +101,10 @@ class R2StorageService(StorageService):
 
     async def upload(self, file_content: bytes, original_filename: str, content_type: str) -> str:
         # Sanitizar nome de arquivo contra path traversal
-        if '..' in original_filename or '/' in original_filename or '\\' in original_filename:
-            raise ValueError("Tentativa de path traversal detectada no nome do arquivo.")
-            
+        validar_nome_arquivo_seguro(original_filename)
+
         ext = os.path.splitext(original_filename)[1].lower()
-        ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf', '.doc', '.docx']
-        if ext not in ALLOWED_EXTENSIONS:
+        if ext not in EXTENSOES_PERMITIDAS:
             raise ValueError(f"Extensão de arquivo não permitida: {ext}")
             
         key = f"anexos/{uuid.uuid4().hex}{ext}"

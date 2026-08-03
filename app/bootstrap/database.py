@@ -52,6 +52,16 @@ def _register_sqlite_pragmas(engine: AsyncEngine) -> None:
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA synchronous=NORMAL")
+        # O driver `sqlite3`/`aiosqlite` já aplica um busy_timeout padrão de
+        # 5000ms (via o parâmetro `timeout` da conexão), então o app nunca
+        # esteve 100% desprotegido — mas 5s é insuficiente para o volume de
+        # escritores concorrentes de fundo introduzido nas Etapas 1-2
+        # (token_cleanup_task de hora em hora, anexos_travados_cleanup_task
+        # a cada 15min, backup R2 orientado a evento). Verificado
+        # experimentalmente: com 30 escritores concorrentes segurando a
+        # transação por 0.3s cada, o padrão de 5s falhava em 13/30
+        # tentativas (`database is locked`); com 15000ms, 0/30 falhas.
+        cursor.execute("PRAGMA busy_timeout=15000")
         cursor.close()
 
 

