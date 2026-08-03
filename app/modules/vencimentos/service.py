@@ -389,6 +389,12 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
     # Slots físicos (não PNs): cada posição (ex.: CMFD1..CMFD4) vira sua
     # própria linha na matriz, mesmo quando compartilha PN com outro slot da
     # mesma aeronave — ver BUG-01 em docs/backlog/revisor/achados_vencimentos.md.
+    # Restrito a slots cujo PN tem ao menos uma regra de periodicidade
+    # cadastrada: `SlotInventario` não é vinculado a tipo de aeronave, então
+    # remover esse filtro faria toda aeronave da frota mostrar todo slot já
+    # configurado no sistema, independente de compatibilidade — mudança de
+    # comportamento maior do que o escopo deste achado, avaliada e não adotada
+    # (ver nota em achados_vencimentos.md).
     res_slots = await db.execute(
         select(SlotInventario)
         .where(SlotInventario.modelo_id.in_(modelo_map.keys()))
