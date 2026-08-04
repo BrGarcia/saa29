@@ -63,7 +63,7 @@ def test_process_image_isolation_no_leaks(source_image, tmp_path):
     # nem modificar o original
     original_mtime = source_image.stat().st_mtime
 
-    final_path_str = process_image(
+    process_image(
         source_image,
         max_width=500,
         max_height=500,

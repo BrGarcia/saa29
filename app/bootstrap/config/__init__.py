@@ -8,7 +8,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import model_validator, Field
 from functools import lru_cache
 import warnings
-import os
 
 
 class Settings(BaseSettings):
@@ -163,7 +162,10 @@ class Settings(BaseSettings):
             if self.app_debug:
                 warnings.warn(
                     "Running in development mode with debug=True (allowed but not for production)",
-                    UserWarning
+                    UserWarning,
+                    # stacklevel=2 aponta o aviso para quem instanciou Settings,
+                    # nao para esta linha do validador.
+                    stacklevel=2,
                 )
         
         return self

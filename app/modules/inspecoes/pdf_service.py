@@ -627,7 +627,6 @@ async def gerar_pdf_checklist_inspecao(db: AsyncSession, inspecao_id: uuid.UUID)
     
     dt_inicio = _format_date(inspecao.data_inicio, "%d/%m/%Y")
     dt_dpe = _format_date(inspecao.data_fim_prevista, "%d/%m/%Y")
-    dt_gerado = datetime.now().strftime("%d/%m/%Y %H:%M")
 
     info_data = [
         [
@@ -658,7 +657,7 @@ async def gerar_pdf_checklist_inspecao(db: AsyncSession, inspecao_id: uuid.UUID)
     elements.append(info_table)
     elements.append(Spacer(1, 8))
 
-    def build_checklist_table(items, col_widths=[28, 352, 60, 80]):
+    def build_checklist_table(items, col_widths=(28, 352, 60, 80)):
         headers = [
             Paragraph("<b>Item</b>", table_header_style),
             Paragraph("<b>Descrição da Tarefa de Inspeção / Delineamento</b>", table_header_style),

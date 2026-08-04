@@ -173,7 +173,7 @@ def gerar_pdf_checklist(filename: str = "docs/CHECKLIST Delineamento A-29.pdf"):
     elements.append(info_table)
     elements.append(Spacer(1, 8))
 
-    def build_checklist_table(items, col_widths=[28, 352, 60, 80]):
+    def build_checklist_table(items, col_widths=(28, 352, 60, 80)):
         headers = [
             Paragraph("<b>Item</b>", table_header_style),
             Paragraph("<b>Descrição da Tarefa de Inspeção / Delineamento</b>", table_header_style),

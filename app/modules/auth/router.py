@@ -233,11 +233,11 @@ async def refresh_access_token(
         # Buscar usuário
         try:
             val_usuario_id = uuid.UUID(usuario_id)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as exc:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="ID de usuário inválido no token",
-            )
+            ) from exc
             
         user_result = await db.execute(
             select(Usuario).where(Usuario.id == val_usuario_id)
@@ -298,7 +298,7 @@ async def refresh_access_token(
         
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         # RISCO-09: antes engolia qualquer exceção sem log — inclusive
         # falha de infraestrutura (banco fora do ar, erro de driver), que
         # ficava indistinguível de "token inválido" e sem rastro para
@@ -307,7 +307,7 @@ async def refresh_access_token(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token inválido",
-        )
+        ) from exc
 
 
 @router.post(

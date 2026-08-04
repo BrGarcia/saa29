@@ -133,7 +133,7 @@ async def sincronizar_status_aeronave(db: AsyncSession, aeronave_id: uuid.UUID) 
     q_panes = select(exists().where(
         Pane.aeronave_id == aeronave_id,
         Pane.status == StatusPane.ABERTA.value,
-        Pane.ativo == True,
+        Pane.ativo.is_(True),
     ))
     tem_panes_abertas = bool((await db.execute(q_panes)).scalar())
 
@@ -952,7 +952,7 @@ async def adicionar_responsavel(
 async def listar_sistemas_ata(db: AsyncSession) -> list[SistemaAta]:
     """Lista todos os Sistemas ATA ativos."""
     result = await db.execute(
-        select(SistemaAta).where(SistemaAta.ativo == True).order_by(SistemaAta.codigo)
+        select(SistemaAta).where(SistemaAta.ativo.is_(True)).order_by(SistemaAta.codigo)
     )
     return list(result.scalars().all())
 

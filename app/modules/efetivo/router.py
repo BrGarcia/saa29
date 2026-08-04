@@ -17,7 +17,7 @@ async def registrar_indisponibilidade(dados: schemas.IndisponibilidadeCreate, db
     try:
         return await service.registrar_indisponibilidade(db, dados)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 @router.get("/ativas", response_model=list[schemas.IndisponibilidadeOut])
 async def listar_ativas(db: DBSession, _: CurrentUser, data_ref: date | None = Query(None)):

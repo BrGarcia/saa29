@@ -154,7 +154,7 @@ async def test_confirmacao_com_aeronave_diferente_da_previa_e_rejeitada(db: Asyn
     """RISCO-02: o cliente não pode confirmar para uma aeronave diferente da
     que a prévia calculou pelo nome do arquivo."""
     matricula = f"CF-{uuid.uuid4().hex[:6]}"
-    aeronave = await _criar_aeronave(db, matricula)
+    await _criar_aeronave(db, matricula)
     outra_aeronave = await _criar_aeronave(db, f"OUTRA-{uuid.uuid4().hex[:6]}")
     modelo = await _criar_modelo(db, f"PN-{uuid.uuid4().hex[:8]}")
     slot = await _criar_slot(db, modelo.id, "RAD1", "POS1")

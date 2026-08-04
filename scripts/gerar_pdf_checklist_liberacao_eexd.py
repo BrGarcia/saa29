@@ -182,7 +182,7 @@ def gerar_pdf_checklist_eexd(filename: str = "docs/CHECKLIST Liberação EEXD A-
     elements.append(info_table)
     elements.append(Spacer(1, 8))
 
-    def build_checklist_table(items, col_widths=[28, 352, 60, 80]):
+    def build_checklist_table(items, col_widths=(28, 352, 60, 80)):
         headers = [
             Paragraph("<b>Item</b>", table_header_style),
             Paragraph("<b>Descrição da Tarefa de Inspeção / Liberação EEXD</b>", table_header_style),

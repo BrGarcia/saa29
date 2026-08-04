@@ -39,6 +39,8 @@ from app.modules.dashboard.router import router as dashboard_router
 from app.web.pages.router import router as pages_router
 from app.web.pages.mobile_router import router as mobile_router
 
+logger = logging.getLogger(__name__)
+
 # Fonte única de verdade dos prefixos de API (JSON) — usada tanto para
 # registrar os routers quanto pelo exception handler global (item #8/Etapa
 # 5) para decidir se um 401/403 deve redirecionar para /login (rota de
@@ -116,7 +118,7 @@ def _register_middlewares(app: FastAPI) -> None:
         # deixado assim em produção por engano, o CORS quebra sem que
         # ninguém saiba o motivo. Logado como warning para não passar
         # despercebido num deploy real.
-        logging.warning(
+        logger.warning(
             "ALLOWED_ORIGINS=\"*\" não é compatível com allow_credentials=True — "
             "usando origens de desenvolvimento (localhost) como fallback. "
             "Configure ALLOWED_ORIGINS explicitamente em produção."

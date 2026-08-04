@@ -191,7 +191,7 @@ class TestInventarioFull:
         logs = response.json()
 
         # Buscar o log específico deste teste na lista (pode haver sujeira de outros testes)
-        nosso_log = next((l for l in logs if l["item_sn"] == sn.upper()), None)
+        nosso_log = next((log for log in logs if log["item_sn"] == sn.upper()), None)
 
         assert nosso_log is not None, f"Log para o item {sn} não encontrado no histórico"
         assert nosso_log["usuario_trigrama"] == "ABC"
@@ -244,7 +244,7 @@ class TestInventarioFull:
 
         historico = await client.get(f"{INVENTARIO_URL}/historico", headers=headers)
         logs = historico.json()
-        nosso_log = next((l for l in logs if l["item_sn"] == sn.upper()), None)
+        nosso_log = next((log for log in logs if log["item_sn"] == sn.upper()), None)
 
         assert nosso_log is not None
         # O autor registrado é sempre quem autenticou a requisição, nunca o

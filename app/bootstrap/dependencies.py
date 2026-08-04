@@ -5,7 +5,7 @@ Dependências reutilizáveis do FastAPI (injeção de dependência).
 
 from typing import AsyncGenerator, Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,8 +38,6 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         finally:
             await session.close()
 
-
-from fastapi import Request
 
 def get_token_from_request(
     request: Request,
@@ -98,8 +96,8 @@ async def get_current_user(
         if result.scalar_one_or_none() is not None:
             raise credentials_exception
             
-    except JWTError:
-        raise credentials_exception
+    except JWTError as exc:
+        raise credentials_exception from exc
 
     from app.modules.auth.service import buscar_por_username
     usuario = await buscar_por_username(db, username)

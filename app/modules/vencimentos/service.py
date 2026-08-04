@@ -277,7 +277,7 @@ async def _desativar_prorrogacoes_ativas(db: AsyncSession, vencimento: ControleV
         .where(
             and_(
                 ProrrogacaoVencimento.controle_id == vencimento.id,
-                ProrrogacaoVencimento.ativo == True
+                ProrrogacaoVencimento.ativo.is_(True)
             )
         )
         .values(ativo=False)
@@ -496,9 +496,12 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
                         else:
                             status_final = "PRORROGADO"
                 
-                if status_final == "VENCIDO": has_vencido = True
-                elif status_final == "DESINSTALADO": has_desinstalado = True
-                elif status_final == "VENCENDO": has_vencendo = True
+                if status_final == "VENCIDO":
+                    has_vencido = True
+                elif status_final == "DESINSTALADO":
+                    has_desinstalado = True
+                elif status_final == "VENCENDO":
+                    has_vencendo = True
 
                 controles_out.append({
                     "vencimento_id": str(venc.id) if venc else None,
@@ -521,10 +524,14 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
                 "controles": controles_out,
             })
 
-        if has_vencido: status_venc = "VENCIDO"
-        elif has_desinstalado: status_venc = "INCOMPLETA"
-        elif has_vencendo: status_venc = "VENCENDO"
-        else: status_venc = "OK"
+        if has_vencido:
+            status_venc = "VENCIDO"
+        elif has_desinstalado:
+            status_venc = "INCOMPLETA"
+        elif has_vencendo:
+            status_venc = "VENCENDO"
+        else:
+            status_venc = "OK"
 
         aeronaves_out.append({
             "aeronave_id": str(aeronave.id),
@@ -592,7 +599,7 @@ async def cancelar_prorrogacao(db: AsyncSession, vencimento_id: uuid.UUID) -> bo
         .where(
             and_(
                 ProrrogacaoVencimento.controle_id == vencimento_id,
-                ProrrogacaoVencimento.ativo == True
+                ProrrogacaoVencimento.ativo.is_(True)
             )
         )
         .values(ativo=False)

@@ -148,7 +148,8 @@ async def obter_previa_xlsx_inventario(
 
         xlsx_data: dict[tuple[str, str], str] = {} # (PN, POS) -> SN
         for row in ws.iter_rows(min_row=2, values_only=True):
-            if len(row) < 6: continue
+            if len(row) < 6:
+                continue
             pn_xlsx = str(row[1]).strip().upper() if row[1] else None
             pos_xlsx = str(row[4]).strip().upper() if row[4] else ""
             sn_xlsx = str(row[5]).strip() if row[5] else None
@@ -205,7 +206,8 @@ async def obter_previa_xlsx_inventario(
             status_msg=status_msg
         ))
 
-    if hasattr(wb, 'close'): wb.close()
+    if hasattr(wb, 'close'):
+        wb.close()
 
     resultado.preview_token = _gerar_preview_token(
         aeronave.id, [item.slot_id for item in resultado.itens]

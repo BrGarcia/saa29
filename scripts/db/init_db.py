@@ -17,7 +17,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 try:
-    from scripts.seed import seed_equipamentos, seed_aeronaves, seed_sistemas_ata, seed_vencimentos, seed_inspecoes, seed_calendario
+    from scripts.seed import seed_equipamentos, seed_aeronaves, seed_sistemas_ata, seed_vencimentos, seed_inspecoes
 except (ImportError, ModuleNotFoundError):
     # Fallback para execução direta via python -m scripts.db.init_db
     from scripts.seed import seed_equipamentos, seed_aeronaves, seed_sistemas_ata, seed_vencimentos, seed_inspecoes
@@ -62,7 +62,7 @@ async def init_db():
         await seed_vencimentos.run(session)
 
         # 7. Garantir Tipos de Calendário
-        # await seed_calendario.run(session)
+        # await seed_calendario.run(session)  # reativar: reimportar seed_calendario acima
 
         await session.commit()
         print("🚀 Inicialização do Banco concluída!")

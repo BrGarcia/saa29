@@ -1,6 +1,6 @@
 import pytest
 from PIL import Image
-from app.shared.services.image.converter import convert_if_needed
+from app.shared.services.image.converter import ImageConversionError, convert_if_needed
 
 @pytest.fixture
 def temp_jpg_path(tmp_path):
@@ -21,5 +21,5 @@ def test_convert_if_needed_no_action_for_jpg(temp_jpg_path):
 def test_convert_if_needed_non_existent():
     # Se não existe, Path().resolve() pode falhar ou o Image.open vai falhar
     # O converter atual não checa existência explicitamente antes do Image.open
-    with pytest.raises(Exception):
+    with pytest.raises(ImageConversionError):
         convert_if_needed("non_existent.heic")
