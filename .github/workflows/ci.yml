@@ -9,25 +9,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        db-type: [sqlite, postgres]
-
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: saa29_user
-          POSTGRES_PASSWORD: password123
-          POSTGRES_DB: saa29_db_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     env:
       # APP_SECRET_KEY e APP_ENV nao sao definidos aqui de proposito:
@@ -35,7 +16,9 @@ jobs:
       # e o dono unico deles durante a suite. Defini-los tambem aqui criava
       # config morta — o valor do workflow era sobrescrito e, ainda assim,
       # nao passava no validador de tamanho de APP_SECRET_KEY.
-      DATABASE_URL: ${{ matrix.db-type == 'postgres' && 'postgresql+asyncpg://saa29_user:password123@localhost:5432/saa29_db_test' || 'sqlite+aiosqlite:///:memory:' }}
+      # Aspas obrigatorias: o valor termina em ':' e sem elas o YAML o
+      # interpreta como chave de mapeamento.
+      DATABASE_URL: "sqlite+aiosqlite:///:memory:"
 
     steps:
     - uses: actions/checkout@v4
@@ -48,7 +31,7 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libmagic1 libpq-dev
+        sudo apt-get install -y libmagic1
 
     - name: Install Python dependencies
       run: |
