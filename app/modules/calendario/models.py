@@ -5,16 +5,45 @@ Modelos ORM do modulo de calendario.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.types import TypeDecorator
 
 from app.bootstrap.database import Base
 
 if TYPE_CHECKING:
     from app.modules.auth.models import Usuario
+
+
+class UTCDateTime(TypeDecorator):
+    """`DateTime(timezone=True)` com round-trip garantido em UTC (BUG-02).
+
+    O dialeto SQLite (`aiosqlite`) não tem suporte nativo a timezone: ele
+    grava só os campos de data/hora (sem o offset) e devolve um `datetime`
+    *naive* na leitura — se o valor gravado não estivesse em UTC, o offset
+    original seria perdido silenciosamente, não apenas o `tzinfo`. Por isso
+    esta classe normaliza os dois lados: converte para UTC antes de gravar
+    (`process_bind_param`) e reanexa `tzinfo=UTC` ao ler de volta
+    (`process_result_value`). Sem isso, comparar o valor lido contra um
+    `datetime` aware vindo do payload da API também levanta
+    `TypeError: can't compare offset-naive and offset-aware datetimes`.
+    """
+
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_bind_param(self, value: datetime | None, dialect) -> datetime | None:
+        if value is not None and value.tzinfo is not None:
+            return value.astimezone(timezone.utc)
+        return value
+
+    def process_result_value(self, value: datetime | None, dialect) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
 
 
 class EventType(Base):
@@ -36,8 +65,8 @@ class EventType(Base):
     private_color: Mapped[str | None] = mapped_column(String(20), nullable=True)
     icon: Mapped[str] = mapped_column(String(20), nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
-    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=func.now(), nullable=False)
+    updated_at: Mapped[datetime | None] = mapped_column(UTCDateTime, onupdate=func.now(), nullable=True)
 
     events: Mapped[list["CalendarEvent"]] = relationship(
         back_populates="event_type",
@@ -72,13 +101,13 @@ class CalendarEvent(Base):
         nullable=False,
         index=True,
     )
-    start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
-    end_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    start_date: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, index=True)
+    end_date: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, index=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
-    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=func.now(), nullable=False)
+    updated_at: Mapped[datetime | None] = mapped_column(UTCDateTime, onupdate=func.now(), nullable=True)
     # Soft-delete (10.5): nao remove fisicamente do banco, apenas marca como excluido
-    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True, index=True)
     deleted_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("usuarios.id", ondelete="RESTRICT"),
         nullable=True,
