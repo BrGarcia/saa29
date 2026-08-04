@@ -1,5 +1,4 @@
 import sqlite3
-import re
 
 def update_slots():
     conn = sqlite3.connect('saa29_local.db')

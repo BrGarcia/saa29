@@ -1,4 +1,3 @@
-import multiprocessing
 import os
 
 # Bind - Railway uses the PORT environment variable

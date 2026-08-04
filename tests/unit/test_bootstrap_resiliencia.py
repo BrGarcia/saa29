@@ -15,7 +15,7 @@ import tempfile
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import event, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 from app.bootstrap.database import _register_sqlite_pragmas

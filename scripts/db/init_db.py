@@ -20,7 +20,7 @@ try:
     from scripts.seed import seed_equipamentos, seed_aeronaves, seed_sistemas_ata, seed_vencimentos, seed_inspecoes, seed_calendario
 except (ImportError, ModuleNotFoundError):
     # Fallback para execução direta via python -m scripts.db.init_db
-    from scripts.seed import seed_equipamentos, seed_aeronaves, seed_sistemas_ata, seed_vencimentos, seed_inspecoes, seed_calendario
+    from scripts.seed import seed_equipamentos, seed_aeronaves, seed_sistemas_ata, seed_vencimentos, seed_inspecoes
 
 from app.bootstrap.database import get_session_factory
 
@@ -28,15 +28,7 @@ from app.bootstrap.database import get_session_factory
 load_dotenv()
 
 # Importar TODOS os modelos para o SQLAlchemy Registry (SEC-02/COR-01)
-import app.modules.inspecoes.models
-import app.modules.auth.models
-import app.modules.efetivo.models
-import app.modules.aeronaves.models
-import app.modules.equipamentos.models
-import app.modules.vencimentos.models
-import app.modules.panes.models
 
-from app.modules.aeronaves.models import Aeronave
 
 # (Removido duplicidade de FROTA_PADRAO)
 
@@ -73,7 +65,7 @@ async def init_db():
         # await seed_calendario.run(session)
 
         await session.commit()
-        print(f"🚀 Inicialização do Banco concluída!")
+        print("🚀 Inicialização do Banco concluída!")
 
 if __name__ == "__main__":
     asyncio.run(init_db())

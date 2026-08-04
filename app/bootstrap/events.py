@@ -11,7 +11,7 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 
 from app.bootstrap.config import get_settings
-from app.bootstrap import tasks, seed
+from app.bootstrap import tasks
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:

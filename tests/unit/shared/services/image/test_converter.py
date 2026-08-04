@@ -1,7 +1,6 @@
 import pytest
-from pathlib import Path
 from PIL import Image
-from app.shared.services.image.converter import convert_if_needed, ImageConversionError
+from app.shared.services.image.converter import convert_if_needed
 
 @pytest.fixture
 def temp_jpg_path(tmp_path):

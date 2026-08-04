@@ -6,10 +6,9 @@ Alinhado com a arquitetura PN vs Slot e novas siglas (CEI, CES, 1P, 2P).
 
 import uuid
 import pytest
-import asyncio
-from datetime import date, timedelta, datetime
+from datetime import timedelta, datetime
 from httpx import AsyncClient
-from sqlalchemy import select, update
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.equipamentos.models import SlotInventario, Instalacao
 

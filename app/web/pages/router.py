@@ -3,10 +3,10 @@ app/pages/router.py
 Rotas do Frontend (Jinja2 Templates). Servindo o MVP de Interface.
 """
 
-from fastapi import APIRouter, Request, Depends, status
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from app.bootstrap.dependencies import get_current_user, require_role, AdminRequired
+from app.bootstrap.dependencies import get_current_user, AdminRequired
 
 router = APIRouter(tags=["Frontend"])
 

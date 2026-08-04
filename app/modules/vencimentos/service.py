@@ -7,7 +7,7 @@ import logging
 import uuid
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, and_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload

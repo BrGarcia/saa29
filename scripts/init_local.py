@@ -7,14 +7,6 @@ import subprocess
 sys.path.append(os.getcwd())
 
 # Importar TODOS os modelos para garantir que o SQLAlchemy Registry os conheça (COR-01)
-import app.modules.auth.models
-import app.modules.aeronaves.models
-import app.modules.equipamentos.models
-import app.modules.panes.models
-import app.modules.inspecoes.models
-import app.modules.vencimentos.models
-import app.modules.efetivo.models
-import app.modules.calendario.models
 
 from app.bootstrap.database import drop_all_tables, create_all_tables
 from scripts.seed.seed import main as run_seeds

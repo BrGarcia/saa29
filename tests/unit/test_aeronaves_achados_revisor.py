@@ -17,7 +17,6 @@ from datetime import date
 
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.aeronaves import service

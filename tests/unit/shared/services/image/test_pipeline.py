@@ -82,7 +82,7 @@ def test_process_image_isolation_no_leaks(source_image, tmp_path):
 def test_process_image_cleans_up_temp_directory(source_image, tmp_path):
     """Garante que o TemporaryDirectory criado pelo pipeline é removido após a execução."""
     import tempfile
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import patch
 
     captured_tmp_dirs: list[str] = []
     _original_tmp_dir = tempfile.TemporaryDirectory

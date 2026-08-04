@@ -183,7 +183,7 @@ async def obter_previa_xlsx_inventario(
             if not sn_xlsx or sn_xlsx.lower() in ("none", "", "-"):
                 sn_final = ""
                 status = "REMOVED"
-                status_msg = f"∅ Removido (vazio no XLSX)"
+                status_msg = "∅ Removido (vazio no XLSX)"
             else:
                 sn_final = sn_xlsx
                 status = "OK"

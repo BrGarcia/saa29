@@ -3,7 +3,6 @@ tests/test_exporter.py
 Testes unitários para o gerador de relatórios CSV e XLSX.
 """
 
-import pytest
 from app.shared.exporter import gerar_csv, gerar_xlsx
 
 

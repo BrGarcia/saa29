@@ -372,7 +372,7 @@ class TestProrrogacoes:
         # 3. Verificar se a prorrogação foi desativada no banco (via endpoint se existisse, ou verificando se o cancelamento retorna false)
         # Como não temos GET individual de prorrogação, vamos assumir que o fluxo de registrar_execucao chamou a desativação.
         # Podemos verificar na matriz se o status não é mais PRORROGADO.
-        matriz = (await client.get(f"/vencimentos/matriz", headers=headers)).json()
+        matriz = (await client.get("/vencimentos/matriz", headers=headers)).json()
         # Localizar a célula correta na matriz e ver que prorrogado é false
         for acft in matriz["aeronaves"]:
             for slot in acft["slots"]:
@@ -394,7 +394,7 @@ class TestMatrizVencimentos:
         usuario_e_token: dict,
     ):
         headers = usuario_e_token["headers"]
-        response = await client.get(f"/vencimentos/matriz", headers=headers)
+        response = await client.get("/vencimentos/matriz", headers=headers)
         assert response.status_code == 200
         data = response.json()
         assert "cabecalho" in data

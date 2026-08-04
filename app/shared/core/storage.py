@@ -9,7 +9,6 @@ import functools
 import boto3
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Optional
 from pathlib import Path
 
 from app.bootstrap.config import get_settings

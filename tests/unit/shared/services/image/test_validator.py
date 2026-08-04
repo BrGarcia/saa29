@@ -1,7 +1,5 @@
 import pytest
-from pathlib import Path
 from PIL import Image
-import io
 from app.shared.services.image.validator import validate_image, ImageValidationError
 
 @pytest.fixture

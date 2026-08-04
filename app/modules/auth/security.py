@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import base64
 
-from jose import jwt, JWTError
+from jose import jwt
 from passlib.context import CryptContext
 
 from app.bootstrap.config import get_settings

@@ -8,7 +8,7 @@ import logging
 import uuid
 from datetime import datetime, timezone, timedelta
 
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import case, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload

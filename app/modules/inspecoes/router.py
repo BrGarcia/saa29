@@ -12,7 +12,7 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
 
-from app.bootstrap.dependencies import CurrentUser, DBSession, EncarregadoOuAdmin, AdminRequired, ExecucaoPermitida, EncarregadoInspetorOuAdmin
+from app.bootstrap.dependencies import CurrentUser, DBSession, EncarregadoOuAdmin, EncarregadoInspetorOuAdmin
 from app.modules.inspecoes import schemas, service, pdf_service
 from app.shared.core import exceptions as domain_exc
 from app.shared.core.enums import StatusInspecao

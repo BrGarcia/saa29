@@ -5,7 +5,7 @@ Schemas Pydantic v2 para gestão de disponibilidade de pessoal.
 
 import uuid
 from datetime import datetime, date
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 from app.shared.core.enums import TipoIndisponibilidade
 
 class IndisponibilidadeCreate(BaseModel):

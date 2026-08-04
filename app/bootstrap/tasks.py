@@ -3,13 +3,11 @@ app/bootstrap/tasks.py
 Gerenciamento de tarefas em segundo plano e backups (R2).
 """
 
-import os
 import sys
 import logging
 import asyncio
 from typing import Optional
 
-from app.bootstrap.config import get_settings
 
 # --- Estado Global para Backups ---
 _db_dirty: bool = False          # True quando há escrita não salva no R2
