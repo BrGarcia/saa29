@@ -7,7 +7,7 @@
 > 5/7 corrigidos, 1 parcial (RISCO-03: comentário explícito adicionado ao atalho de seed,
 > sem mudança estrutural — o próprio achado já classificava (1) como sem ação urgente), 1 não
 > corrigido por decisão consciente (MELHORIA-06, que o próprio achado já classificava como não
-> urgente no volume atual). Suite completa: 406 testes, 0 falhas (9 novos em
+> urgente no volume atual). Commit `c5e9ff3`. Suite completa: 406 testes, 0 falhas (9 novos em
 > `tests/unit/test_efetivo.py`). Status por item marcado inline em cada achado abaixo (campo
 > `**Status:**`).
 
