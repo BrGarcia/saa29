@@ -51,3 +51,14 @@ var/logs/
 var/db
 var/uploads/
 var/tmp/
+
+# === Acervo de Manuais e Documentos de Referência (Não Versionados) ===
+var/manuais/
+var/Publicações/
+var/publicacoes/
+data/
+*.pdf
+*.PDF
+*.zip
+
+
