@@ -1,9 +1,9 @@
 # Relatório v2 — Auditoria da Feature Central de Pedidos
 
 > **Finalidade:** documento de **consulta** (changelog conceitual da auditoria). Substitui `relatorio.md`.
-> **Planejamento vive em:** `feature_controle_pedidos.md` (v1.2) — fonte única.
-> **Artefatos:** `feature_controle_pedidos.md` (spec) · `mockup_pedidos.html` (visual, raiz).
-> **Data:** 2026-08-02 · **Status:** ✅ correções aplicadas no feature v1.2.
+> **Planejamento vive em:** `feature_controle_pedidos.md` (v1.3) — fonte única.
+> **Artefatos:** `feature_controle_pedidos.md` (spec) · `mockup_pedidos.html` (visual, nesta pasta).
+> **Data:** 2026-08-02 · **Status:** ✅ correções aplicadas no feature v1.2; verificação contra o código na v1.3 (2026-08-03, §7).
 
 ---
 
@@ -62,3 +62,25 @@ PK `UUID`/`uuid4` · enums `str,Enum` como `String(20)` · `created_at`/`updated
 
 - **Doc drift do inventário (não bloqueia pedidos):** `RBAC.md:55` diz instalar = MAN/ENC/ADM, mas `referencia-api.md:598` diz ENC/ADM. Reconciliar na doc do módulo de equipamentos.
 - **Drift de enums em docs:** `Database.md`/`referencia-api.md` listam papéis sem INSPETOR em alguns trechos; `TipoPapel` correto tem 4 papéis.
+
+---
+
+## 7. Verificação contra o código (v1.3 — 2026-08-03)
+
+Spec v1.2 auditada arquivo a arquivo contra o codebase. Confirmados como corretos: enums padrão `str, enum.Enum`, `EncarregadoInspetorOuAdmin` (existe em `app/bootstrap/dependencies.py`), todos os nomes de tabelas/campos citados (`slots_inventario`, `instalacoes.data_remocao`, `controle_vencimentos`, `aeronaves.matricula`, `usuarios.trigrama`, etc.), rotas sem `/api`, padrão `ativo` + `/restaurar`, cookie `saa29_token`, CSP `script-src 'self'`.
+
+Divergências corrigidas na v1.3:
+
+| Tema | v1.2 dizia | Fato no código (v1.3) |
+|---|---|---|
+| **Local do mockup** | Raiz do repo (a "correção" do §2 estava errada) | `docs/backlog/modulo_pedidos/mockup_pedidos.html` — único no repo |
+| **Registro do router** | "Registrar no bootstrap" (vago) | `include_router(prefix="/pedidos")` **+** lista `API_PREFIXES` em `app/bootstrap/main.py` (decide redirect vs JSON em 401/403) |
+| **Export** | `?formato=csv\|xlsx` | Param real é `format` (`Query(alias="format")`, padrão `/inspecoes/export`) |
+| **Ordenação de rotas** | Não mencionada | Literais antes de `/{id}`; `{id}` tipado `uuid.UUID` (precedente: `equipamentos/router.py:199`) |
+| **Ícone na nav** | Emoji 📦 | Nav usa ícones SVG inline com `title` + highlight por `request.url.path` |
+| **`solicitante_trigrama`** | `str` obrigatório | `Usuario.trigrama` é nullable → `str \| None` |
+| **Docs centrais (Fase 4)** | Nomes soltos | Caminhos reais: `docs/core/{SRS,SPECS}.md`, `docs/architecture/{Database,referencia-api,overview,RBAC}.md` |
+| **Async** | Não mencionado | Engine async (aiosqlite); services são `async def` com `AsyncSession` |
+| **RBAC (uso)** | Só o nome da dependência | Usada como parâmetro anotado; papéis são constantes string de `app/modules/auth/roles.py`, não enum |
+| **Índice parcial** | "Validar compatibilidade" | Sem precedente no projeto; service é a garantia primária, índice opcional |
+| **CSRF no front** | "Enviar token CSRF" | Usar `apiFetch` global de `app.js` (injeta `X-CSRF-Token` da meta tag automaticamente); `escapeHtml` também é global de `app.js` |

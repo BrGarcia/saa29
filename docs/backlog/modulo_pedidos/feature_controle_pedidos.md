@@ -1,11 +1,12 @@
 # 📦 Feature: Central de Pedidos — Módulo de Controle de Pedidos
 
-> **Versão:** 1.2
-> **Data:** 2026-08-02
+> **Versão:** 1.3
+> **Data:** 2026-08-03
 > **Autor:** Equipe SAA29
-> **Status:** 🟢 Layout Aprovado — Especificação Ajustada p/ Implementação
+> **Status:** 🟢 Pronto para Implementação — Verificado contra o código
 > **Prioridade:** Alta
 > **Nota v1.2:** Documento único consolidado. Auditoria (rotas, RBAC, modelo, segurança, semântica de atendimento) incorporada. Histórico de correções em `relatorio_v2.md`.
+> **Nota v1.3:** Spec verificada arquivo a arquivo contra o codebase real. Corrigidos: local do mockup, registro do router (bootstrap + `API_PREFIXES`), parâmetro do export (`format`), ordenação de rotas literais vs `/{id}`, ícone SVG na nav, `solicitante_trigrama` nullable, caminhos dos docs centrais, services assíncronos.
 
 ---
 
@@ -66,6 +67,7 @@ WHERE s.id NOT IN (
 
 - **VENCIDO** → habilita pedido de substituição (slot pode estar ocupado; a pendência é temporal).
 - **PRORROGADO** → não gera pedido automático (informação complementar).
+- **OK** / **VENCENDO** → não habilitam pedido (enum real: `StatusVencimento` = `OK | VENCENDO | VENCIDO | PRORROGADO`, em `app/shared/core/enums.py`).
 
 ### 2.3 Aeronaves (`app/modules/aeronaves/`)
 
@@ -109,7 +111,8 @@ WHERE s.id NOT IN (
 
 **Restrições / índices:**
 - `UNIQUE(numero_pedido)`.
-- **Um pedido em aberto por pendência** (RN-09): validação no service **+** índice parcial opcional `WHERE status='PENDENTE' AND ativo=1` sobre `(aeronave_id, slot_id)` e `(controle_vencimento_id)`. Índice parcial é suportado em SQLite e PostgreSQL; validar compatibilidade na migração.
+- **Um pedido em aberto por pendência** (RN-09): validação no service **+** índice parcial opcional `WHERE status='PENDENTE' AND ativo=1` sobre `(aeronave_id, slot_id)` e `(controle_vencimento_id)`. Índice parcial é suportado em SQLite e PostgreSQL (`sqlite_where`/`postgresql_where` no `op.create_index`), mas **não há precedente no projeto** — a validação no service é a garantia primária; o índice é defesa extra opcional.
+- **Migração Alembic:** seguir a nomenclatura existente `YYYYMMDD_HHMM_<rev>_<slug>.py` em `migrations/versions/` (migrações usam batch mode, padrão SQLite).
 
 ### 3.2 Enums (`app/shared/core/enums.py`)
 
@@ -226,29 +229,42 @@ PENDENTE ──▶ CANCELADO  (terminal)
 
 Aplicar RBAC em **duas camadas** (Zero Trust): rota HTML (`app/web/pages/router.py`) e endpoints da API. Backend é a fonte de verdade.
 
+**Detalhes de implementação (padrão real do projeto):**
+- As dependências vivem em `app/bootstrap/dependencies.py` (`EncarregadoInspetorOuAdmin` já existe, linha ~161) e são usadas como **parâmetro anotado** na assinatura do endpoint (ex.: `user: EncarregadoInspetorOuAdmin`), não via `dependencies=[...]`. Exemplo real: `app/modules/vencimentos/router.py` (`/prorrogar`).
+- Os papéis são **constantes string** em `app/modules/auth/roles.py` (comparação com `Usuario.funcao: str`), não o enum `TipoPapel` — não introduzir comparação por enum no RBAC.
+- A rota HTML usa `_=Depends(get_current_user)` (padrão das demais páginas em `pages/router.py`).
+
 ---
 
 ## 6. Estrutura de Arquivos
 
 ```text
 app/modules/pedidos/
-├── __init__.py          # Registra o router
-├── models.py            # Modelo ORM (Pedido)
+├── __init__.py          # Expõe o router do módulo
+├── models.py            # Modelo ORM (Pedido) — Base em app/bootstrap/database.py
 ├── schemas.py           # Schemas Pydantic (Create/Update/Cancelar/Out)
 ├── service.py           # CRUD, regras de negócio, integração inventário/vencimentos
 └── router.py            # Endpoints da API REST
 
 app/web/
 ├── templates/pedidos.html   # Template Jinja2 (estende base.html)
-└── static/js/pedidos.js     # JS (fetch API, DOM, escapeHtml)
+└── static/js/pedidos.js     # JS (apiFetch, DOM, escapeHtml — ambos globais de app.js)
 # Rota da página /pedidos: registrada em app/web/pages/router.py (NÃO criar pages/pedidos.py)
 ```
+
+**Registro do router (2 pontos em `app/bootstrap/main.py`):**
+1. `app.include_router(pedidos_router, prefix="/pedidos", ...)` — o `APIRouter()` do módulo é criado **sem prefixo**; o prefixo é aplicado no registro (padrão de todos os módulos).
+2. Adicionar `/pedidos` à lista `API_PREFIXES` (main.py, ~linha 50) — é ela que decide entre redirect para `/login` e resposta JSON nos erros 401/403. **Esquecer este passo quebra o tratamento de erros da API.**
+
+**Nota técnica:** o projeto usa SQLAlchemy 2.0 **assíncrono** (`AsyncSession`, engine aiosqlite). Todo o `service.py` deve ser `async def`, seguindo os services existentes.
 
 ---
 
 ## 7. API REST
 
-> Base: **`/pedidos`** (sem prefixo `/api`, conforme padrão do projeto). Ações de estado usam **sub-recurso com verbo** (padrão `/concluir`, `/restaurar`).
+> Base: **`/pedidos`** (sem prefixo `/api`, conforme padrão do projeto — prefixo aplicado no `include_router` do bootstrap). Ações de estado usam **sub-recurso com verbo** (padrão real: `/concluir`, `/cancelar`, `/restaurar`, `/prorrogar` nos módulos existentes).
+>
+> **Ordenação obrigatória:** declarar as rotas literais (`/export`, `/pendencias/...`, `/vencidos/...`) **antes** de `/{id}`, e tipar `{id}` como `uuid.UUID` — senão `export` é interpretado como id e falha com 422 (comentário-precedente em `app/modules/equipamentos/router.py:199`).
 
 ### 7.1 Endpoints
 
@@ -264,7 +280,7 @@ app/web/
 | `POST` | `/pedidos/{id}/restaurar` | Enc/Insp/Adm | Restaura |
 | `GET` | `/pedidos/pendencias/{aeronave_id}` | Autenticado | Slots vazios (integração inventário) |
 | `GET` | `/pedidos/vencidos/{aeronave_id}` | Autenticado | Itens vencidos (integração vencimentos) |
-| `GET` | `/pedidos/export?formato=csv\|xlsx` | Autenticado | Exportação (futuro; padrão `/inspecoes/export`) |
+| `GET` | `/pedidos/export?format=csv\|xlsx` | Autenticado | Exportação (futuro). Padrão real de `/inspecoes/export`: `Query("csv", alias="format", pattern="^(csv\|xlsx)$")`, CSV em `utf-8-sig`, XLSX via `app/shared/exporter.py` |
 
 **Códigos:** `201` criado, `204` sem conteúdo, `401` não autenticado, `403` sem permissão, `404` não encontrado, `409` conflito (duplicidade/transição/numero_pedido), `422` validação Pydantic.
 
@@ -328,7 +344,7 @@ class PedidoOut(BaseModel):
     equipamento_nome: str | None          # via slot/modelo/snapshot
     part_number: str | None
     slot_nome: str | None
-    solicitante_trigrama: str
+    solicitante_trigrama: str | None     # Usuario.trigrama é nullable no modelo real
     atendido_por_trigrama: str | None
     cancelado_por_trigrama: str | None
     ativo: bool
@@ -339,7 +355,7 @@ class PedidoOut(BaseModel):
 
 ## 8. Interface do Usuário
 
-> **Referência visual definitiva:** `mockup_pedidos.html` (raiz do repositório). Abrir no navegador (`file:///`) para visualizar. Layout **aprovado em 01/08/2026** sem ressalvas.
+> **Referência visual definitiva:** `docs/backlog/modulo_pedidos/mockup_pedidos.html` (mesma pasta desta spec). Abrir no navegador (`file:///`) para visualizar. Layout **aprovado em 01/08/2026** sem ressalvas.
 
 **Tela principal:** header (marca + título + nav + tema) → 4 **cards de resumo** (Total, Pendentes, Atendidos, Emergências) → **barra de filtros** (aeronave, status, tipo, busca) + botão **Novo Pedido** → **lista** de pedidos (linha + observação + ações por status) → **paginação**.
 
@@ -355,14 +371,16 @@ class PedidoOut(BaseModel):
 
 ### 8.1 Cor temática
 
-`--pedido-color: #e74c3c` (vermelho carmesim). Classes `.btn-pedido` / `.btn-outline-pedido` (a criar). Reutilizar `glass-panel`, `card`, `form-input`, `modal-overlay`, badges e sistema de toasts existentes. Ícone 📦 na nav do `base.html`, entre "Vencimentos" e "Calendário".
+`--pedido-color: #e74c3c` (vermelho carmesim). Classes `.btn-pedido` / `.btn-outline-pedido` (a criar). Reutilizar `glass-panel`, `card`, `form-input`, `modal-overlay`, badges e sistema de toasts existentes.
+
+**Nav:** o `#admin-nav` do `base.html` usa **ícones SVG inline** (não emoji), com `title` e highlight do item ativo via `{% if request.url.path == '/pedidos' %}`. Adicionar link `/pedidos` com ícone SVG de caixa/pacote entre `/vencimentos` e `/calendario`, seguindo o markup dos itens existentes. O nav é revelado por `auth_check.js` para os 4 papéis — nenhuma mudança necessária ali.
 
 ### 8.2 Segurança no Frontend (obrigatório ao portar o mockup)
 
-- **CSP:** política é `script-src 'self'` (sem `unsafe-inline`) → **externalizar** todo JS para `app/web/static/js/pedidos.js` (o `<script>` inline do mockup seria **bloqueado**). Idem CSS.
-- **XSS:** dados vindos da API vão ao DOM via `textContent` ou `escapeHtml()`; **evitar `innerHTML`** com conteúdo dinâmico (o toast do mockup usa `innerHTML` — não copiar o padrão).
+- **CSP:** política real (`app/shared/middleware/security.py`) é `script-src 'self'` (sem `unsafe-inline`) → **externalizar** todo JS para `app/web/static/js/pedidos.js` (o `<script>` inline do mockup seria **bloqueado**). CSS inline em atributo `style` é tolerado (`style-src` permite `unsafe-inline`), mas seguir o padrão dos templates existentes.
+- **XSS:** dados vindos da API vão ao DOM via `textContent` ou `escapeHtml()`; **evitar `innerHTML`** com conteúdo dinâmico (o toast do mockup usa `innerHTML` — não copiar o padrão). `escapeHtml` já é **global** em `app/web/static/js/app.js` (carregado pelo `base.html` antes do bloco de scripts) — reutilizar, não redefinir.
 - **Eventos:** somente `addEventListener` (sem handlers inline).
-- **CSRF:** toda mutação (POST/PUT/DELETE) envia o token CSRF; autenticação via JWT no header ou cookie `saa29_token`.
+- **CSRF:** usar o helper global **`apiFetch`** (`app.js`) para todas as mutações — ele injeta o header `X-CSRF-Token` automaticamente a partir da meta tag do `base.html` e re-sincroniza o token da resposta. Autenticação via JWT no header Bearer ou cookie `saa29_token` (httponly).
 - **Estados:** tratar loading, erro de rede, vazio e permissão negada. Autorização é sempre reconfirmada no backend.
 
 ---
@@ -401,13 +419,13 @@ sequenceDiagram
 
 ## 10. Plano de Implementação
 
-**Fase 1 — Backend (2-3d):** enums (`StatusPedido`/`TipoPedido`/`OrigemPedido`) · modelo `Pedido` · schemas + `model_validator` · service (CRUD, geração `numero_pedido`, RN-09/11/12/13, integração inventário/vencimentos) · router (RBAC `EncarregadoInspetorOuAdmin`) · migração Alembic (+ índice parcial) · registrar router no bootstrap.
+**Fase 1 — Backend (2-3d):** enums (`StatusPedido`/`TipoPedido`/`OrigemPedido` em `app/shared/core/enums.py`, padrão `class X(str, enum.Enum)`) · modelo `Pedido` (SQLAlchemy 2.0, `Base` de `app/bootstrap/database.py`) · schemas + `model_validator` · service **assíncrono** (`AsyncSession`; CRUD, geração `numero_pedido`, RN-09/11/12/13, integração inventário/vencimentos) · router (RBAC `EncarregadoInspetorOuAdmin` como parâmetro anotado; literais antes de `/{id: uuid.UUID}`) · migração Alembic (nomenclatura `YYYYMMDD_HHMM_<rev>_<slug>.py`; índice parcial opcional) · registrar em `app/bootstrap/main.py`: `include_router(prefix="/pedidos")` **e** `API_PREFIXES`.
 
-**Fase 2 — Frontend (2-3d):** `pedidos.html` (estende `base.html`) · `pedidos.js` (fetch, escape, sem inline) · rota em `app/web/pages/router.py` · ícone 📦 no `base.html` · CSS `.btn-pedido` · modal · filtros + paginação.
+**Fase 2 — Frontend (2-3d):** `pedidos.html` (estende `base.html`) · `pedidos.js` (usa `apiFetch`/`escapeHtml` globais de `app.js`, sem inline) · rota em `app/web/pages/router.py` (`_=Depends(get_current_user)`, `include_in_schema=False`) · link `/pedidos` com ícone SVG no `#admin-nav` do `base.html` · CSS `.btn-pedido` · modal · filtros + paginação.
 
 **Fase 3 — Testes (1-2d):** service (CRUD/validações/RN) · router (endpoints/RBAC) · segurança (CSRF, auth, transição inválida→409) · arquitetura (SOLID, imports). Alinhar a `docs/tdd/` e `docs/guides/guia-testes.md`.
 
-**Fase 4 — Polimento (1d):** UX/UI · teste manual · atualizar docs centrais (`SRS`, `SPECS`, `Database.md`, `referencia-api.md`, `overview.md`, `RBAC.md`).
+**Fase 4 — Polimento (1d):** UX/UI · teste manual · atualizar docs centrais: `docs/core/SRS.md`, `docs/core/SPECS.md`, `docs/architecture/Database.md`, `docs/architecture/referencia-api.md`, `docs/architecture/overview.md`, `docs/architecture/RBAC.md`.
 
 ---
 
@@ -438,6 +456,6 @@ sequenceDiagram
 | Data | 01/08/2026 |
 | Aprovado por | Usuário (solicitante) |
 | Resultado | 🟢 **APROVADO** — sem ressalvas |
-| Referência visual | `mockup_pedidos.html` (raiz) |
+| Referência visual | `docs/backlog/modulo_pedidos/mockup_pedidos.html` |
 
 > Alterações visuais futuras devem ser validadas antes da implementação.
