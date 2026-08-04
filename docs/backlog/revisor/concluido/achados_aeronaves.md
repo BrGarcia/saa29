@@ -6,8 +6,8 @@
 > ## ✅ SESSÃO DE CORREÇÃO CONCLUÍDA — 03/08/2026
 > 7/7 achados corrigidos, 0 parciais, 0 não corrigidos. As 2 perguntas ao desenvolvedor
 > (RISCO-05, RISCO-03) foram respondidas antes da implementação — ver decisões inline em cada
-> achado. Suite completa: 397 testes, 0 falhas. Status por item marcado inline em cada achado
-> abaixo (campo `**Status:**`).
+> achado. Commit `671082e`. Suite completa: 397 testes, 0 falhas. Status por item marcado inline
+> em cada achado abaixo (campo `**Status:**`).
 
 ---
 
