@@ -6,7 +6,8 @@
 > ## ✅ SESSÃO DE CORREÇÃO CONCLUÍDA — 04/08/2026
 > 6/8 corrigidos, 1 não corrigido por decisão consciente do usuário (RISCO-04, aceito como
 > está), 1 resolvido só por documentação/decisão sem mudança de código (DÚVIDA-08, assimetria
-> proposital). Suite completa: 421 testes, 0 falhas (7 novos em `tests/test_calendario.py`).
+> proposital). Commit `82037f4`. Suite completa: 421 testes, 0 falhas (7 novos em
+> `tests/test_calendario.py`).
 > BUG-01 e BUG-02 têm a mesma causa raiz e foram corrigidos juntos (`UTCDateTime` em
 > `models.py`). RISCO-03 foi corrigido com um desenho ligeiramente diferente do proposto: em vez
 > de manter o pre-check e só adicionar SAVEPOINT, o pre-check foi removido (eliminando a janela
