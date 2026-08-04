@@ -401,6 +401,10 @@ async def garantir_usuarios_essenciais(db: AsyncSession) -> None:
                     from app.modules.efetivo.models import Indisponibilidade
                     from app.shared.core.enums import TipoIndisponibilidade
                     logger.info("Adicionando indisponibilidade de teste para %s.", user)
+                    # Atalho consciente: grava direto via ORM, contornando
+                    # efetivo.service.registrar_indisponibilidade (e suas validações
+                    # de sobreposição de período e data_fim >= data_inicio) — aceitável
+                    # aqui porque é dado de seed fixo e controlado, não input de usuário.
                     indisp = Indisponibilidade(
                         usuario_id=u.id,
                         tipo=TipoIndisponibilidade.FERIAS.value,

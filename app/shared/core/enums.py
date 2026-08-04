@@ -72,12 +72,18 @@ class TipoAnexo(str, enum.Enum):
 
 
 class TipoIndisponibilidade(str, enum.Enum):
-    """Motivos para a indisponibilidade de um mantenedor."""
+    """Motivos para a indisponibilidade de um mantenedor.
+
+    PARTICULAR: indisponibilidade permanece pública (que a pessoa está
+    indisponível continua visível a todos), mas a `observacao` nunca é
+    exposta pela API, para qualquer solicitante — ver `efetivo.service._to_out`.
+    """
     FERIAS = "FERIAS"
     DISPENSA = "DISPENSA"
     FOLGA = "FOLGA"
     SERVICO = "SERVIÇO"
     OUTRO = "OUTRO"
+    PARTICULAR = "PARTICULAR"
 
 
 class StatusInspecao(str, enum.Enum):
