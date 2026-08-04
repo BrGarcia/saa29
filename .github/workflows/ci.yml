@@ -30,9 +30,12 @@ jobs:
           --health-retries 5
 
     env:
+      # APP_SECRET_KEY e APP_ENV nao sao definidos aqui de proposito:
+      # tests/conftest.py os atribui diretamente antes de importar a app e
+      # e o dono unico deles durante a suite. Defini-los tambem aqui criava
+      # config morta — o valor do workflow era sobrescrito e, ainda assim,
+      # nao passava no validador de tamanho de APP_SECRET_KEY.
       DATABASE_URL: ${{ matrix.db-type == 'postgres' && 'postgresql+asyncpg://saa29_user:password123@localhost:5432/saa29_db_test' || 'sqlite+aiosqlite:///:memory:' }}
-      APP_SECRET_KEY: testing_secret_key_saa29
-      APP_ENV: testing
 
     steps:
     - uses: actions/checkout@v4

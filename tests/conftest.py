@@ -20,6 +20,14 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 # Forçar storage local durante os testes
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["APP_ENV"] = "testing"
+# Chave de assinatura da suíte. O validador de Settings exige no mínimo 32
+# caracteres (app/bootstrap/config/__init__.py:144) e não abre exceção para
+# APP_ENV=testing; como o CI não tem .env, sem esta linha a importação de
+# `app.bootstrap.main` logo abaixo falha antes de qualquer teste rodar.
+# Atribuição direta (e não `setdefault`) de propósito: este arquivo é o dono
+# único de APP_SECRET_KEY durante os testes, para que o resultado não dependa
+# do .env da máquina nem de variável definida no workflow.
+os.environ["APP_SECRET_KEY"] = "saa29-suite-de-testes-chave-fixa-sem-valor-de-producao"
 
 from app.bootstrap.main import app
 from app.bootstrap.database import Base
