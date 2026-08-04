@@ -1,0 +1,84 @@
+# ============================================================
+# SAA29 – Configuração de lint (ruff)
+# ============================================================
+# Arquivo próprio, e não [tool.ruff] em pyproject.toml: o projeto não tem
+# pyproject.toml, e criar um faria o pip tratá-lo como manifesto PEP 517 —
+# risco desnecessário só para configurar lint.
+#
+# A versão do ruff é fixada em requirements-dev.txt. Este `select` explícito
+# é o que impede o gate de mudar sozinho: sem ele, o conjunto de regras é o
+# default da versão instalada, e esse default mudou por completo entre o
+# ruff 0.15 e o 0.16 (de ~214 achados para ~649, em famílias diferentes).
+
+target-version = "py312"
+
+extend-exclude = [
+    "migrations",  # revisões geradas pelo Alembic — não é código autoral
+    "scratch",     # rascunhos locais; não faz parte do gate
+]
+
+[lint]
+# --- Conjunto aplicado (escolhido por mérito) ---
+select = [
+    "E4",     # imports mal posicionados
+    "E7",     # erros de statement (comparações, nomes ambíguos, bare except)
+    "E9",     # erros de sintaxe e de I/O
+    "F",      # pyflakes: nome indefinido, import/variável sem uso
+    "B",      # bugbear: armadilhas reais (default mutável, raise sem from)
+    "ASYNC",  # chamada bloqueante dentro de função async — relevante num
+              # projeto async de ponta a ponta (ver 00_mapa_arquitetural §6)
+    "S",      # bandit: práticas inseguras; num sistema com JWT/RBAC vale o custo
+    "LOG",    # logging: apoia diretamente o item 3 do ROADMAP
+              # ("eliminar print/traceback em favor de getLogger(__name__)")
+]
+
+# --- Fora do `select` por não servirem a este projeto agora ---
+# PYI  : regras para arquivos .pyi; o projeto não distribui stubs.
+# PLR  : limiares arbitrários (nº de branches/argumentos) que geram discussão
+#        sem defeito correspondente.
+#
+# --- DÍVIDA RECONHECIDA (medida em 04/08/2026 com ruff 0.16.1) ---
+# Estas famílias têm mérito, mas ficam fora do `select` por ora porque cada
+# uma gera um diff grande e mecânico que afogaria a revisão deste PR. Cada
+# uma deve entrar em PR próprio, na ordem abaixo (da mais barata à mais cara):
+#
+#   RUF100 –  28 achados – `# noqa` que não se aplica mais; 100% auto-fixável
+#   BLE001 –  26 achados – `except Exception` cego; exige análise caso a caso
+#   DTZ    –  64 achados – datas sem timezone; decidir antes se as datas de
+#                          manutenção são civis (sem tz) ou instantes (com tz)
+#   UP     – 169 achados – sintaxe moderna (Optional[X] -> X | None); auto-fix
+#   I      – 191 achados – ordenação de imports (isort); auto-fix, diff enorme
+#
+# Total adiado: ~478 achados. O número está aqui de propósito — é o baseline
+# que dá sentido ao gate e o que permite cobrar a dívida depois.
+ignore = []
+
+[lint.flake8-bugbear]
+# B008 proíbe chamada de função em argumento default — mas é exatamente o
+# idioma do FastAPI (`db: Session = Depends(get_db)`). Sem esta lista, 33 dos
+# 44 achados de bugbear seriam falso positivo sobre o padrão que o framework
+# recomenda. Tratado como imutável em vez de silenciado com ignore.
+extend-immutable-calls = [
+    "fastapi.Body",
+    "fastapi.Cookie",
+    "fastapi.Depends",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Header",
+    "fastapi.Path",
+    "fastapi.Query",
+    "fastapi.Security",
+]
+
+[lint.per-file-ignores]
+# `assert` é o mecanismo de verificação do pytest (837 achados), e senhas
+# fictícias em fixture não são credencial vazada.
+"tests/**" = ["S101", "S105", "S106"]
+
+# Scripts autônomos ajustam sys.path antes de importar `app` — a ordem é
+# proposital, não descuido.
+"scripts/**" = ["E402"]
+
+# Define variáveis de ambiente antes de importar a aplicação; é o que torna a
+# suíte independente de .env (ver o comentário no próprio arquivo).
+"tests/conftest.py" = ["E402"]
