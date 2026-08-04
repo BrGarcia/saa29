@@ -28,7 +28,8 @@ logger = logging.getLogger(__name__)
 # calculou pelo nome do arquivo, nem se os slots confirmados pertenciam de
 # fato à prévia. O token abaixo assina (aeronave_id + slot_ids da prévia)
 # para que a confirmação possa validar contra o que foi realmente exibido.
-_PREVIEW_TOKEN_TYPE = "xlsx_inventario_preview"
+# noqa S105: discriminador de tipo do token, nao o segredo que o assina.
+_PREVIEW_TOKEN_TYPE = "xlsx_inventario_preview"  # noqa: S105
 _PREVIEW_TOKEN_TTL_MINUTES = 15
 
 

@@ -71,13 +71,19 @@ extend-immutable-calls = [
 ]
 
 [lint.per-file-ignores]
-# `assert` é o mecanismo de verificação do pytest (837 achados), e senhas
-# fictícias em fixture não são credencial vazada.
-"tests/**" = ["S101", "S105", "S106"]
+# `assert` é o mecanismo de verificação do pytest (837 achados), senhas
+# fictícias em fixture não são credencial vazada, e SQL montado por f-string
+# em teste não recebe entrada não confiável.
+"tests/**" = ["S101", "S105", "S106", "S608"]
 
 # Scripts autônomos ajustam sys.path antes de importar `app` — a ordem é
 # proposital, não descuido.
 "scripts/**" = ["E402"]
+
+# Seeds geram dados fictícios; aleatoriedade criptográfica é irrelevante ali.
+# Restrito a scripts/seed/ de propósito: em qualquer outro lugar do projeto,
+# `random` em contexto de segurança continua sendo acusado.
+"scripts/seed/**" = ["S311"]
 
 # Define variáveis de ambiente antes de importar a aplicação; é o que torna a
 # suíte independente de .env (ver o comentário no próprio arquivo).

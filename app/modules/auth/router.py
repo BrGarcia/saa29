@@ -108,10 +108,13 @@ async def login(
         secure=secure
     )
 
+    # noqa S106: os tokens reais vao nos cookies HttpOnly acima; estes campos
+    # sao placeholders literais para nao expor credencial no corpo da resposta.
+    # "bearer" e o tipo definido pelo OAuth2, nao um segredo.
     return schemas.Token(
-        access_token="hidden",
-        refresh_token="hidden",
-        token_type="bearer",
+        access_token="hidden",  # noqa: S106
+        refresh_token="hidden",  # noqa: S106
+        token_type="bearer",  # noqa: S106
         usuario=schemas.UsuarioOut.model_validate(usuario),
     )
 
@@ -285,10 +288,11 @@ async def refresh_access_token(
             secure=secure
         )
         
+        # noqa S106: mesmos placeholders do login — ver comentario acima.
         return schemas.Token(
-            access_token="hidden",
-            refresh_token="hidden",
-            token_type="bearer",
+            access_token="hidden",  # noqa: S106
+            refresh_token="hidden",  # noqa: S106
+            token_type="bearer",  # noqa: S106
             usuario=schemas.UsuarioOut.model_validate(usuario),
         )
         

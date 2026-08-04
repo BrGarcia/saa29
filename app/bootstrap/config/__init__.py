@@ -130,9 +130,11 @@ class Settings(BaseSettings):
         3. Warn if debug=True in production
         """
         # CRITICAL: Secret key validation (AUD-08)
+        # noqa S105: a literal abaixo e justamente o valor inseguro que este
+        # bloco existe para REJEITAR — nao e uma credencial embutida.
         if not self.app_secret_key or \
            self.app_secret_key == "INSECURE_DEFAULT_SECRET_KEY_CHANGE_ME_IN_PRODUCTION" or \
-           "INSECURE" in self.app_secret_key:
+           "INSECURE" in self.app_secret_key:  # noqa: S105
             raise ValueError(
                 "CRITICAL SECURITY ERROR: APP_SECRET_KEY is not set or uses insecure default.\n"
                 "  - This allows attackers to forge JWT tokens.\n"
