@@ -8,7 +8,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.modules.aeronaves import schemas, service
-from app.bootstrap.dependencies import AdminRequired, CurrentUser, DBSession, EncarregadoOuAdmin, EncarregadoInspetorOuAdmin
+from app.bootstrap.dependencies import AdminRequired, CurrentUser, DBSession, EncarregadoOuAdmin
 
 router = APIRouter()
 
@@ -46,14 +46,8 @@ async def criar_aeronave(
     db: DBSession,
     _: AdminRequired,
 ) -> schemas.AeronaveOut:
-    try:
-        aeronave = await service.criar_aeronave(db, dados)
-        return schemas.AeronaveOut.model_validate(aeronave)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
-        ) from exc
+    aeronave = await service.criar_aeronave(db, dados)
+    return schemas.AeronaveOut.model_validate(aeronave)
 
 
 @router.get(
@@ -86,20 +80,8 @@ async def atualizar_aeronave(
     db: DBSession,
     _: AdminRequired,
 ) -> schemas.AeronaveOut:
-    try:
-        aeronave = await service.atualizar_aeronave(db, aeronave_id, dados)
-        return schemas.AeronaveOut.model_validate(aeronave)
-    except ValueError as exc:
-        detail = str(exc)
-        status_code = (
-            status.HTTP_404_NOT_FOUND
-            if "não encontrada" in detail.lower()
-            else status.HTTP_409_CONFLICT
-        )
-        raise HTTPException(
-            status_code=status_code,
-            detail=detail,
-        ) from exc
+    aeronave = await service.atualizar_aeronave(db, aeronave_id, dados)
+    return schemas.AeronaveOut.model_validate(aeronave)
 
 
 @router.post(
@@ -112,17 +94,5 @@ async def alternar_status_aeronave(
     db: DBSession,
     _: EncarregadoOuAdmin,
 ) -> schemas.AeronaveOut:
-    try:
-        aeronave = await service.alternar_status_aeronave(db, aeronave_id)
-        return schemas.AeronaveOut.model_validate(aeronave)
-    except ValueError as exc:
-        detail = str(exc)
-        status_code = (
-            status.HTTP_404_NOT_FOUND
-            if "não encontrada" in detail.lower()
-            else status.HTTP_409_CONFLICT
-        )
-        raise HTTPException(
-            status_code=status_code,
-            detail=detail,
-        ) from exc
+    aeronave = await service.alternar_status_aeronave(db, aeronave_id)
+    return schemas.AeronaveOut.model_validate(aeronave)

@@ -71,6 +71,13 @@ class Aeronave(Base):
         default=StatusAeronave.DISPONIVEL,
         comment="Status operacional: DISPONIVEL | INDISPONIVEL | INSPEÇÃO | ESTOCADA | INATIVA",
     )
+    status_anterior_inativacao: Mapped[StatusAeronave | None] = mapped_column(
+        Enum(StatusAeronave, native_enum=False, length=20),
+        nullable=True,
+        comment="Status imediatamente anterior à inativação (RISCO-05, "
+        "achados_aeronaves.md) — restaurado ao reativar via toggle-status, "
+        "em vez de sempre voltar para DISPONIVEL.",
+    )
 
     # --- Controle de Horas e Tempo ---
     horas_voo_total: Mapped[float] = mapped_column(

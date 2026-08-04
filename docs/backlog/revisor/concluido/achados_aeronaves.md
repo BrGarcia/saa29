@@ -1,7 +1,13 @@
 # Achados de Revisão — Módulo `aeronaves`
 
 > Revisão conforme `docs/backlog/revisor.md`, com contexto de `docs/backlog/00_mapa_arquitetural.md`.
-> Nenhum arquivo de código foi alterado nesta sessão.
+> Nenhum arquivo de código foi alterado nesta sessão de revisão.
+
+> ## ✅ SESSÃO DE CORREÇÃO CONCLUÍDA — 03/08/2026
+> 7/7 achados corrigidos, 0 parciais, 0 não corrigidos. As 2 perguntas ao desenvolvedor
+> (RISCO-05, RISCO-03) foram respondidas antes da implementação — ver decisões inline em cada
+> achado. Suite completa: 397 testes, 0 falhas. Status por item marcado inline em cada achado
+> abaixo (campo `**Status:**`).
 
 ---
 
@@ -16,6 +22,7 @@
 - **Correção proposta:** aplicar em `criar_aeronave` a mesma guarda já existente em `atualizar_aeronave` — rejeitar `status == INSPECAO` na criação, já que a única fonte legítima desse status é o módulo de inspeções.
 - **Risco de regressão:** BAIXO — fecha uma lacuna, não recorta comportamento hoje intencional (nenhum teste depende de criar aeronave já em `INSPECAO`).
 - **Precisa de teste antes?** SIM
+- **Status:** ✅ CORRIGIDO. `criar_aeronave` rejeita `status == INSPECAO` com `ConflitoNegocioError` (409), mesma guarda de `atualizar_aeronave`. Teste: `test_criar_aeronave_com_status_inspecao_e_rejeitada` (tests/unit/test_aeronaves_achados_revisor.py).
 
 ---
 
@@ -30,6 +37,7 @@
 - **Correção proposta:** alinhar a condição do `else` de `listar_aeronaves` à mesma lista de status de origem usada em `panes.service.sincronizar_status_aeronave` — ou, melhor, eliminar a duplicação chamando a função canônica para cada aeronave listada (ver também RISCO-03 sobre o efeito colateral de mutação dentro de um GET).
 - **Risco de regressão:** BAIXO — torna a correção mais abrangente, não mais restritiva.
 - **Precisa de teste antes?** SIM
+- **Status:** ✅ CORRIGIDO como efeito da correção do RISCO-03 (decisão do desenvolvedor: mover a correção para os pontos de mutação real, não reimplementar a regra de novo em `listar_aeronaves`). A lógica duplicada e incompleta foi removida por inteiro — `listar_aeronaves` passou a ser leitura pura, eliminando a superfície onde o BUG-02 vivia.
 
 ---
 
@@ -44,6 +52,8 @@
 - **Correção proposta:** mover a responsabilidade de correção de status para os pontos de mutação real (abertura/conclusão de pane e inspeção, que já chamam `sincronizar_status_aeronave`), e fazer `listar_aeronaves` apenas **ler** o estado — se for necessário exibir o status "correto" independente do que está persistido, calcular isso apenas para a resposta, sem `db.add`/`flush`.
 - **Risco de regressão:** MÉDIO — depende de garantir que todos os pontos de mutação reais (panes, inspeções) já cobrem os casos que hoje são "corrigidos" apenas na listagem.
 - **Precisa de teste antes?** SIM
+- **Resposta do desenvolvedor:** mover para os pontos de mutação real — confirmado por leitura de código que `criar_pane`/`concluir_pane`/`cancelar_pane` e `concluir_inspecao`/`cancelar_inspecao` já chamam `sincronizar_status_aeronave` em todos os pontos reais de mutação; o BUG-01 (única forma de criar um status órfão sem passar por esses pontos) também foi fechado nesta mesma sessão.
+- **Status:** ✅ CORRIGIDO. `listar_aeronaves` não faz mais `db.add`/`await db.flush()` — apenas lê. Testes: `test_listar_aeronaves_nao_grava_no_banco` (conta INSERT/UPDATE emitidos durante a chamada — zero esperado), `test_listar_aeronaves_nao_corrige_status_orfao_silenciosamente`. Os dois testes pré-existentes que verificavam sincronização via listagem (`test_status_aeronave_atualiza_para_indisponivel_ao_abrir_pane`, `test_status_aeronave_permanece_inspecao_quando_pane_aberta`) continuam passando sem alteração — a sincronização já havia acontecido no `POST /panes/`, antes do `GET`.
 
 ---
 
@@ -58,6 +68,7 @@
 - **Correção proposta:** envolver o `db.add(aeronave)` + `flush()` (e o `flush()` de `atualizar_aeronave` quando `matricula`/`serial_number` mudam) em `async with db.begin_nested(): ...` com `except IntegrityError`, convertendo para a mesma exceção de negócio (`ValueError`, ou migrando para `domain_exc.ConflitoNegocioError`, ver MELHORIA-07) já usada no caminho não concorrente.
 - **Risco de regressão:** BAIXO — replica um padrão já validado em outros dois módulos do mesmo projeto.
 - **Precisa de teste antes?** SIM
+- **Status:** ✅ CORRIGIDO. `db.add(aeronave)`/`flush()` em `criar_aeronave` e o `flush()` de `atualizar_aeronave` envolvidos em `async with db.begin_nested(): ... except IntegrityError`, convertendo para `domain_exc.ConflitoNegocioError` (já migrado direto para a exceção tipada, ver MELHORIA-07). Testes: `test_criar_aeronave_savepoint_absorve_integrity_error_sem_derrubar_sessao`, `test_atualizar_aeronave_savepoint_absorve_integrity_error_sem_derrubar_sessao`.
 
 ---
 
@@ -72,6 +83,8 @@
 - **Correção proposta:** decidir se o comportamento é intencional (documentar e corrigir a docstring) ou se o toggle deveria preservar/registrar o status anterior antes de inativar, para restaurá-lo corretamente ao reativar.
 - **Risco de regressão:** MÉDIO — mudar o comportamento de reativação pode afetar expectativas já em uso na tela de frota.
 - **Precisa de teste antes?** SIM
+- **Resposta do desenvolvedor:** preservar o status anterior.
+- **Status:** ✅ CORRIGIDO. Nova coluna `aeronaves.status_anterior_inativacao` (migration `a6b7c8d9e0f1`, nullable) guarda o status no momento da inativação; `alternar_status_aeronave` restaura esse valor ao reativar (ou `DISPONIVEL` se não houver nada salvo — ex.: dados pré-existentes à migration). Docstring do serviço atualizada para descrever o comportamento real. Testes: `test_toggle_status_preserva_estocada_ao_reativar`, `test_toggle_status_disponivel_permanece_disponivel_ao_reativar`.
 
 ---
 
@@ -86,6 +99,7 @@
 - **Correção proposta:** remover as duas funções e o import não utilizado, ou — se fizerem parte de uma API planejada mas ainda não exposta — expor as rotas correspondentes ou adicionar um comentário explicando por que existem sem uso.
 - **Risco de regressão:** BAIXO.
 - **Precisa de teste antes?** NÃO
+- **Status:** ✅ CORRIGIDO. `desativar_aeronave`/`reativar_aeronave` removidas (`service.py` foi reescrito por completo nesta sessão); import `EncarregadoInspetorOuAdmin` removido de `router.py`.
 
 ---
 
@@ -100,6 +114,7 @@
 - **Correção proposta:** migrar `service.py` para `domain_exc.EntidadeNaoEncontradaError`/`ConflitoNegocioError`, eliminando o *string-matching* do router — mesma direção já recomendada para `panes` em `docs/backlog/revisor/concluido/achados_panes.md` (MELHORIA-13 — corrigido).
 - **Risco de regressão:** MÉDIO — muda o tipo de exceção propagada; os `except ValueError` do router (`router.py:52,89,115`) precisam ser ajustados junto.
 - **Precisa de teste antes?** SIM
+- **Status:** ✅ CORRIGIDO. As 12 ocorrências de `ValueError` migradas para `domain_exc.EntidadeNaoEncontradaError`/`ConflitoNegocioError`; os três blocos `except ValueError` com *string-matching* removidos do router (as exceções de domínio já carregam o status HTTP e propagam direto para o handler global, mesmo padrão dos demais módulos revisados nesta rodada). Coberto pelos testes existentes de 404/409 (`test_criar_aeronave_matricula_duplicada`, `test_alternar_status_aeronave_sob_inspecao_ativa_rejeitado`) e pelos novos testes desta sessão.
 
 ---
 
@@ -110,6 +125,7 @@
 - RISCO: 3 (MÉDIA: 2, BAIXA: 1)
 - MELHORIA: 2 (todas BAIXA)
 - DÚVIDA: 0
+- **Corrigidos: 7/7**
 
 ## Arquivos revisados
 
@@ -129,7 +145,7 @@
 - **Paginação em `GET /aeronaves/`**: já implementada (`skip`/`limit`), diferente de `auth.listar_usuarios` (achado 22 em `docs/backlog/revisor/concluido/achados_auth.md` — corrigido) — não é achado aqui.
 - **Cobertura de testes**: boa para o caminho feliz e para os cenários de sincronização com pane/inspeção real (411 linhas, ~17 testes). **Lacunas identificadas**: nenhum teste cria aeronave já com `status=INSPECAO` (BUG-01); nenhum teste verifica a listagem quando o status fica órfão sem pane nem inspeção (BUG-02); nenhum teste cobre concorrência na criação/atualização (RISCO-04); nenhum teste desativa/reativa uma aeronave que não estava em `DISPONIVEL` originalmente (RISCO-05).
 
-## Perguntas para o desenvolvedor
+## Perguntas para o desenvolvedor (respondidas)
 
-- O toggle de status (RISCO-05) deveria preservar o status anterior à desativação (ex.: uma aeronave `ESTOCADA` volta a `ESTOCADA`, não a `DISPONIVEL`), ou `DISPONIVEL` é sempre o destino correto de reativação por design?
-- A mutação de status dentro de `GET /aeronaves/` (RISCO-03) é uma escolha deliberada para simplificar a UI (a tela de frota sempre reflete o estado "corrigido" sem precisar de um job separado), ou pode ser movida para os pontos de mutação real sem perda de funcionalidade?
+- O toggle de status (RISCO-05) deveria preservar o status anterior à desativação (ex.: uma aeronave `ESTOCADA` volta a `ESTOCADA`, não a `DISPONIVEL`), ou `DISPONIVEL` é sempre o destino correto de reativação por design? **Resposta: preservar o status anterior.**
+- A mutação de status dentro de `GET /aeronaves/` (RISCO-03) é uma escolha deliberada para simplificar a UI (a tela de frota sempre reflete o estado "corrigido" sem precisar de um job separado), ou pode ser movida para os pontos de mutação real sem perda de funcionalidade? **Resposta: mover para os pontos de mutação real.**
