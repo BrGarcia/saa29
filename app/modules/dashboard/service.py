@@ -9,19 +9,16 @@ Princípios:
     - Todas as funções são async/await com AsyncSession
 """
 
-from datetime import datetime, timezone, date
-from calendar import monthrange
+from datetime import datetime, time, timezone
 
-from sqlalchemy import select, func, case
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.modules.panes.models import Pane
 from app.modules.vencimentos.models import ControleVencimento
 from app.modules.inspecoes.models import Inspecao
-from app.modules.equipamentos.models import (
-    Instalacao, ItemEquipamento, ModeloEquipamento, SlotInventario,
-)
+from app.modules.equipamentos.models import Instalacao, ItemEquipamento
 from app.modules.aeronaves.models import Aeronave
 
 from app.modules.dashboard.schemas import (
@@ -84,7 +81,12 @@ async def get_panes_summary(db: AsyncSession) -> PanesSummary:
         PaneCritica(
             id=str(p.id),
             matricula=p.aeronave.matricula if p.aeronave else "—",
-            sistema=p.descricao[:40] + ("..." if len(p.descricao) > 40 else ""),
+            # Sistema ATA quando cadastrado (sistema_ata_id é opcional na Pane);
+            # cai para a descrição truncada só quando não há sistema associado.
+            sistema=(
+                p.sistema_ata.descricao if p.sistema_ata
+                else p.descricao[:40] + ("..." if len(p.descricao) > 40 else "")
+            ),
             data_abertura=p.data_abertura.isoformat(),
         )
         for p in rows
@@ -124,11 +126,12 @@ async def get_vencimentos_summary(db: AsyncSession) -> VencimentosSummary:
 # ---------------------------------------------------------------------------
 
 async def get_inspecoes_ativas(db: AsyncSession) -> list[InspecaoAtiva]:
-    """Retorna inspeções com status ABERTA ou EM_ANDAMENTO com eager-load."""
+    """Retorna as 5 inspeções ativas (ABERTA ou EM_ANDAMENTO) mais antigas, com eager-load."""
     q = (
         select(Inspecao)
         .where(Inspecao.status.in_(["ABERTA", "EM_ANDAMENTO"]))
         .order_by(Inspecao.data_abertura.asc())
+        .limit(5)
         .options(
             selectinload(Inspecao.aeronave),
             selectinload(Inspecao.tipos_aplicados),
@@ -157,40 +160,69 @@ async def get_inspecoes_ativas(db: AsyncSession) -> list[InspecaoAtiva]:
 # 4. Movimentações Recentes (Instalações)
 # ---------------------------------------------------------------------------
 
+def _instalacao_opcoes_eager_load():
+    return (
+        selectinload(Instalacao.aeronave),
+        selectinload(Instalacao.slot),
+        selectinload(Instalacao.item).selectinload(ItemEquipamento.modelo),
+    )
+
+
+def _montar_evento_movimentacao(inst: Instalacao, tipo: str, quando: datetime) -> MovimentacaoRecente:
+    nome_equip = inst.item.modelo.nome_generico if inst.item and inst.item.modelo else "Equipamento"
+    slot_nome = inst.slot.nome_posicao if inst.slot else "?"
+    verbo = "removido" if tipo == "REMOCAO" else "instalado"
+    return MovimentacaoRecente(
+        tipo=tipo,
+        descricao=f"{nome_equip} {verbo} (slot {slot_nome})",
+        aeronave_matricula=inst.aeronave.matricula if inst.aeronave else None,
+        data=quando.isoformat(),
+    )
+
+
 async def get_movimentacoes_recentes(db: AsyncSession) -> list[MovimentacaoRecente]:
     """
-    Retorna as 5 instalações de equipamentos mais recentes como mini-feed.
-    Nota: A tabela `instalacoes` registra apenas instalações — não remoções.
+    Retorna os 5 eventos mais recentes de movimentação de equipamentos.
+
+    Uma `Instalacao` pode gerar até dois eventos no feed: a instalação
+    original (`created_at`) e, se já removida, a remoção (`removido_em` —
+    timestamp dedicado ao evento, gravado na mesma linha por
+    `equipamentos.service._registrar_remocao`). Os dois tipos de evento são
+    combinados e reordenados pelo timestamp real de cada um, para que uma
+    remoção recente apareça como evento próprio mesmo quando a instalação
+    original é antiga.
     """
-    q = (
+    opcoes = _instalacao_opcoes_eager_load()
+
+    q_instaladas = (
         select(Instalacao)
         .order_by(Instalacao.created_at.desc())
         .limit(5)
-        .options(
-            selectinload(Instalacao.aeronave),
-            selectinload(Instalacao.slot),
-            selectinload(Instalacao.item).selectinload(ItemEquipamento.modelo),
-        )
+        .options(*opcoes)
     )
-    rows = (await db.execute(q)).scalars().all()
+    q_removidas = (
+        select(Instalacao)
+        .where(Instalacao.removido_em.is_not(None))
+        .order_by(Instalacao.removido_em.desc())
+        .limit(5)
+        .options(*opcoes)
+    )
+    instaladas = (await db.execute(q_instaladas)).scalars().all()
+    removidas = (await db.execute(q_removidas)).scalars().all()
 
-    resultado = []
-    for inst in rows:
-        nome_equip = inst.item.modelo.nome_generico if inst.item and inst.item.modelo else "Equipamento"
-        slot_nome = inst.slot.nome_posicao if inst.slot else "?"
-        descricao = f"{nome_equip} (slot {slot_nome})"
-        matricula = inst.aeronave.matricula if inst.aeronave else None
-        data_str = inst.created_at.isoformat() if inst.created_at else inst.data_instalacao.isoformat()
+    eventos: list[MovimentacaoRecente] = []
+    for inst in instaladas:
+        quando = inst.created_at or datetime.combine(inst.data_instalacao, time.min)
+        eventos.append(_montar_evento_movimentacao(inst, "INSTALACAO", quando))
+    for inst in removidas:
+        eventos.append(_montar_evento_movimentacao(inst, "REMOCAO", inst.removido_em))
 
-        resultado.append(
-            MovimentacaoRecente(
-                descricao=descricao,
-                aeronave_matricula=matricula,
-                data=data_str,
-            )
-        )
-
-    return resultado
+    # Ordena pela data ISO (string) em vez do objeto datetime: created_at e
+    # removido_em vêm ambos de func.now() e produzem o mesmo formato, então a
+    # ordenação lexicográfica equivale à cronológica, sem risco de comparar
+    # datetime aware × naive entre as duas origens.
+    eventos.sort(key=lambda evento: evento.data, reverse=True)
+    return eventos[:5]
 
 
 # ---------------------------------------------------------------------------
@@ -204,8 +236,6 @@ async def get_frota_summary(db: AsyncSession) -> FrotaSummary:
     a realidade operacional (ex: se há inspeção aberta, status é INSPEÇÃO).
     """
     from app.modules.dashboard.schemas import AeronaveStatus
-    from app.modules.inspecoes.models import Inspecao
-    from app.modules.panes.models import Pane
 
     # 1. Identificar aeronaves com Inspeções Ativas
     q_insp = select(Inspecao.aeronave_id).where(
@@ -218,7 +248,10 @@ async def get_frota_summary(db: AsyncSession) -> FrotaSummary:
         Pane.status == "ABERTA",
         Pane.ativo == True  # noqa: E712
     )
-    panes_ativas = set((await db.execute(q_panes)).scalars().all())
+    # BUG-01: precisa do mesmo tratamento de string que inspecoes_ativas —
+    # sem isso, o "in panes_ativas" abaixo compara str contra set[UUID] e
+    # nunca é True.
+    panes_ativas = {str(id_) for id_ in (await db.execute(q_panes)).scalars().all()}
 
     # 3. Buscar todas as aeronaves
     q = select(Aeronave).order_by(Aeronave.matricula.asc())
@@ -239,7 +272,7 @@ async def get_frota_summary(db: AsyncSession) -> FrotaSummary:
         # 2. Se há pane aberta e não está sob inspeção/inativa/estocada ➔ INDISPONIVEL
         if ac_id_str in inspecoes_ativas:
             status_final = "INSPEÇÃO"
-        elif ac_id_str in panes_ativas and status_final not in ["INSPEÇÃO", "INSPECAO", "INATIVA", "ESTOCADA"]:
+        elif ac_id_str in panes_ativas and status_final not in ["INSPEÇÃO", "INATIVA", "ESTOCADA"]:
             status_final = "INDISPONIVEL"
 
         # Incrementar contagem consolidada

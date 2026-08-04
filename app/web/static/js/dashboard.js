@@ -39,6 +39,7 @@
 
 /**
  * @typedef {Object} DashboardMovimentacao
+ * @property {string} tipo
  * @property {string} aeronave_matricula
  * @property {string} descricao
  * @property {string} data
@@ -223,7 +224,7 @@ function renderInventario(movimentacoes) {
 
     list.innerHTML = movimentacoes.map(mov => `
         <div class="feed-item">
-            <span class="feed-icon">📥</span>
+            <span class="feed-icon">${mov.tipo === 'REMOCAO' ? '📤' : '📥'}</span>
             <div class="feed-content">
                 <span class="feed-title">
                     <strong>${escapeHtml(mov.aeronave_matricula || 'Item')}</strong>: ${escapeHtml(mov.descricao)}
