@@ -6,9 +6,9 @@
 > ## ✅ SESSÃO DE CORREÇÃO CONCLUÍDA — 04/08/2026
 > 5/7 corrigidos, 2 não corrigidos por decisão consciente (RISCO-02, escopo cross-module fora
 > desta sessão — decisão tomada com o usuário durante a correção; RISCO-06, aberto/bloqueado por
-> ADR de timezone pendente, conforme resposta do desenvolvedor). Suite completa: 414 testes, 0
-> falhas (14 novos em `tests/unit/test_dashboard.py`). Os novos testes de `Instalacao` precisaram
-> ser escritos à prova do vazamento de isolamento já documentado em
+> ADR de timezone pendente, conforme resposta do desenvolvedor). Commit `ca019ad`. Suite completa:
+> 414 testes, 0 falhas (14 novos em `tests/unit/test_dashboard.py`). Os novos testes de
+> `Instalacao` precisaram ser escritos à prova do vazamento de isolamento já documentado em
 > `tests/unit/test_panes_alta_prioridade.py` (banco in-memory compartilhado pela sessão inteira +
 > `db.commit()` explícito em `tests/architecture/test_performance_audit.py`) — nunca assumem
 > banco vazio, sempre filtram pela matrícula única da própria aeronave do teste. Status por item
