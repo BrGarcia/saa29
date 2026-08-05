@@ -6,7 +6,8 @@
 > do SAA29, ampliado para abrigar também as publicações avulsas da operação
 > (BO, BS, NPO, BT).
 
-**Data:** 04/08/2026 · **Revisão 3** (mesmo dia)
+**Data:** 04/08/2026 · **Revisão 5** em 05/08/2026 (addendum — corpo do documento não reescrito;
+ver `docs/backlog/modulo_publicacoes/06_addendum_revisao_5.md`)
 **Autor da análise:** Claude Opus 5
 **Branch analisado:** `refactor/fable5-otimizacao-codigo`
 **Restrição cumprida:** nenhuma linha de código foi escrita ou alterada. Este documento é
@@ -23,6 +24,63 @@ exclusivamente parecer + plano.
 > templates, assets, testes, variáveis de ambiente e as tabelas do acervo avulso; a convenção
 > adotada está na **§6.0**. O documento passou a viver em `docs/backlog/modulo_publicacoes/`,
 > e `docs/backlog/manuais/` permanece **apenas como material de referência** do projeto externo.
+>
+> **Revisão 4 — o que mudou (correção de premissa, não de escopo):** as revisões 1–3 afirmavam
+> que *"o SAA29 roda em Railway com filesystem efêmero"*. **Isso não é verdade.** O Railway
+> encerrou o plano gratuito e **hoje o SAA29 não tem provedor de hospedagem nenhum**; o cenário
+> de destino é o aluguel de uma **VPS de entrada**. Essa correção **inverte a tese central da
+> §5.1**: o que era o *único bloqueador real* (volumetria × filesystem efêmero) deixa de existir,
+> e o desenho do projeto externo — que assumia VPS com disco persistente e Caddy — passa a ser
+> **o desenho certo**, não o desenho a ser rejeitado. Foram reescritas §1, §2.2, §4.2, §5.1, §5.4,
+> §5.5, §5.8, §5.11, §6.4, §8.1, §8.3, §8.4, §10 (M4), §12, §13 e §14; **D-04 foi reaberta**,
+> **D-S1 foi reformulada**, **D-S7 foi criada** e os riscos **R16–R19** foram acrescentados.
+> Nada do modelo de dados, das rotas, do RBAC ou dos marcos M0–M3 mudou — essa parte da análise
+> nunca dependeu do provedor.
+>
+> **Revisão 5 — o que mudou:** investigação direta do acervo em `var/Publicações/` (hoje
+> `var/publicacoes/acervo/`) mostrou que ele **já está no disco** — 34 manuais, 5.724 PDFs, 1,0 GB
+> (não os ~12.100 PDFs / 3 GB assumidos do `Projeto.MD` externo) — e que **não existe nenhum
+> sidecar** de metadados (`.title`, `manual_details.xml`, `manual_type.xml`, `version/*.txt`), mas
+> cada manual traz um **índice Lucene legado** (`index_2.0/`) que supre título, revisão e capítulo
+> para 5.719 dos 5.724 documentos. Consequências: RN-02/03/04/06/07 mudam de fonte ou deixam de
+> ser necessárias (§7 reescrita em `05_rastreabilidade_externa.md`); D-S2 foi resolvida
+> (`pypdfium2`, Apache-2.0); dois erros do desenho original foram corrigidos antes de virarem bug
+> — registrar `/publicacoes/` inteiro em `API_PREFIXES` reproduziria o bug documentado do
+> calendário, e abrir `catalog.db` com SQLAlchemy dispararia backup R2 espúrio do banco principal
+> (`app/bootstrap/events.py:34-41`); e o orçamento de disco da §5.1 cai para 1/3 do estimado.
+> Nenhuma das três decisões da espinha dorsal (§13) muda. Também nesta revisão: a ordem de
+> execução foi decidida (piloto FIM no M1, publicações avulsas no M2 — antes da integração com
+> panes/inspeções) e o CI real foi conferido (`.github/workflows/ci.yml` roda um único job SQLite,
+> sem matriz Postgres e sem mypy — os gates de saída do §10 foram reescritos de acordo). Detalhes
+> completos, evidência de cada número e o parser de referência do formato Lucene em
+> `docs/backlog/modulo_publicacoes/01_achados_do_acervo.md` a `06_addendum_revisao_5.md`, e a
+> especificação executável em `03_especificacao_tecnica.md`.
+
+---
+
+> ### ⚠️ Premissa de infraestrutura vigente (leia antes da §5)
+>
+> **Fato hoje:** o SAA29 **não está hospedado em lugar nenhum**. Não há provedor contratado.
+>
+> **Cenário de destino (hipótese de trabalho, não decisão tomada):** uma **VPS de entrada**.
+> O documento **não se compromete com fornecedor** — o que ele adota é um *envelope de
+> dimensionamento*, porque os planos de entrada do mercado convergem para as mesmas ordens de
+> grandeza em vCPU e RAM:
+>
+> | Recurso | Envelope de projeto | Papel no dimensionamento |
+> |---|---|---|
+> | vCPU | **1 núcleo** | 🔴 **o novo gargalo** — decide §5.4 e §8 |
+> | RAM | **4 GB** | teto real para workers + page cache do índice |
+> | Disco | **~50 GB NVMe**, persistente | dimensão que **mais varia** entre provedores — não assumir mais que isso |
+> | Tráfego | ~4 TB/mês | irrelevante neste caso de uso |
+> | Custo | ~US$ 5/mês (promocional) | ⚠️ renovação costuma ser bem mais cara que o 1º ciclo |
+>
+> Referência do envelope: Hostinger **KVM1** (1 vCPU · 4 GB · 50 GB NVMe · 4 TB · US$ 4,99/mês).
+> Planos equivalentes de outros provedores servem igual; se a escolha final tiver **menos RAM**
+> (há planos de entrada com 1–2 GB) ou **menos disco**, revisar §5.1 e §5.4 antes de executar o M4.
+>
+> **O que muda de dono com a VPS:** TLS, firewall, atualizações de segurança, monitoramento e
+> **backup testado** deixam de ser da plataforma e passam a ser **seus** (§12, R16).
 
 ---
 
@@ -35,17 +93,29 @@ A-29, e o insumo que falta em toda essa operação é justamente o manual técni
 *stack* é quase perfeito: Python 3.12, FastAPI, SQLite, Jinja2 — as duas bases falam a mesma
 língua.
 
-O encaixe de **infraestrutura**, porém, é onde o plano externo colide de frente com a
-realidade do SAA29, e é o ponto que decide o formato da entrega:
+O encaixe de **infraestrutura** é o ponto que decide o formato da entrega — e é aqui que a
+Revisão 4 corrige o parecer anterior:
 
 > O projeto externo foi desenhado para uma **VPS dedicada com disco persistente de 20 GB,
 > Caddy próprio e acervo de 3 GB no filesystem**.
-> O SAA29 roda em **Railway com filesystem efêmero**, banco SQLite persistido por
-> backup/restore no Cloudflare R2, Gunicorn com 2 workers e `timeout=30s`.
+> O SAA29 **não tem provedor hoje**, e o destino provável é exatamente isso: uma **VPS de
+> entrada** (~1 vCPU, 4 GB RAM, ~50 GB de disco persistente).
 >
-> **Copiar 3 GB de PDFs para dentro do deploy atual do SAA29 não funciona** — nem no boot,
-> nem na imagem Docker, nem no ciclo de backup. Esse é o único bloqueador real, e ele é
-> resolúvel; todo o resto é adaptação de padrão.
+> **As duas infraestruturas passaram a ser a mesma.** O que as revisões 1–3 trataram como o
+> *único bloqueador real* — 3 GB de PDFs não cabem num filesystem efêmero — **deixa de
+> existir**: 3 GB de acervo mais 1–2 GB de índice cabem com folga de ordem de grandeza em
+> 50 GB de disco que não some no próximo deploy.
+
+Isso não torna o plano externo adotável como está — mas muda **qual** é a objeção. O bloqueador
+não é mais *onde os arquivos moram*; é **CPU e responsabilidade operacional**:
+
+| | Objeção das revisões 1–3 | Objeção real na Revisão 4 |
+|---|---|---|
+| Volumetria | 🔴 3 GB não cabem (FS efêmero) | ✅ **cabem** — 50 GB persistentes (§5.1) |
+| Processamento | 🔴 `timeout=30` mata a indexação | 🔴 **continua** — e **piora**: 1 vCPU (§5.4) |
+| TLS / ingress | ✅ resolvido pela plataforma | 🟠 **volta a ser seu** — Caddy (§5.5) |
+| Persistência do banco | 🔴 depende do ciclo R2 de 120 s | ✅ disco real; R2 vira **backup**, não persistência |
+| Operação | plataforma cuida | 🟠 **você vira o sysadmin** (R16) |
 
 **Recomendação:** incorporar como módulo interno `app/modules/publicacoes/`, em **fases**,
 começando por um piloto que **já pode ser feito hoje sem nenhuma mudança de infraestrutura** —
@@ -96,8 +166,9 @@ Os números abaixo **não foram inferidos de documentação** — foram medidos 
 | Mapa de falhas FIM | ✅ **1.377 mensagens → 253 procedimentos únicos**; apenas **4 procedimentos sem PDF** (98,4% de cobertura) | `fim.json` + cruzamento com nomes de arquivo |
 | PDFs do FIM têm camada de texto | ✅ **Sim** — amostra de 12 arquivos: todos com `/Font` e operadores `Tj`/`TJ`, **zero imagens** (born-digital, não escaneados) | inspeção de bytes/streams |
 | Capítulos ATA no acervo FIM | **28 capítulos distintos** (21..97); os **8 códigos ATA seedados** no SAA29 (22, 23, 27, 31, 34, 42, 94, 97) estão **todos presentes** | `fim.json` + `scripts/seed/seed_sistemas_ata.py` |
-| Topologia de deploy | Railway (`PORT`), Gunicorn **2 workers**, `worker_class=UvicornWorker`, **`timeout=30`**, `max_requests=1000` | `gunicorn_conf.py` |
-| Persistência em produção | Filesystem **efêmero**; SQLite restaurado do R2 no boot e enviado ao R2 no shutdown/debounce de **120 s** | `scripts/start.sh`, `app/bootstrap/tasks.py`, `docs/backlog/Melhorias Futuras/implementacao_localhost.md` |
+| Topologia de deploy | **Sem provedor contratado.** Código pronto para container: Gunicorn, `bind` por `PORT`, `worker_class=UvicornWorker`, `max_requests=1000`. **`workers` é ajustável por env** (`GUNICORN_WORKERS`, default 2); **`timeout=30` está fixo no código** | `gunicorn_conf.py:4-19` |
+| Herança do Railway no código | Os comentários de `gunicorn_conf.py:3,7` ainda citam Railway. São **resíduo**, não configuração: `PORT` e `GUNICORN_WORKERS` funcionam em qualquer host | `gunicorn_conf.py` |
+| Persistência em produção | Desenhada para FS efêmero: SQLite restaurado do R2 no boot e enviado ao R2 no shutdown/debounce de **120 s**. **Numa VPS esse ciclo deixa de ser necessário como persistência** e passa a valer como backup off-site (§5.1) | `scripts/start.sh`, `app/bootstrap/tasks.py` |
 | CI | Matriz **SQLite + PostgreSQL**, `ruff` + `mypy` + `pytest` | `.github/workflows/ci.yml` |
 | Headers de segurança globais | `X-Frame-Options: DENY` e CSP `default-src 'self'; script-src 'self'` em **todas** as respostas | `app/shared/middleware/security.py` |
 | CSRF | Aplica-se **somente** a `POST/PUT/PATCH/DELETE` | `app/shared/middleware/csrf.py` |
@@ -107,8 +178,13 @@ Os números abaixo **não foram inferidos de documentação** — foram medidos 
 
 `docs/architecture/overview.md`, `docs/architecture/RBAC.md`, `docs/backlog/00_mapa_arquitetural.md`,
 `docs/methodology/CSP.md`, `docs/guides/cloudflare_r2.md`, `docs/guides/migracao_postgresql.md`,
-`docs/ROADMAP.md`, `docs/backlog/Melhorias Futuras/implementacao_consulta_fim.md`,
-`docs/backlog/Melhorias Futuras/implementacao_localhost.md`.
+`docs/ROADMAP.md`, `docs/backlog/Melhorias Futuras/implementacao_consulta_fim.md`.
+
+> **Nota da Revisão 4:** a análise original também consultou
+> `docs/backlog/Melhorias Futuras/implementacao_localhost.md`. Esse documento foi
+> **descontinuado e removido do repositório** na Revisão 4 — sua arquitetura ("MacBook local +
+> Railway em produção, sincronizando pelo R2") deixou de ter contraparte. Continua recuperável
+> pelo histórico do git, se algum dia for preciso conferir o que embasou a §2.2 e a §8.3.
 
 > **Observação de contexto:** já existem em `docs/backlog/` dois pareceres sobre o mesmo tema
 > (`codex_plano_de_incorporacao.md` e `gemini_plano_de_incorporacao.md`). Este documento foi
@@ -165,8 +241,10 @@ frente já aberta, com um projeto muito mais maduro.**
 | Templates | Jinja2 + htmx + Tailwind | Jinja2 + **Vanilla JS/CSS**, CSP sem inline | ⚠️ htmx e Tailwind **fora** |
 | Extração PDF | **PyMuPDF (AGPL-3.0)** | ReportLab (geração), Pillow | ⚠️ ver §5.9 |
 | Viewer | PDF.js | — (não existe hoje) | ➕ novo asset |
-| Proxy/TLS | Caddy | Railway (TLS gerenciado) | ✅ desnecessário — ver §5.5 |
-| Deploy | Docker Compose em VPS | Docker no Railway | ⚠️ ver §5.1 |
+| Proxy/TLS | Caddy | **nenhum** — não há provedor | 🟠 **necessário** — Caddy é a escolha certa, ver §5.5 |
+| Deploy | Docker Compose em VPS | Docker (`docker-compose.yml` já existe) | ✅ **convergiram** — mesma topologia, ver §5.1 |
+| Host | VPS dedicada, 20 GB persistentes | VPS de entrada, ~50 GB persistentes | ✅ **compatível, com folga** |
+| CPU | não especificada | **1 vCPU** (envelope) | 🔴 restrição nova — ver §5.4 |
 | Auth | **Em aberto (D-02)** | JWT (cookie `saa29_token`) + RBAC 4 papéis | ✅ **D-02 resolvido de graça** |
 
 ---
@@ -175,36 +253,70 @@ frente já aberta, com um projeto muito mais maduro.**
 
 Esta é a seção central do parecer. Cada item foi verificado no código, não presumido.
 
-### 5.1 🔴 BLOQUEADOR — Volumetria × filesystem efêmero
+### 5.1 🟠 Volumetria — deixou de ser bloqueador, virou orçamento de disco
 
-**O fato.** `scripts/start.sh` mostra o ciclo de vida real em produção: a cada boot o
-container faz `pip install`, **restaura o banco do R2**, roda `alembic upgrade head`, faz seed
-e sobe o Gunicorn. `app/bootstrap/events.py` + `tasks.py` mostram o retorno: a cada commit
-SQLAlchemy o banco é marcado *dirty* e, após **120 s de debounce**, o **arquivo inteiro** é
-enviado ao R2. Isso só é sustentável porque o banco atual tem ~1 MB.
+> **Esta seção foi invertida na Revisão 4.** Nas revisões 1–3 ela era o **🔴 único bloqueador
+> real** do parecer, e o argumento era o filesystem efêmero do Railway. Com o destino sendo uma
+> VPS de disco persistente, **o argumento caiu inteiro**. O que sobra é um problema muito menor
+> e de natureza diferente: **caber em ~50 GB e não crescer sem controle.**
 
-**A colisão.** O acervo completo são **~3 GB de PDFs** e o índice estimado em
-**~1–2 GB** (`Projeto.MD` §10). Nesse cenário:
+**O fato (o que continua verdadeiro).** `scripts/start.sh` restaura o banco do R2 no boot, roda
+`alembic upgrade head`, faz seed e sobe o Gunicorn; `app/bootstrap/events.py` + `tasks.py` marcam
+o banco como *dirty* a cada commit SQLAlchemy e sobem o **arquivo inteiro** para o R2 após
+**120 s de debounce**. Isso foi desenhado para sobreviver a um filesystem que some.
 
-- os PDFs **não podem** morar no filesystem do container — somem a cada deploy;
-- **não podem** ir na imagem Docker — o `Dockerfile` faz `COPY . .`, e uma imagem de 3 GB
-  é inviável em build/pull no Railway;
-- o índice **não pode** ficar no `saa29_local.db` — o backup R2 passaria a subir 2 GB a cada
-  janela de 120 s, o que estoura custo, tempo de shutdown e a própria janela de deploy;
-- baixar 3 GB do R2 no boot **não é opção** — o `start.sh` seria interrompido muito antes.
+**O que muda numa VPS.** Esse ciclo **deixa de ser o mecanismo de persistência** — o disco já
+persiste — e passa a ser **backup off-site**, que é um papel legítimo e que vale a pena manter.
+Duas consequências práticas:
 
-**A saída (recomendada).**
+- o `restore` no boot vira **rede de segurança**, não caminho crítico: o banco local é a verdade;
+- o debounce de 120 s pode ser **relaxado** (p. ex. para minutos), porque não há mais o risco de
+  perder tudo num deploy — reduz escrita no R2 sem perder proteção.
+
+**A restrição nova: o orçamento de disco.** ~50 GB é folgado para 3 GB de acervo, mas não é
+infinito, e há itens que crescem para sempre. Orçamento realista:
+
+| Item | Tamanho | Cresce com o tempo? |
+|---|---:|---|
+| SO + Docker + imagem da aplicação | ~8–10 GB | não |
+| Acervo vigente (PDFs) | ~3 GB | por edição |
+| Edição anterior retida (§8.6), **desduplicada por hash** | ~0,3 GB | ~10% ao ano |
+| `catalog.db` vigente + anterior | ~2–4 GB | por edição |
+| Banco principal + anexos das avulsas (§9.3) | ~0,1 GB hoje | 🔴 **sim, sem teto natural** |
+| Logs, swap, folga operacional | ~3–5 GB | não |
+| **Total no ano 1** | **≈ 17–23 GB** | |
+
+**Três decisões que o orçamento impõe:**
+
+1. **Snapshots ZIP não moram na VPS.** Três edições arquivadas seriam ~9 GB — quase 20% do disco
+   para dado que se consulta uma vez por década. Vão para o **R2** (§8.4), onde custam
+   ~US$ 0,14/mês.
+2. **Desduplicar o acervo por hash.** Guardar a edição anterior como cópia integral dobra 3 GB
+   por nada: ~90% dos arquivos são idênticos entre edições. Armazenar por `hash_sha256` e
+   apontar duas edições para o mesmo blob resolve — e o modelo da §6.2 **já tem** a coluna.
+3. **Vigiar os anexos das avulsas.** É o único item sem teto: 5–50 MB por boletim, centenas por
+   ano. É o que vai encostar nos 50 GB em 3–5 anos, não os manuais. Anexo grande no R2 e ponteiro
+   no banco continua sendo a saída (`R2StorageService` **já está implementado**).
+
+**A saída (recomendada, revisada).**
 
 | Artefato | Onde mora | Como chega ao runtime |
 |---|---|---|
-| PDFs do acervo | **Cloudflare R2** (bucket já existente, prefixo `publicacoes/`) | Nunca são baixados inteiros: o app gera **URL pré-assinada** (`R2StorageService.get_url`, já implementado) ou faz **proxy com Range**. O R2 já suporta Range nativamente. |
-| Índice `catalog.db` | Arquivo SQLite **separado**, gerado **offline** | Baixado do R2 **uma vez por boot** (~50–300 MB no piloto FIM; ver §5.3 sobre o corte para o acervo completo) ou montado em volume Railway |
+| PDFs do acervo | **Disco da VPS** (`PUBLICACOES_ACERVO_DIR`), com **espelho no R2** | `FileResponse` com Range — direto do disco, autenticado, sem latência de rede nem URL pré-assinada. É o desenho do projeto externo, agora aplicável. |
+| Índice `catalog.db` | Arquivo SQLite **separado**, gerado **offline**, **no disco** | Copiado para a VPS pela estação de publicação (§8). **Não é mais baixado a cada boot** — some o custo de cold start que as revisões 1–3 tinham de aceitar. |
+| Snapshots ZIP das edições | **Cloudflare R2**, nunca na VPS | Só em reprocessamento (§8.4) |
+| Backup do banco + anexos | **Cloudflare R2** (ciclo já implementado) | Restore no boot como rede de segurança |
 | Metadados exibíveis | Tabelas no banco principal (Alembic) | Só o catálogo leve: manuais, capítulos, documentos. **Nunca o texto das páginas.** |
 
-**Consequência de projeto:** a "regra de ouro" externa (*publicar manual = copiar pasta*)
-**muda de forma, mas não de espírito**: publicar = `rclone/aws s3 sync` da pasta para o R2 +
-rodar o indexador offline + subir o `catalog.db` novo. Continua sendo *zero código*, mas
-deixa de ser *zero comando*.
+**Consequência de projeto — a regra de ouro externa volta a valer quase literalmente.** As
+revisões 1–3 diziam que *publicar manual = copiar pasta* virava `aws s3 sync` + indexador +
+upload do `catalog.db`. Numa VPS, publicar é **`rsync` da pasta + `rsync` do `catalog.db`** —
+que é *exatamente* o que o `Runbook.MD` externo §5.1 descreve. O espírito **e** a forma são
+preservados; o que muda é só quem aperta o botão de ativação (§8).
+
+> **O R2 não vira desperdício.** Ele deixa de ser a *persistência* e passa a ser **backup
+> off-site + arquivo de snapshots** — que numa VPS de nó único, sem redundância, é justamente o
+> que falta (R18). O investimento já feito em `storage.py` continua rendendo.
 
 ---
 
@@ -235,7 +347,9 @@ Dois motivos independentes, ambos verificados:
    e `docs/methodology/NEXT.md` declara "Portabilidade 100% — suporte nativo e testado a
    SQLite e PostgreSQL". Uma `CREATE VIRTUAL TABLE ... USING fts5` numa migration Alembic
    **quebra o job Postgres do CI** e mata a portabilidade que o projeto já pagou para ter.
-2. **O ciclo de backup R2** (§5.1) sobe o arquivo inteiro do `DATABASE_URL`.
+2. **O ciclo de backup R2** (§5.1) sobe o arquivo inteiro do `DATABASE_URL`. Numa VPS esse ciclo
+   vira backup em vez de persistência, mas o efeito é o mesmo: um índice de 2 GB dentro do
+   `DATABASE_URL` transformaria cada backup em 2 GB de upload.
 
 **Decisão:** o índice vive em **arquivo SQLite dedicado**, aberto por uma engine própria
 (ou por `sqlite3` síncrono em thread), **fora do Alembic e fora do `DATABASE_URL`**. O acesso
@@ -250,16 +364,35 @@ Divergência registrada: os pareceres do Codex e do Gemini chegam à mesma concl
 
 ### 5.4 🔴 A indexação não pode rodar dentro do processo web
 
-**O fato.** `gunicorn_conf.py` fixa `workers = 2` e **`timeout = 30`**. PyMuPDF é síncrono e
-CPU-bound. O `Projeto.MD` §6 estima **15–40 min** para a indexação inicial dos ~12 mil PDFs.
+> **Esta é a seção que a VPS *reforça*, não enfraquece.** Das objeções das revisões 1–3, esta é
+> a que sobrevive inteira — e ganha um argumento novo e mais forte: **1 vCPU**.
+
+**O fato.** `gunicorn_conf.py:8,18` define `workers` por env (`GUNICORN_WORKERS`, default **2**)
+e **`timeout = 30` fixo no código**. PyMuPDF é síncrono e CPU-bound. O `Projeto.MD` §6 estima
+**15–40 min** para a indexação inicial dos ~12 mil PDFs — número medido numa VPS dedicada, **não
+num plano de entrada de 1 núcleo**.
 
 **A colisão.** O desenho externo dispara a indexação **no boot da aplicação** e expõe
 `POST /admin/reindex`. Dentro do SAA29 isso produziria:
-- worker morto pelo `timeout=30` no meio do lote;
+- worker morto pelo `timeout=30` no meio do lote — e esse valor está **hardcoded**, então
+  contorná-lo exigiria mudar código, não configuração;
 - com 2 workers, **um deles indisponível** durante toda a indexação — 50% da capacidade;
 - pior: com 2 workers, **duas indexações concorrentes** escrevendo no mesmo SQLite (o lock
   `index_state` do desenho externo é *in-process* e não protege contra isso);
 - e `max_requests=1000` recicla workers periodicamente, reiniciando o trabalho.
+
+**O agravante da VPS de entrada.** Com **1 vCPU**, indexar não degrada o sistema — **para** o
+sistema. A extração é CPU-bound e não há segundo núcleo para atender requisições enquanto ela
+roda: o app fica sem CPU para responder, o healthcheck falha e o worker é reciclado. A estimativa
+de 15–40 min de um servidor dedicado vira **horas** num núcleo compartilhado. Isso torna a §8
+(estação de publicação na sua máquina) não apenas conveniente, mas **a única forma viável** —
+o mesmo motivo, agora por CPU em vez de por filesystem.
+
+**Dimensionamento de workers na VPS.** Com 1 vCPU, `workers = 2` continua adequado (a carga é
+I/O-bound: SQLite e leitura de PDF), e o default do código já entrega isso. **Não aumentar** —
+a fórmula `2×cores+1` vale para CPU-bound e aqui só criaria disputa por um único núcleo e
+pressão de RAM. `GUNICORN_WORKERS` existe justamente para ajustar se a VPS escolhida tiver mais
+núcleos.
 
 **Decisão:**
 - indexação é **script offline** (`scripts/publicacoes/indexar.py`), executado na máquina do
@@ -274,13 +407,29 @@ problema de runtime.
 
 ---
 
-### 5.5 🟡 Servir os PDFs — o Caddy não é necessário, mas há duas armadilhas
+### 5.5 🟡 Servir os PDFs — o Caddy volta ao desenho, mas por outro motivo
+
+> **Correção da Revisão 4.** As revisões 1–3 diziam *"o Caddy é desnecessário — o Railway já dá
+> TLS gerenciado"*. **Sem provedor, ninguém dá TLS gerenciado.** O Caddy (ou equivalente) volta
+> a ser necessário — só que pelo motivo que o `Projeto.MD` **não** invocava.
+
+**Separar as duas funções que o `Projeto.MD` juntava:**
+
+| Função do proxy | Veredito no SAA29 |
+|---|---|
+| **TLS / HTTPS / renovação de certificado** | 🟠 **necessário** — vira responsabilidade sua. Caddy é a escolha certa: obtém e renova certificado Let's Encrypt sozinho, com um `Caddyfile` de 3 linhas. |
+| **Servir os PDFs sem passar pelo Python** | ❌ **rejeitado** — serviria o acervo **sem autenticação**, exatamente o furo do `Runbook.MD` (§5.10). Os PDFs continuam saindo pelo FastAPI, autenticados. |
 
 **Boa notícia (verificada):** `FileResponse` do Starlette 0.41.3 **já responde `206 Partial
 Content` com `Content-Range`** — testado nesta análise. O argumento central do `Projeto.MD`
-para o Caddy ("PDFs nunca passam pela aplicação Python") **é dispensável no MVP**: o FastAPI
+para o Caddy ("PDFs nunca passam pela aplicação Python") **continua dispensável**: o FastAPI
 serve PDFs com Range corretamente, e assim eles ficam **protegidos por autenticação**, o que
 é um requisito no SAA29 e era uma pendência em aberto (D-02) no projeto externo.
+
+Ou seja: **Caddy entra como terminador TLS na frente do Gunicorn, e só isso.** Nenhuma diretiva
+`file_server` apontando para o acervo. Essa distinção precisa ficar explícita no `Caddyfile`,
+porque copiar o do `Runbook.MD` externo traria o `file_server` junto — e com ele o furo de
+autenticação.
 
 **Armadilha 1 — `X-Frame-Options: DENY`.** `app/shared/middleware/security.py:27` injeta esse
 header em **todas** as respostas. `DENY` bloqueia o enquadramento **inclusive pela própria
@@ -309,8 +458,13 @@ documentado lá, na mesma PR.
 
 **Armadilha 3 (operacional).** Com apenas 2 workers, um download longo de PDF prende um
 worker. Para o piloto FIM (arquivos de 13–92 KB, medidos) isso é irrelevante. Para AMMs
-grandes do acervo completo, a saída é **URL pré-assinada do R2** — o byte range vai direto do
-R2 ao navegador, sem passar pelo app.
+grandes do acervo completo há duas saídas, e a VPS muda qual é a preferida:
+
+- **numa VPS (preferida):** o arquivo vem de NVMe local, então o gargalo é a conexão do cliente,
+  não o disco. **Caddy à frente resolve por construção** — ele faz o buffering da resposta e
+  libera o worker do Gunicorn cedo. É um argumento extra a favor do proxy, independente do TLS.
+- **URL pré-assinada do R2:** continua disponível (`storage.py:129`, expiração de 60 min) e passa
+  a ser o **plano B**, útil se o tráfego de saída da VPS virar problema.
 
 ---
 
@@ -357,7 +511,13 @@ está correto assim).
 ### 5.8 🟡 A publicação de manuais muda de procedimento
 
 O `Runbook.MD` §5.1 define a operação mais frequente como `rsync` para a VPS + `curl` no
-`/admin/reindex`. **No Railway não há shell persistente nem disco para receber `rsync`.**
+`/admin/reindex`. As revisões 1–3 descartavam isso com *"no Railway não há shell persistente nem
+disco para receber `rsync`"*. **Numa VPS há os dois** — a metade do `rsync` volta a valer
+literalmente.
+
+O que **não** volta é a outra metade: o `curl` no `/admin/reindex` continua rejeitado, agora com
+argumento mais forte (§5.4 — indexar em 1 vCPU para o sistema). O `rsync` sobe **o resultado
+pronto**, não dispara trabalho no servidor.
 
 Além disso, a premissa do documento externo é falsa para este caso: lá, publicar manual é *"a
 operação mais frequente"*; aqui, é **anual**. Isso muda o desenho ótimo — um procedimento que
@@ -367,11 +527,20 @@ O fluxo completo está na **§8** (ciclo de publicação anual). Em resumo: a pa
 máquina do operador e o SAA29 recebe o resultado pronto, ativado por um clique. Continua sendo
 "sem código e sem cadastro manual" — o espírito da regra de ouro é preservado.
 
-O `Runbook.MD` externo **não é aproveitável como está**: §2 (provisionamento de VPS),
-§3 (Caddyfile/compose), §4 (deploy), §6.2 (cron de backup) e §7 (Uptime Kuma) descrevem uma
-infraestrutura que não existe aqui. O que **se aproveita** é a §8 (tabela de triagem de
-problemas) e o princípio da §6.1 ("a VPS é descartável; o índice é 100% derivado do acervo") —
-que, aliás, é ainda mais verdadeiro no Railway.
+**Reavaliação do `Runbook.MD` externo (Revisão 4).** Ele deixou de ser inaproveitável e passou a
+ser **a melhor base disponível** para o runbook interno — porque descreve a infraestrutura que
+agora será a nossa:
+
+| Seção do `Runbook.MD` | Veredito rev. 1–3 | Veredito Revisão 4 |
+|---|---|---|
+| §2 provisionamento de VPS | ❌ não se aplica | ✅ **aproveitável** — adaptar ao provedor escolhido |
+| §3 Caddyfile / compose | ❌ não se aplica | ⚠️ **aproveitável sem o `file_server`** (§5.5) |
+| §4 deploy | ❌ não se aplica | ✅ **aproveitável** — já temos `docker-compose.yml` |
+| §5.1 publicação por `rsync` | ❌ impossível | ♻️ **metade volta** — `rsync` sim, `/admin/reindex` não |
+| §6.1 "a VPS é descartável" | ✅ princípio válido | ✅ **mantido** — o índice é 100% derivado |
+| §6.2 cron de backup | ❌ não se aplica | 🔴 **obrigatório** — a plataforma não faz mais por você (R16) |
+| §7 Uptime Kuma | ❌ não se aplica | 🟠 **recomendado** — nó único, sem redundância (R18) |
+| §8 triagem de problemas | ✅ aproveitável | ✅ mantido |
 
 ---
 
@@ -379,7 +548,11 @@ que, aliás, é ainda mais verdadeiro no Railway.
 
 **PyMuPDF é distribuído sob AGPL-3.0** (ou licença comercial paga da Artifex). A cláusula de
 rede da AGPL alcança software **acessado por rede**, não apenas redistribuído — e o SAA29 é
-um sistema web acessado por terceiros (Railway, usuários da FAB).
+um sistema web acessado por terceiros (usuários da FAB), independente de onde esteja hospedado.
+
+> **Nota da Revisão 4:** hospedar em VPS própria **não muda nada** nesta análise. A cláusula da
+> AGPL é acionada pelo *acesso via rede*, não pelo tipo de hospedagem. A decisão D-S2 continua
+> aberta e continua sendo sua.
 
 Não sou a autoridade competente para dar parecer jurídico, e a exposição real depende de
 como o SAA29 é classificado (uso interno de órgão público, sem distribuição externa, é um
@@ -434,7 +607,7 @@ está **certa** e é atendida por outro mecanismo (§8):
 
 | # | Limite verificado | Onde |
 |---|---|---|
-| 1 | `ler_upload_com_limite()` lê em chunks mas **materializa o arquivo inteiro em `bytes`** antes de repassar a `storage.upload(file_content: bytes, ...)`. Um pacote de 3 GB vira 3 GB de RAM. | `file_validators.py`, `storage.py:46` |
+| 1 | `ler_upload_com_limite()` lê em chunks mas **materializa o arquivo inteiro em `bytes`** antes de repassar a `storage.upload(file_content: bytes, ...)`. Um pacote de 3 GB vira 3 GB de RAM — **numa VPS de 4 GB isso é OOM kill garantido**, não apenas degradação | `file_validators.py`, `storage.py:46` |
 | 2 | `max_upload_size_mb = 0.5` (500 KB) | `config/__init__.py` |
 | 3 | `.zip` **não está** em `EXTENSOES_PERMITIDAS` e **não há validador de magic bytes** para ele. O próprio arquivo documenta a regra: `.doc/.docx` foram *removidos* da allowlist justamente por não terem validação de assinatura — "se o suporte for necessário no futuro, deve entrar aqui primeiro, com magic bytes reais". | `file_validators.py:18-46` |
 | 4 | `timeout = 30` no Gunicorn, com **2 workers**. Um upload de 12.100 partes multipart (ou de 3 GB em uma requisição) é morto muito antes de terminar — e enquanto durasse, ocuparia 50% da capacidade do sistema. | `gunicorn_conf.py` |
@@ -447,6 +620,12 @@ estreita e auditada.
 **Conclusão:** o pacote anual não sobe pelo app. Ele é processado onde o DVD está — na sua
 máquina — e o que chega ao SAA29 é o resultado pronto (§8). O botão na UI continua existindo,
 mas **ativa** uma edição já publicada em vez de recebê-la.
+
+> **Revisão 4 — esta seção fica mais forte, e ganha um caminho melhor.** Os quatro limites
+> continuam válidos (o limite 1 piora: 3 GB em RAM numa VPS de 4 GB é OOM). Mas a VPS oferece o
+> canal que faltava: **`rsync`/`scp` por SSH**, que é feito exatamente para isso — transfere GB,
+> retoma de onde parou, verifica integridade e **não passa nem pelo navegador nem pelo processo
+> web**. O que era "não há como subir isso" vira "há um caminho, e não é o HTTP".
 
 ---
 
@@ -616,9 +795,9 @@ PUBLICACOES_ENABLED=true
 PUBLICACOES_MODO=consulta                  # consulta | publicacao  (§8.3)
 
 # Acervo A — manuais técnicos do DVD
-PUBLICACOES_ACERVO_DIR=var/publicacoes/acervo      # dev/local; em produção, R2
+PUBLICACOES_ACERVO_DIR=var/publicacoes/acervo      # dev E produção (VPS): disco persistente
 PUBLICACOES_INDEX_PATH=var/publicacoes/catalog.db
-PUBLICACOES_STORAGE=local                  # local | r2
+PUBLICACOES_STORAGE=local                  # local (padrão na VPS) | r2 (plano B / espelho)
 PUBLICACOES_R2_PREFIX=publicacoes/
 PUBLICACOES_CATEGORIAS_PATH=config/categorias_manuais.toml  # manual_type.xml (RN-04)
 PUBLICACOES_EDICOES_RETIDAS=2              # online: vigente + anterior (§8.6)
@@ -630,7 +809,13 @@ PUBLICACOES_AVULSAS_MAX_UPLOAD_MB=50       # separado de MAX_UPLOAD_SIZE_MB (§9
 
 `PUBLICACOES_ENABLED` é deliberado: permite que o módulo suba desligado (rotas não registradas)
 até o acervo estar disponível no ambiente — o SAA29 continua funcionando normalmente
-enquanto a decisão de infra da §5.1 amadurece.
+enquanto a decisão de infra (D-04 / D-S1) amadurece.
+
+> **Mudança da Revisão 4:** `PUBLICACOES_STORAGE=local` deixou de ser "só para desenvolvimento" e
+> virou **o padrão também em produção**. O acervo mora no disco da VPS; o R2 fica como espelho de
+> backup e como plano B se o tráfego de saída virar problema (§5.1). Isso simplifica o M4: não é
+> preciso implementar o caminho de URL pré-assinada para entregar o acervo completo — ele passa a
+> ser opcional, não pré-requisito.
 
 ---
 
@@ -679,7 +864,7 @@ Tabela de rastreabilidade. Nada da `Especificacao.MD` é perdido sem decisão ex
 | CA-03 (navegação mobile, alvos ≥ 44 px) | ✅ mantido — alinhado ao módulo `/m/` existente |
 | CA-04 (diacríticos) | ✅ **mantido e já verificado** — `remove_diacritics 2` funciona no ambiente |
 | CA-05 (resiliência da indexação) | ✅ mantido |
-| CA-06 (RSS < 200 MB, home < 100 ms) | ♻️ **adaptado** — o alvo agora é *não regredir* o consumo atual do SAA29 no Railway |
+| CA-06 (RSS < 200 MB, home < 100 ms) | ✅ **restaurado como alvo literal** — com 4 GB de RAM e 2 workers, RSS por worker vira um teto que **importa de verdade**, não um número herdado. Revisões 1–3 haviam diluído isso em "não regredir" |
 | CA-07 (estabilidade de links) | ✅ **mantido** — garantido pelo `document_id` determinístico (§6.2) |
 
 ### Decisões em aberto
@@ -689,14 +874,15 @@ Tabela de rastreabilidade. Nada da `Especificacao.MD` é perdido sem decisão ex
 | D-01 (rótulos dos `catid` 1–7) | 🟡 **continua aberta** — mas não bloqueia: `categorias_manuais.toml` com provisórios |
 | D-02 (acesso restrito?) | ✅ **RESOLVIDA** — JWT + RBAC do SAA29, autenticação obrigatória |
 | D-03 (migrar `Comments/` do legado) | 🟡 aberta — fase 2, se houver conteúdo relevante |
-| D-04 (domínio/provedor de VPS) | ✅ **ELIMINADA** — não há VPS; o ambiente é o do SAA29 |
+| D-04 (domínio/provedor de VPS) | 🔴 **REABERTA na Revisão 4** — as revisões 1–3 a deram por eliminada ("não há VPS; o ambiente é o do SAA29"). Sem provedor contratado, ela volta a ser **a decisão de infraestrutura mais urgente**, e agora bloqueia o *deploy do sistema inteiro*, não só este módulo |
 | D-05 (manuais exclusivos de um dos sistemas) | 🟡 aberta — só na fase do acervo completo |
-| **D-S1 (nova)** | **Onde mora o acervo de 3 GB** — R2 vs. volume Railway vs. servidor interno da OM. *Decisão sua, bloqueia a Fase 3.* |
+| **D-S1 (reformulada)** | **Onde mora o acervo de 3 GB.** A Revisão 4 **responde parcialmente**: numa VPS de ~50 GB, o acervo mora **no disco**, com espelho no R2 (§5.1). O que **continua aberto** é o caso de o disco escolhido ser menor que ~40 GB, ou de D-S4 apontar para um acervo bem maior que 3 GB. *Deixou de bloquear o M4 por completo; agora só condiciona o dimensionamento.* |
 | **D-S2 (nova)** | **PyMuPDF (AGPL) vs. pypdfium2 (Apache-2.0)** — §5.9. *Decisão sua, antes da Fase 1.* |
 | **D-S3 (nova)** | **Autorização para trafegar conteúdo dos manuais por API externa** (RAG) — §5.10. *Bloqueia a Fase 4 inteira.* |
 | **D-S4 (nova)** | **Escopo do acervo**: só Eletrônica (8 ATAs seedados) ou frota inteira? Muda a volumetria em uma ordem de grandeza. |
-| **D-S5 (nova)** | **Onde roda a estação de publicação** — script no venv da sua máquina (funciona já) ou instância local em Docker com UI (`implementacao_localhost.md`). §8.3. *Não bloqueia nada antes do M4.* |
+| **D-S5 (RESOLVIDA na Revisão 4)** | ✅ **Estação de publicação = script no venv da sua máquina.** A segunda opção (instância local em Docker com UI) dependia de `implementacao_localhost.md`, **descontinuado e removido do repositório** — o plano dele existia para dividir carga com o Railway, que não existe mais. Some a decisão e some trabalho: o script já funciona hoje. §8.3 |
 | **D-S6 (nova)** | **Quem cadastra publicação avulsa** — proposto `EncarregadoInspetorOuAdmin`; confirmar se o mantenedor também deve poder. §9.2. *Decisão de 1 minuto, mas precisa ser sua.* |
+| **D-S7 (nova, Revisão 4)** | **Backup e recuperação da VPS.** Com a plataforma fora do jogo, alguém precisa definir: frequência do backup off-site (o ciclo R2 já existente cobre o banco, **não** cobre o acervo nem os anexos), onde mora a cópia, e — o item que costuma faltar — **quando o restore foi testado pela última vez**. *Não bloqueia o M1, mas precisa estar resolvida antes de o sistema ter dado real de produção.* |
 
 ---
 
@@ -719,12 +905,19 @@ A saída é separar duas coisas que a proposta original juntava:
 | O quê | ler DVD, comparar, extrair texto, construir índice, subir para o R2 | apontar o sistema para a edição nova |
 | Onde | **sua máquina**, com o DVD na mão | **botão em `/configuracoes`** |
 | Duração | horas (um fim de semana) | **segundos** |
-| Risco para o SAA29 | **zero** — nem toca no Railway | mínimo, e reversível |
+| Risco para o SAA29 | **zero** — nem toca no servidor | mínimo, e reversível |
 
 Isso encaixa exatamente no que você descreveu: *"não é crítico, posso deixar rodando no fim de
-semana"*. Rodando **no seu PC** — o Railway não fica ocupado, não há custo de CPU em nuvem, e
-se a máquina travar no meio nada acontece com o sistema em produção, porque a edição vigente
-continua intacta até você clicar em "Ativar".
+semana"*. Rodando **no seu PC** — o servidor não fica ocupado, e se a máquina travar no meio nada
+acontece com o sistema em produção, porque a edição vigente continua intacta até você clicar em
+"Ativar".
+
+> **Por que isso importa mais depois da Revisão 4.** Nas revisões 1–3 o argumento era *"o Railway
+> não deixa"*. Com uma VPS, tecnicamente **deixaria** — há shell, disco e permissão de root. Mas
+> **não se deve**: com 1 vCPU, rodar a extração no servidor consome o único núcleo que atende os
+> usuários (§5.4). O que era uma restrição imposta pela plataforma virou uma **disciplina que
+> você precisa manter por conta própria** — e é justamente por isso que ela está escrita aqui.
+> A transferência do resultado usa `rsync` por SSH (§5.8), que numa VPS é trivial.
 
 ### 8.2 O fluxo, ponta a ponta
 
@@ -763,16 +956,30 @@ para o caso de algo dar errado.
 
 ### 8.3 Onde a estação de publicação roda
 
-Duas formas, ambas previstas por `PUBLICACOES_MODO`:
+**Uma forma só, e isso é uma simplificação — não uma perda.**
 
-1. **Script direto** (`PUBLICACOES_MODO` irrelevante) — `python scripts/publicacoes/publicar.py` no
-   venv do projeto, na sua máquina. Funciona hoje, sem depender de nada.
-2. **Instância local com UI** (`PUBLICACOES_MODO=publicacao`) — se o plano de
-   `docs/backlog/Melhorias Futuras/implementacao_localhost.md` (SAA29 em Docker no MacBook,
-   sincronizando pelo R2) for adiante, essa instância vira a estação natural: ela tem
-   filesystem real, o DVD acessível e nenhum `timeout` de 30 s no caminho. Aí você tem
-   **exatamente o botão que imaginou** — só que na instância certa. A instância do Railway
-   sobe sempre com `PUBLICACOES_MODO=consulta` e **não expõe** as rotas de ingestão.
+**Script direto** — `python scripts/publicacoes/publicar.py` no venv do projeto, na sua máquina.
+Funciona hoje, sem depender de nada. Tem filesystem real, o DVD acessível e nenhum `timeout` de
+30 s no caminho.
+
+A instância **da VPS** sobe sempre com `PUBLICACOES_MODO=consulta` e **não expõe** as rotas de
+ingestão.
+
+> **Mudança da Revisão 4.** As revisões 2–3 previam uma segunda forma — *"instância local em
+> Docker com UI"* — apoiada no plano `implementacao_localhost.md`. Esse documento foi
+> **descontinuado e removido**: a arquitetura dele era "MacBook local + Railway em produção
+> sincronizando pelo R2", e existia em boa parte para **economizar créditos do Railway**. Sem
+> Railway, ele perdeu a contraparte e o motivo. Consequências:
+>
+> - **D-S5 está resolvida** (era "qual das duas formas?"), sem custo — a que sobrou já funciona;
+> - `PUBLICACOES_MODO` **continua necessário**, e agora com um papel mais claro: ele não escolhe
+>   entre duas instâncias, ele **garante que a VPS nunca ganhe rotas de ingestão** (§5.4, R6).
+
+> **Nota da Revisão 4.** `PUBLICACOES_MODO` ganhou importância. Enquanto o servidor era uma
+> plataforma gerenciada, expor rotas de ingestão em produção era impossível por construção. Numa
+> VPS **é possível** — e por isso a separação precisa ser garantida por configuração explícita e
+> testada, não por acidente de ambiente. `PUBLICACOES_MODO=consulta` deve ser o **default do
+> código**, de modo que esquecer a variável no servidor resulte no modo seguro.
 
 ### 8.4 Guardar o pacote para reprocessar — sim, com três ajustes
 
@@ -784,8 +991,11 @@ Sua ideia de arquivar o ZIP é boa e vale a pena. Três correções de expectati
 veio"), verificação de integridade e reprocessamento determinístico. Vale por esses motivos,
 não pelo espaço.
 
-**b) Onde.** No **R2**, não no disco do Railway (efêmero — sumiria no próximo deploy) e nunca
-dentro do banco. Em `var/publicacoes/pacotes/` só na máquina local, como cache.
+**b) Onde.** No **R2**, e nunca dentro do banco. O motivo mudou na Revisão 4 — antes era
+*"o disco do Railway é efêmero"*; agora é **orçamento de disco**: três snapshots de 3 GB seriam
+~9 GB, quase 20% da VPS, para dado que se consulta uma vez por década (§5.1). O R2 cobra
+US$ 0,14/mês por isso e ainda resolve o off-site. Em `var/publicacoes/pacotes/` só na máquina
+local, como cache.
 
 **c) Custo.** R2 cobra ~US$ 0,015/GB/mês e **egress zero**. Três edições ≈ 9 GB ≈
 **US$ 0,14/mês**. Irrelevante — guarde as 3 últimas com folga.
@@ -793,7 +1003,7 @@ dentro do banco. Em `var/publicacoes/pacotes/` só na máquina local, como cache
 **Sobre a cópia-mestre:** o DVD físico já é o seu original. O snapshot no R2 protege contra
 perda ou degradação da mídia óptica, que é um risco real na faixa de 5–10 anos. O resultado é
 a regra 3-2-1 do `Runbook.MD` §6.1 satisfeita de forma natural: **DVD físico + snapshot ZIP no
-R2 + acervo expandido no R2**.
+R2 + acervo expandido no disco da VPS** — três cópias, duas mídias, uma fora do local.
 
 **Reprocessar** vira um comando, sem precisar do DVD de novo:
 
@@ -1040,10 +1250,15 @@ palavra da ementa — nos três casos.
 
 ---
 
-### M4 — Acervo completo e ciclo do DVD (≈ 2 semanas + decisão D-S1) 🔒
+### M4 — Acervo completo e ciclo do DVD (≈ 2 semanas + decisões D-04/D-S4) 🔒
 
-**Só começa depois de D-S1 e D-S4 respondidas.** É aqui que entram os 3 GB, o `merge_data.py`
-da Fase 0 externa, a migração do storage para R2 e o ciclo anual da §8.
+**Só começa depois de D-04 (provedor contratado) e D-S4 respondidas.** É aqui que entram os
+3 GB, o `merge_data.py` da Fase 0 externa e o ciclo anual da §8.
+
+> **Mudança da Revisão 4.** O bloqueio deste marco **trocou de dono**: era D-S1 (*"onde mora o
+> acervo de 3 GB"*), pergunta arquitetural sem resposta óbvia. Agora é **D-04** (*"qual VPS"*),
+> pergunta comercial com resposta em uma tarde. A "migração do storage para R2" **saiu do
+> escopo**: o acervo fica no disco (§5.1, §6.4), o que **reduz** o trabalho deste marco.
 
 **Entregáveis**
 - `scripts/publicacoes/merge_data.py` conforme RN-08 (hash, `_merge_conflicts/`, `merge_report.txt`,
@@ -1055,14 +1270,18 @@ da Fase 0 externa, a migração do storage para R2 e o ciclo anual da §8.
   `version/*.txt` → RN-03, RN-04, RN-06.
 - Tabela `manuais_edicoes` + card **"Publicações"** em `/configuracoes` com ativar/reverter e
   visualização do relatório de diff (§8.2).
-- Storage em R2 com URL pré-assinada; `PUBLICACOES_STORAGE=r2`; retenção de edições e snapshots.
+- Acervo no disco da VPS (`PUBLICACOES_STORAGE=local`), **desduplicado por `hash_sha256`** entre
+  a edição vigente e a anterior (§5.1); snapshots ZIP no R2; retenção de edições e snapshots.
+- Transferência por `rsync`/SSH da estação de publicação para a VPS (§5.8), com verificação de
+  hash na chegada — **não** por HTTP (§5.11).
 - Runbook interno: `docs/guides/operacao_publicacoes.md`, adaptando a §8 (triagem) do
-  `Runbook.MD` externo e substituindo §2/§3/§4/§6.2/§7 pelo procedimento real do Railway.
+  `Runbook.MD` externo e aproveitando §2/§3/§4/§6.2/§7 conforme a tabela de reavaliação da §5.8.
 - Medição de `documentos_sem_texto` no acervo completo → dimensiona a necessidade de OCR.
 
 **Gate:** publicar uma edição de ponta a ponta a partir da mídia, **ativar**, conferir o
-relatório de diff, **reverter** para a anterior e reativar — tudo sem downtime e com consumo de
-memória do app **sem regressão** frente ao baseline do Railway.
+relatório de diff, **reverter** para a anterior e reativar — tudo sem downtime, com **RSS por
+worker abaixo de 200 MB** (CA-06 restaurado) e com o **disco da VPS abaixo de 60% de ocupação**
+depois de duas edições retidas.
 
 ---
 
@@ -1083,10 +1302,17 @@ inegociáveis, o golden set de 30–50 perguntas é pré-requisito de entrada, e
 | **M1 — piloto FIM** | **~1 semana** | **nada** | **✅ sim — alto** |
 | M2 — integração panes/inspeções | ~1 semana | M1 | ✅ sim |
 | **M3 — publicações BO/BS/NPO/BT** | **~1 semana** | **M0** (nem M1) | **✅ sim — alto** |
-| M4 — acervo completo + ciclo DVD | ~2 semanas | **D-S1, D-S4** | ✅ sim |
+| M4 — acervo completo + ciclo DVD | ~2 semanas | **D-04, D-S4** | ✅ sim |
 | M5 — RAG | — | **D-S3** | congelado |
 
 **Caminho até valor operacional: ~1 semana e meia (M0+M1), sem tocar em infraestrutura.**
+
+> **O ponto que a Revisão 4 não muda — e é o mais importante.** M0, M1, M2 e M3 **não dependem de
+> provedor nenhum**. Rodam no `.venv` local, com os 411 PDFs que já estão no repositório. Você
+> pode construir e usar o módulo inteiro (piloto FIM + integração com panes + BO/BS/NPO/BT) **antes
+> de contratar qualquer VPS** — e chegar na decisão D-04 sabendo exatamente de quanto disco, RAM e
+> CPU precisa, em vez de estimar. O faseamento que existia por prudência arquitetural agora rende
+> também uma **vantagem de negociação**.
 
 M2 e M3 são independentes entre si — a ordem entre eles é escolha sua, conforme o que dói mais
 na operação hoje: ligar a pane ao procedimento (M2) ou parar de perder boletim em pasta de rede
@@ -1098,12 +1324,12 @@ na operação hoje: ligar a pane ao procedimento (M2) ou parar de perder boletim
 
 | # | Risco | Prob. | Impacto | Mitigação |
 |---|---|:--:|:--:|---|
-| R1 | Acervo de 3 GB inviabiliza o deploy atual | **Alta** | **Alto** | Faseamento: M1/M2 com 14 MB; D-S1 decidida com o sistema já provado |
+| R1 | ~~Acervo de 3 GB inviabiliza o deploy atual~~ → **Disco da VPS satura ao longo dos anos** | **Baixa** (↓ de Alta) | Médio (↓ de Alto) | **Reclassificado na Revisão 4.** 50 GB absorvem o acervo com folga; o risco vira crescimento sem controle. Desduplicação por hash, snapshots só no R2, retenção de 2 edições (§5.1) |
 | R2 | PDF.js barrado pela CSP / `X-Frame-Options` | Média | Médio | Item de aceite explícito no M1; PDF.js em canvas (sem iframe) evita o XFO por construção |
 | R3 | Índice FTS5 quebra a matriz Postgres do CI | Média | Alto | `catalog.db` separado, fora do Alembic (§5.3) — decisão já tomada |
 | R4 | Backup R2 inflado por índice grande | Média | Alto | Índice nunca entra no `DATABASE_URL` (§5.3) |
 | R5 | Exposição AGPL do PyMuPDF | Média | Médio | D-S2 antes da Fase 1; `pypdfium2` como alternativa avaliada no piloto |
-| R6 | Indexação matando worker (`timeout=30`) | **Alta** se feita in-process | Alto | Indexação **offline** por construção (§5.4) |
+| R6 | Indexação matando worker (`timeout=30`) — **e, com 1 vCPU, derrubando o sistema inteiro** | **Alta** se feita in-process | **Muito alto** (↑ na Revisão 4) | Indexação **offline** por construção (§5.4); `PUBLICACOES_MODO=consulta` como default do código (§8.3) |
 | R7 | Módulo vira casca abandonada (precedente `encarregado`) | Média | Médio | M1 fechado e útil por si só; nada é *merged* sem testes e gate verde |
 | R8 | Conteúdo controlado trafegando por API externa (RAG) | Baixa (se M4 congelado) | **Muito alto** | M4 fora do roadmap até D-S3 |
 | R9 | Divergência de padrão (htmx/Tailwind) criando 2º dialeto de frontend | Média | Médio | Decisão explícita §5.7: Vanilla JS/CSS |
@@ -1113,13 +1339,20 @@ na operação hoje: ligar a pane ao procedimento (M2) ou parar de perder boletim
 | R13 | Perda das publicações avulsas (dado insubstituível) | Baixa | **Muito alto** | Ficam no banco principal, dentro do backup R2 já existente; soft delete, nunca hard delete (§6.2) |
 | R14 | Degradação da mídia óptica (DVD) ao longo dos anos | Média (5–10 anos) | Alto | Snapshot ZIP no R2 fecha a regra 3-2-1 (§8.4) |
 | R15 | Ementa mal preenchida torna a publicação inencontrável | **Alta** | Médio | Ementa como campo obrigatório com mínimo de caracteres; tipo/número/ano/ATA dão caminhos de busca alternativos que não dependem de texto livre |
+| **R16** 🆕 | **Operação da VPS vira responsabilidade sua** — patches de segurança do SO, renovação de TLS, firewall, SSH exposto. Um servidor sem manutenção é um servidor comprometido | **Alta** | **Alto** | Caddy renova TLS sozinho (§5.5); `ufw` fechando tudo menos 80/443/22; SSH só por chave, sem senha; atualizações automáticas de segurança. Escrever isso no runbook do M4 **antes** de o sistema ter dado real |
+| **R17** 🆕 | **Anexos das publicações avulsas crescem sem teto** — 5–50 MB × centenas/ano é o único item do orçamento de disco sem limite natural (§5.1) | **Alta** (em 3–5 anos) | Médio | Monitorar ocupação; mover anexos antigos para o R2 mantendo o ponteiro no banco (`R2StorageService` já implementado) |
+| **R18** 🆕 | **Nó único, sem redundância** — a VPS é ponto único de falha para um sistema que a manutenção usa em serviço. Plataforma gerenciada absorvia parte disso | Média | **Alto** | Backup off-site no R2 **testado** (D-S7); monitoramento externo (Uptime Kuma, §5.8); o índice é 100% regenerável, então o RTO real depende só do banco e dos anexos |
+| **R19** 🆕 | **Custo recorrente e renovação** — o preço de entrada (~US$ 5/mês) costuma ser promocional de primeiro ciclo; a renovação é sensivelmente maior. **Esse risco já se materializou uma vez**: o fim do plano gratuito do Railway é a razão de o SAA29 estar hoje sem hospedagem | Média | Baixo | Verificar o **preço de renovação**, não o promocional, antes de contratar (D-04); manter o sistema portável — Docker + SQLite + R2 não prendem a fornecedor nenhum |
 
 ---
 
 ## 12. Anti-escopo (o que **não** fazer)
 
-- ❌ **Não** subir Caddy, `docker-compose` próprio ou segundo processo. O SAA29 já tem
-  ingress e TLS pelo Railway; Range funciona no Starlette (verificado).
+- ⚠️ **Revisado na Revisão 4** — ~~"não subir Caddy"~~. O Caddy **entra**, como terminador TLS
+  do sistema inteiro (§5.5). O que continua proibido é o **`file_server` do Caddy servindo o
+  acervo**: os PDFs saem pelo FastAPI, autenticados. Range funciona no Starlette (verificado).
+- ❌ **Não** subir um `docker-compose` próprio do módulo nem um segundo processo de aplicação —
+  o `docker-compose.yml` do SAA29 é um só.
 - ❌ **Não** criar uma segunda aplicação FastAPI dentro do repositório.
 - ❌ **Não** colocar `pages`/`pages_fts` no banco principal nem em migration Alembic.
 - ❌ **Não** usar a pasta `data/` da raiz (é o volume do banco).
@@ -1128,12 +1361,20 @@ na operação hoje: ligar a pane ao procedimento (M2) ou parar de perder boletim
 - ❌ **Não** servir PDFs sem autenticação, em nenhum ambiente.
 - ❌ **Não** passar token JWT por query string para o viewer (cookie same-origin resolve).
 - ❌ **Não** iniciar qualquer trabalho de RAG antes de D-S3.
-- ❌ **Não** portar `Runbook.MD` §2/§3/§4 como está — descreve uma infraestrutura que não existe aqui.
+- ⚠️ **Revisado na Revisão 4** — ~~"não portar `Runbook.MD` §2/§3/§4"~~. Com VPS, essas seções
+  voltam a ser **a melhor base disponível** (tabela de reavaliação na §5.8). Portar **adaptando**,
+  e nunca o `file_server` do Caddyfile.
 - ❌ **Não** subir o acervo anual (pastas do DVD ou ZIP de GB) pelo navegador (§5.11).
 - ❌ **Não** adicionar `.zip` à allowlist de upload sem validador de magic bytes — e, com o
   desenho da §8, não há motivo para adicioná-lo.
 - ❌ **Não** descartar a edição anterior do acervo ao publicar uma nova (§8.6).
-- ❌ **Não** guardar snapshots ZIP no filesystem do Railway (efêmero) nem dentro do banco.
+- ❌ **Não** guardar snapshots ZIP no disco da VPS nem dentro do banco — vão para o R2. O motivo
+  mudou (orçamento de disco, não efemeridade), a regra não (§5.1, §8.4).
+- ❌ **Não** rodar a indexação na VPS "só desta vez" — com 1 vCPU, isso derruba o sistema para
+  todo mundo (§5.4). A plataforma não impede mais; a disciplina é sua.
+- ❌ **Não** deixar `PUBLICACOES_MODO` sem default seguro no código — esquecer a variável no
+  servidor não pode expor rotas de ingestão (§8.3).
+- ❌ **Não** contratar VPS olhando o preço promocional sem checar o de renovação (R19).
 - ❌ **Não** modelar as publicações avulsas como um tipo de manual — são dado de usuário, com
   criticidade e ciclo de vida diferentes (§9.1).
 - ❌ **Não** afrouxar `MAX_UPLOAD_SIZE_MB` global para acomodar boletins escaneados — limite
@@ -1145,26 +1386,48 @@ na operação hoje: ligar a pane ao procedimento (M2) ou parar de perder boletim
 ## 13. Conclusão
 
 **Incorporar: sim.** O domínio pede, a stack aceita, e o SAA29 resolve de graça a maior
-pendência do projeto externo (autenticação, D-02) além de eliminar outra (VPS/domínio, D-04).
+pendência do projeto externo (autenticação, D-02). A Revisão 4 corrige o parecer num ponto: o
+SAA29 **não** eliminava a pendência de VPS/domínio (D-04) — ela apenas estava escondida atrás de
+uma hospedagem gratuita que **deixou de existir**. D-04 está reaberta e é hoje a decisão de
+infraestrutura mais urgente do projeto inteiro, não só deste módulo.
 
-**Do jeito que está escrito: não.** O `Projeto.MD` e o `Runbook.MD` assumem uma VPS dedicada
-com disco persistente, Caddy e acervo no filesystem. O SAA29 vive num Railway efêmero com
-2 workers, `timeout=30s` e banco que viaja para o R2 a cada 120 segundos. Três decisões
-resolvem o descompasso e são a espinha dorsal deste plano:
+**Do jeito que está escrito: quase.** As revisões 1–3 respondiam *"não"* aqui, porque o
+`Projeto.MD` e o `Runbook.MD` assumiam uma VPS dedicada com disco persistente, Caddy e acervo no
+filesystem — e o SAA29 viveria num ambiente efêmero. **Essa oposição acabou:** o destino do SAA29
+é exatamente a VPS que o projeto externo pressupunha. O descompasso que resta é menor e tem
+outra origem — **1 vCPU** e o fato de que agora **você é o administrador do servidor**.
 
-1. **índice FTS5 em arquivo SQLite dedicado**, fora do Alembic e fora do backup R2;
-2. **indexação offline**, nunca dentro do processo web;
-3. **acervo fora do repositório e fora de `data/`** — R2 na produção, `var/publicacoes/` em dev.
+Três decisões continuam sendo a espinha dorsal do plano, e todas **sobrevivem à correção de
+premissa** — o que é, por si só, um bom sinal sobre elas:
+
+1. **índice FTS5 em arquivo SQLite dedicado**, fora do Alembic e fora do backup R2
+   *(motivo original: backup inflado; motivo que permanece: portabilidade Postgres do CI)*;
+2. **indexação offline**, nunca dentro do processo web
+   *(motivo original: `timeout=30`; motivo que permanece e é mais forte: 1 vCPU)*;
+3. **acervo fora do repositório e fora de `data/`** — agora em `var/publicacoes/` **tanto em dev
+   quanto na VPS**, com o R2 como backup off-site em vez de fonte de verdade.
+
+E uma quarta, nova, que a VPS traz junto:
+
+4. **Caddy na frente do Gunicorn, só para TLS** — sem `file_server` apontando para o acervo
+   (§5.5). É a única linha do `Runbook.MD` externo que precisa ser deliberadamente **não**
+   copiada.
 
 **E há um atalho que muda a natureza do risco:** o SAA29 **já tem** 411 PDFs do FIM com
 camada de texto verificada, 1.377 mensagens de falha mapeadas e 98,4% de cobertura
 procedimento→arquivo — tudo somando 14 MB. Isso é uma amostra representativa e um caso de uso
-de alto valor operacional que cabe no deploy atual **sem nenhuma mudança de infraestrutura**.
+de alto valor operacional que **não depende de hospedagem nenhuma para ser construído**.
 
-Comece por aí. Em cerca de uma semana e meia o mantenedor lê "ADC 001" no cockpit e abre o
-procedimento na página certa, pelo celular, dentro do SAA29. Com isso funcionando e medido,
-a conversa sobre os 3 GB deixa de ser uma aposta arquitetural e vira uma decisão de custo de
-armazenamento — que é uma decisão muito mais fácil de tomar.
+Comece por aí — e esse conselho ficou **mais** válido com a Revisão 4, não menos. Sem provedor
+contratado, M0+M1+M2+M3 são exatamente o trabalho que você consegue fazer *enquanto* a decisão
+D-04 amadurece: rodam no `.venv` local, com o acervo que já está no repositório. Em cerca de uma
+semana e meia o mantenedor lê "ADC 001" no cockpit e abre o procedimento na página certa, pelo
+celular, dentro do SAA29 — rodando na sua máquina, se for o caso.
+
+Com isso funcionando e medido, a conversa sobre os 3 GB deixa de ser uma aposta arquitetural e
+vira uma linha num orçamento de disco que você já sabe calcular (§5.1). E a escolha da VPS deixa
+de ser um chute: você chega nela sabendo de quanto disco, RAM e CPU precisa — o que é a diferença
+entre contratar certo e descobrir depois.
 
 **Sobre o ciclo anual do DVD:** o botão que você imaginou existe, mas ele **ativa** em vez de
 receber. A parte pesada roda na sua máquina, com o DVD na mão, no fim de semana — e o SAA29
@@ -1190,3 +1453,22 @@ manuais, **M3 pode vir antes do M2** — ele só depende do M0.
 
 D-S1, D-S3, D-S4 e D-S5 não bloqueiam nada até o M4 e podem ser decididas com o piloto já
 rodando. D-S6 é uma linha de código, mas a decisão é sua.
+
+### Ordem sugerida depois da Revisão 4
+
+**D-04 (qual VPS) é urgente, mas não é a primeira.** Ela bloqueia o *deploy*, não o
+*desenvolvimento* — e responder antes do M1 significa pagar mensalidade por um servidor que
+ainda não tem o que servir. A ordem que economiza dinheiro e reduz chute:
+
+| Ordem | Ação | Por quê agora |
+|---:|---|---|
+| 1 | **D-S2** + autorizar **M0+M1** | Não depende de provedor. Entrega o piloto FIM rodando local |
+| 2 | **M3** ou **M2**, conforme a dor | Também não dependem de provedor |
+| 3 | **D-04** — contratar a VPS | Agora com **números medidos** de disco, RAM e CPU. Checar preço de **renovação**, não o promocional (R19) |
+| 4 | **D-S7** — backup off-site testado | Antes de o sistema receber dado real de produção |
+| 5 | **D-S4** → **M4** | O acervo completo, com a infra já de pé e provada |
+
+**O único item que essa ordem não permite adiar** é a consciência de que, a partir da VPS, R16
+(manutenção do servidor) passa a ser trabalho recorrente seu. Vale decidir desde já se isso é
+aceitável — porque, se não for, a conversa muda para hospedagem gerenciada, e é melhor descobrir
+isso antes do M4 do que depois.
