@@ -9,6 +9,13 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # Rede de segurança: a suíte roda em ~1min30s localmente. Sem este teto,
+    # um processo que trave por qualquer motivo (thread não-daemon que não
+    # fecha, subprocesso órfão) consome as 6h do limite padrão do Actions —
+    # já aconteceu duas vezes nesta branch (runs 30937809568 e 30992210780,
+    # ambos cancelados após exatamente 6h). Isso não corrige a causa, só
+    # limita o desperdício enquanto ela é investigada (ver conftest.py).
+    timeout-minutes: 15
 
     env:
       # APP_SECRET_KEY e APP_ENV nao sao definidos aqui de proposito:
