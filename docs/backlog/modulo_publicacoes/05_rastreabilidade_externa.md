@@ -44,7 +44,7 @@ substituto.
 | E-09 | Reindexação concorrente → 409 | ❌ eliminado por construção | ❌ **Eliminado, confirmado.** Indexação é offline (`indexar.py` fora do processo web); não existe `POST /reindex` no MVP |
 | E-10 | Acentos/espaços no caminho | ✅ mantido — reforçado por `validar_nome_arquivo_seguro` | ✅ **Mantido, e ganha um caso real de teste**: `var/Publicações/` (com cedilha) é exatamente esse cenário, encontrado no próprio processo de normalização do M0 (D-C) |
 | E-11 | PDF > 100 MB no mobile | ✅ mantido — Range verificado funcionando | ✅ **Mantido sem alteração** — maior PDF observado no acervo real está bem abaixo de 100 MB (amostra: até ~5 MB por documento típico), mas a regra de Range continua válida como salvaguarda geral |
-| E-12 | Acervo vazio no primeiro boot | ♻️ substituído por `PUBLICACOES_ENABLED=false` + estado vazio | ♻️ **Mantido como na Revisão 4** |
+| E-12 | Acervo vazio no primeiro boot | ♻️ substituído por `PUBLICACOES_ENABLED=false` + estado vazio | ♻️ **Reformulado** — `PUBLICACOES_ENABLED` foi removida na revisão de pré-implementação (`07_revisao_pre_implementacao.md` S1). O caso volta a ser tratado como a spec externa previa, por construção: `catalog.db` ausente → `/api/status` reporta índice ausente e a UI mostra estado vazio, sem flag nenhuma |
 
 ---
 

@@ -14,6 +14,7 @@
 | 4 | [`04_plano_de_execucao.md`](04_plano_de_execucao.md) | Marcos M0–M5 quebrados em tarefas, com gates verificáveis | Quer saber a ordem e o que fazer em cada marco |
 | 5 | [`05_rastreabilidade_externa.md`](05_rastreabilidade_externa.md) | Destino de cada RN/E/CA/D da `Especificacao.MD` externa, à luz dos achados | Quer conferir que nenhuma regra do projeto externo foi perdida |
 | 6 | [`06_addendum_revisao_5.md`](06_addendum_revisao_5.md) | O que a Revisão 5 muda no parecer, seção por seção | Já leu o parecer e quer só o diff |
+| 7 | [`07_revisao_pre_implementacao.md`](07_revisao_pre_implementacao.md) | **8 bugs antecipados + 2 simplificações + 5 lacunas de convenção**, cada um medido por execução real | Vai implementar — é o documento que evita perder um dia depurando no lugar errado |
 | — | [`../../architecture/adr/004-modulo-publicacoes.md`](../../architecture/adr/004-modulo-publicacoes.md) | ADR formal das 4 decisões de arquitetura que sobrevivem a todas as revisões | Quer a decisão registrada no lugar canônico do projeto |
 
 ## Status de cada documento
@@ -27,6 +28,7 @@
 | `04_plano_de_execucao.md` | Fechado nesta etapa | **Decisão** — ordem e escopo de marcos |
 | `05_rastreabilidade_externa.md` | Fechado nesta etapa | Referência de rastreabilidade |
 | `06_addendum_revisao_5.md` | Fechado nesta etapa | **Decisão** — o que muda a partir de agora |
+| `07_revisao_pre_implementacao.md` | Fechado — correções já aplicadas em `03_especificacao_tecnica.md` | **Decisão** — pronto para implementar |
 | `004-modulo-publicacoes.md` (ADR) | Proposto | **Decisão formal** |
 
 ## O que ainda está em aberto (não travado nesta etapa)
@@ -45,3 +47,6 @@ parcialmente respondida), D-S7 (backup testado).
 - **Acervo normalizado** para `var/publicacoes/acervo/` — sem acento, sem espaço.
 - **`catalog.db` só com `sqlite3` puro**, nunca SQLAlchemy.
 - **`API_PREFIXES` recebe `/publicacoes/api/`**, nunca `/publicacoes/`.
+- **`rebuild` obrigatório no FTS5** após a carga — contagem não prova que a busca funciona.
+- **`snippet` com sentinela `\x02`/`\x03`**, escapado no cliente — nunca `<mark>` cru do SQLite.
+- **`document_id` inclui a edição** e trafega entre bancos sempre via `uuid.UUID()`.

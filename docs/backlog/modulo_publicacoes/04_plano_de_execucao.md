@@ -17,7 +17,7 @@ parecer original. M3 depende de M1. M4 depende de M0+M1 e da decisão D-04 (prov
 |---|---|---|
 | 1 | ADR-004 registrando as 4 decisões da espinha dorsal + `pypdfium2` | `docs/architecture/adr/004-modulo-publicacoes.md` |
 | 2 | Normalizar `var/Publicações/` → `var/publicacoes/acervo/` (rename, sem reprocessar nada) | `var/publicacoes/acervo/` |
-| 3 | `.gitignore`: acrescentar `var/publicacoes/` — **antes** de qualquer outro commit tocar `var/` | `.gitignore` |
+| 3 | `.gitignore`: **substituir** a entrada atual `var/publicações/` (linha 57) por `var/publicacoes/` — a atual tem acento e só protege hoje porque o Windows casa sem diferenciar maiúsculas; **no Linux (CI/VPS) não casaria**, e depois do rename da tarefa 2 não casa em sistema nenhum. Fazer **junto** com o rename, no mesmo commit, senão abre uma janela com 1 GB rastreável (R22) | `.gitignore` |
 | 4 | Esqueleto do módulo: `__init__.py`, `router.py` vazio (`APIRouter()`, zero rotas) | `app/modules/publicacoes/` |
 | 5 | Registro nos 5 pontos (import de models — mesmo vazio por ora, import do router, `API_PREFIXES` com `/publicacoes/api/`, `include_router`, `migrations/env.py`) | `app/bootstrap/main.py`, `migrations/env.py` |
 | 6 | `PUBLICACOES_*` em `Settings` + `.env.example` (`03_especificacao_tecnica.md` §6) | `app/bootstrap/config/__init__.py`, `.env.example` |
@@ -50,6 +50,20 @@ correspondência, `01_achados_do_acervo.md` §6).
 | 10 | Medir CSP no console com o build de PDF.js escolhido; aplicar o delta mínimo (`worker-src 'self' blob:` provável) e documentar em `docs/methodology/CSP.md` na mesma PR | `app/shared/middleware/security.py`, `docs/methodology/CSP.md` |
 | 11 | Verificar se `X-Frame-Options: DENY` já quebra o iframe de PDF em `panes_detalhe.js:580-606` (achado correlato, `03_especificacao_tecnica.md` §4.4) — registrar como bug preexistente separado se confirmado, não corrigir aqui | — |
 | 12 | Testes: `catalog.py` com fixtures reais do Lucene (números fixos do `02_formato_indice_lucene.md` §7 como regressão); E-02, E-06, E-08, E-10; CA-01 e CA-04 | `tests/unit/test_publicacoes_catalog.py`, `tests/integration/test_publicacoes_busca.py` |
+| 13 | **Tabela `documents` no `catalog.db`** + `rebuild`/`optimize` do FTS5 ao final da carga — sem isso os filtros da API são inimplementáveis e a busca devolve zero silenciosamente (`07_revisao_pre_implementacao.md` B6/B7) | `scripts/publicacoes/indexar.py` |
+| 14 | **Teste de round-trip de UUID** entre `catalog.db` e banco principal — o formato difere (hex sem hífens vs. canônico) e a divergência falha sem erro (B5) | `tests/integration/test_publicacoes_busca.py` |
+| 15 | **Rate limit** na busca (`30/minute`) — com `request: Request` na assinatura, exigido pelo decorator | `router.py` |
+
+**Sequência recomendada dentro do M1** (ordena para que os bugs *silenciosos* apareçam cedo, em
+vez de depois da UI pronta):
+
+1. `catalog.py` — tem gabarito de verificação pronto (`02_formato_indice_lucene.md` §7);
+2. `indexar.py` gerando `catalog.db` **com rebuild**, validado por **busca real, nunca por
+   contagem** (B7);
+3. teste de round-trip de UUID (B5) — antes de qualquer UI, porque é o contrato que ela assume;
+4. `search.py` + rota de busca;
+5. viewer PDF.js + tratamento de snippet (B8) + medição de CSP;
+6. resto da UI.
 
 **Nota sobre `manuais_edicoes`:** a tabela pode nascer na migration do M1 (evita uma segunda
 migration alterando a FK de `manuais.edicao_id` depois), mas populada com uma única linha
@@ -83,6 +97,8 @@ Independente do M1 — não usa `catalog.db` nem `pypdfium2`, só o banco princi
 | 6 | Busca por metadados: `LIKE` com `escape_like` (`shared/core/db_utils.py:10`), portável para Postgres | `service.py` |
 | 7 | Páginas: `avulsas.html`, `publicacoes_avulsas.js` | `app/web/templates/publicacoes/avulsas.html` |
 | 8 | Testes: cadastro, vigência, substituição, RBAC, limite de upload, soft delete | `tests/unit/test_publicacoes_avulsas.py` |
+| 9 | **Teste de XSS**: ementa com `<img src=x onerror=...>`, buscar por termo dela e afirmar que a resposta não contém `<img` — a ementa é entrada de usuário e vai para o `snippet` (`07_revisao_pre_implementacao.md` B8) | `tests/security/test_publicacoes_xss.py` |
+| 10 | Rate limit no upload de anexo (`10/minute`, mesmo valor do upload de panes) | `router.py` |
 
 **Gate:** cadastrar um BS real com anexo escaneado e encontrá-lo por número, por ATA e por palavra
 da ementa — nos três casos.
