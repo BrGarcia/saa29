@@ -85,6 +85,43 @@ class Settings(BaseSettings):
     r2_endpoint: str | None = None
     r2_bucket_name: str | None = None
 
+    # --- Módulo Publicações ---
+    publicacoes_acervo_dir: str = Field(
+        default="var/publicacoes/acervo",
+        description="Diretório dos PDFs do acervo — dev e produção (VPS com disco persistente)."
+    )
+    publicacoes_index_path: str = Field(
+        default="var/publicacoes/catalog.db",
+        description=(
+            "SQLite dedicado do índice de busca full-text — deliberadamente FORA do "
+            "database_url: é aberto com sqlite3 puro em modo somente-leitura, nunca "
+            "por SQLAlchemy, para não disparar o listener de backup R2 (ADR-004)."
+        )
+    )
+    publicacoes_categorias_path: str = Field(
+        default="config/categorias_manuais.toml",
+        description=(
+            "Mapa estático de categoria/descrição por manual — substitui o "
+            "manual_type.xml que o acervo real não possui."
+        )
+    )
+    publicacoes_avulsas_max_upload_mb: float = Field(
+        default=50.0,
+        description=(
+            "Limite de anexo das publicações avulsas. Separado de max_upload_size_mb "
+            "(0.5 MB), que vale para foto de pane e não muda: BS escaneado é PDF "
+            "grande e não passa pelo pipeline de imagem."
+        )
+    )
+    publicacoes_edicoes_retidas: int = Field(
+        default=2,
+        description="M4 — quantas edições ficam online simultaneamente (vigente + anterior)."
+    )
+    publicacoes_snapshots_retidos: int = Field(
+        default=3,
+        description="M4 — quantos snapshots ZIP de edição são mantidos no R2."
+    )
+
     # --- CORS / SEGURANÇA ---
     # Aceita lista via JSON ou string separada por vírgula
     allowed_origins: list[str] | str = ["*"]

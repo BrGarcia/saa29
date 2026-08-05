@@ -1,0 +1,101 @@
+"""
+app/modules/publicacoes/schemas.py
+Schemas Pydantic do módulo de publicações.
+
+Naming `XCreate`/`XUpdate`/`XOut`/`XListItem` — convenção majoritária do
+projeto (`docs/backlog/00_mapa_arquitetural.md`), não `XResponse`.
+
+O contrato de `GET /publicacoes/api/busca` é herdado da `Especificacao.MD` §4 e
+preservado deliberadamente, com uma única diferença: `doc_id` é UUID e não
+inteiro, porque `manuais_documentos.id` é UUID determinístico (§2.2).
+"""
+
+from __future__ import annotations
+
+import uuid
+
+from pydantic import BaseModel, ConfigDict
+
+
+class ManualRef(BaseModel):
+    """
+    Bloco `manual` de cada resultado.
+
+    Modelo próprio em vez de `dict` solto para que o `response_model` valide de
+    fato e o bloco apareça no OpenAPI.
+    """
+
+    path: str
+    description: str
+
+
+class ResultadoBusca(BaseModel):
+    doc_id: uuid.UUID
+    title: str
+    manual: ManualRef
+    chapter: str
+    page: int | None
+    snippet: str
+    """
+    Trecho com os termos delimitados por `\\x02`/`\\x03`, NÃO por `<mark>`.
+
+    O cliente escapa o snippet inteiro e só então troca os sentinelas pela tag
+    (`publicacoes.js`) — é a única exceção justificada ao `escapeHtml` no
+    projeto. Emitir HTML daqui seria XSS: o texto ao redor vem de PDF e, nas
+    avulsas, de ementa digitada por usuário (achado B8).
+    """
+    viewer_url: str
+
+
+class RespostaBusca(BaseModel):
+    query: str
+    total: int
+    """Número de PÁGINAS que casam, não de documentos (§2.4)."""
+    took_ms: int
+    results: list[ResultadoBusca]
+
+
+class ProcedimentoFim(BaseModel):
+    """Uma mensagem de falha resolvida para o procedimento correspondente."""
+
+    mensagem: str
+    procedimento: str
+    doc_id: uuid.UUID | None
+    """NULL quando o procedimento não tem PDF no acervo (4 dos 253 do piloto)."""
+    title: str | None
+    viewer_url: str | None
+
+
+class RespostaFim(BaseModel):
+    total: int
+    results: list[ProcedimentoFim]
+
+
+class StatusPublicacoes(BaseModel):
+    """
+    Estado do módulo para a UI e para o diagnóstico de operação.
+
+    `indice_disponivel=False` é resposta normal antes da primeira indexação — a
+    UI mostra estado vazio, não erro (E-12).
+    """
+
+    indice_disponivel: bool
+    edicao: str | None
+    manuais: int
+    documentos: int
+    documentos_sem_texto: int
+    """Dimensiona a necessidade de OCR (M4 tarefa 8)."""
+    paginas_indexadas: int
+    mensagens_fim: int
+    atualizado_em: float | None
+
+
+class DocumentoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    titulo: str
+    capitulo: str
+    ata_codigo: str | None
+    paginas: int | None
+    has_text: bool

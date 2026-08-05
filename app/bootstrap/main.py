@@ -20,6 +20,7 @@ import app.modules.aeronaves.models
 import app.modules.panes.models
 import app.modules.efetivo.models
 import app.modules.calendario.models
+import app.modules.publicacoes.models
 
 # --- Configurações e Ciclo de Vida ---
 from app.bootstrap.config import get_settings
@@ -36,6 +37,7 @@ from app.modules.panes.router import router as panes_router
 from app.modules.inspecoes.router import router as inspecoes_router
 from app.modules.calendario.router import router as calendario_router
 from app.modules.dashboard.router import router as dashboard_router
+from app.modules.publicacoes.router import router as publicacoes_router
 from app.web.pages.router import router as pages_router
 from app.web.pages.mobile_router import router as mobile_router
 
@@ -52,6 +54,13 @@ logger = logging.getLogger(__name__)
 API_PREFIXES = [
     "/auth/", "/efetivo/", "/aeronaves/", "/equipamentos/", "/vencimentos/",
     "/panes/", "/inspecoes/", "/api/v1/calendario/", "/dashboard/",
+    # ATENÇÃO: "/publicacoes/api/", NUNCA "/publicacoes/". O módulo serve
+    # páginas HTML no mesmo prefixo (/publicacoes, /publicacoes/viewer/...);
+    # registrar o prefixo curto aqui faria o handler global devolver JSON 401
+    # para elas em vez de redirecionar para /login — o mesmo bug que o
+    # calendário já causou, e por isso todo endpoint JSON do módulo vive sob
+    # o sub-prefixo /api/ (03_especificacao_tecnica.md §3, risco R20).
+    "/publicacoes/api/",
 ]
 
 
@@ -145,6 +154,7 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(inspecoes_router,    prefix="/inspecoes",    tags=["Inspeções"])
     app.include_router(calendario_router,   prefix="/api/v1/calendario", tags=["Calendario"])
     app.include_router(dashboard_router,    prefix="/dashboard",    tags=["Dashboard"])
+    app.include_router(publicacoes_router,  prefix="/publicacoes",  tags=["Publicações"])
     
     # Frontend Pages (Root / UI)
     app.include_router(mobile_router)
