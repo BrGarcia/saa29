@@ -366,6 +366,49 @@ async def test_duplicacao_sem_anterior_devolve_zeros(
 
 
 # --------------------------------------------------------------------------
+# Card em /configuracoes (Fase 2) — fumaça
+#
+# Sem verificação visual em navegador nesta sessão (ver dívidas do
+# 08_status_de_implementacao.md). O que dá para afirmar por teste é o que
+# quebraria de forma silenciosa: um id renomeado no template deixa o listener
+# do JS sem alvo, e o botão simplesmente não faz nada — sem erro em lugar
+# nenhum. Estes testes amarram template e JS pelos ids.
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_configuracoes_traz_o_card_de_publicacoes(client_autenticado: AsyncClient):
+    resposta = await client_autenticado.get("/configuracoes")
+    assert resposta.status_code == 200
+    html = resposta.text
+
+    assert 'id="btn-gerenciar-edicoes"' in html
+    assert 'id="btn-status-acervo"' in html
+    assert 'id="btn-ir-avulsas"' in html
+    assert "configuracoes_publicacoes.js" in html
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "elemento_id",
+    [
+        "modal-edicoes",
+        "lista-edicoes-body",
+        "aviso-retencao-edicoes",
+        "modal-relatorio-edicao",
+        "conteudo-relatorio-edicao",
+        "modal-status-acervo",
+        "grid-status-acervo",
+    ],
+)
+async def test_configuracoes_tem_os_alvos_que_o_js_procura(
+    client_autenticado: AsyncClient, elemento_id: str
+):
+    html = (await client_autenticado.get("/configuracoes")).text
+    assert f'id="{elemento_id}"' in html
+
+
+# --------------------------------------------------------------------------
 # RBAC — D-S6: gerir edição é privilégio de Admin
 # --------------------------------------------------------------------------
 

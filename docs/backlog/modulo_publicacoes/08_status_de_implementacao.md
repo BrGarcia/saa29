@@ -13,8 +13,8 @@
 > arquivo ou teste que prova a conclusão. Status sem evidência verificável não conta como ✅ — foi
 > essa disciplina que pegou o B7 (índice que "existe" e não busca nada).
 >
-> **Última atualização:** 06/08/2026 · branch `feature/modulo-publicacoes` · **614 testes
-> verdes** · `ruff check .` limpo · Fase 1 de `09_plano_configuracoes.md` concluída
+> **Última atualização:** 06/08/2026 · branch `feature/modulo-publicacoes` · **622 testes
+> verdes** · `ruff check .` limpo · Fases 0, 1 e 2 de `09_plano_configuracoes.md` concluídas
 
 ---
 
@@ -26,7 +26,7 @@
 | **M1** — Piloto FIM ⭐ | 15 tarefas | 15/15 | ✅ **Concluído** — CSP verificada por leitura de código, não por navegador real (ver dívidas) |
 | **M2** — Avulsas (BO/BS/NPO/BT) | 10 tarefas | 10/10 | ✅ **Concluído** |
 | **M3** — Integração panes/inspeções | 5 tarefas | 5/5 | ✅ **Concluído** |
-| **M4** — Acervo completo + ciclo DVD | 8 tarefas | 6/8 | 🔵 **Em execução** — a tarefa 4 tem backend completo (Fases 0 e 1 de `09_plano_configuracoes.md`: índice por edição + endpoints de ativação) e falta só o card de `/configuracoes` (Fase 2); o gate de RSS/disco continua preso a D-04 |
+| **M4** — Acervo completo + ciclo DVD | 8 tarefas | 7/8 | 🔵 **Em execução** — a tarefa 4 está implementada de ponta a ponta (Fases 0–2 de `09_plano_configuracoes.md`), pendente só de verificação visual em navegador; resta a tarefa do gate de RSS/disco, presa a D-04 |
 | **M5** — RAG | — | — | 🔒 Congelado até D-S3 |
 
 Legenda: ✅ concluído · 🔵 em execução · ⚪ não iniciado · 🔒 bloqueado · ⚠️ parcial
@@ -163,14 +163,14 @@ manual da tarefa 2, que exige digitar a mensagem).
 
 ---
 
-## M4 — Acervo completo e ciclo do DVD 🔵 6/8
+## M4 — Acervo completo e ciclo do DVD 🔵 7/8
 
 | # | Tarefa | Status | Evidência |
 |---|---|:--:|---|
 | 1 | Rodar `indexar.py` sobre o acervo completo | ✅ | **Executado de verdade nesta sessão**: 34 manuais, 5.724 documentos, 53.792 páginas, **0 sem camada de texto**, em 152,7s. Edição `2026` criada como `AGUARDANDO_ATIVACAO` no banco local |
 | 2 | `publicar.py`: inventário, diff por hash, extração, snapshot ZIP, upload R2, relatório | ✅ | `scripts/publicacoes/publicar.py`; 13 testes em `tests/unit/test_publicacoes_publicar.py`; `--dry-run` e a execução completa (`--pular-upload`) rodados contra o acervo real |
 | 3 | `merge_data.py`: merge de remessa nova (RN-08) | ✅ | `scripts/publicacoes/merge_data.py` — hash+mtime, `_merge_conflicts/`, `merge_report.txt`, `--dry-run` por padrão; 13 testes em `tests/unit/test_publicacoes_merge_data.py` |
-| 4 | Card "Publicações" em `/configuracoes`: ativar/reverter, ver relatório | 🔵 | **Backend pronto, falta a tela.** Fase 0: índice por edição — trocar a `VIGENTE` já muda o que a busca devolve (`test_trocar_edicao_vigente_muda_o_que_a_busca_devolve`, verificado por mutação). Fase 1: endpoints `GET /api/edicoes`, `.../{id}/relatorio`, `POST .../{id}/ativar`, `.../{id}/arquivar`, `GET /api/duplicacao`, todos `AdminRequired`; migration `c4e7a91d2b58` (índice único parcial da edição vigente); 21 testes em `tests/unit/test_publicacoes_edicoes.py`. Falta o card (Fase 2) |
+| 4 | Card "Publicações" em `/configuracoes`: ativar/reverter, ver relatório | ⚠️ | **Implementado nas Fases 0–2 de `09_plano_configuracoes.md`; sem verificação visual.** Fase 0: índice por edição — trocar a `VIGENTE` muda o que a busca devolve (`test_trocar_edicao_vigente_muda_o_que_a_busca_devolve`, verificado por mutação). Fase 1: 5 endpoints `AdminRequired` + migration `c4e7a91d2b58` (índice único parcial). Fase 2: card, 3 modais, `configuracoes_publicacoes.js`, `.btn-publicacao`. 29 testes em `tests/unit/test_publicacoes_edicoes.py`. ⚠️ **não aberto em navegador** — ver dívidas |
 | 5 | Desduplicação por `hash_sha256` entre edição vigente e anterior | ✅ | `service.medir_duplicacao_entre_edicoes` — mede, não deduplica fisicamente (ver nota) |
 | 6 | Transferência por rsync/SSH, nunca HTTP | ✅ | `docs/guides/operacao_publicacoes.md` §3 — comandos prontos, com placeholders 🔒 D-04 para host/usuário |
 | 7 | Runbook interno | ✅ | `docs/guides/operacao_publicacoes.md`, adaptado de `docs/backlog/manuais/Runbook.MD` §2/§3/§4/§6.2/§7 |
@@ -209,8 +209,8 @@ disco specific a D-04, não algo a decidir sem saber o provedor.
 "Publicar uma edição ponta a ponta a partir da mídia/remessa nova, ativar, conferir o relatório de
 diff, reverter, reativar — sem downtime, RSS por worker < 200 MB, disco da VPS < 60% após duas
 edições retidas." — **parcialmente verificável**: publicar/diff/relatório ✅ (medido de verdade);
-ativar/reverter 🔵 (mecanismo e endpoints prontos e testados — Fases 0 e 1; falta só a interface
-que expõe a ação); RSS e disco da VPS 🔒 (não há VPS,
+ativar/reverter ⚠️ (mecanismo, endpoints e tela prontos e testados — Fases 0–2; falta abrir num
+navegador real); RSS e disco da VPS 🔒 (não há VPS,
 D-04).
 
 ---
@@ -223,7 +223,9 @@ D-04).
 | **CA-01** (p95 < 300 ms) | O número foi **medido** (6,7 ms), mas não é afirmado por teste — regressão de performance passaria despercebida. | idem |
 | **Verificação visual do viewer/CSP** | O delta de CSP (`worker-src 'self'`) foi justificado por leitura do código-fonte do PDF.js, não por abrir o console de um navegador real contra a aplicação rodando — esta sessão não teve acesso a um navegador. Antes de dar o item por definitivamente fechado, alguém precisa abrir `/publicacoes/viewer/{id}` de um documento real e checar o console por violações de CSP. Passo a passo em `docs/methodology/CSP.md` §5. | `docs/methodology/CSP.md` §5 |
 | **PDF.js sem `cmaps`/`standard_fonts`** | Só o núcleo (`pdf.min.mjs` + `pdf.worker.min.mjs`) foi vendorizado. Um PDF que dependa de fonte padrão não embutida (raro nos manuais, que embutem fonte) pode renderizar com fallback do navegador em vez da fonte exata. | `app/web/static/js/pdfjs/README.md` |
-| **Frontend sem verificação visual em navegador** | `publicacoes/lista.html`, `viewer.html`, `mobile/publicacoes.html`, `avulsas.html`, e as edições em `panes/detalhe.html`/`inspecoes` (M3) foram implementados e passam em testes de fumaça (200 + `text/html` quando aplicável), mas nenhum foi aberto num navegador real nesta sessão — não há confirmação visual de layout, dos modais de cadastro/anexo/favorito, do bloco FIM na pane, nem da experiência mobile. | Todos os templates de `app/web/templates/publicacoes/`, `mobile/publicacoes.html`, `panes/detalhe.html`, `inspecao_detalhe.js` |
+| **Frontend sem verificação visual em navegador** | `publicacoes/lista.html`, `viewer.html`, `mobile/publicacoes.html`, `avulsas.html`, as edições em `panes/detalhe.html`/`inspecoes` (M3) e **o card de Publicações em `configuracoes.html` com seus 3 modais** (Fase 2) foram implementados e passam em testes de fumaça, mas nenhum foi aberto num navegador real — não há confirmação visual de layout, dos modais, do bloco FIM na pane, nem da experiência mobile. Para o card novo, o que os testes cobrem é o modo de falha silencioso (ids do template batendo com os alvos do JS); o que falta é aparência, o `auto-fit` do grid em telas estreitas, e o console limpo de CSP. | Templates de `app/web/templates/publicacoes/`, `configuracoes.html`, `mobile/publicacoes.html`, `panes/detalhe.html`, `inspecao_detalhe.js` |
+| **Limite de retenção duplicado entre backend e frontend** | O aviso "N edições têm índice em disco (previsto: 2)" usa `2` fixo em `configuracoes_publicacoes.js`. O valor canônico é `PUBLICACOES_EDICOES_RETIDAS` em `Settings`, que nenhum endpoint expõe — criar um endpoint de configuração só para isso não se pagava agora. Se o limite mudar, muda em dois lugares. | `app/web/static/js/configuracoes_publicacoes.js:atualizarAvisoRetencao` |
+| **Nenhum índice por edição existe na máquina local** | Consequência esperada de `catalog.db` legado (ver linha acima sobre reindexação): na tela, **as duas edições aparecem com "Índice: ausente"** e o botão "Ativar" é substituído por "reindexe para poder ativar". É o comportamento correto — mas significa que o fluxo de ativação só pode ser exercitado de verdade depois de `python -m scripts.publicacoes.indexar --edicao <rotulo>`. | `var/publicacoes/` (não versionado) |
 | **Link do checklist de inspeção é busca por texto, não referência garantida** | O item de checklist não tem campo estruturado (`ata_codigo`/`procedimento`) para apontar a um documento específico — o link roda uma busca full-text pelo título do item. Funciona bem quando o título é específico (ex: "Verificação da válvula de sangria"), mal quando é genérico (ex: "Inspeção visual geral"). Criar a referência estruturada exige migration em `inspecoes` e dado real para popular — fora do escopo do M3. | `app/web/static/js/inspecao_detalhe.js:renderizarTarefas` |
 | **`catalog.db` local precisa reindexação após o M3 e após a Fase 0** | Duas razões acumuladas: (a) a coluna `documents.ata_codigo` só existe em índices gerados depois do M3 — sem ela a busca com filtro `ata` falha com erro de SQL; (b) depois da Fase 0 o arquivo esperado é `catalog.<rotulo>.db`, e um `catalog.db` solto passa a ser servido pela queda de compatibilidade, com aviso no log a cada busca. Nenhuma das duas é migration formal (o índice é descartável, ADR-004) — `python -m scripts.publicacoes.indexar --edicao <rotulo-vigente>` resolve as duas. | `scripts/publicacoes/indexar.py` |
 | **Upload ao R2 do `publicar.py` não foi testado contra R2 de verdade** | Sem credenciais R2 nesta sessão — a lógica de upload/poda foi verificada só com `unittest.mock` (`tests/unit/test_publicacoes_publicar.py`), mesmo padrão de `test_r2_manager.py`. O caminho feliz (`boto3.upload_file`) é uma chamada simples e de baixo risco, mas vale um teste manual com credenciais reais antes do primeiro uso em produção. | `scripts/publicacoes/publicar.py:_obter_cliente_s3` |

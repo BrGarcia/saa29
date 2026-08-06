@@ -825,7 +825,20 @@ async def test_trocar_edicao_vigente_muda_o_que_a_busca_devolve(
     ele que sustenta a promessa da Fase 0 — mudar o status no banco muda de
     fato o resultado da busca, sem mover arquivo nenhum.
     """
+    from app.modules.auth.models import Usuario
+    from app.modules.auth.security import hash_senha
     from app.shared.core.enums import StatusEdicao
+
+    # `publicado_por_id` tem FK para `usuarios` com ondelete RESTRICT, e o
+    # SQLite do projeto roda com `PRAGMA foreign_keys=ON` — um uuid4 solto seria
+    # recusado. `client_autenticado` cria um usuário mas não o expõe.
+    usuario_ativador = Usuario(
+        nome="Ativador", posto="Cap", especialidade="ELT", funcao="ADMINISTRADOR",
+        ramal="9001", username=f"ativador.{uuid.uuid4().hex[:6]}",
+        senha_hash=hash_senha("x"),
+    )
+    db.add(usuario_ativador)
+    await db.flush()
 
     ed_a = await service.obter_ou_criar_edicao(db, "ed-a", status=StatusEdicao.VIGENTE)
     await service.sincronizar_catalogo(
@@ -856,9 +869,15 @@ async def test_trocar_edicao_vigente_muda_o_que_a_busca_devolve(
     assert ids_a, "pré-condição: a edição vigente inicial precisa responder à busca"
 
     # A ativação inteira: dois UPDATEs, nenhum arquivo movido.
-    ed_a.status = StatusEdicao.ANTERIOR
-    ed_b.status = StatusEdicao.VIGENTE
-    await db.flush()
+    #
+    # Pelo `service`, e não trocando `status` na mão: o índice único parcial
+    # `uq_manuais_edicoes_vigente_unica` (Fase 1) é verificado por statement, e
+    # num flush único o SQLAlchemy ordena os UPDATEs por chave primária — com
+    # UUID aleatório, a promoção vinha antes do rebaixamento em ~1/3 das
+    # execuções e o teste falhava com IntegrityError. `service.ativar_edicao`
+    # faz o flush em duas etapas justamente por isso; usar o caminho real aqui
+    # elimina a instabilidade E exercita a Fase 1 de quebra.
+    await service.ativar_edicao(db, ed_b.id, usuario_id=usuario_ativador.id)
 
     ids_b = await _ids_da_busca()
     assert ids_b, "a edição recém-ativada precisa responder à mesma busca"

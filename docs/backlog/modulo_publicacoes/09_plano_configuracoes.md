@@ -197,7 +197,15 @@ ativação pela tela **tem**) e registrar a transição.
 
 ---
 
-## Fase 2 — O card e os modais
+## Fase 2 — O card e os modais ✅ **IMPLEMENTADA**
+
+> **Estado:** concluída. `app/web/static/js/configuracoes_publicacoes.js` (arquivo separado, como o
+> plano previa para o caso de passar de ~250 linhas), card e 3 modais em `configuracoes.html`,
+> `.btn-publicacao` em `index.css`. 8 testes de fumaça amarrando template e JS pelos ids; suíte em
+> 622 passando, `ruff check .` limpo, `node --check` no JS.
+>
+> **Não verificado em navegador** — sem acesso a browser nesta sessão. Ver "Verificação que só um
+> humano pode fazer", no fim deste documento.
 
 ### Estética: seguir o padrão existente literalmente
 
@@ -300,6 +308,33 @@ O arquivo já tem 1.945 linhas. Se a seção nova passar de ~250, vale extraí-l
 `configuracoes_publicacoes.js` carregado no mesmo `{% block scripts %}` — decidir na hora de
 escrever, não antes.
 
+### O que a execução mudou em relação ao planejado
+
+- **Arquivo separado**, como a ressalva previa: a seção passou de 250 linhas.
+  `configuracoes_publicacoes.js` é carregado no mesmo `{% block scripts %}`, depois de
+  `configuracoes.js`. Conferido que **nenhum** nome de função ou constante do arquivo novo colide
+  com o antigo — os dois são scripts clássicos e dividem o escopo global; uma colisão sobrescreveria
+  silenciosamente a função do outro.
+- **Um botão "Arquivar" por linha**, que o plano não detalhava — sem ele o endpoint de arquivar
+  existiria sem porta de entrada na tela.
+- **A mensagem de erro do servidor é repassada como está** no toast. O 409 de ativar carrega o
+  motivo e o comando de reindexação; trocá-lo por "erro ao ativar" perderia justamente a parte útil.
+- **O aviso de retenção usa limite fixo 2** no JS, não `PUBLICACOES_EDICOES_RETIDAS`. O valor existe
+  em `Settings` mas não é exposto por endpoint nenhum; expor uma configuração inteira só para isso
+  não se pagava. Se o limite mudar, muda em dois lugares — registrado como dívida no `08`.
+- **Testes de fumaça amarram template e JS pelos ids.** É o modo de falha silencioso desta fase: um
+  id renomeado no template deixa o `addEventListener` sem alvo e o botão para de funcionar sem erro
+  em lugar nenhum.
+- **A Fase 1 deixou um teste instável que só apareceu agora.**
+  `test_trocar_edicao_vigente_muda_o_que_a_busca_devolve` (Fase 0) trocava `status` na mão, num
+  flush único — o mesmo padrão que o índice único parcial recusa. O SQLAlchemy ordena UPDATEs da
+  mesma tabela por chave primária, e como as edições têm UUID aleatório, a promoção vinha antes do
+  rebaixamento em cerca de 1/3 das execuções. A suíte da Fase 1 passou por sorte do sorteio.
+  Corrigido usando `service.ativar_edicao` no teste, que é o caminho real e já faz o flush em duas
+  etapas; 8 execuções seguidas limpas, e o teste passou a exercitar a Fase 1 de quebra.
+  **Lição:** um índice novo pode transformar código correto-por-acidente em falha intermitente, e
+  uma suíte verde numa execução não prova ausência disso — rodar duas vezes é barato.
+
 ---
 
 ## Fase 3 — Testes
@@ -337,7 +372,7 @@ escrever, não antes.
 |---|---|---|
 | 1 | ✅ Fase 0 — índice por edição + ADR + testes de resolução/busca | `refactor(publicacoes): catalog.db por edicao, indice resolvido pelo banco` |
 | 2 | ✅ Fase 1 — endpoints + migration do índice único parcial + testes | `feat(publicacoes): endpoints de ativacao e relatorio de edicao` |
-| 3 | Fase 2 — card, modais, CSS, JS | `feat(publicacoes): card de gerencia em /configuracoes` |
+| 3 | ✅ Fase 2 — card, modais, CSS, JS | `feat(publicacoes): card de gerencia em /configuracoes` |
 | 4 | Fase 4 — documentação | junto do commit 3 |
 
 A Fase 0 é entregável sozinha e **melhora o sistema mesmo que as fases seguintes não venham**: hoje
