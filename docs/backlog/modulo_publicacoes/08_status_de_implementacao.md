@@ -11,7 +11,7 @@
 > arquivo ou teste que prova a conclusão. Status sem evidência verificável não conta como ✅ — foi
 > essa disciplina que pegou o B7 (índice que "existe" e não busca nada).
 >
-> **Última atualização:** 05/08/2026 · branch `fix/ci-baseline-verde` · 494 testes verdes ·
+> **Última atualização:** 05/08/2026 · branch `fix/ci-baseline-verde` · 502 testes verdes ·
 > `ruff check .` limpo
 
 ---
@@ -21,7 +21,7 @@
 | Marco | Escopo | Progresso | Estado |
 |---|---|---|---|
 | **M0** — Fundação | 8 tarefas | 8/8 | ✅ **Concluído** |
-| **M1** — Piloto FIM ⭐ | 15 tarefas | 12/15 | 🔵 **Em execução** — falta a camada visual |
+| **M1** — Piloto FIM ⭐ | 15 tarefas | 15/15 | ✅ **Concluído** — CSP verificada por leitura de código, não por navegador real (ver dívidas) |
 | **M2** — Avulsas (BO/BS/NPO/BT) | 10 tarefas | 0/10 | ⚪ Não iniciado — **não depende do M1** |
 | **M3** — Integração panes/inspeções | 5 tarefas | 0/5 | ⚪ Não iniciado — depende do M1 |
 | **M4** — Acervo completo + ciclo DVD | 8 tarefas | 0/8 | 🔒 Bloqueado por D-04 (VPS), exceto a tarefa 1 |
@@ -49,7 +49,7 @@ Legenda: ✅ concluído · 🔵 em execução · ⚪ não iniciado · 🔒 bloqu
 
 ---
 
-## M1 — Piloto FIM 🔵 12/15
+## M1 — Piloto FIM ✅ 15/15
 
 | # | Tarefa | Status | Evidência |
 |---|---|:--:|---|
@@ -59,15 +59,20 @@ Legenda: ✅ concluído · 🔵 em execução · ⚪ não iniciado · 🔒 bloqu
 | 4 | `indexar.py` (extração por página, idempotente, `--dry-run`) | ✅ | `scripts/publicacoes/indexar.py`; execução real: 411 PDFs em 2,6 s |
 | 5 | `search.py` (sqlite3 puro, BM25, snippet, RN-10) | ✅ | `app/modules/publicacoes/search.py` |
 | 6 | Rotas `/api/busca`, `/api/fim`, `/api/status`, `/doc/{id}/pdf` | ✅ | `router.py`; 4 rotas registradas |
-| 7 | **PDF.js vendorizado + viewer em canvas** | ⚪ | — |
-| 8 | **Páginas (lista/busca), item no `<nav>`, `/m/publicacoes`** | ⚪ | — |
+| 7 | PDF.js vendorizado + viewer em canvas | ✅ | `app/web/static/js/pdfjs/` (pdfjs-dist 6.2.108, Apache-2.0); `publicacoes/viewer.html` + `publicacoes_viewer.js` — nunca iframe (D-F) |
+| 8 | Páginas (lista/busca), item no `<nav>`, `/m/publicacoes` | ✅ | `publicacoes/lista.html`, `mobile/publicacoes.html`, item em `base.html` e `base_mobile.html`, rotas em `pages/router.py`/`mobile_router.py` |
 | 9 | Auditoria de acesso (`publicacoes_acessos`) | ✅ | `service.py:registrar_acesso`; teste afirma o snapshot do título |
-| 10 | **Medir CSP e documentar o delta** | ⚪ | Bloqueado pela 7 — sem viewer não há o que medir |
+| 10 | Medir CSP e documentar o delta | ⚠️ | `worker-src 'self'` aplicado e documentado em `docs/methodology/CSP.md` §5 — **por leitura do código-fonte do PDF.js, não por console de navegador real** (ver dívidas) |
 | 11 | Verificar o iframe de PDF em `panes_detalhe.js` | ✅ | **Confirmado** — `docs/backlog/revisor/achados_panes_iframe_pdf.md` |
-| 12 | Testes: E-02, E-06, E-08, E-10; CA-01 e CA-04 | ⚠️ | 35 testes em `tests/integration/test_publicacoes_busca.py` — ver dívidas abaixo |
+| 12 | Testes: E-02, E-06, E-08, E-10; CA-01 e CA-04 | ⚠️ | 43 testes em `tests/integration/test_publicacoes_busca.py` — ver dívidas abaixo |
 | 13 | Tabela `documents` + `rebuild`/`optimize` do FTS5 | ✅ | `indexar.py:finalizar_catalog`; teste prova o modo de falha do B7 |
 | 14 | Round-trip de UUID entre os dois bancos | ✅ | `test_round_trip_de_uuid_entre_os_dois_bancos` + o teste que mostra o hex sem hífens |
 | 15 | Rate limit na busca (`30/minute`) | ✅ | `router.py` — `@limiter.limit("30/minute")` com `request: Request` |
+
+Endpoint adicional não previsto no plano original, necessário para o cabeçalho do viewer:
+`GET /publicacoes/api/documentos/{doc_id}` (título, manual, capítulo, e o banner de
+"REVISÃO ANTERIOR" com link para o equivalente vigente — `service.obter_equivalente_vigente`,
+testado em `test_equivalente_vigente_aponta_da_edicao_antiga_para_a_nova`).
 
 ### Gate de saída do M1
 
@@ -75,9 +80,9 @@ Legenda: ✅ concluído · 🔵 em execução · ⚪ não iniciado · 🔒 bloqu
 |---|:--:|---|
 | `ADC 001` → `34-15-00-810-801-A` → PDF **na página do trecho** | ✅ | `viewer_url` termina em `#page=N`; afirmado em teste |
 | `sangria`/`SANGRIA`/`sangría` → mesmo conjunto (CA-04) | ✅ | 4 variações parametrizadas, mesmo `total` e mesma ordem |
-| PDF renderiza no viewer **sem violação de CSP** | ⚪ | Bloqueado pelas tarefas 7 e 10 |
+| PDF renderiza no viewer **sem violação de CSP** | ⚠️ | Delta aplicado e justificado por leitura de código; **não confirmado em console de navegador real** — ver dívidas |
 | p95 da busca < 300 ms sobre o corpus FIM | ✅ | **p95 = 6,7 ms** (200 execuções, 20 termos, 411 docs / 1.186 páginas) |
-| `ruff check .` + `pytest` verdes | ✅ | 494 testes, 0 falhas |
+| `ruff check .` + `pytest` verdes | ✅ | 502 testes, 0 falhas |
 
 ### Bugs antecipados (`07_revisao_pre_implementacao.md`) — situação real
 
@@ -127,7 +132,8 @@ Ordem de grandeza do que isso indexaria, medida no acervo em disco: **34 manuais
 |---|---|---|
 | **E-10** (acentos/espaços no caminho) | Nenhum teste cobre um `file_key` acentuado ponta a ponta. O caso real existe e está versionado: `docs/fim/Código de Panes.PDF`. Basta incluí-lo na amostra do teste de integração. | `tests/integration/test_publicacoes_busca.py:PDFS_AMOSTRA` |
 | **CA-01** (p95 < 300 ms) | O número foi **medido** (6,7 ms), mas não é afirmado por teste — regressão de performance passaria despercebida. | idem |
-| **B8** (segunda metade) | O `escapeHtml` + troca de sentinela por `<mark>` no cliente só existe quando houver cliente. | Chega com a tarefa 8 |
+| **Verificação visual do viewer/CSP** | O delta de CSP (`worker-src 'self'`) foi justificado por leitura do código-fonte do PDF.js, não por abrir o console de um navegador real contra a aplicação rodando — esta sessão não teve acesso a um navegador. Antes de dar o item por definitivamente fechado, alguém precisa abrir `/publicacoes/viewer/{id}` de um documento real e checar o console por violações de CSP. Passo a passo em `docs/methodology/CSP.md` §5. | `docs/methodology/CSP.md` §5 |
+| **PDF.js sem `cmaps`/`standard_fonts`** | Só o núcleo (`pdf.min.mjs` + `pdf.worker.min.mjs`) foi vendorizado. Um PDF que dependa de fonte padrão não embutida (raro nos manuais, que embutem fonte) pode renderizar com fallback do navegador em vez da fonte exata. | `app/web/static/js/pdfjs/README.md` |
 | **`manuais_edicoes`** | A tabela existe e é populada com a linha sintética `piloto-fim`, mas `snapshot_key`, `hash_sha256` e `relatorio_diff` seguem nulos — ganham uso só no M4. | Esperado, não é dívida real |
 
 ---

@@ -99,6 +99,35 @@ async def obter_ou_criar_edicao(
     return edicao
 
 
+async def obter_equivalente_vigente(
+    db: AsyncSession, documento: ManualDocumento
+) -> uuid.UUID | None:
+    """
+    Documento correspondente na edição VIGENTE, ou None quando não há um.
+
+    Casamento por `(manual.codigo, file_key)` — o `document_id` em si NÃO serve
+    para achar o equivalente porque inclui a edição no UUID v5 (achado B2), e
+    é exatamente por isso que esta função precisa existir: o link do viewer
+    aponta para o documento da edição em que foi gerado, e a UI usa isto para
+    oferecer o caminho de volta para a edição vigente.
+    """
+    if documento.manual.edicao.status == StatusEdicao.VIGENTE:
+        return None
+
+    return (
+        await db.execute(
+            select(ManualDocumento.id)
+            .join(Manual, Manual.id == ManualDocumento.manual_id)
+            .join(ManualEdicao, ManualEdicao.id == Manual.edicao_id)
+            .where(
+                Manual.codigo == documento.manual.codigo,
+                ManualDocumento.file_key == documento.file_key,
+                ManualEdicao.status == StatusEdicao.VIGENTE,
+            )
+        )
+    ).scalar_one_or_none()
+
+
 async def obter_edicao_vigente(db: AsyncSession) -> ManualEdicao | None:
     """A edição em vigor, ou None quando o acervo ainda não foi indexado."""
     return (

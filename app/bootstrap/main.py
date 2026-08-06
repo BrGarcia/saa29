@@ -5,6 +5,7 @@ Orquestrador central seguindo o Princípio da Responsabilidade Única (SRP).
 """
 
 import logging
+import mimetypes
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -164,6 +165,17 @@ def _register_routers(app: FastAPI) -> None:
 def _mount_static(app: FastAPI) -> None:
     """Monta os arquivos estáticos públicos da aplicação."""
     os.makedirs("app/web/static", exist_ok=True)
+
+    # `.mjs` (módulos ES do PDF.js vendorizado, `app/web/static/js/pdfjs/`)
+    # precisa resolver para um MIME de JavaScript — navegadores rejeitam a
+    # execução de `<script type="module">` cujo Content-Type não seja um dos
+    # tipos JS reconhecidos (MIME sniffing estrito para módulos). O mapeamento
+    # de `mimetypes` vem do SO (`/etc/mime.types` no Linux, registro no
+    # Windows) e `.mjs` é recente o bastante para não estar em toda
+    # distribuição — registrar aqui torna o resultado igual em qualquer
+    # ambiente, em vez de depender do que a máquina tem instalado.
+    mimetypes.add_type("text/javascript", ".mjs")
+
     app.mount("/static", StaticFiles(directory="app/web/static"), name="static")
 
 

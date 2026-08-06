@@ -29,3 +29,9 @@ async def mobile_tarefas_aeronave_page(request: Request, aeronave_id: str, user=
         "aeronave_id": aeronave_id,
         "user": user
     })
+
+
+@router.get("/publicacoes", response_class=HTMLResponse, include_in_schema=False)
+async def mobile_publicacoes_page(request: Request, user=Depends(get_current_user)):
+    """Atalho mobile para a busca de publicações — reusa publicacoes.js do desktop."""
+    return templates.TemplateResponse("mobile/publicacoes.html", {"request": request, "user": user})

@@ -86,6 +86,20 @@ async def calendario_page(request: Request, _=Depends(get_current_user)):
     return templates.TemplateResponse("calendario.html", {"request": request})
 
 
+@router.get("/publicacoes", response_class=HTMLResponse, include_in_schema=False)
+async def publicacoes_lista_page(request: Request, _=Depends(get_current_user)):
+    """Busca unificada no acervo de manuais e resolução de mensagem do FIM."""
+    return templates.TemplateResponse("publicacoes/lista.html", {"request": request})
+
+
+@router.get("/publicacoes/viewer/{doc_id}", response_class=HTMLResponse, include_in_schema=False)
+async def publicacoes_viewer_page(request: Request, doc_id: str, _=Depends(get_current_user)):
+    """Viewer de PDF em canvas (PDF.js) — nunca iframe (D-F)."""
+    return templates.TemplateResponse(
+        "publicacoes/viewer.html", {"request": request, "doc_id": doc_id}
+    )
+
+
 @router.get("/configuracoes", response_class=HTMLResponse, include_in_schema=False)
 async def configuracoes_page(request: Request, _: AdminRequired):
     """Página de Configurações do Sistema - Admin"""

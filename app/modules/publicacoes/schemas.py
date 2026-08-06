@@ -99,3 +99,24 @@ class DocumentoOut(BaseModel):
     ata_codigo: str | None
     paginas: int | None
     has_text: bool
+
+
+class DocumentoViewerOut(BaseModel):
+    """
+    Metadados exibidos no cabeçalho do viewer.
+
+    `equivalente_vigente_id` é o que sustenta o banner "REVISÃO ANTERIOR"
+    exigido em `03_especificacao_tecnica.md` §2.2: como o `document_id` inclui
+    a edição (achado B2), abrir um link antigo abre o documento da edição
+    ANTIGA de propósito — mas a UI precisa oferecer o caminho de volta para a
+    edição vigente, casando por `(manual_codigo, file_key)`.
+    """
+
+    id: uuid.UUID
+    titulo: str
+    manual: ManualRef
+    capitulo: str
+    paginas: int | None
+    edicao_rotulo: str
+    edicao_vigente: bool
+    equivalente_vigente_id: uuid.UUID | None

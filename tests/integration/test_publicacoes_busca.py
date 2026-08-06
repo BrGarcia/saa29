@@ -635,3 +635,150 @@ async def test_api_fim_procedimento_sem_pdf_devolve_doc_id_nulo(
     assert corpo["total"] == 1
     assert corpo["results"][0]["doc_id"] is None
     assert corpo["results"][0]["viewer_url"] is None
+
+
+# --------------------------------------------------------------------------
+# Metadados do viewer e banner de revisão anterior (§2.2)
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_api_documento_viewer_devolve_metadados(
+    api, client_autenticado: AsyncClient
+):
+    _, payload = api
+    doc = payload.documentos[0]
+
+    corpo = (
+        await client_autenticado.get(f"/publicacoes/api/documentos/{doc.id}")
+    ).json()
+
+    assert corpo["id"] == str(doc.id)
+    assert corpo["titulo"] == doc.titulo
+    assert corpo["manual"]["path"] == MANUAL
+    assert corpo["edicao_rotulo"] == EDICAO
+    assert corpo["edicao_vigente"] is True
+    assert corpo["equivalente_vigente_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_api_documento_viewer_inexistente_da_404(
+    api, client_autenticado: AsyncClient
+):
+    resposta = await client_autenticado.get(f"/publicacoes/api/documentos/{uuid.uuid4()}")
+    assert resposta.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_equivalente_vigente_aponta_da_edicao_antiga_para_a_nova(
+    entrada: Path, tmp_path: Path, db: AsyncSession, client_autenticado: AsyncClient,
+    monkeypatch,
+):
+    """
+    §2.2: o `document_id` inclui a edição de propósito (achado B2) — reindexar
+    com um rótulo novo NÃO reaproveita o id antigo, mesmo para o mesmo arquivo.
+    A UI precisa de outro caminho para "voltar" à edição vigente, e é isso que
+    `obter_equivalente_vigente` resolve por (manual.codigo, file_key).
+    """
+    from app.shared.core.enums import StatusEdicao
+
+    indice_antigo = tmp_path / "antigo.db"
+    antigo = _indexar(entrada, indice_antigo)
+    edicao_antiga = await service.obter_ou_criar_edicao(
+        db, "2026", status=StatusEdicao.ANTERIOR
+    )
+    await service.sincronizar_catalogo(db, edicao_antiga, antigo)
+
+    indice_novo = tmp_path / "novo.db"
+    conn, tmp_novo = indexar.abrir_catalog_novo(indice_novo)
+    try:
+        for manual in indexar.descobrir_manuais(entrada, MANUAL):
+            indexar.processar_manual(
+                manual,
+                edicao_rotulo="2027",
+                categorias=catalog.carregar_categorias(
+                    Path("config/categorias_manuais.toml")
+                ),
+                acervo=Path("var/publicacoes/acervo"),
+                conn=conn,
+            )
+        indexar.finalizar_catalog(conn)
+    finally:
+        conn.close()
+    tmp_novo.replace(indice_novo)
+    novo = indexar.descobrir_manuais(entrada, MANUAL)
+    novo_payload = [
+        indexar.processar_manual(
+            m, edicao_rotulo="2027",
+            categorias=catalog.carregar_categorias(Path("config/categorias_manuais.toml")),
+            acervo=Path("var/publicacoes/acervo"), conn=None,
+        )
+        for m in novo
+    ]
+    edicao_nova = await service.obter_ou_criar_edicao(db, "2027", status=StatusEdicao.VIGENTE)
+    await service.sincronizar_catalogo(db, edicao_nova, novo_payload)
+
+    doc_antigo = antigo[0].documentos[0]
+    doc_novo_equivalente = next(
+        d for d in novo_payload[0].documentos if d.file_key == doc_antigo.file_key
+    )
+    assert doc_antigo.id != doc_novo_equivalente.id, (
+        "edições diferentes devem gerar UUIDs diferentes para o mesmo arquivo (B2)"
+    )
+
+    class _SettingsFake:
+        publicacoes_index_path = str(indice_antigo)
+
+    monkeypatch.setattr(publicacoes_router, "get_settings", lambda: _SettingsFake())
+
+    corpo = (
+        await client_autenticado.get(f"/publicacoes/api/documentos/{doc_antigo.id}")
+    ).json()
+
+    assert corpo["edicao_vigente"] is False
+    assert corpo["equivalente_vigente_id"] == str(doc_novo_equivalente.id)
+
+
+# --------------------------------------------------------------------------
+# Páginas HTML (fumaça — sem verificação visual, ver 08_status_de_implementacao.md)
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_pagina_lista_retorna_200_autenticado(client_autenticado: AsyncClient):
+    resposta = await client_autenticado.get("/publicacoes")
+    assert resposta.status_code == 200
+    assert "text/html" in resposta.headers["content-type"]
+
+
+@pytest.mark.asyncio
+async def test_pagina_viewer_retorna_200_autenticado(client_autenticado: AsyncClient):
+    resposta = await client_autenticado.get(f"/publicacoes/viewer/{uuid.uuid4()}")
+    assert resposta.status_code == 200
+    assert "text/html" in resposta.headers["content-type"]
+
+
+@pytest.mark.asyncio
+async def test_atalho_mobile_retorna_200_autenticado(client_autenticado: AsyncClient):
+    resposta = await client_autenticado.get("/m/publicacoes")
+    assert resposta.status_code == 200
+    assert "text/html" in resposta.headers["content-type"]
+
+
+@pytest.mark.asyncio
+async def test_pagina_lista_sem_autenticacao_nao_retorna_200(client: AsyncClient):
+    """R20: página HTML sem sessão não pode vazar 200 — 401 ou redirect para /login."""
+    resposta = await client.get("/publicacoes", follow_redirects=False)
+    assert resposta.status_code != 200
+
+
+def test_static_mjs_resolve_para_mime_de_javascript():
+    """
+    Sem isto, `<script type="module">` recusaria executar o PDF.js: navegadores
+    exigem Content-Type de JavaScript para módulos ES, e `.mjs` nem sempre está
+    no mapa de MIME types do SO (main.py:_mount_static registra explicitamente).
+    """
+    import mimetypes
+
+    tipo, _ = mimetypes.guess_type("pdf.min.mjs")
+    assert tipo in ("text/javascript", "application/javascript", "text/ecmascript")

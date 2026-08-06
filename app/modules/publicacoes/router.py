@@ -28,6 +28,7 @@ from fastapi.responses import FileResponse
 from app.bootstrap.config import get_settings
 from app.bootstrap.dependencies import CurrentUser, DBSession
 from app.modules.publicacoes import schemas, search, service
+from app.shared.core.enums import StatusEdicao
 from app.shared.core.limiter import limiter
 
 router = APIRouter()
@@ -182,6 +183,37 @@ async def status_publicacoes(
         paginas_indexadas=int(indice["paginas"]),  # type: ignore[arg-type]
         mensagens_fim=int(catalogo["mensagens_fim"]),  # type: ignore[arg-type]
         atualizado_em=indice["atualizado_em"],  # type: ignore[arg-type]
+    )
+
+
+@router.get(
+    "/api/documentos/{doc_id}",
+    response_model=schemas.DocumentoViewerOut,
+    summary="Metadados de um documento, para o cabeçalho do viewer",
+)
+async def obter_documento_viewer(
+    doc_id: uuid.UUID,
+    db: DBSession,
+    _: CurrentUser,
+) -> schemas.DocumentoViewerOut:
+    documento = await service.obter_documento(db, doc_id)
+    if documento is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Documento não encontrado."
+        )
+
+    equivalente = await service.obter_equivalente_vigente(db, documento)
+    return schemas.DocumentoViewerOut(
+        id=documento.id,
+        titulo=documento.titulo,
+        manual=schemas.ManualRef(
+            path=documento.manual.codigo, description=documento.manual.descricao_pt
+        ),
+        capitulo=documento.capitulo,
+        paginas=documento.paginas,
+        edicao_rotulo=documento.manual.edicao.rotulo,
+        edicao_vigente=documento.manual.edicao.status == StatusEdicao.VIGENTE,
+        equivalente_vigente_id=equivalente,
     )
 
 
