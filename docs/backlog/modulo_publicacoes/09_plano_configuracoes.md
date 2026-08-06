@@ -117,7 +117,13 @@ justificá-la pela troca de caminho.
 
 ---
 
-## Fase 1 — Endpoints de gerência
+## Fase 1 — Endpoints de gerência ✅ **IMPLEMENTADA**
+
+> **Estado:** concluída. 21 testes em `tests/unit/test_publicacoes_edicoes.py`; suíte em 614
+> passando, `ruff check .` limpo. Migration `c4e7a91d2b58` verificada nos dois ramos (com e sem
+> edição vigente duplicada) contra uma cópia do banco real, incluindo `downgrade`.
+>
+> Divergências em relação ao planejado estão no fim da fase.
 
 Todos sob o prefixo existente, com `AdminRequired` (a página `/configuracoes` já é
 `AdminRequired` em `app/web/pages/router.py:110` — os endpoints repetem a exigência no servidor,
@@ -167,6 +173,27 @@ Ativar uma edição muda o que toda a organização lê como manual vigente. Ver
 auditoria existente cobre isso automaticamente; se não cobrir, gravar `publicado_por_id` (campo já
 existe em `manuais_edicoes` e hoje fica nulo, porque scripts offline não têm usuário logado — a
 ativação pela tela **tem**) e registrar a transição.
+
+### O que a execução mudou em relação ao planejado
+
+- **O índice único parcial pegou um bug de verdade, no primeiro teste.** `ativar_edicao` rebaixava a
+  vigente e promovia a nova num **único** `flush()`; o SQLAlchemy é livre para emitir os dois
+  `UPDATE` em qualquer ordem, e quando emitia a promoção primeiro havia um instante com duas linhas
+  `VIGENTE` — que o índice recusa, derrubando a operação inteira com `IntegrityError`. Corrigido com
+  um flush separado (libera o lugar, depois ocupa), ambos na mesma transação. **Sem o índice, esse
+  bug não existiria hoje e apareceria mais tarde, com dois workers.** Foi a rede de segurança
+  encontrando o problema antes do problema encontrar a produção.
+- **Um dos testes de recusa teve de descer para o nível de serviço.** `override_get_db` do conftest
+  faz `rollback()` da transação de teste inteira em qualquer exceção que passe pela dependência,
+  inclusive um 409 intencional — depois da requisição, as linhas só "flushadas" já não existem e
+  `db.refresh()` falha. O teste por HTTP afirma o 409 e a mensagem; o efeito colateral (nada mudou
+  de status) é afirmado chamando `service.ativar_edicao` direto.
+- **A mensagem do 409 carrega o comando de reindexação.** Quem recebe esse erro é um administrador
+  numa tela, não um desenvolvedor lendo log — o teste afirma a presença de
+  `indexar --edicao <rotulo>` no `detail`.
+- **`_item_da_edicao` relê pela mesma consulta da listagem.** Ativar/arquivar devolvem o item
+  completo, com contagens e `indice_disponivel` recalculado, para a UI atualizar a linha sem uma
+  segunda chamada — e ver exatamente o que a listagem mostraria.
 
 ---
 
@@ -309,7 +336,7 @@ escrever, não antes.
 | # | Entrega | Commit sugerido |
 |---|---|---|
 | 1 | ✅ Fase 0 — índice por edição + ADR + testes de resolução/busca | `refactor(publicacoes): catalog.db por edicao, indice resolvido pelo banco` |
-| 2 | Fase 1 — endpoints + migration do índice único parcial + testes | `feat(publicacoes): endpoints de ativacao e relatorio de edicao` |
+| 2 | ✅ Fase 1 — endpoints + migration do índice único parcial + testes | `feat(publicacoes): endpoints de ativacao e relatorio de edicao` |
 | 3 | Fase 2 — card, modais, CSS, JS | `feat(publicacoes): card de gerencia em /configuracoes` |
 | 4 | Fase 4 — documentação | junto do commit 3 |
 

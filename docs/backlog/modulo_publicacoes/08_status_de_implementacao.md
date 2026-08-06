@@ -13,8 +13,8 @@
 > arquivo ou teste que prova a conclusão. Status sem evidência verificável não conta como ✅ — foi
 > essa disciplina que pegou o B7 (índice que "existe" e não busca nada).
 >
-> **Última atualização:** 06/08/2026 · branch `feature/modulo-publicacoes` (a partir de
-> `development`, que já contém o módulo) · **593 testes verdes** · `ruff check` limpo
+> **Última atualização:** 06/08/2026 · branch `feature/modulo-publicacoes` · **614 testes
+> verdes** · `ruff check .` limpo · Fase 1 de `09_plano_configuracoes.md` concluída
 
 ---
 
@@ -26,7 +26,7 @@
 | **M1** — Piloto FIM ⭐ | 15 tarefas | 15/15 | ✅ **Concluído** — CSP verificada por leitura de código, não por navegador real (ver dívidas) |
 | **M2** — Avulsas (BO/BS/NPO/BT) | 10 tarefas | 10/10 | ✅ **Concluído** |
 | **M3** — Integração panes/inspeções | 5 tarefas | 5/5 | ✅ **Concluído** |
-| **M4** — Acervo completo + ciclo DVD | 8 tarefas | 6/8 | 🔵 **Em execução** — a tarefa 4 teve seu bloqueador arquitetural removido (índice por edição, Fase 0 de `09_plano_configuracoes.md`) e agora depende só de endpoints e tela; o gate de RSS/disco continua preso a D-04 |
+| **M4** — Acervo completo + ciclo DVD | 8 tarefas | 6/8 | 🔵 **Em execução** — a tarefa 4 tem backend completo (Fases 0 e 1 de `09_plano_configuracoes.md`: índice por edição + endpoints de ativação) e falta só o card de `/configuracoes` (Fase 2); o gate de RSS/disco continua preso a D-04 |
 | **M5** — RAG | — | — | 🔒 Congelado até D-S3 |
 
 Legenda: ✅ concluído · 🔵 em execução · ⚪ não iniciado · 🔒 bloqueado · ⚠️ parcial
@@ -170,7 +170,7 @@ manual da tarefa 2, que exige digitar a mensagem).
 | 1 | Rodar `indexar.py` sobre o acervo completo | ✅ | **Executado de verdade nesta sessão**: 34 manuais, 5.724 documentos, 53.792 páginas, **0 sem camada de texto**, em 152,7s. Edição `2026` criada como `AGUARDANDO_ATIVACAO` no banco local |
 | 2 | `publicar.py`: inventário, diff por hash, extração, snapshot ZIP, upload R2, relatório | ✅ | `scripts/publicacoes/publicar.py`; 13 testes em `tests/unit/test_publicacoes_publicar.py`; `--dry-run` e a execução completa (`--pular-upload`) rodados contra o acervo real |
 | 3 | `merge_data.py`: merge de remessa nova (RN-08) | ✅ | `scripts/publicacoes/merge_data.py` — hash+mtime, `_merge_conflicts/`, `merge_report.txt`, `--dry-run` por padrão; 13 testes em `tests/unit/test_publicacoes_merge_data.py` |
-| 4 | Card "Publicações" em `/configuracoes`: ativar/reverter, ver relatório | 🔵 | **Bloqueador removido, tela pendente.** A Fase 0 de `09_plano_configuracoes.md` construiu o índice por edição — trocar a edição `VIGENTE` já muda o que a busca devolve (`test_trocar_edicao_vigente_muda_o_que_a_busca_devolve`, verificado por mutação). Faltam os endpoints (Fase 1) e o card (Fase 2) |
+| 4 | Card "Publicações" em `/configuracoes`: ativar/reverter, ver relatório | 🔵 | **Backend pronto, falta a tela.** Fase 0: índice por edição — trocar a `VIGENTE` já muda o que a busca devolve (`test_trocar_edicao_vigente_muda_o_que_a_busca_devolve`, verificado por mutação). Fase 1: endpoints `GET /api/edicoes`, `.../{id}/relatorio`, `POST .../{id}/ativar`, `.../{id}/arquivar`, `GET /api/duplicacao`, todos `AdminRequired`; migration `c4e7a91d2b58` (índice único parcial da edição vigente); 21 testes em `tests/unit/test_publicacoes_edicoes.py`. Falta o card (Fase 2) |
 | 5 | Desduplicação por `hash_sha256` entre edição vigente e anterior | ✅ | `service.medir_duplicacao_entre_edicoes` — mede, não deduplica fisicamente (ver nota) |
 | 6 | Transferência por rsync/SSH, nunca HTTP | ✅ | `docs/guides/operacao_publicacoes.md` §3 — comandos prontos, com placeholders 🔒 D-04 para host/usuário |
 | 7 | Runbook interno | ✅ | `docs/guides/operacao_publicacoes.md`, adaptado de `docs/backlog/manuais/Runbook.MD` §2/§3/§4/§6.2/§7 |
@@ -209,8 +209,8 @@ disco specific a D-04, não algo a decidir sem saber o provedor.
 "Publicar uma edição ponta a ponta a partir da mídia/remessa nova, ativar, conferir o relatório de
 diff, reverter, reativar — sem downtime, RSS por worker < 200 MB, disco da VPS < 60% após duas
 edições retidas." — **parcialmente verificável**: publicar/diff/relatório ✅ (medido de verdade);
-ativar/reverter 🔵 (o mecanismo existe e está testado desde a Fase 0 — trocar a edição `VIGENTE`
-muda o que a busca devolve; falta a interface que expõe a ação); RSS e disco da VPS 🔒 (não há VPS,
+ativar/reverter 🔵 (mecanismo e endpoints prontos e testados — Fases 0 e 1; falta só a interface
+que expõe a ação); RSS e disco da VPS 🔒 (não há VPS,
 D-04).
 
 ---
@@ -233,7 +233,7 @@ D-04).
 | **`manuais_edicoes`** | A tabela existe e é populada com a linha sintética `piloto-fim`, mas `snapshot_key`, `hash_sha256` e `relatorio_diff` seguem nulos — ganham uso só no M4. | Esperado, não é dívida real |
 | **O CI exercita 4 PDFs, não o acervo** | Depois que `docs/fim/` saiu do versionamento, a amostra em `tests/fixtures/fim/` (4 arquivos, 172 KB) é tudo que o pipeline tem de PDF real. É deliberado — versionar mais reinstala o peso que a remoção quis eliminar — mas significa que classes de arquivo ausentes da amostra (PDF sem camada de texto, PDF corrompido, nome acentuado) só são exercitadas por fixture sintético ou localmente, com o acervo montado. Os testes que dependem do acervo real já se auto-pulam (`@sem_acervo` em `test_publicacoes_catalog.py`), então a ausência é visível, não silenciosa. | `tests/fixtures/fim/README.md` |
 | **`fim.json` duplicado no repositório** | Existem duas cópias idênticas rastreadas: `fim.json` na raiz e `docs/fim.json`. A duplicação **é anterior** ao merge do módulo (já estava na `development`) e não foi tocada aqui para não misturar limpeza com integração. `tests/unit/test_publicacoes_catalog.py` lê a da raiz; o resto do módulo lê `docs/fim.json`. Consolidar numa só é trabalho de uma linha, mas muda o caminho lido por teste — vale fazer isolado. | `fim.json`, `docs/fim.json` |
-| **`test_status_aeronave_atualiza_para_indisponivel_ao_abrir_pane` é instável** | Gera `matricula = "59" + 2 dígitos hex` — 256 valores possíveis, que colidem com as matrículas fixas `5999`/`5998`/`5900` de `tests/architecture/`. Falhou uma vez com 409 durante este merge e passou na repetição. Não tem relação com o módulo publicacoes (a branch nunca tocou o arquivo); é flakiness pré-existente de ~1/256 por execução. Corrigir é trocar por um sufixo realmente único, como já foi feito em `test_publicacoes_avulsas.py`. | `tests/unit/test_aeronaves.py:341` |
+| ~~**`test_status_aeronave_atualiza_para_indisponivel_ao_abrir_pane` é instável**~~ | **Corrigido.** A primeira análise estimou ~1/256 por execução, contando só as matrículas fixas de `tests/architecture/`; **o número real era ~10%** (2 falhas em 12 execuções, medido). A causa maior estava em `seed.FROTA_PADRAO`: `ensure_default_aeronaves`, chamado por `test_quality_helpers.py`, grava 20 matrículas `59xx` **fora da transação do teste**, então elas persistem pela sessão inteira e ocupam 20 dos 256 valores que `"59" + 2 dígitos hex` pode gerar. Trocado pelo sufixo hex completo nos dois testes afetados; 12 execuções seguidas sem falha. | `tests/unit/test_aeronaves.py` |
 
 ---
 

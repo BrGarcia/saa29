@@ -299,6 +299,112 @@ async def obter_pdf(
 
 
 # ==========================================================================
+# Ciclo de vida das edições (M4 tarefa 4 — card de /configuracoes)
+# ==========================================================================
+#
+# Todo endpoint aqui é `AdminRequired`. A página /configuracoes já exige Admin
+# (`app/web/pages/router.py`), mas gate de página não é autorização: quem chama
+# a API não passa necessariamente pela página.
+
+
+@router.get(
+    "/api/edicoes",
+    response_model=list[schemas.EdicaoListItem],
+    summary="Edições do acervo, com estado do índice de cada uma",
+)
+async def listar_edicoes(db: DBSession, _: AdminRequired) -> list[schemas.EdicaoListItem]:
+    linhas = await service.listar_edicoes(db)
+    return [schemas.EdicaoListItem(**linha) for linha in linhas]  # type: ignore[arg-type]
+
+
+@router.get(
+    "/api/edicoes/{edicao_id}/relatorio",
+    response_model=schemas.RelatorioEdicaoOut,
+    summary="Relatório de diff gravado na publicação",
+)
+async def obter_relatorio_edicao(
+    edicao_id: uuid.UUID, db: DBSession, _: AdminRequired
+) -> schemas.RelatorioEdicaoOut:
+    """
+    É este relatório que alguém lê **antes** de decidir ativar (runbook §2).
+
+    `relatorio` nulo é resposta válida, não 404: a edição existe, só não foi
+    publicada por `publicar.py` — é o caso da linha sintética `piloto-fim`.
+    """
+    edicao = await service.obter_edicao(db, edicao_id)
+    return schemas.RelatorioEdicaoOut(
+        edicao_id=edicao.id, rotulo=edicao.rotulo, relatorio=edicao.relatorio_diff
+    )
+
+
+@router.post(
+    "/api/edicoes/{edicao_id}/ativar",
+    response_model=schemas.EdicaoListItem,
+    summary="Tornar esta a edição vigente (reverter = ativar a anterior)",
+)
+async def ativar_edicao(
+    edicao_id: uuid.UUID, db: DBSession, usuario_atual: AdminRequired
+) -> schemas.EdicaoListItem:
+    """
+    Muda o que toda a organização lê como manual em vigor.
+
+    Não há endpoint de "reverter": reverter é ativar a edição ANTERIOR, o mesmo
+    caminho de código. Recusas em 409 — já vigente, arquivada, ou sem índice em
+    disco (ver `service.ativar_edicao`).
+    """
+    edicao = await service.ativar_edicao(db, edicao_id, usuario_id=usuario_atual.id)
+    return await _item_da_edicao(db, edicao.id)
+
+
+@router.post(
+    "/api/edicoes/{edicao_id}/arquivar",
+    response_model=schemas.EdicaoListItem,
+    summary="Arquivar edição (libera os artefatos de disco para descarte)",
+)
+async def arquivar_edicao(
+    edicao_id: uuid.UUID, db: DBSession, _: AdminRequired
+) -> schemas.EdicaoListItem:
+    edicao = await service.arquivar_edicao(db, edicao_id)
+    return await _item_da_edicao(db, edicao.id)
+
+
+async def _item_da_edicao(db: DBSession, edicao_id: uuid.UUID) -> schemas.EdicaoListItem:
+    """
+    Relê a edição pela mesma consulta da listagem.
+
+    Devolver o item completo (com contagens e `indice_disponivel` recalculado)
+    deixa a UI atualizar a linha sem uma segunda chamada — e garante que ela
+    veja exatamente o que a listagem mostraria.
+    """
+    item = next(
+        (linha for linha in await service.listar_edicoes(db) if linha["id"] == edicao_id),
+        None,
+    )
+    if item is None:  # pragma: no cover - a edição acabou de ser lida na mesma transação
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Edição não encontrada."
+        )
+    return schemas.EdicaoListItem(**item)  # type: ignore[arg-type]
+
+
+@router.get(
+    "/api/duplicacao",
+    response_model=schemas.DuplicacaoOut,
+    summary="Sobreposição por hash entre a edição vigente e a anterior",
+)
+async def medir_duplicacao(db: DBSession, _: AdminRequired) -> schemas.DuplicacaoOut:
+    """
+    Dimensiona quanto um esquema de dedup física economizaria — dado que falta
+    para o gate do M4 ("disco da VPS < 60% após duas edições retidas").
+
+    **Mede, não deduplica.** As edições apontam para a mesma árvore em disco
+    hoje; não há cópia física a eliminar ainda.
+    """
+    medicao = await service.medir_duplicacao_entre_edicoes(db)
+    return schemas.DuplicacaoOut(**medicao)  # type: ignore[arg-type]
+
+
+# ==========================================================================
 # Publicações avulsas (acervo B, M2)
 # ==========================================================================
 

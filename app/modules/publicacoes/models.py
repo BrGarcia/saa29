@@ -30,11 +30,13 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -65,6 +67,24 @@ class ManualEdicao(Base):
     """
 
     __tablename__ = "manuais_edicoes"
+    __table_args__ = (
+        # No máximo uma edição VIGENTE. Índice PARCIAL: ANTERIOR e ARQUIVADA
+        # podem repetir à vontade — só o estado "em vigor" é exclusivo.
+        #
+        # Rede de segurança do que `service.ativar_edicao` já valida em Python
+        # dentro da transação. A validação em Python dá a mensagem legível; o
+        # índice cobre o caso que ela não vê: dois processos ativando ao mesmo
+        # tempo, cada um na sua transação. Sem ele, o banco aceitaria duas
+        # linhas VIGENTE e a busca passaria a depender de qual tem
+        # `data_publicacao` maior — falha silenciosa, não erro.
+        Index(
+            "uq_manuais_edicoes_vigente_unica",
+            "status",
+            unique=True,
+            sqlite_where=text("status = 'VIGENTE'"),
+            postgresql_where=text("status = 'VIGENTE'"),
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     rotulo: Mapped[str] = mapped_column(

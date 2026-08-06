@@ -39,6 +39,7 @@ from app.modules.publicacoes.models import (
     PublicacaoFavorito,
 )
 from app.shared.core.enums import RevisionStatus, StatusEdicao
+from app.shared.core.exceptions import ConflitoNegocioError, EntidadeNaoEncontradaError
 
 logger = logging.getLogger(__name__)
 
@@ -218,6 +219,16 @@ def resolver_caminho_indice(rotulo: str | None) -> Path:
     return caminho
 
 
+async def _indice_existe(rotulo: str) -> bool:
+    """Se o `catalog.<rotulo>.db` daquela edição está em disco."""
+    try:
+        caminho = caminho_indice_da_edicao(rotulo)
+    except RotuloInvalidoError:
+        # Rótulo que não compõe nome de arquivo nunca teve índice próprio.
+        return False
+    return await asyncio.to_thread(caminho.is_file)
+
+
 async def caminho_indice_vigente(db: AsyncSession) -> Path:
     """
     Índice da edição VIGENTE — o que `GET /api/busca` e `/api/status` abrem.
@@ -231,6 +242,151 @@ async def caminho_indice_vigente(db: AsyncSession) -> Path:
     edicao = await obter_edicao_vigente(db)
     rotulo = edicao.rotulo if edicao is not None else None
     return await asyncio.to_thread(resolver_caminho_indice, rotulo)
+
+
+# --------------------------------------------------------------------------
+# Ciclo de vida da edição (M4 tarefa 4, Fase 1)
+# --------------------------------------------------------------------------
+
+
+async def obter_edicao(db: AsyncSession, edicao_id: uuid.UUID) -> ManualEdicao:
+    edicao = await db.get(ManualEdicao, edicao_id)
+    if edicao is None:
+        raise EntidadeNaoEncontradaError("Edição não encontrada.")
+    return edicao
+
+
+async def listar_edicoes(db: AsyncSession) -> list[dict[str, object]]:
+    """
+    Todas as edições, com o que a tela de gerência precisa para decidir.
+
+    `indice_disponivel` é conferido no disco, edição por edição: é ele que
+    define se "Ativar" pode sequer ser oferecido. Sem essa checagem a tela
+    ofereceria um botão que o servidor recusaria — ou, pior, ativaria uma
+    edição cuja busca cairia no índice legado.
+    """
+    linhas = (
+        await db.execute(
+            select(
+                ManualEdicao,
+                func.count(func.distinct(Manual.id)),
+                func.count(ManualDocumento.id),
+            )
+            .outerjoin(Manual, Manual.edicao_id == ManualEdicao.id)
+            .outerjoin(ManualDocumento, ManualDocumento.manual_id == Manual.id)
+            .group_by(ManualEdicao.id)
+            .order_by(ManualEdicao.data_publicacao.desc())
+        )
+    ).all()
+
+    return [
+        {
+            "id": edicao.id,
+            "rotulo": edicao.rotulo,
+            "status": edicao.status,
+            "data_publicacao": edicao.data_publicacao,
+            "manuais": int(manuais),
+            "documentos": int(documentos),
+            "indice_disponivel": await _indice_existe(edicao.rotulo),
+            "tem_relatorio": edicao.relatorio_diff is not None,
+            "snapshot_key": edicao.snapshot_key,
+        }
+        for edicao, manuais, documentos in linhas
+    ]
+
+
+async def ativar_edicao(
+    db: AsyncSession, edicao_id: uuid.UUID, *, usuario_id: uuid.UUID
+) -> ManualEdicao:
+    """
+    Promove `edicao_id` a VIGENTE e rebaixa a vigente atual a ANTERIOR.
+
+    **Reverter é ativar a edição ANTERIOR** — não existe operação inversa
+    separada. Um caminho de código, um conjunto de testes, e nenhuma dúvida
+    sobre o que "reverter" faz quando há mais de uma edição anterior retida.
+
+    A transação cobre as duas escritas: nunca há instante persistido com duas
+    edições vigentes ou nenhuma. E como a busca resolve o índice pela edição
+    vigente (`caminho_indice_vigente`), a consulta seguinte ao commit já lê o
+    índice novo — sem mover arquivo, sem downtime.
+
+    Três recusas explícitas, todas 409:
+
+    - já VIGENTE: no-op silencioso esconderia um clique que o operador acha
+      que fez efeito;
+    - ARQUIVADA: os artefatos de disco podem já ter sido descartados;
+    - **sem índice em disco**: é a que importa. Sem ela, ativar mudaria o
+      status no banco e a busca continuaria devolvendo o conteúdo da edição
+      antiga (pela queda para o índice legado) — o botão pareceria funcionar
+      e mentiria, que é exatamente o que a Fase 0 existiu para impedir.
+    """
+    edicao = await obter_edicao(db, edicao_id)
+
+    if edicao.status == StatusEdicao.VIGENTE:
+        raise ConflitoNegocioError(f"A edição {edicao.rotulo!r} já é a vigente.")
+    if edicao.status == StatusEdicao.ARQUIVADA:
+        raise ConflitoNegocioError(
+            f"A edição {edicao.rotulo!r} está arquivada — seus artefatos de disco "
+            "podem ter sido descartados. Republique-a antes de ativar."
+        )
+    if not await _indice_existe(edicao.rotulo):
+        raise ConflitoNegocioError(
+            f"A edição {edicao.rotulo!r} não tem índice de busca em disco "
+            f"({caminho_indice_da_edicao(edicao.rotulo)}). Ative apenas depois de "
+            f"reindexar: python -m scripts.publicacoes.indexar --edicao {edicao.rotulo}"
+        )
+
+    anterior = await obter_edicao_vigente(db)
+    if anterior is not None:
+        anterior.status = StatusEdicao.ANTERIOR
+        # Flush SEPARADO, antes de promover: o índice único parcial
+        # `uq_manuais_edicoes_vigente_unica` é verificado por statement, e num
+        # flush único o SQLAlchemy pode emitir o UPDATE que promove ANTES do
+        # que rebaixa — duas linhas VIGENTE por um instante, e a operação
+        # inteira falha com IntegrityError. Libera o lugar, depois ocupa.
+        #
+        # Continua atômico: os dois flushes estão na MESMA transação, então um
+        # rollback desfaz os dois e nunca há commit com o acervo sem vigente.
+        await db.flush()
+
+    edicao.status = StatusEdicao.VIGENTE
+    # `publicado_por_id` fica nulo quando a edição nasce de script offline (sem
+    # usuário logado). A ativação pela tela tem usuário — é a primeira vez que
+    # há alguém a quem atribuir a decisão, e é a que importa para auditoria.
+    edicao.publicado_por_id = usuario_id
+    await db.flush()
+
+    logger.info(
+        "Edição %r ativada por %s (anterior: %s).",
+        edicao.rotulo, usuario_id, anterior.rotulo if anterior else "nenhuma",
+    )
+    return edicao
+
+
+async def arquivar_edicao(db: AsyncSession, edicao_id: uuid.UUID) -> ManualEdicao:
+    """
+    Marca a edição como ARQUIVADA.
+
+    Ação **separada** de ativar, e humana: ativar não arquiva a anterior
+    sozinha. Arquivar declara que os artefatos de disco daquela edição podem
+    ser descartados, e isso não é efeito colateral de publicar outra coisa.
+
+    Não apaga linha nenhuma do catálogo — `publicacoes_acessos` referencia
+    documentos de edições velhas e a auditoria precisa sobreviver (achado B4).
+    """
+    edicao = await obter_edicao(db, edicao_id)
+
+    if edicao.status == StatusEdicao.VIGENTE:
+        raise ConflitoNegocioError(
+            f"A edição {edicao.rotulo!r} está em vigor — ative outra antes de arquivá-la."
+        )
+    if edicao.status == StatusEdicao.ARQUIVADA:
+        raise ConflitoNegocioError(f"A edição {edicao.rotulo!r} já está arquivada.")
+
+    edicao.status = StatusEdicao.ARQUIVADA
+    await db.flush()
+    logger.info("Edição %r arquivada.", edicao.rotulo)
+    return edicao
 
 
 # --------------------------------------------------------------------------
