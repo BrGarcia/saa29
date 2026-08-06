@@ -242,4 +242,5 @@ Sugestão de ordem daqui para frente: (a) resolver o `catalog.db` por edição �
 da tarefa 4, não um nice-to-have; (b) construir a tarefa 4 (endpoints de ativar/reverter + card em
 `/configuracoes`) sobre essa base; (c) D-04 resolvida → validar o gate completo do M4 na VPS real.
 
-M5 (RAG) continua congelado até D-S3 — nenhuma tarefa deste plano depende dele.
+ 
+NOTA DO DESENVOLVEDOR: M5 (RAG) continua congelado até D-S3 — nenhuma tarefa deste plano depende dele. [NAO TENTAR IMPLEMENTAR O M5 AGORA, POIS ELE SERA IMPLEMENTADO PELO DESENVOLVEDOR DE IA NA D-S3]

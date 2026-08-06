@@ -16,6 +16,7 @@
 | 6 | [`06_addendum_revisao_5.md`](06_addendum_revisao_5.md) | O que a Revisão 5 muda no parecer, seção por seção | Já leu o parecer e quer só o diff |
 | 7 | [`07_revisao_pre_implementacao.md`](07_revisao_pre_implementacao.md) | **8 bugs antecipados + 2 simplificações + 5 lacunas de convenção**, cada um medido por execução real | Vai implementar — é o documento que evita perder um dia depurando no lugar errado |
 | 8 | [`08_status_de_implementacao.md`](08_status_de_implementacao.md) | **Painel de progresso.** Tarefa a tarefa, com evidência verificável, gates medidos e a próxima tarefa | Quer saber **em que ponto a implementação está** — é o único documento desta pasta que muda com o código |
+| 9 | [`09_plano_configuracoes.md`](09_plano_configuracoes.md) | **Plano da M4 tarefa 4**: `catalog.db` por edição (pré-requisito) + card de gerência de publicações em `/configuracoes` | Vai destravar a única tarefa do M4 que ficou em aberto por lacuna arquitetural |
 | — | [`../../architecture/adr/004-modulo-publicacoes.md`](../../architecture/adr/004-modulo-publicacoes.md) | ADR formal das 4 decisões de arquitetura que sobrevivem a todas as revisões | Quer a decisão registrada no lugar canônico do projeto |
 
 ## Status de cada documento
@@ -31,6 +32,7 @@
 | `06_addendum_revisao_5.md` | Fechado nesta etapa | **Decisão** — o que muda a partir de agora |
 | `07_revisao_pre_implementacao.md` | Fechado — correções já aplicadas em `03_especificacao_tecnica.md` | **Decisão** — pronto para implementar |
 | `08_status_de_implementacao.md` | **Vivo** — atualizado a cada tarefa concluída | Rastreamento de progresso |
+| `09_plano_configuracoes.md` | Proposto — não implementado | **Decisão** — reverte o `os.replace()` previsto em `search.py` por resolução do índice pelo banco |
 | `004-modulo-publicacoes.md` (ADR) | Proposto | **Decisão formal** |
 
 > Atenção à assimetria: a tabela acima é o status **dos documentos**, não o da implementação. Quem
