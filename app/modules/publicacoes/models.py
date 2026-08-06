@@ -2,13 +2,14 @@
 app/modules/publicacoes/models.py
 Models SQLAlchemy do módulo de publicações.
 
-Este arquivo cobre o **acervo A** (manuais do DVD) e a auditoria de acesso,
-conforme docs/backlog/modulo_publicacoes/03_especificacao_tecnica.md §2.1:
+Cobre os dois acervos, conforme
+docs/backlog/modulo_publicacoes/03_especificacao_tecnica.md §2.1:
 
-- M1 (aqui): manuais_edicoes, manuais, manuais_documentos, manuais_fim_map,
-  publicacoes_acessos
-- M2: publicacoes_avulsas, publicacao_avulsa_anexos, publicacao_avulsa_aeronaves
-- M3: publicacoes_favoritos
+- Acervo A (manuais do DVD, M1): manuais_edicoes, manuais, manuais_documentos,
+  manuais_fim_map, publicacoes_acessos
+- Acervo B (avulsas, M2): publicacoes_avulsas, publicacao_avulsa_anexos,
+  publicacao_avulsa_aeronaves
+- Transversal (M3): publicacoes_favoritos
 
 Contrato que atravessa o módulo inteiro: o índice de busca (`catalog.db`) NÃO
 mora aqui e nunca entra no Alembic — é SQLite dedicado, gerado offline por
@@ -20,6 +21,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
@@ -36,7 +38,15 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.bootstrap.database import Base
-from app.shared.core.enums import RevisionStatus, StatusEdicao
+from app.shared.core.enums import (
+    RevisionStatus,
+    StatusEdicao,
+    StatusPublicacaoAvulsa,
+    TipoPublicacao,
+)
+
+if TYPE_CHECKING:
+    from app.modules.aeronaves.models import Aeronave
 
 
 class ManualEdicao(Base):
@@ -308,3 +318,136 @@ class PublicacaoAcesso(Base):
 
     def __repr__(self) -> str:
         return f"<PublicacaoAcesso usuario={self.usuario_id} doc={self.documento_id}>"
+
+
+class PublicacaoAvulsa(Base):
+    """
+    BO/BS/NPO/BT — publicação avulsa (acervo B), independente do acervo de
+    manuais (acervo A): não usa `catalog.db` nem `pypdfium2`, só o banco
+    principal.
+
+    `ementa` é o campo mais valioso — é o principal insumo de busca (R15 do
+    parecer), daí o comprimento mínimo garantido em schemas.py em vez de aqui
+    (Pydantic valida na entrada; a coluna em si só reforça `nullable=False`).
+
+    Cadeia de substituição via `substituida_por_id`: quando uma publicação é
+    substituída, ela vira `SUBSTITUIDO` e passa a apontar para a nova — o
+    histórico nunca é apagado, só marcado.
+    """
+
+    __tablename__ = "publicacoes_avulsas"
+    __table_args__ = (
+        UniqueConstraint(
+            "tipo", "numero", "ano", name="uq_publicacoes_avulsas_tipo_numero_ano"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tipo: Mapped[TipoPublicacao] = mapped_column(
+        Enum(TipoPublicacao, native_enum=False, length=10), nullable=False, index=True
+    )
+    numero: Mapped[str] = mapped_column(
+        String(60), nullable=False, comment="Ex: 'BS 314-24-0021'"
+    )
+    ano: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    data_emissao: Mapped[date] = mapped_column(Date, nullable=False)
+    data_recebimento: Mapped[date] = mapped_column(
+        Date, nullable=False, comment="Data que conta para o esquadrão (§9.2 do parecer)"
+    )
+    emissor: Mapped[str] = mapped_column(String(100), nullable=False)
+    titulo: Mapped[str] = mapped_column(String(300), nullable=False)
+    ementa: Mapped[str] = mapped_column(
+        Text, nullable=False, comment="Campo mais valioso — principal insumo de busca"
+    )
+    sistema_ata_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("sistemas_ata.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    status: Mapped[StatusPublicacaoAvulsa] = mapped_column(
+        Enum(StatusPublicacaoAvulsa, native_enum=False, length=15),
+        nullable=False,
+        default=StatusPublicacaoAvulsa.VIGENTE,
+        index=True,
+    )
+    substituida_por_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("publicacoes_avulsas.id", ondelete="SET NULL"), nullable=True
+    )
+    ativo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, index=True, comment="Soft delete"
+    )
+    cadastrada_por_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(), nullable=True
+    )
+
+    anexos: Mapped[list["PublicacaoAvulsaAnexo"]] = relationship(
+        back_populates="avulsa", cascade="all, delete-orphan"
+    )
+    aeronaves: Mapped[list["PublicacaoAvulsaAeronave"]] = relationship(
+        back_populates="avulsa", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self) -> str:
+        return f"<PublicacaoAvulsa {self.tipo} {self.numero!r}/{self.ano}>"
+
+
+class PublicacaoAvulsaAnexo(Base):
+    """
+    Um anexo de publicação avulsa — tipicamente o PDF escaneado do documento.
+
+    Sem `updated_at` de propósito: o anexo é imutável — se o arquivo estiver
+    errado, é reenviado como um novo anexo, nunca sobrescrito.
+    """
+
+    __tablename__ = "publicacao_avulsa_anexos"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    avulsa_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("publicacoes_avulsas.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    file_key: Mapped[str] = mapped_column(
+        String(500), nullable=False, comment="Retorno de StorageService.upload()"
+    )
+    nome_original: Mapped[str] = mapped_column(String(255), nullable=False)
+    tamanho_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    principal: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Qual anexo abre por padrão quando há mais de um",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+
+    avulsa: Mapped["PublicacaoAvulsa"] = relationship(back_populates="anexos")
+
+    def __repr__(self) -> str:
+        return f"<PublicacaoAvulsaAnexo {self.nome_original!r}>"
+
+
+class PublicacaoAvulsaAeronave(Base):
+    """
+    Aplicabilidade N:N entre publicação avulsa e aeronave.
+
+    Ausência de linhas para uma `avulsa_id` = aplicável à frota inteira
+    (§9.2 do parecer) — não confundir "nenhuma linha" com "nenhuma aeronave".
+    """
+
+    __tablename__ = "publicacao_avulsa_aeronaves"
+
+    avulsa_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("publicacoes_avulsas.id", ondelete="CASCADE"), primary_key=True
+    )
+    aeronave_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("aeronaves.id", ondelete="CASCADE"), primary_key=True
+    )
+
+    avulsa: Mapped["PublicacaoAvulsa"] = relationship(back_populates="aeronaves")
+    aeronave: Mapped["Aeronave"] = relationship()

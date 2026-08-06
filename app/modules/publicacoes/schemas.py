@@ -13,8 +13,11 @@ inteiro, porque `manuais_documentos.id` é UUID determinístico (§2.2).
 from __future__ import annotations
 
 import uuid
+from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.shared.core.enums import StatusPublicacaoAvulsa, TipoPublicacao
 
 
 class ManualRef(BaseModel):
@@ -99,6 +102,95 @@ class DocumentoOut(BaseModel):
     ata_codigo: str | None
     paginas: int | None
     has_text: bool
+
+
+# --------------------------------------------------------------------------
+# Publicações avulsas (acervo B, M2)
+# --------------------------------------------------------------------------
+
+
+class PublicacaoAvulsaCreate(BaseModel):
+    tipo: TipoPublicacao
+    numero: str = Field(..., max_length=60)
+    ano: int = Field(..., ge=1990, le=2100)
+    data_emissao: date
+    data_recebimento: date
+    emissor: str = Field(..., max_length=100)
+    titulo: str = Field(..., max_length=300)
+    ementa: str = Field(
+        ...,
+        min_length=20,
+        description="Campo mais valioso — mínimo de caracteres por ser o principal insumo de busca (R15)",
+    )
+    sistema_ata_id: uuid.UUID | None = None
+    aplicabilidade: list[uuid.UUID] = Field(
+        default_factory=list,
+        description="IDs de aeronave. Vazio = aplicável à frota inteira (§9.2)",
+    )
+
+
+class PublicacaoAvulsaUpdate(BaseModel):
+    titulo: str | None = Field(default=None, max_length=300)
+    ementa: str | None = Field(default=None, min_length=20)
+    emissor: str | None = Field(default=None, max_length=100)
+    sistema_ata_id: uuid.UUID | None = None
+    status_novo: StatusPublicacaoAvulsa | None = Field(
+        default=None,
+        alias="status",
+        description="VIGENTE|CANCELADO|SUBSTITUIDO — usar junto com substituida_por_id ao substituir",
+    )
+    substituida_por_id: uuid.UUID | None = None
+
+
+class AnexoAvulsaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    nome_original: str
+    tamanho_bytes: int
+    principal: bool
+    created_at: datetime
+
+
+class PublicacaoAvulsaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    tipo: TipoPublicacao
+    numero: str
+    ano: int
+    data_emissao: date
+    data_recebimento: date
+    emissor: str
+    titulo: str
+    ementa: str
+    status: StatusPublicacaoAvulsa
+    sistema_ata_id: uuid.UUID | None
+    substituida_por_id: uuid.UUID | None
+    ativo: bool
+    created_at: datetime
+    anexos: list[AnexoAvulsaOut] = Field(default_factory=list)
+
+
+class PublicacaoAvulsaListItem(BaseModel):
+    id: uuid.UUID
+    tipo: TipoPublicacao
+    numero: str
+    ano: int
+    titulo: str
+    status: StatusPublicacaoAvulsa
+    data_recebimento: date
+    snippet: str | None = None
+    """
+    Trecho da ementa ao redor do termo buscado, com sentinelas `\\x02`/`\\x03`
+    — NUNCA `<mark>` cru (achado B8). Só preenchido quando a busca tem
+    `texto`; None quando a listagem é sem filtro de texto.
+    """
+
+
+class RespostaListaAvulsas(BaseModel):
+    total: int
+    results: list[PublicacaoAvulsaListItem]
 
 
 class DocumentoViewerOut(BaseModel):

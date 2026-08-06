@@ -100,6 +100,12 @@ async def publicacoes_viewer_page(request: Request, doc_id: str, _=Depends(get_c
     )
 
 
+@router.get("/publicacoes/avulsas", response_class=HTMLResponse, include_in_schema=False)
+async def publicacoes_avulsas_page(request: Request, _=Depends(get_current_user)):
+    """Lista/filtros/cadastro de BO/BS/NPO/BT (acervo B, M2)."""
+    return templates.TemplateResponse("publicacoes/avulsas.html", {"request": request})
+
+
 @router.get("/configuracoes", response_class=HTMLResponse, include_in_schema=False)
 async def configuracoes_page(request: Request, _: AdminRequired):
     """Página de Configurações do Sistema - Admin"""

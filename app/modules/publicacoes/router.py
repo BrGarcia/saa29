@@ -22,13 +22,14 @@ import asyncio
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile, status
+from fastapi.responses import FileResponse, RedirectResponse
 
 from app.bootstrap.config import get_settings
-from app.bootstrap.dependencies import CurrentUser, DBSession
-from app.modules.publicacoes import schemas, search, service
-from app.shared.core.enums import StatusEdicao
+from app.bootstrap.dependencies import AdminRequired, CurrentUser, DBSession, EncarregadoInspetorOuAdmin
+from app.modules.publicacoes import avulsas, schemas, search, service
+from app.shared.core.enums import StatusEdicao, StatusPublicacaoAvulsa, TipoPublicacao
+from app.shared.core.file_validators import ler_upload_com_limite, validate_file_upload
 from app.shared.core.limiter import limiter
 
 router = APIRouter()
@@ -260,3 +261,167 @@ async def obter_pdf(
         filename=caminho.name,
         media_type="application/pdf",
     )
+
+
+# ==========================================================================
+# Publicações avulsas (acervo B, M2)
+# ==========================================================================
+
+
+@router.get(
+    "/api/avulsas",
+    response_model=schemas.RespostaListaAvulsas,
+    summary="Busca de publicações avulsas por metadados",
+)
+async def buscar_avulsas(
+    db: DBSession,
+    _: CurrentUser,
+    numero: str | None = Query(default=None, max_length=60),
+    ano: int | None = Query(default=None, ge=1990, le=2100),
+    tipo: TipoPublicacao | None = Query(default=None),
+    # Nunca `status`: sombrearia `fastapi.status`, importado neste mesmo
+    # arquivo — trap real já documentado em `panes/router.py:71-75`.
+    status_filtro: StatusPublicacaoAvulsa | None = Query(default=None, alias="status"),
+    ata: str | None = Query(default=None, max_length=4, description="Código ATA, ex: 34"),
+    texto: str | None = Query(default=None, max_length=200, description="Busca em título/ementa"),
+    incluir_inativas: bool = Query(default=False),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+) -> schemas.RespostaListaAvulsas:
+    total, resultados = await avulsas.buscar_avulsas(
+        db,
+        numero=numero,
+        ano=ano,
+        tipo=tipo,
+        status_filtro=status_filtro,
+        ata_codigo=ata,
+        texto=texto,
+        incluir_inativas=incluir_inativas,
+        limit=limit,
+        offset=offset,
+    )
+
+    def _item(a) -> schemas.PublicacaoAvulsaListItem:
+        snippet = None
+        if texto:
+            fonte = a.ementa if texto.lower() in a.ementa.lower() else a.titulo
+            snippet = avulsas.construir_snippet(fonte, texto)
+        return schemas.PublicacaoAvulsaListItem(
+            id=a.id, tipo=a.tipo, numero=a.numero, ano=a.ano, titulo=a.titulo,
+            status=a.status, data_recebimento=a.data_recebimento, snippet=snippet,
+        )
+
+    return schemas.RespostaListaAvulsas(
+        total=total, results=[_item(a) for a in resultados]
+    )
+
+
+@router.get(
+    "/api/avulsas/{avulsa_id}",
+    response_model=schemas.PublicacaoAvulsaOut,
+    summary="Detalhe de uma publicação avulsa",
+)
+async def obter_avulsa(avulsa_id: uuid.UUID, db: DBSession, _: CurrentUser) -> schemas.PublicacaoAvulsaOut:
+    avulsa = await avulsas.obter_avulsa(db, avulsa_id)
+    return schemas.PublicacaoAvulsaOut.model_validate(avulsa)
+
+
+@router.post(
+    "/api/avulsas",
+    response_model=schemas.PublicacaoAvulsaOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Cadastrar publicação avulsa",
+)
+async def criar_avulsa(
+    dados: schemas.PublicacaoAvulsaCreate,
+    db: DBSession,
+    usuario_atual: EncarregadoInspetorOuAdmin,
+) -> schemas.PublicacaoAvulsaOut:
+    avulsa = await avulsas.criar_avulsa(db, dados, usuario_id=usuario_atual.id)
+    return schemas.PublicacaoAvulsaOut.model_validate(avulsa)
+
+
+@router.patch(
+    "/api/avulsas/{avulsa_id}",
+    response_model=schemas.PublicacaoAvulsaOut,
+    summary="Corrigir metadados ou transicionar vigência",
+)
+async def atualizar_avulsa(
+    avulsa_id: uuid.UUID,
+    dados: schemas.PublicacaoAvulsaUpdate,
+    db: DBSession,
+    _: EncarregadoInspetorOuAdmin,
+) -> schemas.PublicacaoAvulsaOut:
+    avulsa = await avulsas.atualizar_avulsa(db, avulsa_id, dados)
+    return schemas.PublicacaoAvulsaOut.model_validate(avulsa)
+
+
+@router.delete(
+    "/api/avulsas/{avulsa_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Excluir publicação avulsa (soft delete)",
+)
+async def excluir_avulsa(avulsa_id: uuid.UUID, db: DBSession, _: AdminRequired) -> None:
+    """D-S6: exclusão é privilégio de Admin, mesmo cadastro sendo de Encarregado/Inspetor/Admin."""
+    await avulsas.excluir_avulsa(db, avulsa_id)
+
+
+@router.post(
+    "/api/avulsas/{avulsa_id}/anexos",
+    response_model=schemas.AnexoAvulsaOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload de anexo (PDF/imagem escaneada)",
+)
+@limiter.limit("10/minute")
+async def upload_anexo_avulsa(
+    request: Request,
+    avulsa_id: uuid.UUID,
+    db: DBSession,
+    _: EncarregadoInspetorOuAdmin,
+    arquivo: UploadFile = File(description="PDF escaneado ou imagem do documento"),
+    principal: bool = False,
+) -> schemas.AnexoAvulsaOut:
+    """
+    Fora do pipeline de imagem de propósito: `shared/services/image/pipeline.py`
+    reprocessa fotos de pane para exibição — um PDF escaneado de BO/BS vai
+    direto ao storage, sem recompressão nem conversão.
+    """
+    await validate_file_upload(arquivo)
+    max_bytes = int(get_settings().publicacoes_avulsas_max_upload_mb * 1024 * 1024)
+    conteudo = await ler_upload_com_limite(arquivo, max_bytes)
+
+    anexo = await avulsas.adicionar_anexo(
+        db,
+        avulsa_id,
+        conteudo=conteudo,
+        nome_original=arquivo.filename or "anexo",
+        principal=principal,
+    )
+    return schemas.AnexoAvulsaOut.model_validate(anexo)
+
+
+@router.get(
+    "/avulsas/{avulsa_id}/anexo/{anexo_id}",
+    summary="Entrega o anexo de uma publicação avulsa",
+)
+async def obter_anexo_avulsa(
+    avulsa_id: uuid.UUID, anexo_id: uuid.UUID, db: DBSession, _: CurrentUser
+):
+    from app.shared.core.storage import get_storage_service
+
+    anexo = await avulsas.obter_anexo(db, avulsa_id, anexo_id)
+    storage = get_storage_service()
+    url_ou_caminho = await storage.get_url(anexo.file_key)
+
+    if url_ou_caminho.startswith(("http://", "https://")):
+        return RedirectResponse(url_ou_caminho)
+
+    caminho = Path(url_ou_caminho)
+    # Disco em thread: mesmo motivo do PDF do acervo A (panes/router.py:395).
+    existe = await asyncio.to_thread(caminho.is_file)
+    if not existe:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Arquivo físico do anexo não encontrado.",
+        )
+    return FileResponse(path=caminho, filename=anexo.nome_original)

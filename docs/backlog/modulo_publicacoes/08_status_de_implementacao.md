@@ -11,7 +11,7 @@
 > arquivo ou teste que prova a conclusão. Status sem evidência verificável não conta como ✅ — foi
 > essa disciplina que pegou o B7 (índice que "existe" e não busca nada).
 >
-> **Última atualização:** 05/08/2026 · branch `fix/ci-baseline-verde` · 502 testes verdes ·
+> **Última atualização:** 05/08/2026 · branch `fix/ci-baseline-verde` · 533 testes verdes ·
 > `ruff check .` limpo
 
 ---
@@ -22,7 +22,7 @@
 |---|---|---|---|
 | **M0** — Fundação | 8 tarefas | 8/8 | ✅ **Concluído** |
 | **M1** — Piloto FIM ⭐ | 15 tarefas | 15/15 | ✅ **Concluído** — CSP verificada por leitura de código, não por navegador real (ver dívidas) |
-| **M2** — Avulsas (BO/BS/NPO/BT) | 10 tarefas | 0/10 | ⚪ Não iniciado — **não depende do M1** |
+| **M2** — Avulsas (BO/BS/NPO/BT) | 10 tarefas | 10/10 | ✅ **Concluído** |
 | **M3** — Integração panes/inspeções | 5 tarefas | 0/5 | ⚪ Não iniciado — depende do M1 |
 | **M4** — Acervo completo + ciclo DVD | 8 tarefas | 0/8 | 🔒 Bloqueado por D-04 (VPS), exceto a tarefa 1 |
 | **M5** — RAG | — | — | 🔒 Congelado até D-S3 |
@@ -99,12 +99,33 @@ testado em `test_equivalente_vigente_aponta_da_edicao_antiga_para_a_nova`).
 
 ---
 
-## M2 — Publicações avulsas ⚪ 0/10
+## M2 — Publicações avulsas ✅ 10/10
 
-Não iniciado. **Independente do M1** — pode começar a qualquer momento; usa só o banco principal,
-sem `catalog.db` e sem `pypdfium2`. Os enums `TipoPublicacao`/`StatusPublicacaoAvulsa` (tarefa 1)
-ainda **não** existem em `app/shared/core/enums.py` — só `RevisionStatus` e `StatusEdicao`, que o M1
-precisava.
+| # | Tarefa | Status | Evidência |
+|---|---|:--:|---|
+| 1 | Enum `TipoPublicacao`, `StatusPublicacaoAvulsa` | ✅ | `app/shared/core/enums.py` |
+| 2 | Migration: `publicacoes_avulsas`, anexos, aeronaves N:N | ✅ | `migrations/versions/20260805_2141_7daf099e56ed_*.py` — `upgrade`/`downgrade` testados |
+| 3 | `avulsas.py` + `service.py`: CRUD, cadeia `substituida_por_id`, filtro de vigência | ✅ | `app/modules/publicacoes/avulsas.py` |
+| 4 | RBAC: `EncarregadoInspetorOuAdmin` cadastro/edição, `AdminRequired` + soft delete exclusão (D-S6) | ✅ | `router.py`; testado nos dois sentidos da fronteira (Mantenedor fora, Encarregado dentro) |
+| 5 | Upload de anexo fora do pipeline de imagem | ✅ | `router.py:upload_anexo_avulsa` — `validate_file_upload` + `ler_upload_com_limite`, sem `shared/services/image/pipeline.py` |
+| 6 | Busca por metadados: `LIKE`/`ILIKE` com `escape_like` | ✅ | `avulsas.py:buscar_avulsas` |
+| 7 | Páginas: `avulsas.html`, `publicacoes_avulsas.js` | ✅ | `app/web/templates/publicacoes/avulsas.html` |
+| 8 | Testes: cadastro, vigência, substituição, RBAC, limite de upload, soft delete | ✅ | 27 testes em `tests/unit/test_publicacoes_avulsas.py` |
+| 9 | Teste de XSS (ementa com `<img onerror>`) | ✅ | 4 testes em `tests/security/test_publicacoes_xss.py` — servidor nunca emite `<mark>`, e a renderização do cliente é simulada em Python para provar que o payload não sobrevive como tag |
+| 10 | Rate limit no upload de anexo (`10/minute`) | ✅ | `router.py` — `@limiter.limit("10/minute")` |
+
+**Achado não previsto no plano:** o filtro `texto` da busca precisava de algum destaque para ser
+útil (mostrar por que o resultado casou), mas o plano original não detalhava isso para avulsas —
+só para o acervo A. Implementado um `snippet` com a MESMA receita de sentinela `\x02`/`\x03` do
+`catalog.db` (`avulsas.construir_snippet`), reaproveitando a função `snippetSeguro` do cliente
+para os dois acervos.
+
+### Gate do M2
+
+Cadastrar um BS real com anexo escaneado e encontrá-lo por número, por ATA e por palavra da
+ementa — nos três casos. ✅ Verificado por teste único que cadastra uma publicação, anexa um PDF,
+vincula a um `sistema_ata`, e confirma os três caminhos de busca no mesmo cadastro
+(`test_gate_m2_encontrar_por_numero_ata_e_ementa`).
 
 ---
 
@@ -134,19 +155,20 @@ Ordem de grandeza do que isso indexaria, medida no acervo em disco: **34 manuais
 | **CA-01** (p95 < 300 ms) | O número foi **medido** (6,7 ms), mas não é afirmado por teste — regressão de performance passaria despercebida. | idem |
 | **Verificação visual do viewer/CSP** | O delta de CSP (`worker-src 'self'`) foi justificado por leitura do código-fonte do PDF.js, não por abrir o console de um navegador real contra a aplicação rodando — esta sessão não teve acesso a um navegador. Antes de dar o item por definitivamente fechado, alguém precisa abrir `/publicacoes/viewer/{id}` de um documento real e checar o console por violações de CSP. Passo a passo em `docs/methodology/CSP.md` §5. | `docs/methodology/CSP.md` §5 |
 | **PDF.js sem `cmaps`/`standard_fonts`** | Só o núcleo (`pdf.min.mjs` + `pdf.worker.min.mjs`) foi vendorizado. Um PDF que dependa de fonte padrão não embutida (raro nos manuais, que embutem fonte) pode renderizar com fallback do navegador em vez da fonte exata. | `app/web/static/js/pdfjs/README.md` |
+| **Frontend sem verificação visual em navegador** | `publicacoes/lista.html`, `viewer.html`, `mobile/publicacoes.html` e `avulsas.html` foram implementados e passam em testes de fumaça (200 + `text/html`), mas nenhum foi aberto num navegador real nesta sessão — não há confirmação visual de layout, dos modais de cadastro/anexo de avulsas, nem da experiência mobile. | Todos os templates de `app/web/templates/publicacoes/` e `mobile/publicacoes.html` |
 | **`manuais_edicoes`** | A tabela existe e é populada com a linha sintética `piloto-fim`, mas `snapshot_key`, `hash_sha256` e `relatorio_diff` seguem nulos — ganham uso só no M4. | Esperado, não é dívida real |
 
 ---
 
 ## Próxima tarefa
 
-Duas frentes possíveis, ambas destravadas — a escolha é de prioridade, não de dependência:
+**M3 — Integração com panes e inspeções.** Depende do M1 (já concluído): o bloco "Procedimentos FIM
+do ATA XX" e a sugestão por mensagem de falha precisam do viewer existir de verdade para fazer
+sentido (link que abre em algum lugar). Cinco tarefas: bloco no detalhe da pane, busca por mensagem
+de falha sugerindo procedimento, link do checklist de inspeção, favoritos (`publicacoes_favoritos`,
+achado B1 — PK surrogate + CheckConstraint XOR), e filtros de busca por manual/capítulo/ATA na tela
+de busca (exige levar `ata_codigo` para o `catalog.db`, que hoje só tem `manual_codigo`/`capitulo`).
 
-1. **Fechar o M1** (tarefas 7, 8 e 10): vendorizar o PDF.js, viewer em canvas, páginas, item de nav
-   e atalho mobile, e então medir a CSP no console com o build escolhido. É o que transforma uma API
-   que funciona em algo que o mecânico usa. ⚠️ Exige baixar o PDF.js — a CSP não permite CDN.
-2. **Começar o M2** (avulsas): entrega valor operacional sozinho, sem depender do M1 e sem tocar em
-   frontend novo além de uma tela de lista.
-
-O plano de execução recomenda **M1 antes de M2** por ordem de marco, mas registra explicitamente que
-"M1 e M2 dependem só de M0" — inverter não quebra nada.
+Depois do M3, **M4** (o que não depende de D-04): rodar `indexar.py` sobre o acervo completo
+(34 manuais, 5.724 PDFs — tarefa 1, não é trabalho novo de código), e os scripts `publicar.py`/
+`merge_data.py`, que podem ser escritos e testados localmente mesmo sem a decisão de VPS fechada.

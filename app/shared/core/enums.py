@@ -118,6 +118,28 @@ class RevisionStatus(str, enum.Enum):
     DESCONHECIDO = "DESCONHECIDO"  # '0'/'1'/'2' e ausência de entrada
 
 
+class TipoPublicacao(str, enum.Enum):
+    """Tipo de publicação avulsa (acervo B: BO/BS/NPO/BT)."""
+    BO = "BO"
+    BS = "BS"
+    NPO = "NPO"
+    BT = "BT"
+    OUTRO = "OUTRO"
+
+
+class StatusPublicacaoAvulsa(str, enum.Enum):
+    """
+    Estado de vigência de uma publicação avulsa.
+
+    SUBSTITUIDO aponta para a publicação que a sucede via
+    `substituida_por_id` — a cadeia de substituição é o que permite navegar
+    da revisão antiga para a vigente sem descartar o histórico.
+    """
+    VIGENTE = "VIGENTE"
+    CANCELADO = "CANCELADO"
+    SUBSTITUIDO = "SUBSTITUIDO"
+
+
 class StatusEdicao(str, enum.Enum):
     """
     Estado de uma edição do acervo de manuais no ciclo de republicação.
