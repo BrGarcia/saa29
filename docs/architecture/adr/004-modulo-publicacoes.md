@@ -85,8 +85,70 @@ uma decisão nova, específica do formato de dados encontrado.
   gabarito de qualidade do texto Lucene já existente e por benchmark real sobre os PDFs do piloto
   antes de comprometer o acervo inteiro (`04_plano_de_execucao.md`, M0).
 
+---
+
+## Adendo — Resolução do índice por edição (2026-08-06)
+
+**Status:** aceito. Revisa um detalhe de implementação previsto na decisão original; não altera
+nenhuma das quatro decisões acima.
+
+### O que muda
+
+Cada edição do acervo passa a ter seu próprio índice — `catalog.<rotulo>.db`, lado a lado no
+diretório de `PUBLICACOES_INDEX_PATH` — e **a edição `VIGENTE` no banco principal é que decide qual
+arquivo a busca abre**, resolvido a cada consulta por `service.caminho_indice_vigente`.
+
+### Por que a decisão anterior foi revista
+
+O desenho original (docstring de `search.py`, regra 2) previa **um** índice num caminho fixo,
+substituído por `os.replace()` no momento da ativação de uma edição. Ao construir o ciclo de
+ativação (M4 tarefa 4), três problemas apareceram:
+
+1. **Duas fontes da verdade.** O status em `manuais_edicoes` e o arquivo em disco mudavam em
+   momentos diferentes. Entre um e outro há uma janela — curta, mas real — em que o banco diz uma
+   coisa e a busca devolve outra. Não há transação que cubra banco e filesystem juntos.
+2. **Reverter exigia mover o arquivo de volta**, o que só funciona se o índice da edição anterior
+   ainda existir em algum lugar — ou seja, o esquema por edição era necessário de qualquer forma.
+   Com ele pronto, o `os.replace()` deixa de ter função.
+3. **Portabilidade.** `os.replace()` sobre um arquivo com handle aberto falha no Windows (ambiente
+   de desenvolvimento deste projeto), e symlink exige privilégio elevado.
+
+Com a resolução pelo banco, ativar e reverter são **um `UPDATE` dentro de uma transação**. Não há
+arquivo movido, não há estado intermediário, e a edição anterior continua consultável.
+
+### Custo, medido
+
+Uma consulta indexada a mais por busca (`manuais_edicoes.status` é indexado), mais um
+`asyncio.to_thread` para o teste de existência do arquivo: **1,0 ms de mediana, 1,2 ms de p95**
+(200 amostras, acervo local de 5.724 documentos). O alvo CA-01 é p95 < 300 ms — o custo é aceito
+sem cache. Cachear o rótulo exigiria invalidação na ativação, que é precisamente o mecanismo pelo
+qual "ativei e a busca não mudou" volta a ser possível.
+
+### O que sustenta a decisão
+
+A regra 2 de `search.py` — uma conexão por consulta, nunca cacheada — deixa de ser justificada pelo
+`os.replace()` e passa a ser justificada por isto: é ela que garante que a consulta seguinte à
+ativação abra o arquivo novo. `search.py` continua sem saber o que é uma edição: recebe um `Path`.
+
+### Compatibilidade
+
+Instalações indexadas antes desta mudança têm um único `catalog.db` e nenhum arquivo por edição.
+`service.resolver_caminho_indice` cai para esse arquivo legado, com aviso no log indicando o comando
+de reindexação. A queda desaparece sozinha na primeira reindexação. Não há migration: o índice é
+descartável por esta mesma ADR.
+
+### Verificação
+
+`tests/integration/test_publicacoes_busca.py::test_trocar_edicao_vigente_muda_o_que_a_busca_devolve`
+indexa os mesmos PDFs sob duas edições e confirma que trocar a `VIGENTE` muda o conjunto de
+`document_id` devolvido — os ids são disjuntos entre edições por construção (achado B2), então o
+teste falha se a busca voltar a ler um caminho fixo. Verificado por mutação.
+
+---
+
 ## Referências
 
+- [`docs/backlog/modulo_publicacoes/09_plano_configuracoes.md`](../../backlog/modulo_publicacoes/09_plano_configuracoes.md) — plano em que este adendo é a Fase 0
 - [`docs/backlog/modulo_publicacoes/01_achados_do_acervo.md`](../../backlog/modulo_publicacoes/01_achados_do_acervo.md)
 - [`docs/backlog/modulo_publicacoes/02_formato_indice_lucene.md`](../../backlog/modulo_publicacoes/02_formato_indice_lucene.md)
 - [`docs/backlog/modulo_publicacoes/03_especificacao_tecnica.md`](../../backlog/modulo_publicacoes/03_especificacao_tecnica.md)

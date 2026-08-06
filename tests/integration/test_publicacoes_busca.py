@@ -27,7 +27,7 @@ import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.publicacoes import catalog, router as publicacoes_router, search, service
+from app.modules.publicacoes import catalog, search, service
 from scripts.publicacoes import indexar
 
 FIM = Path("docs/fim")
@@ -85,8 +85,16 @@ def _indexar(
 async def indice_e_catalogo(
     entrada: Path, tmp_path: Path, db: AsyncSession
 ) -> tuple[Path, service.ManualPayload]:
-    """Índice de busca + catálogo leve gravados, prontos para consulta."""
-    indice = tmp_path / "catalog.db"
+    """
+    Índice de busca + catálogo leve gravados, prontos para consulta.
+
+    O arquivo se chama `catalog.<EDICAO>.db`, e não `catalog.db`, porque é assim
+    que a aplicação o procura: o índice é por edição e quem decide qual abrir é
+    a edição VIGENTE no banco. Um `catalog.db` aqui ainda funcionaria — pela
+    queda para o índice legado — e é exatamente por isso que ele NÃO é usado:
+    passaria pelo caminho de compatibilidade em vez do caminho real.
+    """
+    indice = tmp_path / f"catalog.{EDICAO}.db"
     payloads = _indexar(entrada, indice)
 
     edicao = await service.obter_ou_criar_edicao(db, EDICAO)
@@ -446,13 +454,20 @@ def test_indice_ausente_nao_cria_arquivo_vazio(tmp_path: Path):
 
 @pytest_asyncio.fixture
 async def api(indice_e_catalogo, monkeypatch):
-    """Aponta os handlers para o índice do teste, não para o da máquina."""
+    """
+    Aponta os handlers para o índice do teste, não para o da máquina.
+
+    Patch em `service`, não em `router`: quem resolve o caminho do índice é
+    `service.caminho_indice_vigente`. O valor aponta para um `catalog.db` que
+    NÃO existe — é só a origem do diretório-base; o arquivo realmente aberto é
+    o `catalog.<EDICAO>.db` que a fixture gravou ali ao lado.
+    """
     indice, payload = indice_e_catalogo
 
     class _SettingsFake:
-        publicacoes_index_path = str(indice)
+        publicacoes_index_path = str(indice.parent / "catalog.db")
 
-    monkeypatch.setattr(publicacoes_router, "get_settings", lambda: _SettingsFake())
+    monkeypatch.setattr(service, "get_settings", lambda: _SettingsFake())
     return indice, payload
 
 
@@ -714,7 +729,6 @@ async def test_api_documento_viewer_inexistente_da_404(
 @pytest.mark.asyncio
 async def test_equivalente_vigente_aponta_da_edicao_antiga_para_a_nova(
     entrada: Path, tmp_path: Path, db: AsyncSession, client_autenticado: AsyncClient,
-    monkeypatch,
 ):
     """
     §2.2: o `document_id` inclui a edição de propósito (achado B2) — reindexar
@@ -768,17 +782,106 @@ async def test_equivalente_vigente_aponta_da_edicao_antiga_para_a_nova(
         "edições diferentes devem gerar UUIDs diferentes para o mesmo arquivo (B2)"
     )
 
-    class _SettingsFake:
-        publicacoes_index_path = str(indice_antigo)
-
-    monkeypatch.setattr(publicacoes_router, "get_settings", lambda: _SettingsFake())
-
+    # `/api/documentos/{id}` só lê o banco principal — não abre índice nenhum,
+    # então não há caminho de índice a apontar aqui.
     corpo = (
         await client_autenticado.get(f"/publicacoes/api/documentos/{doc_antigo.id}")
     ).json()
 
     assert corpo["edicao_vigente"] is False
     assert corpo["equivalente_vigente_id"] == str(doc_novo_equivalente.id)
+
+
+# --------------------------------------------------------------------------
+# Índice por edição — a busca segue a edição VIGENTE
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_trocar_edicao_vigente_muda_o_que_a_busca_devolve(
+    entrada: Path, tmp_path: Path, db: AsyncSession, client_autenticado: AsyncClient,
+    monkeypatch,
+):
+    """
+    O teste que impede "ativar edição" de ser teatro.
+
+    Duas edições indexam os MESMOS PDFs em arquivos separados
+    (`catalog.ed-a.db` e `catalog.ed-b.db`). Como o `document_id` inclui a
+    edição no UUID v5 (achado B2), os ids das duas são necessariamente
+    disjuntos — então basta olhar QUAIS ids a busca devolve para saber QUAL
+    arquivo ela abriu.
+
+    Se a resolução por edição não existisse, ou se a busca voltasse a ler um
+    caminho fixo, os dois conjuntos seriam idênticos e este teste falharia. É
+    ele que sustenta a promessa da Fase 0 — mudar o status no banco muda de
+    fato o resultado da busca, sem mover arquivo nenhum.
+    """
+    from app.shared.core.enums import StatusEdicao
+
+    ed_a = await service.obter_ou_criar_edicao(db, "ed-a", status=StatusEdicao.VIGENTE)
+    await service.sincronizar_catalogo(
+        db, ed_a, _indexar(entrada, tmp_path / "catalog.ed-a.db", edicao_rotulo="ed-a")
+    )
+
+    ed_b = await service.obter_ou_criar_edicao(
+        db, "ed-b", status=StatusEdicao.AGUARDANDO_ATIVACAO
+    )
+    await service.sincronizar_catalogo(
+        db, ed_b, _indexar(entrada, tmp_path / "catalog.ed-b.db", edicao_rotulo="ed-b")
+    )
+    await db.flush()
+
+    class _SettingsFake:
+        publicacoes_index_path = str(tmp_path / "catalog.db")
+
+    monkeypatch.setattr(service, "get_settings", lambda: _SettingsFake())
+
+    async def _ids_da_busca() -> set[str]:
+        resposta = await client_autenticado.get(
+            "/publicacoes/api/busca", params={"q": "sangria"}
+        )
+        assert resposta.status_code == 200
+        return {r["doc_id"] for r in resposta.json()["results"]}
+
+    ids_a = await _ids_da_busca()
+    assert ids_a, "pré-condição: a edição vigente inicial precisa responder à busca"
+
+    # A ativação inteira: dois UPDATEs, nenhum arquivo movido.
+    ed_a.status = StatusEdicao.ANTERIOR
+    ed_b.status = StatusEdicao.VIGENTE
+    await db.flush()
+
+    ids_b = await _ids_da_busca()
+    assert ids_b, "a edição recém-ativada precisa responder à mesma busca"
+    assert ids_a.isdisjoint(ids_b), (
+        "a busca continuou lendo o índice da edição anterior — a troca de "
+        "edição vigente não surtiu efeito"
+    )
+
+
+@pytest.mark.asyncio
+async def test_busca_cai_para_o_indice_legado_quando_nao_ha_por_edicao(
+    indice_e_catalogo, tmp_path: Path, client_autenticado: AsyncClient, monkeypatch
+):
+    """
+    Compatibilidade: instalação indexada antes da Fase 0 tem só `catalog.db`.
+    A busca precisa continuar respondendo até alguém reindexar.
+    """
+    indice, _ = indice_e_catalogo
+    legado = tmp_path / "legado" / "catalog.db"
+    legado.parent.mkdir()
+    shutil.copy(indice, legado)
+
+    class _SettingsFake:
+        publicacoes_index_path = str(legado)
+
+    monkeypatch.setattr(service, "get_settings", lambda: _SettingsFake())
+
+    resposta = await client_autenticado.get(
+        "/publicacoes/api/busca", params={"q": "sangria"}
+    )
+    assert resposta.status_code == 200
+    assert resposta.json()["total"] > 0
 
 
 # --------------------------------------------------------------------------

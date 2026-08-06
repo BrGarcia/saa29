@@ -23,7 +23,13 @@ solução diferente e melhor**, justificada na Fase 0.
 
 ---
 
-## Fase 0 — `catalog.db` por edição (pré-requisito, não opcional)
+## Fase 0 — `catalog.db` por edição (pré-requisito, não opcional) ✅ **IMPLEMENTADA**
+
+> **Estado:** concluída. Decisão registrada no adendo do
+> [ADR-004](../../architecture/adr/004-modulo-publicacoes.md). Custo medido: 1,0 ms mediana /
+> 1,2 ms p95 por busca (200 amostras). 18 testes novos; suíte em 593 passando, ruff limpo.
+> O que segue descreve o que foi construído — as divergências em relação ao plano original
+> estão anotadas no fim da fase.
 
 ### Decisão: resolver o caminho pelo banco, não trocar arquivos
 
@@ -90,6 +96,24 @@ justificá-la pela troca de caminho.
   por edição", registrando a decisão e o motivo de ela substituir o `os.replace()` previsto.
   É uma reversão de decisão registrada, não um detalhe de implementação — merece ficar no ADR.
 - Reescrever a regra 2 do docstring de `search.py`.
+
+### O que a execução mudou em relação ao planejado
+
+- **`resolver_caminho_indice` ficou síncrona e separada de `caminho_indice_vigente`.** O plano
+  falava de uma função só; na prática o teste de existência do arquivo toca o disco, o que a regra
+  ASYNC do ruff proíbe dentro de `async def`. A divisão (pura → síncrona com disco → assíncrona com
+  banco) saiu de graça e deixou as duas primeiras testáveis sem banco nenhum.
+- **`publicar.py` não passa `--indice`.** O plano previa passar explicitamente; deixar o default do
+  indexador derivar de `--edicao` mantém a regra num lugar só. Um caminho explícito ali seria uma
+  segunda cópia da regra, no arquivo onde esquecê-la custa caro.
+- **`abrir_catalog_novo` manteve o `os.replace`.** Ele não some: continua sendo o commit atômico da
+  *própria indexação* (nunca deixar a busca ver um índice pela metade). O que a Fase 0 removeu foi o
+  uso dele como mecanismo de *ativação*. O docstring foi corrigido para não confundir os dois.
+- **A fixture de teste passou a gravar `catalog.<EDICAO>.db`.** Manter `catalog.db` faria a suíte
+  passar pela queda de compatibilidade em vez do caminho real — verde enganoso.
+- **Verificação por mutação.** O teste que sustenta a fase foi confirmado quebrando de propósito a
+  resolução (fixando o rótulo) e conferindo que ele falha. Sem isso, "593 passando" não diria nada
+  sobre esta mudança em específico.
 
 ---
 
@@ -284,7 +308,7 @@ escrever, não antes.
 
 | # | Entrega | Commit sugerido |
 |---|---|---|
-| 1 | Fase 0 — índice por edição + ADR + testes de resolução/busca | `refactor(publicacoes): catalog.db por edicao, indice resolvido pelo banco` |
+| 1 | ✅ Fase 0 — índice por edição + ADR + testes de resolução/busca | `refactor(publicacoes): catalog.db por edicao, indice resolvido pelo banco` |
 | 2 | Fase 1 — endpoints + migration do índice único parcial + testes | `feat(publicacoes): endpoints de ativacao e relatorio de edicao` |
 | 3 | Fase 2 — card, modais, CSS, JS | `feat(publicacoes): card de gerencia em /configuracoes` |
 | 4 | Fase 4 — documentação | junto do commit 3 |

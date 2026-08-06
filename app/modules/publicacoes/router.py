@@ -67,6 +67,7 @@ def _resolver_pdf(raiz: str, file_key: str) -> Path | None:
 @limiter.limit("30/minute")
 async def buscar(
     request: Request,
+    db: DBSession,
     _: CurrentUser,
     q: str = Query(..., min_length=1, max_length=200, description="Termo de busca"),
     manual: str | None = Query(default=None, max_length=40),
@@ -82,11 +83,16 @@ async def buscar(
     `request: Request` na assinatura não é decoração: o decorator do slowapi
     **exige** o parâmetro e falha em runtime sem ele (precedente
     `panes/router.py:107`).
+
+    `db` entra aqui só para resolver QUAL índice abrir: cada edição tem o seu
+    `catalog.<rotulo>.db`, e a edição VIGENTE no banco é que decide (ADR-004,
+    "Resolução do índice por edição"). É o que faz ativar uma edição mudar de
+    fato o que a busca devolve.
     """
-    settings = get_settings()
+    caminho_indice = await service.caminho_indice_vigente(db)
     try:
         bruto = await search.buscar(
-            Path(settings.publicacoes_index_path),
+            caminho_indice,
             q,
             manual=manual,
             capitulo=capitulo,
@@ -201,9 +207,8 @@ async def status_publicacoes(
     _: CurrentUser,
 ) -> schemas.StatusPublicacoes:
     """Junta os dois lados: catálogo (banco principal) e índice (`catalog.db`)."""
-    settings = get_settings()
     catalogo = await service.status_do_catalogo(db)
-    indice = await search.status_indice(Path(settings.publicacoes_index_path))
+    indice = await search.status_indice(await service.caminho_indice_vigente(db))
 
     return schemas.StatusPublicacoes(
         indice_disponivel=bool(indice["disponivel"]),

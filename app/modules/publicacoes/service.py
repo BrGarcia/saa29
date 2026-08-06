@@ -18,14 +18,18 @@ função aqui que escreve em lote.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import re
 import uuid
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from sqlalchemy import case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.bootstrap.config import get_settings
 from app.modules.publicacoes.models import (
     Manual,
     ManualDocumento,
@@ -139,6 +143,94 @@ async def obter_edicao_vigente(db: AsyncSession) -> ManualEdicao | None:
             .limit(1)
         )
     ).scalar_one_or_none()
+
+
+# --------------------------------------------------------------------------
+# Índice de busca por edição
+# --------------------------------------------------------------------------
+
+# Rótulos aceitos na composição do nome de arquivo do índice. `rotulo` é
+# `String(20)` de texto livre, criado por script — o regex é o que garante que
+# ele não possa introduzir separador de caminho. Como nenhum caractere aceito
+# aqui é separador em nenhuma plataforma, `base / f"catalog.{rotulo}.db"` é
+# sempre um filho direto de `base`, sem precisar de `resolve()` para provar.
+_RE_ROTULO_INDICE = re.compile(r"^[A-Za-z0-9._-]{1,20}$")
+
+
+class RotuloInvalidoError(ValueError):
+    """O rótulo da edição não pode compor um nome de arquivo seguro."""
+
+
+def caminho_indice_da_edicao(rotulo: str) -> Path:
+    """
+    Caminho do `catalog.db` da edição `rotulo` — `catalog.<rotulo>.db`.
+
+    Cada edição tem seu próprio índice, lado a lado no mesmo diretório, para
+    que ativar uma edição não dependa de mover arquivo nenhum: a edição VIGENTE
+    no banco é que decide qual arquivo a busca abre (ver
+    `caminho_indice_vigente`, e a seção "Resolução do índice por edição" do
+    ADR-004).
+
+    Pura de propósito — não toca o disco, para ser barata e testável isolada.
+    """
+    if not _RE_ROTULO_INDICE.match(rotulo):
+        raise RotuloInvalidoError(
+            f"Rótulo de edição inválido para nome de arquivo: {rotulo!r}. "
+            "Aceitos: letras, dígitos, ponto, hífen e sublinhado (até 20)."
+        )
+    base = Path(get_settings().publicacoes_index_path).parent
+    return base / f"catalog.{rotulo}.db"
+
+
+def resolver_caminho_indice(rotulo: str | None) -> Path:
+    """
+    Índice a abrir para `rotulo`, com queda para o `catalog.db` legado.
+
+    Síncrona: `is_file()` toca o disco, e a regra ASYNC do ruff (com razão)
+    proíbe isso dentro de `async def` — quem chama passa por `asyncio.to_thread`
+    (mesmo padrão de `_resolver_pdf` em `router.py`).
+
+    A queda para o legado existe para instalações indexadas ANTES desta
+    mudança, que têm um único `var/publicacoes/catalog.db` e nenhum arquivo por
+    edição: sem ela, atualizar o código faria a busca devolver zero resultados
+    até alguém reindexar — exatamente o sintoma enganoso que o `mode=ro` de
+    `_abrir_catalog_ro` existe para evitar. Some sozinha na primeira
+    reindexação, e o aviso no log é o que avisa que ainda não aconteceu.
+    """
+    legado = Path(get_settings().publicacoes_index_path)
+    if rotulo is None:
+        return legado
+
+    caminho = caminho_indice_da_edicao(rotulo)
+    if caminho.is_file():
+        return caminho
+
+    if legado.is_file():
+        logger.warning(
+            "Índice por edição ausente (%s); usando o catalog.db legado (%s). "
+            "Rode `python -m scripts.publicacoes.indexar --edicao %s` para migrar.",
+            caminho, legado, rotulo,
+        )
+        return legado
+
+    # Nenhum dos dois existe: devolve o caminho por edição, que é o acionável —
+    # é o arquivo que a reindexação vai criar, e é o nome que aparece no erro.
+    return caminho
+
+
+async def caminho_indice_vigente(db: AsyncSession) -> Path:
+    """
+    Índice da edição VIGENTE — o que `GET /api/busca` e `/api/status` abrem.
+
+    Uma consulta indexada a mais por busca (`manuais_edicoes.status` é
+    indexado) em troca de a ativação de edição ser um único UPDATE, sem mover
+    arquivo e sem janela em que banco e disco discordem. Não há cache aqui de
+    propósito: cachear o rótulo exigiria invalidá-lo na ativação, e otimizar
+    antes de medir é como se constrói o bug de "ativei e a busca não mudou".
+    """
+    edicao = await obter_edicao_vigente(db)
+    rotulo = edicao.rotulo if edicao is not None else None
+    return await asyncio.to_thread(resolver_caminho_indice, rotulo)
 
 
 # --------------------------------------------------------------------------

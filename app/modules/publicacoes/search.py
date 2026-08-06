@@ -10,11 +10,19 @@ Três regras que este arquivo existe para cumprir:
    `sqlite3` read-only no repositório: `scripts/maintenance/r2_manager.py:122`.
 
 2. **Uma conexão por consulta, nunca cacheada.** Além de eliminar qualquer
-   questão de thread-safety, é o que torna a ativação de edição do M4 atômica:
-   trocar o índice é um `os.replace`, e como nenhum handle fica aberto entre
-   consultas, a busca seguinte já lê o arquivo novo. Uma conexão cacheada
-   continuaria lendo o inode antigo, em silêncio. O custo de abertura (~1 ms)
-   é irrelevante frente ao alvo de p95 < 300 ms.
+   questão de thread-safety, é o que torna a ativação de edição do M4 imediata:
+   cada edição tem seu próprio `catalog.<rotulo>.db` e o chamador resolve QUAL
+   abrir a cada consulta (`service.caminho_indice_vigente`), então a busca
+   seguinte à ativação já abre o arquivo da edição nova. Uma conexão cacheada
+   continuaria servindo o índice antigo, em silêncio. O custo de abertura
+   (~1 ms) é irrelevante frente ao alvo de p95 < 300 ms.
+
+   Este arquivo **não sabe o que é uma edição** — recebe um `Path` e abre. A
+   escolha do arquivo é do `service`, que é a camada com acesso ao banco
+   principal. Versões anteriores previam trocar o índice com `os.replace` num
+   caminho fixo; a decisão foi revista (ADR-004, "Resolução do índice por
+   edição") porque status no banco e arquivo em disco mudavam em momentos
+   diferentes, e reverter exigia mover o arquivo de volta.
 
 3. **Tudo dentro de `asyncio.to_thread`.** `sqlite3` é bloqueante e o projeto é
    async de ponta a ponta; a regra ASYNC do ruff reprova o contrário.

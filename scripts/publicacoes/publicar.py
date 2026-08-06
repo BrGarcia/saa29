@@ -344,6 +344,11 @@ async def main(argv: list[str] | None = None) -> int:
             )
             await db.commit()
 
+        # Sem `--indice`: o default do indexador deriva de `--edicao`
+        # (`catalog.<edicao>.db`), e é justamente essa derivação que garante que
+        # publicar uma edição nova não sobrescreva o índice da edição em vigor.
+        # Passar um caminho explícito aqui duplicaria a regra em dois lugares —
+        # e o lugar onde ela pode ser esquecida é este.
         logger.info("Reindexando o acervo inteiro sob a edição %r…", args.edicao)
         codigo = await indexar_mod.main([
             "--entrada", str(args.acervo),

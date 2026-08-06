@@ -261,8 +261,13 @@ def abrir_catalog_novo(destino: Path) -> tuple[sqlite3.Connection, Path]:
     Cria um `catalog.db` vazio em um caminho TEMPORÁRIO ao lado do destino.
 
     A troca pelo arquivo final é um `os.replace` no fim (mesmo filesystem, logo
-    atômico): a busca em produção nunca enxerga um índice pela metade, e é
-    exatamente o mecanismo de ativação de edição do M4.
+    atômico): reindexar a edição VIGENTE nunca deixa a busca enxergar um índice
+    pela metade.
+
+    Não confundir com ativação de edição: ativar NÃO move arquivo — cada edição
+    tem seu `catalog.<rotulo>.db` permanente e o banco é que aponta qual está em
+    vigor (ADR-004, "Resolução do índice por edição"). Este `os.replace` é só o
+    commit da própria indexação.
     """
     destino.parent.mkdir(parents=True, exist_ok=True)
     temporario = destino.with_suffix(destino.suffix + ".tmp")
@@ -564,8 +569,10 @@ def montar_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--indice",
         type=Path,
-        default=Path(settings.publicacoes_index_path),
-        help=f"Destino do catalog.db. Padrão: {settings.publicacoes_index_path}",
+        default=None,
+        help="Destino do catalog.db. Padrão: catalog.<edicao>.db ao lado de "
+        f"{settings.publicacoes_index_path} — um índice POR EDIÇÃO, para que "
+        "reindexar uma edição nova não destrua o índice da edição vigente.",
     )
     parser.add_argument(
         "--acervo",
@@ -586,6 +593,10 @@ async def main(argv: list[str] | None = None) -> int:
         level=logging.INFO, format="%(asctime)s %(levelname)-7s %(message)s"
     )
     args = montar_parser().parse_args(argv)
+
+    # O default de `--indice` não pode sair do argparse: ele depende de
+    # `--edicao`, que só é conhecida depois do parse.
+    indice: Path = args.indice or service.caminho_indice_da_edicao(args.edicao)
 
     inicio = time.perf_counter()
     entrada: Path = args.entrada
@@ -611,7 +622,7 @@ async def main(argv: list[str] | None = None) -> int:
     conn: sqlite3.Connection | None = None
     temporario: Path | None = None
     if not args.dry_run:
-        conn, temporario = abrir_catalog_novo(args.indice)
+        conn, temporario = abrir_catalog_novo(indice)
 
     payloads: list[service.ManualPayload] = []
     try:
@@ -634,8 +645,8 @@ async def main(argv: list[str] | None = None) -> int:
                 return 1
             conn.close()
             conn = None
-            os.replace(temporario, args.indice)
-            logger.info("Índice de busca gravado em %s.", args.indice)
+            os.replace(temporario, indice)
+            logger.info("Índice de busca gravado em %s.", indice)
     finally:
         if conn is not None:
             conn.close()

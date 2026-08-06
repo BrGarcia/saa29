@@ -62,6 +62,10 @@ python -m scripts.publicacoes.publicar --edicao 2027 --dry-run
 **O que `publicar.py` faz e não faz:**
 - Cria a edição nova no banco como `AGUARDANDO_ATIVACAO` — a edição existe e é consultável por
   quem souber o `document_id`, mas **não aparece como vigente** na busca até ser ativada.
+- Grava o índice em `var/publicacoes/catalog.<edicao>.db`, **sem tocar no índice da edição em
+  vigor**. Antes da resolução por edição (ADR-004, adendo) havia um único `catalog.db` e publicar
+  uma edição nova destruía o índice da vigente — se este runbook parecer diferente do que você
+  lembra, é por isso.
 - Reindexa o acervo inteiro (não é literalmente incremental — ver a nota de limitação conhecida
   no topo de `scripts/publicacoes/publicar.py`), o que no acervo medido (34 manuais, 5.724 PDFs)
   levou **~150s** nesta sessão.
@@ -110,7 +114,7 @@ confirma consistência, não redescobre nada.
 | Dado | Perda | Estratégia |
 |---|---|---|
 | `var/publicacoes/acervo/` (PDFs) | **Grave** — é o acervo | A estação de publicação já é a cópia-mestre; snapshots ZIP no R2 (`publicar.py`) são a segunda cópia |
-| `var/publicacoes/catalog.db` | Leve — **reconstruível** por reindexação (~150s no acervo medido) | Não precisa de backup dedicado |
+| `var/publicacoes/catalog.<edicao>.db` | Leve — **reconstruível** por reindexação (~150s no acervo medido) | Não precisa de backup dedicado. Um arquivo por edição; a edição `VIGENTE` no banco é que decide qual a busca abre (ADR-004, adendo) |
 | Banco principal (`manuais`, `manuais_documentos`, …) | Médio — perde o catálogo e a auditoria de acesso, mas o acervo em si sobrevive | Já coberto pelo backup R2 orientado a evento do banco principal (`app/bootstrap/tasks.py`), fora do escopo deste módulo |
 | Snapshots R2 | Leve — é a segunda cópia, não a única | Retenção de `PUBLICACOES_SNAPSHOTS_RETIDOS` (padrão 3) já podada automaticamente por `publicar.py` |
 
@@ -157,6 +161,8 @@ Campos a observar:
 | Sintoma | Causa provável | Ação |
 |---|---|---|
 | Busca sempre devolve zero resultados, sem erro | `catalog.db` sem `rebuild` do FTS5 (achado B7) — não deveria acontecer via `publicar.py`/`indexar.py`, que já fazem isso, mas pode acontecer se alguém copiar um `catalog.db` parcial manualmente | Rodar `python -m scripts.publicacoes.indexar` de novo sobre o mesmo diretório — idempotente |
+| Log repete "Índice por edição ausente (…); usando o catalog.db legado" | Instalação indexada antes da resolução por edição: existe `catalog.db`, não existe `catalog.<vigente>.db`. A busca **funciona** (é a queda de compatibilidade), mas está lendo o índice antigo | Reindexar a edição vigente: `python -m scripts.publicacoes.indexar --edicao <rotulo-vigente>`. O aviso some sozinho |
+| Ativou uma edição e a busca não mudou | Índice da edição nova ausente em disco — a busca caiu para o legado | Conferir se `var/publicacoes/catalog.<edicao>.db` existe; se não, reindexar aquela edição |
 | `GET /publicacoes/api/busca?...&ata=NN` dá 400 "termo inválido" mas a busca sem `ata` funciona | `catalog.db` local antigo, sem a coluna `ata_codigo` (adicionada no M3) | Reindexar — `python -m scripts.publicacoes.indexar` |
 | Link de documento de uma pane/inspeção não abre nada | Documento removido do acervo entre edições (RN-09) — o link tinha o `document_id` da edição antiga | Esperado quando a edição mudou; a UI do viewer mostra "REVISÃO ANTERIOR" com link para o equivalente vigente quando existir |
 | `publicar.py` falha no upload R2 | Variáveis `R2_*` incompletas ou bucket sem permissão | O script já loga isso como aviso e segue sem abortar o restante (indexação/relatório continuam válidos) |

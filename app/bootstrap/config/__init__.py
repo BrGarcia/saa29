@@ -95,7 +95,11 @@ class Settings(BaseSettings):
         description=(
             "SQLite dedicado do índice de busca full-text — deliberadamente FORA do "
             "database_url: é aberto com sqlite3 puro em modo somente-leitura, nunca "
-            "por SQLAlchemy, para não disparar o listener de backup R2 (ADR-004)."
+            "por SQLAlchemy, para não disparar o listener de backup R2 (ADR-004). "
+            "Cumpre DOIS papéis: (a) seu DIRETÓRIO é onde ficam os índices por "
+            "edição, `catalog.<rotulo>.db`, que é o que a busca abre de fato; "
+            "(b) o arquivo em si é o índice legado, usado só como fallback por "
+            "instalações indexadas antes da resolução por edição."
         )
     )
     publicacoes_categorias_path: str = Field(

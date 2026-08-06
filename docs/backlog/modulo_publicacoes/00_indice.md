@@ -32,7 +32,7 @@
 | `06_addendum_revisao_5.md` | Fechado nesta etapa | **Decisão** — o que muda a partir de agora |
 | `07_revisao_pre_implementacao.md` | Fechado — correções já aplicadas em `03_especificacao_tecnica.md` | **Decisão** — pronto para implementar |
 | `08_status_de_implementacao.md` | **Vivo** — atualizado a cada tarefa concluída | Rastreamento de progresso |
-| `09_plano_configuracoes.md` | Proposto — não implementado | **Decisão** — reverte o `os.replace()` previsto em `search.py` por resolução do índice pelo banco |
+| `09_plano_configuracoes.md` | **Vivo** — Fase 0 implementada; Fases 1, 2 e 4 pendentes | **Decisão** — reverte o `os.replace()` previsto em `search.py` por resolução do índice pelo banco (adendo no ADR-004) |
 | `004-modulo-publicacoes.md` (ADR) | Proposto | **Decisão formal** |
 
 > Atenção à assimetria: a tabela acima é o status **dos documentos**, não o da implementação. Quem
