@@ -372,6 +372,81 @@ async def listar_fim_por_ata(
     return [(mapa, documento) for mapa, documento in linhas]
 
 
+async def medir_duplicacao_entre_edicoes(db: AsyncSession) -> dict[str, object]:
+    """
+    Quantos documentos a edição ANTERIOR compartilha, por `hash_sha256`, com a
+    edição VIGENTE (M4 tarefa 5).
+
+    Não deduplica fisicamente nada — hoje as duas edições apontam para a
+    mesma árvore em disco (`var/publicacoes/acervo/`), então não há cópia
+    física a eliminar ainda. O valor desta medição é dimensionar, ANTES de
+    qualquer trabalho de reestruturação de disco, quanto espaço um esquema de
+    dedup física (hardlink, ou uma segunda cópia por edição) economizaria —
+    é exatamente o dado que falta para o gate do M4 ("disco da VPS < 60% após
+    duas edições retidas").
+    """
+    vigente = await obter_edicao_vigente(db)
+    anterior = (
+        await db.execute(
+            select(ManualEdicao)
+            .where(ManualEdicao.status == StatusEdicao.ANTERIOR)
+            .order_by(ManualEdicao.data_publicacao.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+    if vigente is None or anterior is None:
+        return {
+            "vigente": vigente.rotulo if vigente else None,
+            "anterior": anterior.rotulo if anterior else None,
+            "documentos_vigente": 0,
+            "documentos_anterior": 0,
+            "duplicados_por_hash": 0,
+            "bytes_potencialmente_economizaveis": None,
+        }
+
+    hashes_vigente = dict(
+        (await db.execute(
+            select(ManualDocumento.hash_sha256, func.count(ManualDocumento.id))
+            .join(Manual, Manual.id == ManualDocumento.manual_id)
+            .where(Manual.edicao_id == vigente.id, ManualDocumento.hash_sha256.is_not(None))
+            .group_by(ManualDocumento.hash_sha256)
+        )).all()
+    )
+    total_vigente, total_anterior = (
+        await db.execute(
+            select(
+                func.count(ManualDocumento.id).filter(Manual.edicao_id == vigente.id),
+                func.count(ManualDocumento.id).filter(Manual.edicao_id == anterior.id),
+            )
+            .select_from(ManualDocumento)
+            .join(Manual, Manual.id == ManualDocumento.manual_id)
+        )
+    ).one()
+
+    hashes_anteriores = (
+        await db.execute(
+            select(ManualDocumento.hash_sha256)
+            .join(Manual, Manual.id == ManualDocumento.manual_id)
+            .where(Manual.edicao_id == anterior.id, ManualDocumento.hash_sha256.is_not(None))
+        )
+    ).scalars().all()
+
+    duplicados = sum(1 for h in hashes_anteriores if h in hashes_vigente)
+
+    return {
+        "vigente": vigente.rotulo,
+        "anterior": anterior.rotulo,
+        "documentos_vigente": total_vigente,
+        "documentos_anterior": total_anterior,
+        "duplicados_por_hash": duplicados,
+        # bytes reais exigiriam o tamanho do arquivo, não guardado hoje —
+        # deixado explícito como None em vez de estimado, para não sugerir
+        # uma precisão que os dados atuais não sustentam.
+        "bytes_potencialmente_economizaveis": None,
+    }
+
+
 async def status_do_catalogo(db: AsyncSession) -> dict[str, object]:
     """
     Contagens do catálogo leve para `GET /publicacoes/api/status`.

@@ -55,7 +55,9 @@ def entrada(tmp_path: Path) -> Path:
     return destino
 
 
-def _indexar(entrada: Path, indice: Path) -> list[service.ManualPayload]:
+def _indexar(
+    entrada: Path, indice: Path, *, edicao_rotulo: str = EDICAO
+) -> list[service.ManualPayload]:
     """Roda o indexador (sem banco principal) e devolve os payloads."""
     conn, temporario = indexar.abrir_catalog_novo(indice)
     try:
@@ -63,7 +65,7 @@ def _indexar(entrada: Path, indice: Path) -> list[service.ManualPayload]:
         payloads = [
             indexar.processar_manual(
                 manual,
-                edicao_rotulo=EDICAO,
+                edicao_rotulo=edicao_rotulo,
                 categorias=catalog.carregar_categorias(
                     Path("config/categorias_manuais.toml")
                 ),

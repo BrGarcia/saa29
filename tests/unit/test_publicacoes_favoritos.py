@@ -258,3 +258,44 @@ async def test_fim_por_ata_sem_correspondencia_devolve_lista_vazia(
     resposta = await client_autenticado.get("/publicacoes/api/fim/por-ata/99")
     assert resposta.status_code == 200
     assert resposta.json()["total"] == 0
+
+
+# --------------------------------------------------------------------------
+# Duplicação por hash entre edições (M4 tarefa 5)
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_duplicacao_sem_edicao_anterior_devolve_zero(
+    db: AsyncSession, documento_real
+):
+    """Só existe a edição vigente (piloto-fim) — não há o que comparar ainda."""
+    medicao = await service.medir_duplicacao_entre_edicoes(db)
+    assert medicao["anterior"] is None
+    assert medicao["duplicados_por_hash"] == 0
+
+
+@pytest.mark.asyncio
+async def test_duplicacao_conta_hashes_repetidos_entre_vigente_e_anterior(
+    entrada: Path, tmp_path: Path, db: AsyncSession, documento_real
+):
+    """
+    Simula uma segunda edição (ANTERIOR) reindexando o MESMO PDF sob outro
+    rótulo — mesmo conteúdo, mesmo hash, IDs diferentes (achado B2). É
+    exatamente o cenário real: duas edições retidas online compartilhando a
+    maioria dos arquivos entre uma publicação anual e outra.
+    """
+    from app.shared.core.enums import StatusEdicao
+
+    indice_anterior = tmp_path / "anterior.db"
+    payload_anterior = _indexar(entrada, indice_anterior, edicao_rotulo="edicao-anterior")
+    edicao_anterior = await service.obter_ou_criar_edicao(
+        db, "edicao-anterior", status=StatusEdicao.ANTERIOR
+    )
+    await service.sincronizar_catalogo(db, edicao_anterior, payload_anterior)
+
+    medicao = await service.medir_duplicacao_entre_edicoes(db)
+
+    assert medicao["vigente"] == EDICAO
+    assert medicao["anterior"] == "edicao-anterior"
+    assert medicao["duplicados_por_hash"] == 1  # o único documento da amostra, mesmo conteúdo

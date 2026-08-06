@@ -11,7 +11,7 @@
 > arquivo ou teste que prova a conclusão. Status sem evidência verificável não conta como ✅ — foi
 > essa disciplina que pegou o B7 (índice que "existe" e não busca nada).
 >
-> **Última atualização:** 05/08/2026 · branch `fix/ci-baseline-verde` · 547 testes verdes ·
+> **Última atualização:** 05/08/2026 · branch `fix/ci-baseline-verde` · 575 testes verdes ·
 > `ruff check .` limpo
 
 ---
@@ -24,7 +24,7 @@
 | **M1** — Piloto FIM ⭐ | 15 tarefas | 15/15 | ✅ **Concluído** — CSP verificada por leitura de código, não por navegador real (ver dívidas) |
 | **M2** — Avulsas (BO/BS/NPO/BT) | 10 tarefas | 10/10 | ✅ **Concluído** |
 | **M3** — Integração panes/inspeções | 5 tarefas | 5/5 | ✅ **Concluído** |
-| **M4** — Acervo completo + ciclo DVD | 8 tarefas | 0/8 | 🔒 Bloqueado por D-04 (VPS), exceto a tarefa 1 |
+| **M4** — Acervo completo + ciclo DVD | 8 tarefas | 6/8 | 🔵 **Em execução** — faltam as 2 tarefas que dependem de infraestrutura por decidir (D-04) ou de arquitetura ainda não fechada (catalog.db por edição) |
 | **M5** — RAG | — | — | 🔒 Congelado até D-S3 |
 
 Legenda: ✅ concluído · 🔵 em execução · ⚪ não iniciado · 🔒 bloqueado · ⚠️ parcial
@@ -161,15 +161,52 @@ manual da tarefa 2, que exige digitar a mensagem).
 
 ---
 
-## M4 — Acervo completo e ciclo do DVD 🔒 0/8
+## M4 — Acervo completo e ciclo do DVD 🔵 6/8
 
-Bloqueado por **D-04** (provedor de VPS), com uma exceção registrada no plano: a **tarefa 1**
-(rodar `indexar.py` sobre `var/publicacoes/acervo/Manuais/` inteiro) **não é trabalho novo de
-código** e pode acontecer a qualquer momento — o script já aceita o diretório do acervo como
-entrada e reconhece o layout de um diretório por manual.
+| # | Tarefa | Status | Evidência |
+|---|---|:--:|---|
+| 1 | Rodar `indexar.py` sobre o acervo completo | ✅ | **Executado de verdade nesta sessão**: 34 manuais, 5.724 documentos, 53.792 páginas, **0 sem camada de texto**, em 152,7s. Edição `2026` criada como `AGUARDANDO_ATIVACAO` no banco local |
+| 2 | `publicar.py`: inventário, diff por hash, extração, snapshot ZIP, upload R2, relatório | ✅ | `scripts/publicacoes/publicar.py`; 13 testes em `tests/unit/test_publicacoes_publicar.py`; `--dry-run` e a execução completa (`--pular-upload`) rodados contra o acervo real |
+| 3 | `merge_data.py`: merge de remessa nova (RN-08) | ✅ | `scripts/publicacoes/merge_data.py` — hash+mtime, `_merge_conflicts/`, `merge_report.txt`, `--dry-run` por padrão; 13 testes em `tests/unit/test_publicacoes_merge_data.py` |
+| 4 | Card "Publicações" em `/configuracoes`: ativar/reverter, ver relatório | ⚪ | **Não implementado** — motivo técnico concreto abaixo, não falta de tempo |
+| 5 | Desduplicação por `hash_sha256` entre edição vigente e anterior | ✅ | `service.medir_duplicacao_entre_edicoes` — mede, não deduplica fisicamente (ver nota) |
+| 6 | Transferência por rsync/SSH, nunca HTTP | ✅ | `docs/guides/operacao_publicacoes.md` §3 — comandos prontos, com placeholders 🔒 D-04 para host/usuário |
+| 7 | Runbook interno | ✅ | `docs/guides/operacao_publicacoes.md`, adaptado de `docs/backlog/manuais/Runbook.MD` §2/§3/§4/§6.2/§7 |
+| 8 | Medir `documentos_sem_texto` no acervo completo | ✅ | **0 de 5.724** — acervo bem digitalizado, OCR não é necessidade atual |
 
-Ordem de grandeza do que isso indexaria, medida no acervo em disco: **34 manuais, 5.724 PDFs**
-(contra 411 do piloto).
+### Por que a tarefa 4 não foi implementada (não é falta de tempo)
+
+"Ativar" uma edição, tal como o M4 foi desenhado (`search.py`, docstring de `_abrir_catalog_ro`),
+pressupõe um `catalog.db` **por edição**, trocado atomicamente com `os.replace()` no momento da
+ativação — é assim que a busca nunca fica com um índice pela metade. **Isso não está construído.**
+Hoje existe **um único** `var/publicacoes/catalog.db`, sobrescrito a cada `indexar.py`/`publicar.py`
+— não há "catalog.db da edição 2026" e "catalog.db da edição piloto-fim" coexistindo em arquivos
+separados prontos para a troca atômica.
+
+Implementar só a metade visível (endpoints que mudam `manuais_edicoes.status` no banco, mais um
+card na tela) **sem** o mecanismo de arquivo por edição criaria uma func "ativar" que muda o status
+no banco mas não muda o que a busca realmente devolve — pior que não ter o botão, porque
+pareceria funcionar. A correção correta é arquitetural (nomear o `catalog.db` por edição, ex.
+`catalog.<rotulo>.db`, e apontar `PUBLICACOES_INDEX_PATH` para o vigente via symlink ou registro em
+`Settings`), maior que o que cabe nesta sessão sem virar meia-solução. Registrado como pendência
+real em vez de código que passa em teste mas mente sobre o que faz.
+
+### Nota sobre a tarefa 5 (dedup)
+
+`medir_duplicacao_entre_edicoes` **mede**, não **deduplica fisicamente** — hoje as edições
+apontam para a mesma árvore em disco (`var/publicacoes/acervo/`), então não há cópia física
+duplicada a eliminar ainda. O valor da medição é dimensionar, antes de qualquer reestruturação de
+disco, quanto um esquema de dedup física economizaria — dado que falta para o gate "disco da VPS
+< 60%". Física de verdade (hardlink entre edições, ou uma segunda árvore por edição) é trabalho de
+disco specific a D-04, não algo a decidir sem saber o provedor.
+
+### Gate do M4
+
+"Publicar uma edição ponta a ponta a partir da mídia/remessa nova, ativar, conferir o relatório de
+diff, reverter, reativar — sem downtime, RSS por worker < 200 MB, disco da VPS < 60% após duas
+edições retidas." — **parcialmente verificável**: publicar/diff/relatório ✅ (medido de verdade);
+ativar/reverter ⚪ (bloqueado pela lacuna arquitetural acima); RSS e disco da VPS 🔒 (não há VPS,
+D-04).
 
 ---
 
@@ -184,26 +221,25 @@ Ordem de grandeza do que isso indexaria, medida no acervo em disco: **34 manuais
 | **Frontend sem verificação visual em navegador** | `publicacoes/lista.html`, `viewer.html`, `mobile/publicacoes.html`, `avulsas.html`, e as edições em `panes/detalhe.html`/`inspecoes` (M3) foram implementados e passam em testes de fumaça (200 + `text/html` quando aplicável), mas nenhum foi aberto num navegador real nesta sessão — não há confirmação visual de layout, dos modais de cadastro/anexo/favorito, do bloco FIM na pane, nem da experiência mobile. | Todos os templates de `app/web/templates/publicacoes/`, `mobile/publicacoes.html`, `panes/detalhe.html`, `inspecao_detalhe.js` |
 | **Link do checklist de inspeção é busca por texto, não referência garantida** | O item de checklist não tem campo estruturado (`ata_codigo`/`procedimento`) para apontar a um documento específico — o link roda uma busca full-text pelo título do item. Funciona bem quando o título é específico (ex: "Verificação da válvula de sangria"), mal quando é genérico (ex: "Inspeção visual geral"). Criar a referência estruturada exige migration em `inspecoes` e dado real para popular — fora do escopo do M3. | `app/web/static/js/inspecao_detalhe.js:renderizarTarefas` |
 | **`catalog.db` local precisa reindexação após o M3** | A coluna `documents.ata_codigo` só existe em índices gerados depois desta mudança em `indexar.py`. Um `catalog.db` gerado antes do M3 (por outro desenvolvedor, ou em outra máquina) não tem a coluna — a busca com filtro `ata` falharia com erro de SQL. Não é uma migration formal (o índice é descartável, ADR-004) — basta rodar `python -m scripts.publicacoes.indexar` de novo. | `scripts/publicacoes/indexar.py` |
+| **Upload ao R2 do `publicar.py` não foi testado contra R2 de verdade** | Sem credenciais R2 nesta sessão — a lógica de upload/poda foi verificada só com `unittest.mock` (`tests/unit/test_publicacoes_publicar.py`), mesmo padrão de `test_r2_manager.py`. O caminho feliz (`boto3.upload_file`) é uma chamada simples e de baixo risco, mas vale um teste manual com credenciais reais antes do primeiro uso em produção. | `scripts/publicacoes/publicar.py:_obter_cliente_s3` |
+| **Banco local de desenvolvimento ganhou uma edição real** | Rodar `publicar.py --edicao 2026 --pular-upload` (M4 tarefa 1) contra o acervo real criou a edição `2026` (`AGUARDANDO_ATIVACAO`, 5.724 documentos) no `saa29_local.db` de quem rodou esta sessão, além de sobrescrever `var/publicacoes/catalog.db` com o índice do acervo inteiro (antes só tinha o piloto FIM). Nenhum dos dois é versionado — não afeta outros ambientes, mas quem continuar localmente verá esse estado. | `saa29_local.db` (não versionado), `var/publicacoes/catalog.db` (não versionado) |
+| **`catalog.db` por edição não existe (bloqueia a tarefa 4)** | Ver a seção dedicada em M4 acima — é a lacuna arquitetural que impede "ativar edição" de fazer sentido hoje. | `app/modules/publicacoes/search.py` |
 | **`manuais_edicoes`** | A tabela existe e é populada com a linha sintética `piloto-fim`, mas `snapshot_key`, `hash_sha256` e `relatorio_diff` seguem nulos — ganham uso só no M4. | Esperado, não é dívida real |
 
 ---
 
 ## Próxima tarefa
 
-**M4 — Acervo completo e ciclo do DVD.** Bloqueado por **D-04** (provedor de VPS) para o gate final
-("disco da VPS < 60%"), mas quase todo o trabalho de código não depende dessa decisão:
+O módulo está **funcionalmente completo para M0–M3** e o M4 está em 6/8, com as duas tarefas
+restantes bloqueadas por motivos concretos (não por falta de tempo):
 
-1. Rodar `indexar.py` sobre `var/publicacoes/acervo/Manuais/` inteiro (34 manuais, 5.724 PDFs) —
-   tarefa 1, não é trabalho novo, o script já aceita esse diretório desde o M1.
-2. `publicar.py`: inventário, diff por hash, extração incremental, snapshot ZIP, upload R2,
-   relatório de publicação — pode ser escrito e testado localmente (R2 é mockável, como já acontece
-   em `scripts/maintenance/r2_manager.py`).
-3. `merge_data.py`: merge de remessa nova no acervo existente (RN-08).
-4. Desduplicação por `hash_sha256` entre edição vigente e anterior — `manuais_documentos.hash_sha256`
-   já existe desde o M1, só falta o service que compara.
-5. Medir `documentos_sem_texto` no acervo completo — `status_do_catalogo` já expõe o número; falta
-   rodar contra o acervo de verdade (depende da tarefa 1).
+1. **Tarefa 4 (ativar/reverter edição)** — exige primeiro resolver o `catalog.db` por edição
+   (nomear por rótulo + apontar `Settings` para o vigente), que é trabalho de arquitetura, não de
+   tela. Ver a seção "Por que a tarefa 4 não foi implementada" acima antes de começar.
+2. **RSS por worker / disco da VPS** (parte do gate do M4) — só é verificável depois de D-04.
 
-O que fica de fato bloqueado: o card em `/configuracoes` (tarefa 4, decisão de produto sobre onde
-expor ativar/reverter edição) e os documentos de runbook/rsync (tarefas 6/7, que citam a VPS
-específica). Reportado tarefa a tarefa abaixo.
+Sugestão de ordem daqui para frente: (a) resolver o `catalog.db` por edição — é pré-requisito real
+da tarefa 4, não um nice-to-have; (b) construir a tarefa 4 (endpoints de ativar/reverter + card em
+`/configuracoes`) sobre essa base; (c) D-04 resolvida → validar o gate completo do M4 na VPS real.
+
+M5 (RAG) continua congelado até D-S3 — nenhuma tarefa deste plano depende dele.
