@@ -32,6 +32,7 @@ from app.modules.publicacoes.models import (
     ManualEdicao,
     ManualFimMap,
     PublicacaoAcesso,
+    PublicacaoFavorito,
 )
 from app.shared.core.enums import RevisionStatus, StatusEdicao
 
@@ -342,6 +343,35 @@ async def buscar_por_mensagem_fim(
     return [(mapa, documento) for mapa, documento in linhas]
 
 
+async def listar_fim_por_ata(
+    db: AsyncSession, ata_codigo: str, *, limit: int = 20
+) -> list[tuple[ManualFimMap, ManualDocumento | None]]:
+    """
+    Procedimentos do FIM cujo código começa por `<ata_codigo>-` (M3 tarefa 1).
+
+    O código ATA é sempre os dois primeiros dígitos do procedimento
+    (`34-15-00-810-801-A` → ATA 34) — convenção do próprio FIM, não uma coluna
+    dedicada em `manuais_fim_map`. Alimenta o bloco "Procedimentos FIM do ATA
+    XX" no detalhe da pane, filtrado pelo `sistema_ata` da pane aberta.
+    """
+    from app.shared.core.db_utils import escape_like
+
+    limit = min(limit, LIMITE_MAXIMO_LISTAGEM)
+    padrao = f"{escape_like(ata_codigo)}-%"
+    linhas = (
+        await db.execute(
+            select(ManualFimMap, ManualDocumento)
+            .outerjoin(
+                ManualDocumento, ManualDocumento.id == ManualFimMap.documento_id
+            )
+            .where(ManualFimMap.procedimento.like(padrao, escape="\\"))
+            .order_by(ManualFimMap.procedimento)
+            .limit(limit)
+        )
+    ).all()
+    return [(mapa, documento) for mapa, documento in linhas]
+
+
 async def status_do_catalogo(db: AsyncSession) -> dict[str, object]:
     """
     Contagens do catálogo leve para `GET /publicacoes/api/status`.
@@ -413,4 +443,95 @@ async def registrar_acesso(
             pagina=pagina,
         )
     )
+    await db.flush()
+
+
+# --------------------------------------------------------------------------
+# Favoritos (transversal aos dois acervos, M3)
+# --------------------------------------------------------------------------
+
+
+async def listar_favoritos(
+    db: AsyncSession, usuario_id: uuid.UUID
+) -> list[PublicacaoFavorito]:
+    return list(
+        (
+            await db.execute(
+                select(PublicacaoFavorito)
+                .where(PublicacaoFavorito.usuario_id == usuario_id)
+                .order_by(PublicacaoFavorito.created_at.desc())
+            )
+        ).scalars()
+    )
+
+
+async def favoritar_documento(
+    db: AsyncSession, usuario_id: uuid.UUID, documento_id: uuid.UUID
+) -> PublicacaoFavorito:
+    """
+    Idempotente: favoritar duas vezes o mesmo documento devolve o favorito já
+    existente em vez de violar a `UniqueConstraint` (achado B1) — poupa o
+    cliente de precisar checar antes de tentar.
+    """
+    from app.shared.core import exceptions as domain_exc
+
+    if await obter_documento(db, documento_id) is None:
+        raise domain_exc.EntidadeNaoEncontradaError("Documento não encontrado.")
+
+    existente = (
+        await db.execute(
+            select(PublicacaoFavorito).where(
+                PublicacaoFavorito.usuario_id == usuario_id,
+                PublicacaoFavorito.documento_id == documento_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if existente is not None:
+        return existente
+
+    favorito = PublicacaoFavorito(usuario_id=usuario_id, documento_id=documento_id)
+    db.add(favorito)
+    await db.flush()
+    return favorito
+
+
+async def favoritar_avulsa(
+    db: AsyncSession, usuario_id: uuid.UUID, avulsa_id: uuid.UUID
+) -> PublicacaoFavorito:
+    from app.modules.publicacoes import avulsas as avulsas_module
+
+    await avulsas_module.obter_avulsa(db, avulsa_id)  # 404 se não existir/inativa
+
+    existente = (
+        await db.execute(
+            select(PublicacaoFavorito).where(
+                PublicacaoFavorito.usuario_id == usuario_id,
+                PublicacaoFavorito.avulsa_id == avulsa_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if existente is not None:
+        return existente
+
+    favorito = PublicacaoFavorito(usuario_id=usuario_id, avulsa_id=avulsa_id)
+    db.add(favorito)
+    await db.flush()
+    return favorito
+
+
+async def remover_favorito(db: AsyncSession, usuario_id: uuid.UUID, favorito_id: uuid.UUID) -> None:
+    from app.shared.core import exceptions as domain_exc
+
+    favorito = (
+        await db.execute(
+            select(PublicacaoFavorito).where(
+                PublicacaoFavorito.id == favorito_id,
+                PublicacaoFavorito.usuario_id == usuario_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if favorito is None:
+        raise domain_exc.EntidadeNaoEncontradaError("Favorito não encontrado.")
+
+    await db.delete(favorito)
     await db.flush()

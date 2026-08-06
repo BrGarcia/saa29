@@ -72,6 +72,7 @@ async def buscar(
     manual: str | None = Query(default=None, max_length=40),
     capitulo: str | None = Query(default=None, max_length=80),
     categoria: str | None = Query(default=None, max_length=60),
+    ata: str | None = Query(default=None, max_length=4, description="Código ATA, ex: 34"),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
 ) -> schemas.RespostaBusca:
@@ -90,6 +91,7 @@ async def buscar(
             manual=manual,
             capitulo=capitulo,
             categoria=categoria,
+            ata=ata,
             limit=limit,
             offset=offset,
         )
@@ -146,6 +148,34 @@ async def buscar_fim(
     mecânico usa — ele lê a mensagem no painel e digita o começo dela.
     """
     pares = await service.buscar_por_mensagem_fim(db, mensagem, limit=limit)
+    return schemas.RespostaFim(
+        total=len(pares),
+        results=[
+            schemas.ProcedimentoFim(
+                mensagem=mapa.mensagem,
+                procedimento=mapa.procedimento,
+                doc_id=documento.id if documento else None,
+                title=documento.titulo if documento else None,
+                viewer_url=_viewer_url(documento.id) if documento else None,
+            )
+            for mapa, documento in pares
+        ],
+    )
+
+
+@router.get(
+    "/api/fim/por-ata/{ata_codigo}",
+    response_model=schemas.RespostaFim,
+    summary="Procedimentos do FIM para um código ATA",
+)
+async def listar_fim_por_ata(
+    ata_codigo: str, db: DBSession, _: CurrentUser
+) -> schemas.RespostaFim:
+    """
+    Alimenta o bloco "Procedimentos FIM do ATA XX" no detalhe da pane (M3
+    tarefa 1) — filtrado por `sistema_ata.codigo` da pane aberta.
+    """
+    pares = await service.listar_fim_por_ata(db, ata_codigo)
     return schemas.RespostaFim(
         total=len(pares),
         results=[
@@ -425,3 +455,54 @@ async def obter_anexo_avulsa(
             detail="Arquivo físico do anexo não encontrado.",
         )
     return FileResponse(path=caminho, filename=anexo.nome_original)
+
+
+# ==========================================================================
+# Favoritos (transversal aos dois acervos, M3)
+# ==========================================================================
+
+
+@router.get(
+    "/api/favoritos",
+    response_model=list[schemas.FavoritoOut],
+    summary="Favoritos do usuário logado",
+)
+async def listar_favoritos(db: DBSession, usuario_atual: CurrentUser) -> list[schemas.FavoritoOut]:
+    favoritos = await service.listar_favoritos(db, usuario_atual.id)
+    return [schemas.FavoritoOut.model_validate(f) for f in favoritos]
+
+
+@router.post(
+    "/api/favoritos",
+    response_model=schemas.FavoritoOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Favoritar um documento do acervo A ou uma publicação avulsa",
+)
+async def criar_favorito(
+    dados: schemas.FavoritoCreate, db: DBSession, usuario_atual: CurrentUser
+) -> schemas.FavoritoOut:
+    """
+    Exatamente um dos dois campos — mesmo XOR do `CheckConstraint` do model
+    (achado B1), validado aqui em vez de deixar o banco rejeitar com um erro
+    de integridade pouco legível para quem consome a API.
+    """
+    if (dados.documento_id is None) == (dados.avulsa_id is None):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Informe exatamente um de documento_id ou avulsa_id.",
+        )
+
+    if dados.documento_id is not None:
+        favorito = await service.favoritar_documento(db, usuario_atual.id, dados.documento_id)
+    else:
+        favorito = await service.favoritar_avulsa(db, usuario_atual.id, dados.avulsa_id)
+    return schemas.FavoritoOut.model_validate(favorito)
+
+
+@router.delete(
+    "/api/favoritos/{favorito_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remover favorito",
+)
+async def remover_favorito(favorito_id: uuid.UUID, db: DBSession, usuario_atual: CurrentUser) -> None:
+    await service.remover_favorito(db, usuario_atual.id, favorito_id)

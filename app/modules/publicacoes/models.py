@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Enum,
@@ -451,3 +452,52 @@ class PublicacaoAvulsaAeronave(Base):
 
     avulsa: Mapped["PublicacaoAvulsa"] = relationship(back_populates="aeronaves")
     aeronave: Mapped["Aeronave"] = relationship()
+
+
+class PublicacaoFavorito(Base):
+    """
+    Favorito transversal aos dois acervos — M3.
+
+    **Correção da revisão de pré-implementação** (achado B1): o desenho
+    original usava PK composta com `documento_id`/`avulsa_id` nullable, que é
+    inválido em SQL padrão (coluna de PK não pode ser nullable — falha no
+    Postgres; no SQLite "funciona" por um quirk histórico e aceita duplicatas
+    silenciosamente, porque `NULL != NULL` na comparação de chave).
+
+    Redesenhado com PK surrogate (`id`) + `CheckConstraint` XOR garantindo
+    exatamente um alvo preenchido + duas `UniqueConstraint` separadas — NULLs
+    são distintos em UNIQUE tanto no SQLite quanto no Postgres, então
+    duplicatas reais são bloqueadas e os NULLs não conflitam entre si.
+    """
+
+    __tablename__ = "publicacoes_favoritos"
+    __table_args__ = (
+        CheckConstraint(
+            "(documento_id IS NULL) != (avulsa_id IS NULL)",
+            name="ck_publicacoes_favoritos_alvo_unico",
+        ),
+        UniqueConstraint(
+            "usuario_id", "documento_id", name="uq_publicacoes_favoritos_usuario_documento"
+        ),
+        UniqueConstraint(
+            "usuario_id", "avulsa_id", name="uq_publicacoes_favoritos_usuario_avulsa"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    usuario_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    documento_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("manuais_documentos.id", ondelete="CASCADE"), nullable=True
+    )
+    avulsa_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("publicacoes_avulsas.id", ondelete="CASCADE"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+
+    def __repr__(self) -> str:
+        alvo = self.documento_id or self.avulsa_id
+        return f"<PublicacaoFavorito usuario={self.usuario_id} alvo={alvo}>"

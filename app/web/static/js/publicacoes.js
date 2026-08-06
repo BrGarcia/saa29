@@ -135,4 +135,15 @@
     });
 
     verificarStatus();
+
+    // Pré-preenche e dispara a busca quando a página é aberta com `?q=...`
+    // — usado pelo link "Buscar no manual" do checklist de inspeção (M3
+    // tarefa 3), que não tem como saber qual documento corresponde ao item
+    // sem rodar a busca de verdade.
+    const paramsIniciais = new URLSearchParams(window.location.search);
+    const qInicial = paramsIniciais.get("q");
+    if (qInicial) {
+        inputBusca.value = qInicial;
+        buscar();
+    }
 })();

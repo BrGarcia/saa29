@@ -53,6 +53,7 @@ SELECT p.document_id  AS document_id,
        d.capitulo      AS capitulo,
        d.titulo        AS titulo,
        d.categoria     AS categoria,
+       d.ata_codigo    AS ata_codigo,
        snippet(pages_fts, 0, char(2), char(3), '…', 20) AS snippet,
        bm25(pages_fts) AS score
 FROM pages_fts
@@ -62,6 +63,7 @@ WHERE pages_fts MATCH ?
   AND (? IS NULL OR d.manual_codigo = ?)
   AND (? IS NULL OR d.capitulo = ?)
   AND (? IS NULL OR d.categoria = ?)
+  AND (? IS NULL OR d.ata_codigo = ?)
 -- `bm25()` do SQLite é NEGATIVO: mais negativo = mais relevante, então a
 -- ordenação correta é ASC. `DESC` inverteria o ranking inteiro e passaria em
 -- qualquer teste que só verifique "veio resultado".
@@ -78,6 +80,7 @@ WHERE pages_fts MATCH ?
   AND (? IS NULL OR d.manual_codigo = ?)
   AND (? IS NULL OR d.capitulo = ?)
   AND (? IS NULL OR d.categoria = ?)
+  AND (? IS NULL OR d.ata_codigo = ?)
 """
 
 
@@ -149,12 +152,15 @@ def _buscar_sincrono(
     manual: str | None,
     capitulo: str | None,
     categoria: str | None,
+    ata: str | None,
     limit: int,
     offset: int,
 ) -> tuple[int, list[dict[str, object]]]:
     conn = _abrir_catalog_ro(caminho)
     try:
-        filtros = (manual, manual, capitulo, capitulo, categoria, categoria)
+        filtros = (
+            manual, manual, capitulo, capitulo, categoria, categoria, ata, ata,
+        )
         try:
             total = conn.execute(
                 _COUNT_RESULTADOS, (expressao, *filtros)
@@ -179,6 +185,7 @@ async def buscar(
     manual: str | None = None,
     capitulo: str | None = None,
     categoria: str | None = None,
+    ata: str | None = None,
     limit: int = 20,
     offset: int = 0,
 ) -> dict[str, object]:
@@ -188,6 +195,10 @@ async def buscar(
     `total` é a contagem de **páginas** que casam, não de documentos — coerente
     com o contrato da API, em que cada resultado é uma página. Um documento com
     o termo em 3 páginas contribui 3.
+
+    `ata` filtra por `documents.ata_codigo` (M3 tarefa 5) — coluna derivada por
+    `catalog.extrair_ata` no indexador, não confiável para 100% do acervo (nem
+    todo capítulo/nome de arquivo expõe o código), mas cobre a maioria.
     """
     expressao = sanitizar_query(query)
     limit = max(1, min(limit, _LIMITE_MAXIMO))
@@ -201,6 +212,7 @@ async def buscar(
         manual=manual,
         capitulo=capitulo,
         categoria=categoria,
+        ata=ata,
         limit=limit,
         offset=offset,
     )

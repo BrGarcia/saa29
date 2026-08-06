@@ -93,10 +93,12 @@ CREATE TABLE documents (
     manual_codigo TEXT NOT NULL,
     capitulo      TEXT NOT NULL,
     titulo        TEXT NOT NULL,
-    categoria     TEXT NOT NULL
+    categoria     TEXT NOT NULL,
+    ata_codigo    TEXT
 );
 CREATE INDEX ix_documents_manual   ON documents(manual_codigo);
 CREATE INDEX ix_documents_capitulo ON documents(capitulo);
+CREATE INDEX ix_documents_ata      ON documents(ata_codigo);
 
 CREATE TABLE pages (
     document_id TEXT NOT NULL,
@@ -359,7 +361,7 @@ def processar_manual(
     )
 
     lote: list[tuple[str, int, str]] = []
-    documentos: list[tuple[str, str, str, str, str]] = []
+    documentos: list[tuple[str, str, str, str, str, str | None]] = []
     casados = 0
 
     for pdf_path in manual.pdfs:
@@ -377,6 +379,7 @@ def processar_manual(
             if meta and meta.titulo
             else catalog.titulo_de_arquivo(pdf_path.name)
         )
+        ata_codigo = catalog.extrair_ata(capitulo, pdf_path.name)
         doc_id = catalog.documento_id_deterministico(
             edicao_rotulo, manual.codigo, file_key
         )
@@ -386,7 +389,7 @@ def processar_manual(
             service.DocumentoPayload(
                 id=doc_id,
                 capitulo=capitulo[:80],
-                ata_codigo=catalog.extrair_ata(capitulo, pdf_path.name),
+                ata_codigo=ata_codigo,
                 file_key=file_key[:500],
                 titulo=titulo[:300],
                 sort_order=catalog.ordem_de_nome(pdf_path.name),
@@ -412,6 +415,7 @@ def processar_manual(
                 capitulo,
                 titulo,
                 categoria.categoria,
+                ata_codigo,
             )
         )
         for numero, texto in enumerate(paginas, start=1):
@@ -426,8 +430,8 @@ def processar_manual(
             _gravar_lote(conn, lote)
         conn.executemany(
             "INSERT OR REPLACE INTO documents "
-            "(document_id, manual_codigo, capitulo, titulo, categoria) "
-            "VALUES (?, ?, ?, ?, ?)",
+            "(document_id, manual_codigo, capitulo, titulo, categoria, ata_codigo) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
             documentos,
         )
         conn.commit()

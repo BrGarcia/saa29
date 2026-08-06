@@ -5,7 +5,7 @@
  * @property {string} id
  * @property {string} codigo
  * @property {string} [sistema_ata_id]
- * @property {{descricao: string}} [sistema_ata]
+ * @property {{descricao: string, codigo: string}} [sistema_ata]
  * @property {string} descricao
  * @property {{posto: string, nome: string}} [criador]
  * @property {string} data_abertura
@@ -56,6 +56,9 @@ async function carregarDetalhe() {
             // Guardamos o id para usar na edição se necessário
             detSistema.dataset.id = pane.sistema_ata_id || "";
         }
+
+        // M3 (módulo publicacoes): procedimentos do FIM do ATA da pane.
+        carregarProcedimentosFimDaPane(pane.sistema_ata ? pane.sistema_ata.codigo : null);
         
         const detDescricao = document.getElementById("det-descricao");
         if(detDescricao) detDescricao.innerText = pane.descricao;
@@ -668,6 +671,91 @@ window.handleConcluirDireto = handleConcluirDireto;
 // @ts-ignore
 window.handleSalvarComentarios = handleSalvarComentarios;
 
+/**
+ * M3 (módulo publicacoes): lista os procedimentos do FIM cujo código começa
+ * pelo ATA da pane — `manuais_fim_map.procedimento` sempre começa pelos dois
+ * dígitos do ATA (convenção do próprio FIM, não uma coluna dedicada).
+ *
+ * @param {string | null} ataCodigo
+ * @returns {Promise<void>}
+ */
+async function carregarProcedimentosFimDaPane(ataCodigo) {
+    const titulo = document.getElementById("fim-ata-titulo");
+    const lista = document.getElementById("fim-ata-lista");
+    if (!titulo || !lista) return;
+
+    if (!ataCodigo) {
+        titulo.textContent = "";
+        lista.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.85rem;">Sem sistema ATA definido na pane.</p>';
+        return;
+    }
+
+    titulo.textContent = `— ATA ${ataCodigo}`;
+    lista.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.85rem;">Carregando…</p>';
+    try {
+        // @ts-ignore
+        const resposta = await apiFetch(`/publicacoes/api/fim/por-ata/${encodeURIComponent(ataCodigo)}`);
+        renderizarResultadosFim(resposta.results, lista, "Nenhum procedimento do FIM catalogado para este ATA.");
+    } catch (e) {
+        lista.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.85rem;">Não foi possível carregar os procedimentos.</p>';
+    }
+}
+
+/**
+ * @param {Array<{mensagem: string, procedimento: string, doc_id: string|null, title: string|null, viewer_url: string|null}>} resultados
+ * @param {HTMLElement} container
+ * @param {string} mensagemVazia
+ * @returns {void}
+ */
+function renderizarResultadosFim(resultados, container, mensagemVazia) {
+    if (!resultados.length) {
+        container.innerHTML = `<p style="color: var(--text-secondary); font-size: 0.85rem;">${mensagemVazia}</p>`;
+        return;
+    }
+    container.innerHTML = "";
+    resultados.forEach((item) => {
+        const linha = document.createElement("div");
+        linha.style.padding = "0.3rem 0";
+        linha.style.fontSize = "0.9rem";
+        const alvo = item.viewer_url
+            // @ts-ignore
+            ? `<a href="${item.viewer_url}" target="_blank">${escapeHtml(item.title || item.procedimento)}</a>`
+            // @ts-ignore
+            : `${escapeHtml(item.procedimento)} <em style="color:var(--text-secondary);">(sem PDF no acervo)</em>`;
+        // @ts-ignore
+        linha.innerHTML = `<strong>${escapeHtml(item.mensagem)}</strong> → ${alvo}`;
+        container.appendChild(linha);
+    });
+}
+
+/**
+ * M3 tarefa 2: busca por mensagem de falha digitada, sugerindo o
+ * procedimento via `/publicacoes/api/fim` (mesma rota da tela de busca
+ * principal do módulo, M1).
+ *
+ * @returns {Promise<void>}
+ */
+async function buscarFimPorMensagemNaPane() {
+    const input = /** @type {HTMLInputElement | null} */ (document.getElementById("fim-mensagem-input"));
+    const resultados = document.getElementById("fim-mensagem-resultados");
+    if (!input || !resultados) return;
+
+    const mensagem = input.value.trim();
+    if (!mensagem) {
+        // @ts-ignore
+        showToast("Digite a mensagem exibida no CAS/EICAS.", "info");
+        return;
+    }
+    resultados.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.85rem;">Buscando…</p>';
+    try {
+        // @ts-ignore
+        const resposta = await apiFetch(`/publicacoes/api/fim?${new URLSearchParams({ mensagem }).toString()}`);
+        renderizarResultadosFim(resposta.results, resultados, "Nenhuma mensagem encontrada com esse prefixo.");
+    } catch (e) {
+        resultados.innerHTML = "";
+    }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     const paneData = document.getElementById("pane-data");
     PANE_ID = paneData ? paneData.getAttribute("data-pane-id") : null;
@@ -692,6 +780,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const btnEditOcorr = document.getElementById('btn-edit-ocorrencia');
     if(btnEditOcorr) btnEditOcorr.addEventListener('click', openEditarModal);
+
+    // M3 (módulo publicacoes): busca por mensagem de falha no bloco do FIM.
+    const btnFimMensagem = document.getElementById('fim-mensagem-btn');
+    if(btnFimMensagem) btnFimMensagem.addEventListener('click', buscarFimPorMensagemNaPane);
+    const inputFimMensagem = document.getElementById('fim-mensagem-input');
+    if(inputFimMensagem) inputFimMensagem.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') buscarFimPorMensagemNaPane();
+    });
     
     // Bind form events
     const formUpload = document.getElementById('formUpload');

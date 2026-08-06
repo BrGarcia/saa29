@@ -93,6 +93,22 @@ class StatusPublicacoes(BaseModel):
     atualizado_em: float | None
 
 
+class FavoritoCreate(BaseModel):
+    """Exatamente um dos dois deve vir preenchido — mesmo XOR do `CheckConstraint` (achado B1)."""
+
+    documento_id: uuid.UUID | None = None
+    avulsa_id: uuid.UUID | None = None
+
+
+class FavoritoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    documento_id: uuid.UUID | None
+    avulsa_id: uuid.UUID | None
+    created_at: datetime
+
+
 class DocumentoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

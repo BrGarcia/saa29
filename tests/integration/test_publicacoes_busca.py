@@ -314,6 +314,46 @@ async def test_ca04_acento_e_caixa_dao_o_mesmo_conjunto(indice_e_catalogo, termo
 
 
 @pytest.mark.asyncio
+async def test_filtro_por_ata_restringe_ao_capitulo_certo(indice_e_catalogo):
+    """
+    M3 tarefa 5: `documents.ata_codigo` (extraído por `catalog.extrair_ata` no
+    indexador) filtra a busca unificada por ATA. A amostra tem 2 documentos do
+    ATA 36 (sangria) e 1 do ATA 21 — nenhum termo comum entre eles nesta busca.
+    """
+    indice, _ = indice_e_catalogo
+
+    com_ata_36 = await search.buscar(indice, "sangria", ata="36", limit=100)
+    com_ata_21 = await search.buscar(indice, "sangria", ata="21", limit=100)
+    sem_filtro = await search.buscar(indice, "sangria", limit=100)
+
+    assert com_ata_36["total"] > 0
+    assert com_ata_36["total"] <= sem_filtro["total"]
+    # A prova real do filtro: nenhum documento do ATA 21 fala em "sangria"
+    # nesta amostra, então o filtro por ATA 21 zera o resultado mesmo com o
+    # termo presente no acervo.
+    assert com_ata_21["total"] == 0
+    assert sem_filtro["total"] > 0
+    assert all(r["manual_codigo"] == MANUAL for r in com_ata_36["results"])
+
+
+@pytest.mark.asyncio
+async def test_api_busca_aplica_filtro_de_ata(api, client_autenticado: AsyncClient):
+    com_ata = (
+        await client_autenticado.get(
+            "/publicacoes/api/busca", params={"q": "sangria", "ata": "36"}
+        )
+    ).json()
+    ata_sem_resultado = (
+        await client_autenticado.get(
+            "/publicacoes/api/busca", params={"q": "sangria", "ata": "99"}
+        )
+    ).json()
+
+    assert com_ata["total"] > 0
+    assert ata_sem_resultado["total"] == 0
+
+
+@pytest.mark.asyncio
 async def test_ordenacao_por_bm25_traz_o_mais_relevante_primeiro(indice_e_catalogo):
     """
     `bm25()` do SQLite é negativo — a ordenação correta é ASC.

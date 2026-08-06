@@ -29,6 +29,8 @@ if (contexto) {
     const btnPrev = document.getElementById("pub-viewer-prev");
     const btnNext = document.getElementById("pub-viewer-next");
     const linkDownload = document.getElementById("pub-viewer-download");
+    const btnFavorito = document.getElementById("pub-viewer-favorito");
+    const iconeFavorito = document.getElementById("pub-viewer-favorito-icone");
 
     linkDownload.href = contexto.dataset.pdfUrl;
 
@@ -82,6 +84,47 @@ if (contexto) {
     window.addEventListener("hashchange", () => irPara(paginaDaHash()));
     window.addEventListener("resize", () => renderizarPagina(paginaAtual));
 
+    // --- Favoritos (M3) ---
+
+    let favoritoAtualId = null;
+
+    function marcarIconeFavorito(ativo) {
+        iconeFavorito.setAttribute("fill", ativo ? "currentColor" : "none");
+        btnFavorito.title = ativo ? "Remover dos favoritos" : "Favoritar";
+    }
+
+    async function carregarEstadoFavorito() {
+        try {
+            const favoritos = await apiFetch("/publicacoes/api/favoritos");
+            const existente = favoritos.find((f) => f.documento_id === contexto.dataset.docId);
+            favoritoAtualId = existente ? existente.id : null;
+            marcarIconeFavorito(!!existente);
+        } catch (e) {
+            // Silencioso: favoritos são um extra, não bloqueiam a leitura do documento.
+        }
+    }
+
+    async function alternarFavorito() {
+        try {
+            if (favoritoAtualId) {
+                await apiFetch(`/publicacoes/api/favoritos/${favoritoAtualId}`, { method: "DELETE" });
+                favoritoAtualId = null;
+                marcarIconeFavorito(false);
+            } else {
+                const criado = await apiFetch("/publicacoes/api/favoritos", {
+                    method: "POST",
+                    body: { documento_id: contexto.dataset.docId },
+                });
+                favoritoAtualId = criado.id;
+                marcarIconeFavorito(true);
+            }
+        } catch (e) {
+            // apiFetch já notificou.
+        }
+    }
+
+    btnFavorito.addEventListener("click", alternarFavorito);
+
     async function carregarMetadados() {
         try {
             const meta = await apiFetch(`/publicacoes/api/documentos/${contexto.dataset.docId}`);
@@ -119,4 +162,5 @@ if (contexto) {
 
     carregarMetadados();
     carregarPdf();
+    carregarEstadoFavorito();
 }

@@ -221,6 +221,14 @@ function renderizarTarefas() {
                 <div style="font-weight: 500;">
                     ${!t.tarefa_catalogo_id ? `<span style="font-size: 0.65rem; background: var(--primary-color); color: white; padding: 2px 6px; border-radius: 4px; margin-right: 5px; font-weight: bold; vertical-align: middle;" title="Tarefa Adicionada Manualmente">${escapeHtml(inspecaoAtual.aberto_por?.trigrama || 'EXT')}</span>` : ''}
                     ${escapeHtml(t.titulo)}
+                    <a href="/publicacoes?q=${encodeURIComponent(t.titulo)}" target="_blank"
+                       title="Buscar este item no acervo de manuais" aria-label="Buscar no manual"
+                       style="margin-left: 0.35rem; color: var(--text-secondary); vertical-align: middle;">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:inline; vertical-align: -2px;">
+                            <circle cx="11" cy="11" r="7" stroke-width="2"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" stroke-width="2" stroke-linecap="round"></line>
+                        </svg>
+                    </a>
                 </div>
                 <div style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHtml(t.descricao || '')}</div>
                 ${t.observacao_execucao ? `<div style="font-size: 0.8rem; color: var(--text-color); margin-top: 4px; border-left: 2px solid ${stColor}; padding-left: 5px;"><i>Obs: ${escapeHtml(t.observacao_execucao)}</i></div>` : ''}

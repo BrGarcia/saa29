@@ -117,6 +117,44 @@
     // --- Detalhe / anexos ---
 
     let avulsaAtualId = null;
+    let favoritoAtualId = null;
+    const btnFavoritar = document.getElementById("btn-favoritar-avulsa");
+    const iconeFavoritar = document.getElementById("icone-favoritar-avulsa");
+
+    function marcarIconeFavorito(ativo) {
+        iconeFavoritar.setAttribute("fill", ativo ? "currentColor" : "none");
+    }
+
+    async function carregarEstadoFavorito(id) {
+        try {
+            const favoritos = await apiFetch("/publicacoes/api/favoritos");
+            const existente = favoritos.find((f) => f.avulsa_id === id);
+            favoritoAtualId = existente ? existente.id : null;
+            marcarIconeFavorito(!!existente);
+        } catch (e) {
+            // Favoritos são um extra — não bloqueiam a leitura da publicação.
+        }
+    }
+
+    async function alternarFavoritoAvulsa() {
+        if (!avulsaAtualId) return;
+        try {
+            if (favoritoAtualId) {
+                await apiFetch(`/publicacoes/api/favoritos/${favoritoAtualId}`, { method: "DELETE" });
+                favoritoAtualId = null;
+                marcarIconeFavorito(false);
+            } else {
+                const criado = await apiFetch("/publicacoes/api/favoritos", {
+                    method: "POST",
+                    body: { avulsa_id: avulsaAtualId },
+                });
+                favoritoAtualId = criado.id;
+                marcarIconeFavorito(true);
+            }
+        } catch (e) {
+            // apiFetch já notificou.
+        }
+    }
 
     async function abrirDetalhe(id) {
         avulsaAtualId = id;
@@ -150,6 +188,7 @@
             // DOM desde o início, só o modal que o envolve estava oculto) —
             // não precisa reprocessar nada aqui.
             modalDetalhe.style.display = "flex";
+            carregarEstadoFavorito(id);
         } catch (e) {
             // apiFetch já notificou.
         }
@@ -208,6 +247,7 @@
     document.getElementById("btn-close-modal-detalhe").addEventListener("click", fecharModalDetalhe);
     document.getElementById("btn-upload-anexo").addEventListener("click", enviarAnexo);
     document.getElementById("btn-excluir-avulsa").addEventListener("click", excluirAvulsa);
+    btnFavoritar.addEventListener("click", alternarFavoritoAvulsa);
 
     buscar();
 })();

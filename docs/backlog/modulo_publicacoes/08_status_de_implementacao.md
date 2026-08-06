@@ -11,7 +11,7 @@
 > arquivo ou teste que prova a conclusão. Status sem evidência verificável não conta como ✅ — foi
 > essa disciplina que pegou o B7 (índice que "existe" e não busca nada).
 >
-> **Última atualização:** 05/08/2026 · branch `fix/ci-baseline-verde` · 533 testes verdes ·
+> **Última atualização:** 05/08/2026 · branch `fix/ci-baseline-verde` · 547 testes verdes ·
 > `ruff check .` limpo
 
 ---
@@ -23,7 +23,7 @@
 | **M0** — Fundação | 8 tarefas | 8/8 | ✅ **Concluído** |
 | **M1** — Piloto FIM ⭐ | 15 tarefas | 15/15 | ✅ **Concluído** — CSP verificada por leitura de código, não por navegador real (ver dívidas) |
 | **M2** — Avulsas (BO/BS/NPO/BT) | 10 tarefas | 10/10 | ✅ **Concluído** |
-| **M3** — Integração panes/inspeções | 5 tarefas | 0/5 | ⚪ Não iniciado — depende do M1 |
+| **M3** — Integração panes/inspeções | 5 tarefas | 5/5 | ✅ **Concluído** |
 | **M4** — Acervo completo + ciclo DVD | 8 tarefas | 0/8 | 🔒 Bloqueado por D-04 (VPS), exceto a tarefa 1 |
 | **M5** — RAG | — | — | 🔒 Congelado até D-S3 |
 
@@ -129,9 +129,35 @@ vincula a um `sistema_ata`, e confirma os três caminhos de busca no mesmo cadas
 
 ---
 
-## M3 — Integração com panes e inspeções ⚪ 0/5
+## M3 — Integração com panes e inspeções ✅ 5/5
 
-Não iniciado. Depende do M1 concluído.
+| # | Tarefa | Status | Evidência |
+|---|---|:--:|---|
+| 1 | Bloco "Procedimentos FIM do ATA XX" no detalhe da pane | ✅ | `panes/detalhe.html#card-fim-pane` + `panes_detalhe.js:carregarProcedimentosFimDaPane`; endpoint novo `GET /publicacoes/api/fim/por-ata/{ata}` |
+| 2 | Busca por mensagem de falha no registro de pane → sugere procedimento | ✅ | Mesmo bloco — reaproveita `/publicacoes/api/fim` do M1, sem endpoint novo |
+| 3 | Link do item de checklist de inspeção para o documento correspondente | ✅ | `inspecao_detalhe.js:renderizarTarefas` — ícone de busca por item, abre `/publicacoes?q=<título>` |
+| 4 | Favoritos (`publicacoes_favoritos`) | ✅ | Migration `7b3acb4928f0`, `service.py` (favoritar/listar/remover), rotas `/api/favoritos`; 12 testes em `tests/unit/test_publicacoes_favoritos.py` |
+| 5 | Filtros de busca por manual/capítulo/ATA na tela de busca | ✅ | `catalog.db` ganhou a coluna `documents.ata_codigo`; `search.py`, `router.py` e `publicacoes.js` propagam o filtro `ata` |
+
+**Achado corrigido em relação ao plano original (tarefa 3):** não existe, hoje, nenhum campo
+estruturado ligando um item de checklist de inspeção a um documento do acervo — `InspecaoTarefa`
+não tem `ata_codigo` nem `procedimento`, só `titulo`/`descricao`/`sistema` em texto livre. Criar
+essa coluna exigiria migration no módulo `inspecoes` E dado real para populá-la, nenhum dos dois no
+escopo do M3. A solução implementada é a busca full-text (título do item vira a query da tela
+unificada de busca) — funciona hoje, sem migration nova, mas é uma correspondência por texto, não
+uma referência garantida.
+
+**Tarefa 1, correção de escopo:** o plano falava em "Bloco no detalhe da pane" sem especificar a
+fonte; como `manuais_fim_map.procedimento` sempre começa pelos dois dígitos do ATA (convenção do
+próprio FIM), a lista vem de um `LIKE 'XX-%'` sobre essa tabela — não precisou de nenhuma coluna
+nova.
+
+### Gate do M3
+
+"De uma pane aberta, chegar ao procedimento correto sem digitar nada." ✅ Coberto pela tarefa 1
+quando a pane tem `sistema_ata` definido — a lista carrega automaticamente ao abrir a página, sem
+qualquer interação. Não coberto automaticamente quando a pane não tem ATA associado (usa a busca
+manual da tarefa 2, que exige digitar a mensagem).
 
 ---
 
@@ -155,20 +181,29 @@ Ordem de grandeza do que isso indexaria, medida no acervo em disco: **34 manuais
 | **CA-01** (p95 < 300 ms) | O número foi **medido** (6,7 ms), mas não é afirmado por teste — regressão de performance passaria despercebida. | idem |
 | **Verificação visual do viewer/CSP** | O delta de CSP (`worker-src 'self'`) foi justificado por leitura do código-fonte do PDF.js, não por abrir o console de um navegador real contra a aplicação rodando — esta sessão não teve acesso a um navegador. Antes de dar o item por definitivamente fechado, alguém precisa abrir `/publicacoes/viewer/{id}` de um documento real e checar o console por violações de CSP. Passo a passo em `docs/methodology/CSP.md` §5. | `docs/methodology/CSP.md` §5 |
 | **PDF.js sem `cmaps`/`standard_fonts`** | Só o núcleo (`pdf.min.mjs` + `pdf.worker.min.mjs`) foi vendorizado. Um PDF que dependa de fonte padrão não embutida (raro nos manuais, que embutem fonte) pode renderizar com fallback do navegador em vez da fonte exata. | `app/web/static/js/pdfjs/README.md` |
-| **Frontend sem verificação visual em navegador** | `publicacoes/lista.html`, `viewer.html`, `mobile/publicacoes.html` e `avulsas.html` foram implementados e passam em testes de fumaça (200 + `text/html`), mas nenhum foi aberto num navegador real nesta sessão — não há confirmação visual de layout, dos modais de cadastro/anexo de avulsas, nem da experiência mobile. | Todos os templates de `app/web/templates/publicacoes/` e `mobile/publicacoes.html` |
+| **Frontend sem verificação visual em navegador** | `publicacoes/lista.html`, `viewer.html`, `mobile/publicacoes.html`, `avulsas.html`, e as edições em `panes/detalhe.html`/`inspecoes` (M3) foram implementados e passam em testes de fumaça (200 + `text/html` quando aplicável), mas nenhum foi aberto num navegador real nesta sessão — não há confirmação visual de layout, dos modais de cadastro/anexo/favorito, do bloco FIM na pane, nem da experiência mobile. | Todos os templates de `app/web/templates/publicacoes/`, `mobile/publicacoes.html`, `panes/detalhe.html`, `inspecao_detalhe.js` |
+| **Link do checklist de inspeção é busca por texto, não referência garantida** | O item de checklist não tem campo estruturado (`ata_codigo`/`procedimento`) para apontar a um documento específico — o link roda uma busca full-text pelo título do item. Funciona bem quando o título é específico (ex: "Verificação da válvula de sangria"), mal quando é genérico (ex: "Inspeção visual geral"). Criar a referência estruturada exige migration em `inspecoes` e dado real para popular — fora do escopo do M3. | `app/web/static/js/inspecao_detalhe.js:renderizarTarefas` |
+| **`catalog.db` local precisa reindexação após o M3** | A coluna `documents.ata_codigo` só existe em índices gerados depois desta mudança em `indexar.py`. Um `catalog.db` gerado antes do M3 (por outro desenvolvedor, ou em outra máquina) não tem a coluna — a busca com filtro `ata` falharia com erro de SQL. Não é uma migration formal (o índice é descartável, ADR-004) — basta rodar `python -m scripts.publicacoes.indexar` de novo. | `scripts/publicacoes/indexar.py` |
 | **`manuais_edicoes`** | A tabela existe e é populada com a linha sintética `piloto-fim`, mas `snapshot_key`, `hash_sha256` e `relatorio_diff` seguem nulos — ganham uso só no M4. | Esperado, não é dívida real |
 
 ---
 
 ## Próxima tarefa
 
-**M3 — Integração com panes e inspeções.** Depende do M1 (já concluído): o bloco "Procedimentos FIM
-do ATA XX" e a sugestão por mensagem de falha precisam do viewer existir de verdade para fazer
-sentido (link que abre em algum lugar). Cinco tarefas: bloco no detalhe da pane, busca por mensagem
-de falha sugerindo procedimento, link do checklist de inspeção, favoritos (`publicacoes_favoritos`,
-achado B1 — PK surrogate + CheckConstraint XOR), e filtros de busca por manual/capítulo/ATA na tela
-de busca (exige levar `ata_codigo` para o `catalog.db`, que hoje só tem `manual_codigo`/`capitulo`).
+**M4 — Acervo completo e ciclo do DVD.** Bloqueado por **D-04** (provedor de VPS) para o gate final
+("disco da VPS < 60%"), mas quase todo o trabalho de código não depende dessa decisão:
 
-Depois do M3, **M4** (o que não depende de D-04): rodar `indexar.py` sobre o acervo completo
-(34 manuais, 5.724 PDFs — tarefa 1, não é trabalho novo de código), e os scripts `publicar.py`/
-`merge_data.py`, que podem ser escritos e testados localmente mesmo sem a decisão de VPS fechada.
+1. Rodar `indexar.py` sobre `var/publicacoes/acervo/Manuais/` inteiro (34 manuais, 5.724 PDFs) —
+   tarefa 1, não é trabalho novo, o script já aceita esse diretório desde o M1.
+2. `publicar.py`: inventário, diff por hash, extração incremental, snapshot ZIP, upload R2,
+   relatório de publicação — pode ser escrito e testado localmente (R2 é mockável, como já acontece
+   em `scripts/maintenance/r2_manager.py`).
+3. `merge_data.py`: merge de remessa nova no acervo existente (RN-08).
+4. Desduplicação por `hash_sha256` entre edição vigente e anterior — `manuais_documentos.hash_sha256`
+   já existe desde o M1, só falta o service que compara.
+5. Medir `documentos_sem_texto` no acervo completo — `status_do_catalogo` já expõe o número; falta
+   rodar contra o acervo de verdade (depende da tarefa 1).
+
+O que fica de fato bloqueado: o card em `/configuracoes` (tarefa 4, decisão de produto sobre onde
+expor ativar/reverter edição) e os documentos de runbook/rsync (tarefas 6/7, que citam a VPS
+específica). Reportado tarefa a tarefa abaixo.
