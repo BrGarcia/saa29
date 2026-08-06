@@ -390,6 +390,165 @@ async def arquivar_edicao(db: AsyncSession, edicao_id: uuid.UUID) -> ManualEdica
 
 
 # --------------------------------------------------------------------------
+# Navegação do catálogo (Etapa 2 de 09_plano_configuracoes.md — lacuna do M1)
+#
+# Só o banco principal — SQLAlchemy, catálogo LEVE. Nunca toca `catalog.db`;
+# isto é navegação, não busca full-text (`search.py` não muda nesta etapa).
+# Toda função abaixo é escopada pela edição VIGENTE: navegar mostra o acervo
+# em vigor, não a união de edições retidas (um `join` esquecido faria o mesmo
+# manual aparecer duas vezes com ids diferentes — achado B2).
+# --------------------------------------------------------------------------
+
+
+async def listar_manuais_vigentes(db: AsyncSession) -> list[dict[str, object]]:
+    """
+    Os manuais da edição vigente, com contagem de capítulos/documentos.
+
+    `outerjoin`, não `join`: um manual sem documento nenhum (indexação falhou
+    para ele) não pode sumir da listagem — é como se descobre o problema.
+    """
+    vigente = await obter_edicao_vigente(db)
+    if vigente is None:
+        return []
+
+    linhas = (
+        await db.execute(
+            select(
+                Manual.codigo,
+                Manual.descricao_pt,
+                Manual.categoria,
+                Manual.revisao,
+                func.count(func.distinct(ManualDocumento.capitulo)),
+                func.count(ManualDocumento.id),
+            )
+            .select_from(Manual)
+            .outerjoin(ManualDocumento, ManualDocumento.manual_id == Manual.id)
+            .where(Manual.edicao_id == vigente.id)
+            .group_by(Manual.id)
+            .order_by(Manual.categoria, Manual.codigo)
+        )
+    ).all()
+
+    return [
+        {
+            "codigo": codigo,
+            "descricao": descricao_pt,
+            "categoria": categoria,
+            "capitulos": int(capitulos),
+            "documentos": int(documentos),
+            "revisao": revisao,
+        }
+        for codigo, descricao_pt, categoria, revisao, capitulos, documentos in linhas
+    ]
+
+
+async def _manual_da_edicao_vigente(db: AsyncSession, codigo: str) -> Manual:
+    """
+    O manual `codigo` na edição VIGENTE, ou 404.
+
+    Escopado pela vigente de propósito: um manual que só existe numa edição
+    arquivada não deve aparecer na navegação (achado B2 — o mesmo código de
+    manual existe em edições diferentes, com `manual_id` diferente).
+    """
+    vigente = await obter_edicao_vigente(db)
+    manual = (
+        (
+            await db.execute(
+                select(Manual).where(
+                    Manual.edicao_id == vigente.id, Manual.codigo == codigo
+                )
+            )
+        ).scalar_one_or_none()
+        if vigente is not None
+        else None
+    )
+    if manual is None:
+        raise EntidadeNaoEncontradaError(
+            f"Manual {codigo!r} não encontrado na edição vigente."
+        )
+    return manual
+
+
+async def obter_cabecalho_manual(db: AsyncSession, codigo: str) -> dict[str, str]:
+    """Só o cabeçalho (sem capítulos) — usado pelo breadcrumb da página de documentos."""
+    manual = await _manual_da_edicao_vigente(db, codigo)
+    return {
+        "codigo": manual.codigo,
+        "descricao": manual.descricao_pt,
+        "categoria": manual.categoria,
+    }
+
+
+async def obter_manual_com_capitulos(db: AsyncSession, codigo: str) -> dict[str, object]:
+    """Cabeçalho do manual + capítulos, ordenados pelo prefixo numérico (RN-05)."""
+    manual = await _manual_da_edicao_vigente(db, codigo)
+
+    linhas = (
+        await db.execute(
+            select(
+                ManualDocumento.capitulo,
+                func.max(ManualDocumento.ata_codigo),
+                func.count(ManualDocumento.id),
+            )
+            .where(ManualDocumento.manual_id == manual.id)
+            .group_by(ManualDocumento.capitulo)
+            .order_by(ManualDocumento.capitulo)
+        )
+    ).all()
+
+    return {
+        "manual": {
+            "codigo": manual.codigo,
+            "descricao": manual.descricao_pt,
+            "categoria": manual.categoria,
+        },
+        "capitulos": [
+            {"capitulo": capitulo, "ata_codigo": ata_codigo, "documentos": int(documentos)}
+            for capitulo, ata_codigo, documentos in linhas
+        ],
+    }
+
+
+async def listar_documentos_do_manual(
+    db: AsyncSession,
+    codigo: str,
+    *,
+    capitulo: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> tuple[int, list[ManualDocumento]]:
+    """
+    Documentos do manual `codigo` (edição vigente), ordenados por `sort_order`
+    (RN-05) — a ordem que o mecânico via no DVD.
+
+    `capitulo=None` devolve todos os capítulos do manual.
+    """
+    manual = await _manual_da_edicao_vigente(db, codigo)
+
+    filtros = [ManualDocumento.manual_id == manual.id]
+    if capitulo is not None:
+        filtros.append(ManualDocumento.capitulo == capitulo)
+
+    total = (
+        await db.execute(select(func.count(ManualDocumento.id)).where(*filtros))
+    ).scalar_one()
+    documentos = (
+        (
+            await db.execute(
+                select(ManualDocumento)
+                .where(*filtros)
+                .order_by(ManualDocumento.sort_order, ManualDocumento.titulo)
+                .limit(limit)
+                .offset(offset)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return int(total), list(documentos)
+
+
+# --------------------------------------------------------------------------
 # Sincronização do catálogo (chamada pelo indexador offline)
 # --------------------------------------------------------------------------
 

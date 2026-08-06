@@ -14,11 +14,13 @@
 > arquivo ou teste que prova a conclusão. Status sem evidência verificável não conta como ✅ — foi
 > essa disciplina que pegou o B7 (índice que "existe" e não busca nada).
 >
-> **Última atualização:** 06/08/2026 · branch `feature/modulo-publicacoes` · **622 testes
-> verdes** · `ruff check .` limpo
+> **Última atualização:** 06/08/2026 · branch `feature/modulo-publicacoes` · **641 testes
+> verdes** (suíte rodada duas vezes seguidas, sem instabilidade) · `ruff check .` limpo
 >
-> **Próximo trabalho:** Etapa 2 de [`09_plano_configuracoes.md`](09_plano_configuracoes.md) —
-> navegação do acervo. A Etapa 1 (gerência em `/configuracoes`) está concluída.
+> **Próximo trabalho:** as Etapas 1 e 2 de [`09_plano_configuracoes.md`](09_plano_configuracoes.md)
+> estão concluídas — o módulo está funcionalmente completo para M0–M4, exceto o gate de RSS/disco da
+> VPS (🔒 D-04) e a verificação visual em navegador real, que ninguém nesta sessão pôde fazer. Ver a
+> seção "Próxima tarefa" no fim deste documento.
 
 ---
 
@@ -27,7 +29,7 @@
 | Marco | Escopo | Progresso | Estado |
 |---|---|---|---|
 | **M0** — Fundação | 8 tarefas | 8/8 | ✅ **Concluído** |
-| **M1** — Piloto FIM ⭐ | 15 tarefas | 15/15 | ⚠️ **Tarefas entregues, duas rotas do contrato faltando** — `/publicacoes/manuais/{codigo}` e `.../{capitulo}` estão na §3 desde o começo e nunca viraram tarefa; ver a nota no M1 e a Etapa 2 do `09`. CSP verificada por leitura de código, não por navegador real |
+| **M1** — Piloto FIM ⭐ | 15 tarefas | 15/15 | ✅ **Concluído** — as duas rotas de navegação que faltavam (`/publicacoes/manuais/{codigo}` e `.../{capitulo}`) foram fechadas pela Etapa 2 de `09_plano_configuracoes.md`; CSP segue verificada só por leitura de código, não por navegador real (dívida separada) |
 | **M2** — Avulsas (BO/BS/NPO/BT) | 10 tarefas | 10/10 | ✅ **Concluído** |
 | **M3** — Integração panes/inspeções | 5 tarefas | 5/5 | ✅ **Concluído** |
 | **M4** — Acervo completo + ciclo DVD | 8 tarefas | 7/8 | 🔵 **Em execução** — a tarefa 4 está implementada de ponta a ponta (Fases 0–2 de `09_plano_configuracoes.md`), pendente só de verificação visual em navegador; resta a tarefa do gate de RSS/disco, presa a D-04 |
@@ -55,32 +57,25 @@ Legenda: ✅ concluído · 🔵 em execução · ⚪ não iniciado · 🔒 bloqu
 
 ---
 
-## M1 — Piloto FIM ⚠️ 15/15 das tarefas planejadas, mas com uma capacidade faltando
+## M1 — Piloto FIM ✅ 15/15 das tarefas planejadas + a capacidade que faltava, fechada pela Etapa 2
 
-> **Leia isto antes de considerar o M1 fechado.** As 15 tarefas abaixo foram entregues, e mesmo
-> assim o marco **não cumpre duas rotas que o contrato especifica**. A tabela de rotas de
-> `03_especificacao_tecnica.md` §3 lista, desde a primeira versão:
+> **Histórico da lacuna, mantido para quem chega agora.** As 15 tarefas abaixo foram entregues, mas
+> por quatro marcos o módulo **não cumpria duas rotas que o contrato especifica desde o início**:
 >
 > | Rota especificada | Observação na spec | Situação |
 > |---|---|---|
-> | `GET /publicacoes/manuais/{codigo}` | "capítulos" | ❌ não existe |
-> | `GET /publicacoes/manuais/{codigo}/{capitulo}` | "documentos" | ❌ não existe |
+> | `GET /publicacoes/manuais/{codigo}` | "capítulos" | ✅ implementada — Etapa 2 de `09_plano_configuracoes.md` |
+> | `GET /publicacoes/manuais/{codigo}/{capitulo}` | "documentos" | ✅ implementada — Etapa 2 de `09_plano_configuracoes.md` |
 >
-> A matriz RBAC §7 também lista a ação *"Navegar catálogo / buscar / abrir PDF"* para os quatro
+> A matriz RBAC §7 também listava a ação *"Navegar catálogo / buscar / abrir PDF"* para os quatro
 > perfis, e a §1 já previa o template `manual.html`. Ou seja: a navegação estava em **três** lugares
-> do contrato — rotas, permissões e layout de arquivos — e **não virou tarefa de marco nenhum**.
+> do contrato — rotas, permissões e layout de arquivos — e não virou tarefa de marco nenhum até a
+> Etapa 2 corrigir isso explicitamente (ver a seção dedicada no fim deste documento).
 >
-> Consequência: `/publicacoes` é só busca. Sem digitar um termo não há nada na tela, e os filtros de
-> refino são texto livre — para filtrar por manual é preciso já saber que o código é `FIM_1741`.
-> Num acervo de 34 manuais e 5.724 documentos, quem não sabe o que procurar não tem entrada.
->
-> Corrigido pela **Etapa 2 de [`09_plano_configuracoes.md`](09_plano_configuracoes.md)** (⚪ não
-> iniciada), que tem o plano detalhado e os dados do acervo medidos.
->
-> **Lição de processo, e o motivo de esta nota existir:** os gates de marco conferem a lista de
-> tarefas, nunca a tabela de rotas. Uma rota especificada que ninguém transformou em tarefa não é
-> vista por gate nenhum — e assim ficou quatro marcos sem existir. **Ao fechar um marco, rode a
-> auditoria de rotas da §0.1 do contrato e cruze com a §3.**
+> **Lição de processo que continua valendo:** os gates de marco conferem a lista de tarefas, nunca a
+> tabela de rotas. Uma rota especificada que ninguém transformou em tarefa não é vista por gate
+> nenhum — e assim ficou quatro marcos sem existir. **Ao fechar um marco, rode a auditoria de rotas
+> da §0.1 do contrato e cruze com a §3.**
 
 | # | Tarefa | Status | Evidência |
 |---|---|:--:|---|
@@ -252,7 +247,7 @@ D-04).
 | **CA-01** (p95 < 300 ms) | O número foi **medido** (6,7 ms), mas não é afirmado por teste — regressão de performance passaria despercebida. | idem |
 | **Verificação visual do viewer/CSP** | O delta de CSP (`worker-src 'self'`) foi justificado por leitura do código-fonte do PDF.js, não por abrir o console de um navegador real contra a aplicação rodando — esta sessão não teve acesso a um navegador. Antes de dar o item por definitivamente fechado, alguém precisa abrir `/publicacoes/viewer/{id}` de um documento real e checar o console por violações de CSP. Passo a passo em `docs/methodology/CSP.md` §5. | `docs/methodology/CSP.md` §5 |
 | **PDF.js sem `cmaps`/`standard_fonts`** | Só o núcleo (`pdf.min.mjs` + `pdf.worker.min.mjs`) foi vendorizado. Um PDF que dependa de fonte padrão não embutida (raro nos manuais, que embutem fonte) pode renderizar com fallback do navegador em vez da fonte exata. | `app/web/static/js/pdfjs/README.md` |
-| **Frontend sem verificação visual em navegador** | `publicacoes/lista.html`, `viewer.html`, `mobile/publicacoes.html`, `avulsas.html`, as edições em `panes/detalhe.html`/`inspecoes` (M3) e **o card de Publicações em `configuracoes.html` com seus 3 modais** (Fase 2) foram implementados e passam em testes de fumaça, mas nenhum foi aberto num navegador real — não há confirmação visual de layout, dos modais, do bloco FIM na pane, nem da experiência mobile. Para o card novo, o que os testes cobrem é o modo de falha silencioso (ids do template batendo com os alvos do JS); o que falta é aparência, o `auto-fit` do grid em telas estreitas, e o console limpo de CSP. | Templates de `app/web/templates/publicacoes/`, `configuracoes.html`, `mobile/publicacoes.html`, `panes/detalhe.html`, `inspecao_detalhe.js` |
+| **Frontend sem verificação visual em navegador** | `publicacoes/lista.html`, `viewer.html`, `mobile/publicacoes.html`, `avulsas.html`, as edições em `panes/detalhe.html`/`inspecoes` (M3), **o card de Publicações em `configuracoes.html` com seus 3 modais** (Fase 2) e agora **os templates novos da Etapa 2** (`manual.html`, `capitulo.html`, o bloco "Navegar no acervo" em `lista.html` e em `mobile/publicacoes.html`) foram implementados e passam em testes de fumaça, mas nenhum foi aberto num navegador real — não há confirmação visual de layout, dos modais, do bloco FIM na pane, do `<details>`/`<summary>` recolhendo `Ordens Técnicas`, da paginação de documentos, nem da experiência mobile. O que os testes cobrem é o modo de falha silencioso (ids/links no HTML batendo com o que o JS ou o próximo link esperam); o que falta é aparência, o `auto-fit` do grid em telas estreitas, o console limpo de CSP, e — específico da Etapa 2 — um manual grande de verdade (`AMM_PART2_1651`, 51 capítulos) não travando a página. | Templates de `app/web/templates/publicacoes/`, `configuracoes.html`, `mobile/publicacoes.html`, `panes/detalhe.html`, `inspecao_detalhe.js` |
 | **Limite de retenção duplicado entre backend e frontend** | O aviso "N edições têm índice em disco (previsto: 2)" usa `2` fixo em `configuracoes_publicacoes.js`. O valor canônico é `PUBLICACOES_EDICOES_RETIDAS` em `Settings`, que nenhum endpoint expõe — criar um endpoint de configuração só para isso não se pagava agora. Se o limite mudar, muda em dois lugares. | `app/web/static/js/configuracoes_publicacoes.js:atualizarAvisoRetencao` |
 | **Nenhum índice por edição existe na máquina local** | Consequência esperada de `catalog.db` legado (ver linha acima sobre reindexação): na tela, **as duas edições aparecem com "Índice: ausente"** e o botão "Ativar" é substituído por "reindexe para poder ativar". É o comportamento correto — mas significa que o fluxo de ativação só pode ser exercitado de verdade depois de `python -m scripts.publicacoes.indexar --edicao <rotulo>`. | `var/publicacoes/` (não versionado) |
 | **Link do checklist de inspeção é busca por texto, não referência garantida** | O item de checklist não tem campo estruturado (`ata_codigo`/`procedimento`) para apontar a um documento específico — o link roda uma busca full-text pelo título do item. Funciona bem quando o título é específico (ex: "Verificação da válvula de sangria"), mal quando é genérico (ex: "Inspeção visual geral"). Criar a referência estruturada exige migration em `inspecoes` e dado real para popular — fora do escopo do M3. | `app/web/static/js/inspecao_detalhe.js:renderizarTarefas` |
@@ -262,7 +257,9 @@ D-04).
 | ~~**`catalog.db` por edição não existe (bloqueia a tarefa 4)**~~ | **Resolvido** pela Fase 0 de `09_plano_configuracoes.md`: cada edição tem seu `catalog.<rotulo>.db` e a busca resolve o arquivo pela edição `VIGENTE`. Adendo no ADR-004. | `service.caminho_indice_vigente` |
 | **A máquina local ainda usa a queda de compatibilidade** | Verificado nesta sessão contra o estado real: vigente é `piloto-fim`, mas o único índice em disco é o `catalog.db` legado (155 MB, conteúdo da edição `2026`, gravado antes da Fase 0). A busca funciona (351 resultados para "sangria") e loga o aviso a cada consulta. Some com uma reindexação — não foi feita aqui para não gastar ~150s e sobrescrever mais estado local sem necessidade. | `var/publicacoes/` (não versionado) |
 | **`manuais_edicoes`** | A tabela existe e é populada com a linha sintética `piloto-fim`, mas `snapshot_key`, `hash_sha256` e `relatorio_diff` seguem nulos — ganham uso só no M4. | Esperado, não é dívida real |
-| **Navegação do acervo não existe (2 rotas do contrato)** | `/publicacoes` é só busca: sem digitar um termo não há nada na tela, e os filtros "Manual"/"Capítulo" são texto livre — exigem saber de antemão que o código é `FIM_1741` e o capítulo `CHAPTER_36`. Com 34 manuais e 5.724 documentos, quem não sabe o que procurar não entra. As rotas `/publicacoes/manuais/{codigo}` e `.../{capitulo}` estão na §3 do contrato desde a primeira versão e nunca viraram tarefa (ver a nota no M1). **Plano pronto para execução: Etapa 2 do `09`** — 2 páginas HTML + 3 endpoints, sem migration, testes especificados. | `app/web/pages/router.py`, `app/web/templates/publicacoes/`, `mobile/publicacoes.html` |
+| ~~**Navegação do acervo não existe (2 rotas do contrato)**~~ | **Resolvido pela Etapa 2 de `09_plano_configuracoes.md`.** `/publicacoes` agora renderiza um índice "Navegar no acervo" (34 manuais agrupados nas 7 categorias, `Ordens Técnicas` recolhido por padrão) e as duas rotas de navegação existem: `/publicacoes/manuais/{codigo}` (capítulos) e `.../{capitulo}` (documentos, paginados por query string). Os filtros "Manual"/"Capítulo" da busca viraram `<select>` populados por `GET /api/manuais` e `GET /api/manuais/{codigo}/capitulos`. 19 testes em `tests/unit/test_publicacoes_navegacao.py`. | `app/web/pages/router.py`, `app/web/templates/publicacoes/{lista,manual,capitulo}.html`, `mobile/publicacoes.html`, `app/modules/publicacoes/{service,router,schemas}.py` |
+| **Navegação renderizada direto do `service`, divergindo do padrão client-fetch do resto do app** | `publicacoes_lista_page`, `publicacoes_manual_page` e `publicacoes_capitulo_page` (`app/web/pages/router.py`) montam o HTML no servidor a partir de chamadas diretas ao `service`, com paginação via `?offset=`/`?limit=` na URL — todo o resto do projeto (inclusive o card de busca da mesma página `lista.html`) é 100% client-fetch via `apiFetch`. É decisão deliberada do plano (Etapa 2, §"Índice na home"): evita uma chamada HTTP da página a si mesma e preserva URL compartilhável/paginação server-side. Registrado aqui para que não pareça inconsistência acidental a quem ler o código depois. | `app/web/pages/router.py`, `app/web/templates/publicacoes/manual.html`, `capitulo.html` |
+| **`capitulo == ""` na URL usa um sentinela (`_raiz_`)** | Um segmento de path vazio não roteia no FastAPI, então o caso medido do `piloto-fim` (PDFs soltos na raiz do manual) precisa de um valor de URL que não é o `capitulo` real. `CAPITULO_RAIZ_SLUG = "_raiz_"` em `app/web/pages/router.py` faz essa tradução nos dois sentidos. Não é dívida — é a solução —, mas é o tipo de detalhe que confunde quem só olhar a URL sem ler o código. | `app/web/pages/router.py:CAPITULO_RAIZ_SLUG` |
 | **O CI exercita 4 PDFs, não o acervo** | Depois que `docs/fim/` saiu do versionamento, a amostra em `tests/fixtures/fim/` (4 arquivos, 172 KB) é tudo que o pipeline tem de PDF real. É deliberado — versionar mais reinstala o peso que a remoção quis eliminar — mas significa que classes de arquivo ausentes da amostra (PDF sem camada de texto, PDF corrompido, nome acentuado) só são exercitadas por fixture sintético ou localmente, com o acervo montado. Os testes que dependem do acervo real já se auto-pulam (`@sem_acervo` em `test_publicacoes_catalog.py`), então a ausência é visível, não silenciosa. | `tests/fixtures/fim/README.md` |
 | **`fim.json` duplicado no repositório** | Existem duas cópias idênticas rastreadas: `fim.json` na raiz e `docs/fim.json`. A duplicação **é anterior** ao merge do módulo (já estava na `development`) e não foi tocada aqui para não misturar limpeza com integração. `tests/unit/test_publicacoes_catalog.py` lê a da raiz; o resto do módulo lê `docs/fim.json`. Consolidar numa só é trabalho de uma linha, mas muda o caminho lido por teste — vale fazer isolado. | `fim.json`, `docs/fim.json` |
 | ~~**`test_status_aeronave_atualiza_para_indisponivel_ao_abrir_pane` é instável**~~ | **Corrigido.** A primeira análise estimou ~1/256 por execução, contando só as matrículas fixas de `tests/architecture/`; **o número real era ~10%** (2 falhas em 12 execuções, medido). A causa maior estava em `seed.FROTA_PADRAO`: `ensure_default_aeronaves`, chamado por `test_quality_helpers.py`, grava 20 matrículas `59xx` **fora da transação do teste**, então elas persistem pela sessão inteira e ocupam 20 dos 256 valores que `"59" + 2 dígitos hex` pode gerar. Trocado pelo sufixo hex completo nos dois testes afetados; 12 execuções seguidas sem falha. | `tests/unit/test_aeronaves.py` |
@@ -271,18 +268,19 @@ D-04).
 
 ## Próxima tarefa
 
-O módulo está **funcionalmente completo para M0–M3** e o M4 está em 6/8. O pré-requisito
-arquitetural da tarefa 4 — índice por edição — **está construído e testado** (Fase 0 de
-[`09_plano_configuracoes.md`](09_plano_configuracoes.md), adendo no ADR-004). Restam:
+O módulo está **funcionalmente completo para M0–M3**, o M1 fechou a lacuna de navegação que
+carregava desde sua entrega original, e o M4 está em 7/8. O que resta não tem trabalho de código
+pendente sem bloqueador externo:
 
-1. **Etapa 2 de [`09_plano_configuracoes.md`](09_plano_configuracoes.md) — navegação do acervo.**
-   É o próximo trabalho, e o plano está detalhado o suficiente para alguém começar sem contexto
-   prévio: fatos do acervo medidos, contrato das 3 rotas, lista dos 11 testes, armadilhas do
-   harness. Fecha a capacidade que o M1 prometeu e não entregou.
-2. **RSS por worker / disco da VPS** (parte do gate do M4) — só é verificável depois de D-04.
-3. **Verificação visual em navegador** de tudo que foi construído — dívida acumulada desde o M1.
+1. **RSS por worker / disco da VPS** (parte do gate do M4) — só é verificável depois de D-04 (sem
+   VPS não há o que medir).
+2. **Verificação visual em navegador** de tudo que foi construído — dívida acumulada desde o M1,
+   agora também cobrindo os templates novos da Etapa 2 (`manual.html`, `capitulo.html`, os blocos
+   "Navegar no acervo" de desktop e mobile). Ver a tabela de dívidas acima para o roteiro do que
+   olhar em cada tela.
 
-A Etapa 2 não tem bloqueador: é leitura de catálogo sobre colunas que já existem, sem migration.
+Ambos os itens restantes dependem de algo fora do controle desta sessão (VPS real, navegador real)
+— não há mais tarefa de código autocontida e sem bloqueador neste plano.
 
  
 NOTA DO DESENVOLVEDOR: M5 (RAG) continua congelado até D-S3 — nenhuma tarefa deste plano depende dele. [NAO TENTAR IMPLEMENTAR O M5 AGORA, POIS ELE SERA IMPLEMENTADO PELO DESENVOLVEDOR DE IA NA D-S3]

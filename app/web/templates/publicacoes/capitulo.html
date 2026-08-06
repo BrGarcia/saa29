@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block page_title %}{{ capitulo if capitulo else "Raiz" }} — {{ manual.descricao }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 0.75rem; color: var(--text-secondary); font-size: 0.9rem;">
+    <a href="/publicacoes" style="text-decoration: none;">Publicações</a> ›
+    <a href="/publicacoes/manuais/{{ manual.codigo | urlencode }}" style="text-decoration: none;">{{ manual.descricao }}</a> ›
+    {{ capitulo if capitulo else "(raiz do manual)" }}
+</div>
+
+<div class="card" style="margin-bottom: 1rem;">
+    <h2 style="margin: 0 0 0.25rem 0;">{{ capitulo if capitulo else "(raiz do manual)" }}</h2>
+    <div style="color: var(--text-secondary); font-size: 0.9rem;">{{ total }} documento(s)</div>
+</div>
+
+{% if documentos %}
+<div class="card">
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background: rgba(0,0,0,0.1); text-align: left;">
+                <th style="padding: 0.6rem 0.5rem;">Título</th>
+                <th style="padding: 0.6rem 0.5rem;">Páginas</th>
+                <th style="padding: 0.6rem 0.5rem;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for doc in documentos %}
+            <tr style="border-top: 1px solid var(--border-color);">
+                <td style="padding: 0.6rem 0.5rem;">
+                    <a href="{{ doc.viewer_url }}">{{ doc.titulo }}</a>
+                    {% if not doc.has_text %}
+                    <span title="Este PDF não tem camada de texto — não é alcançável pela busca." style="color: var(--status-warning, #e67e22); margin-left: 0.35rem;">⚠</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 0.6rem 0.5rem; color: var(--text-secondary);">{{ doc.paginas or "—" }}</td>
+                <td style="padding: 0.6rem 0.5rem; text-align: right;">
+                    <a href="{{ doc.viewer_url }}" class="btn btn-outline" style="text-decoration: none; padding: 0.25rem 0.6rem; font-size: 0.85rem;">Abrir</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem;">
+    {% if offset > 0 %}
+    <a class="btn btn-outline" style="text-decoration: none;"
+       href="?offset={{ [offset - limit, 0]|max }}&limit={{ limit }}">← Anterior</a>
+    {% else %}
+    <span></span>
+    {% endif %}
+
+    <span style="color: var(--text-secondary); font-size: 0.85rem;">
+        {{ offset + 1 }}–{{ [offset + limit, total]|min }} de {{ total }}
+    </span>
+
+    {% if offset + limit < total %}
+    <a class="btn btn-outline" style="text-decoration: none;"
+       href="?offset={{ offset + limit }}&limit={{ limit }}">Próxima →</a>
+    {% else %}
+    <span></span>
+    {% endif %}
+</div>
+{% else %}
+<div class="card" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+    Nenhum documento neste capítulo.
+</div>
+{% endif %}
+{% endblock %}

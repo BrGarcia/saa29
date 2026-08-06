@@ -27,6 +27,47 @@
 
     if (!contexto) return;
 
+    async function popularFiltroManuais() {
+        // Se o filtro é um <input> livre (versão antiga do mobile), não há o
+        // que popular — este só é um <select> na versão convertida da Etapa 2.
+        if (!filtroManual || filtroManual.tagName !== "SELECT") return;
+        try {
+            const manuais = await apiFetch("/publicacoes/api/manuais");
+            manuais.forEach((m) => {
+                const opcao = document.createElement("option");
+                opcao.value = m.codigo;
+                opcao.textContent = `${m.descricao} (${m.codigo})`;
+                filtroManual.appendChild(opcao);
+            });
+        } catch (e) {
+            // Sem manuais indexados: os selects ficam vazios, a busca livre continua funcionando.
+        }
+    }
+
+    async function popularFiltroCapitulos(codigoManual) {
+        if (!filtroCapitulo || filtroCapitulo.tagName !== "SELECT") return;
+        filtroCapitulo.innerHTML = '<option value="">Todos</option>';
+        if (!codigoManual) {
+            filtroCapitulo.disabled = true;
+            return;
+        }
+        try {
+            const resposta = await apiFetch(
+                `/publicacoes/api/manuais/${encodeURIComponent(codigoManual)}/capitulos`
+            );
+            resposta.capitulos.forEach((c) => {
+                const opcao = document.createElement("option");
+                opcao.value = c.capitulo;
+                const rotulo = c.capitulo || "(raiz do manual)";
+                opcao.textContent = c.ata_codigo ? `ATA ${c.ata_codigo} — ${rotulo}` : rotulo;
+                filtroCapitulo.appendChild(opcao);
+            });
+            filtroCapitulo.disabled = false;
+        } catch (e) {
+            filtroCapitulo.disabled = true;
+        }
+    }
+
     function snippetSeguro(bruto) {
         return escapeHtml(bruto)
             .replaceAll("\x02", "<mark>")
@@ -133,8 +174,12 @@
     inputFim.addEventListener("keydown", (e) => {
         if (e.key === "Enter") resolverFim();
     });
+    if (filtroManual && filtroManual.tagName === "SELECT") {
+        filtroManual.addEventListener("change", () => popularFiltroCapitulos(filtroManual.value));
+    }
 
     verificarStatus();
+    popularFiltroManuais();
 
     // Pré-preenche e dispara a busca quando a página é aberta com `?q=...`
     // — usado pelo link "Buscar no manual" do checklist de inspeção (M3

@@ -6,9 +6,16 @@ Rotas do Frontend (Jinja2 Templates). Servindo o MVP de Interface.
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from app.bootstrap.dependencies import get_current_user, AdminRequired
+from app.bootstrap.dependencies import get_current_user, AdminRequired, DBSession
+from app.modules.publicacoes import service as publicacoes_service
 
 router = APIRouter(tags=["Frontend"])
+
+# Sentinela de URL para `capitulo == ""` (PDFs soltos na raiz do manual, caso
+# medido na edição `piloto-fim`) — um segmento de path vazio não roteia, e
+# nenhum capítulo real do acervo usa este nome (Etapa 2 de
+# docs/backlog/modulo_publicacoes/09_plano_configuracoes.md).
+CAPITULO_RAIZ_SLUG = "_raiz_"
 
 # Diretório base dos templates (raiz do repositório)
 templates = Jinja2Templates(directory="app/web/templates")
@@ -87,9 +94,23 @@ async def calendario_page(request: Request, _=Depends(get_current_user)):
 
 
 @router.get("/publicacoes", response_class=HTMLResponse, include_in_schema=False)
-async def publicacoes_lista_page(request: Request, _=Depends(get_current_user)):
-    """Busca unificada no acervo de manuais e resolução de mensagem do FIM."""
-    return templates.TemplateResponse("publicacoes/lista.html", {"request": request})
+async def publicacoes_lista_page(request: Request, db: DBSession, _=Depends(get_current_user)):
+    """
+    Busca unificada no acervo de manuais e resolução de mensagem do FIM.
+
+    O índice "Navegar no acervo" é renderizado direto do `service`, sem passar
+    por `GET /api/manuais`: a página já tem `db`, e uma chamada HTTP a si
+    mesma seria um salto desnecessário. A API existe para o mobile e para os
+    `<select>` de refino da busca (Etapa 2 de `09_plano_configuracoes.md`).
+    """
+    manuais = await publicacoes_service.listar_manuais_vigentes(db)
+    categorias_manuais: dict[str, list[dict]] = {}
+    for manual in manuais:
+        categorias_manuais.setdefault(manual["categoria"], []).append(manual)
+    return templates.TemplateResponse(
+        "publicacoes/lista.html",
+        {"request": request, "categorias_manuais": categorias_manuais},
+    )
 
 
 @router.get("/publicacoes/viewer/{doc_id}", response_class=HTMLResponse, include_in_schema=False)
@@ -104,6 +125,77 @@ async def publicacoes_viewer_page(request: Request, doc_id: str, _=Depends(get_c
 async def publicacoes_avulsas_page(request: Request, _=Depends(get_current_user)):
     """Lista/filtros/cadastro de BO/BS/NPO/BT (acervo B, M2)."""
     return templates.TemplateResponse("publicacoes/avulsas.html", {"request": request})
+
+
+# Declaradas depois de /publicacoes/avulsas e /publicacoes/viewer/{doc_id}, seguindo
+# a convenção de rotas estáticas antes das paramétricas no mesmo nível
+# (equipamentos/router.py:194-195) — não há colisão real (segmentos literais
+# distintos), mas mantém o padrão do projeto.
+@router.get("/publicacoes/manuais/{codigo}", response_class=HTMLResponse, include_in_schema=False)
+async def publicacoes_manual_page(
+    request: Request, codigo: str, db: DBSession, _=Depends(get_current_user)
+):
+    """Capítulos de um manual da edição vigente (Etapa 2 — lacuna do M1)."""
+    dados = await publicacoes_service.obter_manual_com_capitulos(db, codigo)
+    return templates.TemplateResponse(
+        "publicacoes/manual.html",
+        {
+            "request": request,
+            "manual": dados["manual"],
+            "capitulos": dados["capitulos"],
+            "capitulo_raiz_slug": CAPITULO_RAIZ_SLUG,
+        },
+    )
+
+
+@router.get(
+    "/publicacoes/manuais/{codigo}/{capitulo}",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+async def publicacoes_capitulo_page(
+    request: Request,
+    codigo: str,
+    capitulo: str,
+    db: DBSession,
+    _=Depends(get_current_user),
+    offset: int = 0,
+    limit: int = 50,
+):
+    """
+    Documentos de um capítulo, paginados por query string — `?offset=`/`?limit=`
+    na própria URL, para não perder a propriedade de URL compartilhável.
+    """
+    offset = max(0, offset)
+    limit = max(1, min(limit, 100))
+    capitulo_real = "" if capitulo == CAPITULO_RAIZ_SLUG else capitulo
+
+    manual = await publicacoes_service.obter_cabecalho_manual(db, codigo)
+    total, documentos = await publicacoes_service.listar_documentos_do_manual(
+        db, codigo, capitulo=capitulo_real, limit=limit, offset=offset
+    )
+    return templates.TemplateResponse(
+        "publicacoes/capitulo.html",
+        {
+            "request": request,
+            "manual": manual,
+            "capitulo": capitulo_real,
+            "capitulo_slug": capitulo,
+            "documentos": [
+                {
+                    "id": doc.id,
+                    "titulo": doc.titulo,
+                    "paginas": doc.paginas,
+                    "has_text": doc.has_text,
+                    "viewer_url": f"/publicacoes/viewer/{doc.id}",
+                }
+                for doc in documentos
+            ],
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+        },
+    )
 
 
 @router.get("/configuracoes", response_class=HTMLResponse, include_in_schema=False)

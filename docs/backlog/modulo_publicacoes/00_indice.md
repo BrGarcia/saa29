@@ -9,9 +9,10 @@
    tarefa, com evidência verificável, e as dívidas conhecidas.
 2. **[`03_especificacao_tecnica.md`](03_especificacao_tecnica.md)** — o contrato: modelo de dados,
    rotas, RBAC. Comece pela **§0.1**, que lista o que mudou desde o planejamento original.
-3. **[`09_plano_configuracoes.md`](09_plano_configuracoes.md)** — **o que fazer agora.** Tem o
-   próximo trabalho detalhado a ponto de ser executado sem contexto prévio: dados do acervo
-   medidos, contrato das rotas, lista de testes, e as armadilhas do harness que já custaram tempo.
+3. **[`09_plano_configuracoes.md`](09_plano_configuracoes.md)** — o plano de trabalho da gerência de
+   edições e da navegação do acervo, com as duas etapas concluídas. Fica como referência de contrato
+   e de "o que a execução mudou em relação ao planejado"; o que resta no módulo (RSS/disco da VPS,
+   verificação visual) não é mais trabalho de código descrito aqui — ver o `08`.
 
 Os demais documentos da pasta são registro datado (medições, pareceres, revisões) — úteis para
 entender *por que* algo é como é, desnecessários para trabalhar.
@@ -29,7 +30,7 @@ entender *por que* algo é como é, desnecessários para trabalhar.
 | 6 | [`06_addendum_revisao_5.md`](06_addendum_revisao_5.md) | O que a Revisão 5 muda no parecer, seção por seção | Já leu o parecer e quer só o diff |
 | 7 | [`07_revisao_pre_implementacao.md`](07_revisao_pre_implementacao.md) | **8 bugs antecipados + 2 simplificações + 5 lacunas de convenção**, cada um medido por execução real | Vai implementar — é o documento que evita perder um dia depurando no lugar errado |
 | 8 | [`08_status_de_implementacao.md`](08_status_de_implementacao.md) | **Painel de progresso.** Tarefa a tarefa, com evidência verificável, gates medidos e a próxima tarefa | Quer saber **em que ponto a implementação está** — é o único documento desta pasta que muda com o código |
-| 9 | [`09_plano_configuracoes.md`](09_plano_configuracoes.md) | **Plano de trabalho corrente** — o que fazer agora, em ordem. Etapa 1 (gerência em `/configuracoes`) ✅ concluída; **Etapa 2 (navegação do acervo) ⚪ é a próxima** | **Vai escrever código.** É o único documento com plano executável em aberto |
+| 9 | [`09_plano_configuracoes.md`](09_plano_configuracoes.md) | Plano de trabalho da gerência de edições e da navegação do acervo — Etapa 1 (gerência em `/configuracoes`) ✅ e Etapa 2 (navegação do acervo) ✅, ambas concluídas | Quer o contrato de cada endpoint/página e o registro de "o que a execução mudou em relação ao planejado" |
 | — | [`../../architecture/adr/004-modulo-publicacoes.md`](../../architecture/adr/004-modulo-publicacoes.md) | ADR formal das 4 decisões de arquitetura que sobrevivem a todas as revisões | Quer a decisão registrada no lugar canônico do projeto |
 
 ## Status de cada documento
@@ -45,7 +46,7 @@ entender *por que* algo é como é, desnecessários para trabalhar.
 | `06_addendum_revisao_5.md` | Fechado | **Decisão** — o que mudou na Revisão 5 |
 | `07_revisao_pre_implementacao.md` | Datado — os 8 bugs antecipados foram confirmados e tratados | **Decisão** — rastreio de cada um no `08` |
 | `08_status_de_implementacao.md` | **Vivo** — atualizado a cada tarefa concluída | Rastreamento de progresso |
-| `09_plano_configuracoes.md` | **Vivo** — Fase 0 implementada; Fases 1, 2 e 4 pendentes | **Decisão** — reverte o `os.replace()` previsto em `search.py` por resolução do índice pelo banco (adendo no ADR-004) |
+| `09_plano_configuracoes.md` | **Vivo, mas sem trabalho de código pendente** — Etapas 1 e 2 concluídas | **Decisão** — reverte o `os.replace()` previsto em `search.py` por resolução do índice pelo banco (adendo no ADR-004); registra as 3 rotas de navegação que a §3 do contrato especificava e nunca tinham virado tarefa |
 | `004-modulo-publicacoes.md` (ADR) | Aceito, com adendo de 06/08 sobre o índice por edição | **Decisão formal** |
 
 > Atenção à assimetria: a tabela acima é o status **dos documentos**, não o da implementação. Quem

@@ -253,6 +253,80 @@ async def obter_documento_viewer(
     )
 
 
+# ==========================================================================
+# Navegação do catálogo (Etapa 2 de 09_plano_configuracoes.md — lacuna do M1)
+# ==========================================================================
+#
+# `/publicacoes` era só busca: sem digitar um termo, ou sem já saber o código
+# do manual, o acervo de 34 manuais / 5.724 documentos não tinha por onde ser
+# descoberto. Estas três rotas — sempre `CurrentUser`, a matriz RBAC §7
+# libera "navegar catálogo" para os quatro perfis — alimentam as páginas de
+# navegação (`pages/router.py`) e os `<select>` de refino da busca.
+
+
+@router.get(
+    "/api/manuais",
+    response_model=list[schemas.ManualListItem],
+    summary="Manuais da edição vigente, para o índice do acervo",
+)
+async def listar_manuais(db: DBSession, _: CurrentUser) -> list[schemas.ManualListItem]:
+    """Sem paginação — 34 manuais cabem numa resposta só; o agrupamento por categoria é do cliente."""
+    linhas = await service.listar_manuais_vigentes(db)
+    return [schemas.ManualListItem(**linha) for linha in linhas]  # type: ignore[arg-type]
+
+
+@router.get(
+    "/api/manuais/{codigo}/capitulos",
+    response_model=schemas.RespostaCapitulos,
+    summary="Capítulos de um manual da edição vigente",
+)
+async def listar_capitulos_do_manual(
+    codigo: str, db: DBSession, _: CurrentUser
+) -> schemas.RespostaCapitulos:
+    dados = await service.obter_manual_com_capitulos(db, codigo)
+    return schemas.RespostaCapitulos(
+        manual=schemas.ManualResumo(**dados["manual"]),  # type: ignore[arg-type]
+        capitulos=[schemas.CapituloItem(**c) for c in dados["capitulos"]],  # type: ignore[arg-type]
+    )
+
+
+@router.get(
+    "/api/manuais/{codigo}/documentos",
+    response_model=schemas.RespostaDocumentosCatalogo,
+    summary="Documentos de um manual da edição vigente (opcionalmente por capítulo)",
+)
+async def listar_documentos_do_manual(
+    codigo: str,
+    db: DBSession,
+    _: CurrentUser,
+    capitulo: str | None = Query(default=None, max_length=80),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+) -> schemas.RespostaDocumentosCatalogo:
+    """
+    `viewer_url` sem `#page` — a navegação abre o documento no começo; quem
+    quer a página do trecho vem pela busca, que já monta a âncora.
+    """
+    total, documentos = await service.listar_documentos_do_manual(
+        db, codigo, capitulo=capitulo, limit=limit, offset=offset
+    )
+    return schemas.RespostaDocumentosCatalogo(
+        total=total,
+        results=[
+            schemas.DocumentoCatalogoItem(
+                doc_id=doc.id,
+                titulo=doc.titulo,
+                capitulo=doc.capitulo,
+                ata_codigo=doc.ata_codigo,
+                paginas=doc.paginas,
+                has_text=doc.has_text,
+                viewer_url=_viewer_url(doc.id),
+            )
+            for doc in documentos
+        ],
+    )
+
+
 @router.get(
     "/doc/{doc_id}/pdf",
     summary="Entrega o PDF de um documento do acervo",

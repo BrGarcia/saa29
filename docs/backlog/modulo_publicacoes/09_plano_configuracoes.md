@@ -18,9 +18,11 @@
 > | Etapa | Assunto | Situação |
 > |---|---|:--|
 > | 1 | Gerência de publicações em `/configuracoes` (M4 tarefa 4) | ✅ Fases 0, 1 e 2 implementadas |
-> | 2 | **Navegação do acervo** (lacuna do M1) | ⚪ **Próxima — é aqui que você começa** |
+> | 2 | **Navegação do acervo** (lacuna do M1) | ✅ Fases N1, N2 e N3 implementadas — falta só a verificação visual em navegador (ninguém nesta sessão teve acesso a um) |
 >
-> Cada etapa é independente: a 2 não depende de nada da 1.
+> Cada etapa é independente: a 2 não depende de nada da 1. Com as duas concluídas, não sobra tarefa
+> de código autocontida neste plano — o que resta (RSS/disco da VPS, verificação visual) depende de
+> algo fora do controle de quem só tem o repositório: uma VPS real (D-04) ou um navegador real.
 
 ---
 
@@ -427,9 +429,14 @@ de CSP.
 ---
 ---
 
-# Etapa 2 — Navegação do acervo (lacuna do M1) ⚪ PRÓXIMA
+# Etapa 2 — Navegação do acervo (lacuna do M1) ✅ IMPLEMENTADA
 
-> **Se você acabou de chegar ao módulo, é aqui que se começa.** Nada nesta etapa depende da Etapa 1.
+> **Estado:** concluída — Fases N1, N2 e N3. 19 testes em `tests/unit/test_publicacoes_navegacao.py`,
+> suíte completa em 641 passando (rodada duas vezes seguidas), `ruff check .` limpo. O que segue
+> descreve o que foi planejado; as divergências em relação à execução real estão anotadas no fim de
+> cada fase, no mesmo formato da Etapa 1.
+>
+> Nada nesta etapa dependeu da Etapa 1.
 
 ## 2.1 O problema, e como ele passou despercebido
 
@@ -535,7 +542,11 @@ SQLAlchemy, `service.py`. `search.py` não é alterado nesta etapa.
 
 ---
 
-## Fase N1 — Endpoints de catálogo
+## Fase N1 — Endpoints de catálogo ✅ **IMPLEMENTADA**
+
+> **Estado:** concluída. 13 testes em `tests/unit/test_publicacoes_navegacao.py` (2 a mais que os 11
+> especificados — ver divergências abaixo). Schemas em `schemas.py`, funções de serviço em
+> `service.py`, três rotas em `router.py`.
 
 Três rotas novas em `app/modules/publicacoes/router.py`, sob o prefixo `/publicacoes/api/`, todas
 com `CurrentUser` (qualquer perfil autenticado — a matriz RBAC §7 libera para os quatro).
@@ -649,11 +660,33 @@ só onde há ORM direto; nas agregações, montar o schema explicitamente a part
 - Use sufixo único em qualquer campo com `UNIQUE` (`uuid.uuid4().hex[:6]`). Já houve colisão de
   matrícula custando ~10% de falha intermitente.
 
+### O que a execução mudou em relação ao planejado
+
+- **`revisao` vem de `manuais.revisao`, não de `manuais_documentos`.** O plano descrevia o campo como
+  "`manuais_documentos.revisao` do manual, quando houver", mas `ManualDocumento` não tem coluna
+  `revisao` (tem `revision_status`, um enum diferente — estado de revisão do documento, não a
+  revisão do manual). `Manual.revisao` é o campo certo e já existia desde o M1; provavelmente um
+  lapso de digitação no plano original.
+- **Dois testes a mais que os 11 especificados:** `test_documento_sem_texto_e_sinalizado` (afirma
+  que `has_text=false` chega na resposta — o plano menciona a exigência no corpo do texto mas não
+  listava um teste dedicado) e `test_documentos_de_manual_inexistente_retorna_404` (o 404 do endpoint
+  de documentos, paralelo ao de capítulos).
+- **`_manual_da_edicao_vigente` como helper privado compartilhado.** Tanto `obter_manual_com_capitulos`
+  quanto `listar_documentos_do_manual` (e, na Fase N2, `obter_cabecalho_manual`) precisam resolver
+  "o manual `codigo` na edição vigente, ou 404" — extraído para não repetir a mesma consulta e a
+  mesma condição de erro três vezes.
+- **Nenhuma divergência nos contratos JSON** — os três endpoints saíram exatamente como
+  especificado (campos, ordenação, paginação).
+
 **Commit:** `feat(publicacoes): endpoints de navegacao do catalogo`
 
 ---
 
-## Fase N2 — Páginas de navegação (desktop)
+## Fase N2 — Páginas de navegação (desktop) ✅ **IMPLEMENTADA**
+
+> **Estado:** concluída. `manual.html` e `capitulo.html` novos; bloco "Navegar no acervo" e os dois
+> `<select>` de refino em `lista.html`; `publicacoes.js` ganhou as funções que populam os selects.
+> 6 testes novos em `tests/unit/test_publicacoes_navegacao.py`. Divergências no fim da fase.
 
 ### Forma: páginas com URL real, como a §3 especificou
 
@@ -744,11 +777,38 @@ etapa: hoje os campos exigem conhecimento que a interface não fornece.
 `test_pagina_manual_inexistente_retorna_404`, `test_home_lista_os_manuais_por_categoria`,
 e um que afirme que o link do documento aponta para `/publicacoes/viewer/{id}`.
 
+### O que a execução mudou em relação ao planejado
+
+- **`capitulo == ""` precisou de um sentinela de URL.** O plano descreve o caso (exibir "(raiz do
+  manual)") mas não menciona que um segmento de path vazio simplesmente não roteia no FastAPI — a
+  URL `/publicacoes/manuais/FIM_1741/` não bate com `/publicacoes/manuais/{codigo}/{capitulo}`.
+  Resolvido com `CAPITULO_RAIZ_SLUG = "_raiz_"` em `pages/router.py`: o link gerado em `manual.html`
+  usa o sentinela quando `capitulo` é vazio, e a rota da página de documentos traduz de volta antes
+  de consultar o `service`. Nenhum capítulo real do acervo usa esse nome.
+- **`manual.html`/`capitulo.html` renderizam server-side, único caso do módulo.** O plano já
+  justificava isso para o índice da home ("não passe por `GET /api/manuais`, chame o `service`
+  direto"); a mesma lógica foi aplicada às duas páginas novas — inclusive a paginação de documentos,
+  que é `?offset=`/`?limit=` na URL com links "anterior/próxima" gerados no template, não
+  JavaScript. É a única parte do frontend do projeto que não é 100% client-fetch; registrado como
+  dívida informativa (não bloqueadora) no `08`, para não parecer inconsistência acidental.
+- **`obter_cabecalho_manual` como função nova no `service`.** Não estava no plano original: a página
+  de documentos precisa do cabeçalho do manual (para o breadcrumb) *além* da lista paginada que
+  `listar_documentos_do_manual` devolve, e reusar `_manual_da_edicao_vigente` (que já existia da
+  Fase N1) foi mais simples que fazer `listar_documentos_do_manual` devolver um tipo composto.
+- **Testes de página cobrem também o sentinela de raiz e o link para o viewer**, não só os quatro
+  cenários que o plano listava por nome — a lista de 5 "testes a acrescentar" do plano virou 6.
+
 **Commit:** `feat(publicacoes): paginas de navegacao do acervo`
 
 ---
 
-## Fase N3 — Navegação no mobile (`/m/publicacoes`)
+## Fase N3 — Navegação no mobile (`/m/publicacoes`) ✅ **IMPLEMENTADA**
+
+> **Estado:** concluída. `mobile_publicacoes_page` (`mobile_router.py`) ganhou `db` e monta o mesmo
+> agrupamento por categoria da home desktop; `mobile/publicacoes.html` ganhou o bloco "Navegar no
+> acervo" (links para as mesmas rotas `/publicacoes/manuais/...` do desktop, sem rota mobile própria)
+> e os filtros de busca "Manual"/"Capítulo" viraram `<select>`, como no desktop. 1 teste novo.
+> Divergência no fim da fase.
 
 `app/web/templates/mobile/publicacoes.html` tem exatamente o mesmo problema. A forma muda:
 
@@ -760,6 +820,26 @@ e um que afirme que o link do documento aponta para `/publicacoes/viewer/{id}`.
 
 Decidir na hora de escrever se vale extrair o JS comum com o desktop. **Não extrair antes de haver
 duplicação real** — as duas telas podem divergir de forma legítima.
+
+### O que a execução mudou em relação ao planejado
+
+- **Sem telas mobile dedicadas para capítulos/documentos.** O plano já deixava isso em aberto
+  ("decidir na hora se os templates do desktop já servem no mobile") — a decisão tomada foi que
+  servem: tocar num manual no mobile leva para `/publicacoes/manuais/{codigo}` (a página desktop,
+  renderizada por `base.html`), não para uma tela dentro do shell `base_mobile.html`. Evita duas
+  telas a manter sincronizadas, ao custo de perder o menu-sanduíche e o header do PWA ao navegar
+  além do primeiro nível — aceitável porque o conteúdo (tabelas de capítulo/documento) é utilizável
+  em qualquer largura de tela, e é o mesmo trade-off que o link de "Modo Desktop" já oferece no
+  drawer mobile.
+- **JS de popular `<select>` ficou defensivo por `tagName`, não por página.** `publicacoes.js` é
+  compartilhado entre `lista.html` (desktop) e `mobile/publicacoes.html`; em vez de duplicar a
+  lógica ou detectar a página, `popularFiltroManuais`/`popularFiltroCapitulos` checam
+  `elemento.tagName === "SELECT"` antes de agir — o mesmo arquivo funciona nas duas telas sem
+  branch por rota.
+- **Um teste, não um conjunto próprio.** O plano não detalhava quantos testes a fase precisava;
+  `test_mobile_publicacoes_lista_o_acervo_por_categoria` cobre o modo de falha que importa (o
+  agrupamento por categoria chega até o HTML do mobile) — o resto do comportamento (rotas, 404,
+  paginação) já está coberto pelos testes de N1/N2, que o mobile reusa sem endpoint novo.
 
 **Commit:** `feat(publicacoes): navegacao do acervo no mobile`
 
@@ -781,13 +861,15 @@ duplicação real** — as duas telas podem divergir de forma legítima.
 
 | # | Entrega | Commit |
 |---|---|---|
-| 1 | Fase N1 — 3 endpoints + schemas + 11 testes | `feat(publicacoes): endpoints de navegacao do catalogo` |
-| 2 | Fase N2 — 2 páginas HTML + índice na home + selects de refino | `feat(publicacoes): paginas de navegacao do acervo` |
-| 3 | Fase N3 — navegador mobile | `feat(publicacoes): navegacao do acervo no mobile` |
-| 4 | Fase N4 — documentação | junto do commit 3 |
+| 1 | ✅ Fase N1 — 3 endpoints + schemas + 13 testes | `feat(publicacoes): endpoints de navegacao do catalogo` |
+| 2 | ✅ Fase N2 — 2 páginas HTML + índice na home + selects de refino | `feat(publicacoes): paginas de navegacao do acervo` |
+| 3 | ✅ Fase N3 — navegador mobile | `feat(publicacoes): navegacao do acervo no mobile` |
+| 4 | ✅ Fase N4 — documentação | junto do commit 3 |
 
 Rode a suíte **duas vezes** antes de cada commit. Uma execução verde não prova ausência de teste
-instável — foi assim que a Fase 1 desta pasta deixou passar uma falha de ~1/3.
+instável — foi assim que a Fase 1 desta pasta deixou passar uma falha de ~1/3. Nesta etapa, os 19
+testes de `test_publicacoes_navegacao.py` e a suíte completa (641 testes) rodaram duas vezes seguidas
+sem falha.
 
 ## O que a Etapa 2 deliberadamente não faz
 
@@ -803,6 +885,7 @@ instável — foi assim que a Fase 1 desta pasta deixou passar uma falha de ~1/3
 ## Verificação que só um humano pode fazer
 
 Depois de N2/N3, alguém precisa abrir num navegador real e conferir: a árvore com `Ordens Técnicas`
-recolhido, um manual grande (`AMM_PART2_1651`, 51 capítulos) sem travar a página, o "carregar mais"
-dentro de um capítulo, os `<select>` de refino populados, e a tela mobile com alvos de toque
-confortáveis. Nada disso é afirmável por teste de fumaça.
+recolhido, um manual grande (`AMM_PART2_1651`, 51 capítulos) sem travar a página, a paginação
+"anterior/próxima" dentro de um capítulo (server-side, por `?offset=`/`?limit=` — não é "carregar
+mais" em JS), os `<select>` de refino populados, e a tela mobile com alvos de toque confortáveis.
+Nada disso é afirmável por teste de fumaça.

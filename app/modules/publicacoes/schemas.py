@@ -172,6 +172,63 @@ class DocumentoOut(BaseModel):
 
 
 # --------------------------------------------------------------------------
+# Navegação do catálogo (Etapa 2 de 09_plano_configuracoes.md — lacuna do M1)
+#
+# Sempre escopado pela edição VIGENTE (`service.obter_edicao_vigente`) — não
+# existe aqui nenhuma forma de listar o acervo de uma edição arquivada ou
+# anterior; isso continua sendo só pelo link direto (banner "REVISÃO
+# ANTERIOR" do viewer).
+# --------------------------------------------------------------------------
+
+
+class ManualListItem(BaseModel):
+    """Uma linha de `GET /api/manuais` — o índice da home, agrupado por categoria no cliente."""
+
+    codigo: str
+    descricao: str
+    categoria: str
+    capitulos: int
+    documentos: int
+    revisao: str | None
+
+
+class ManualResumo(BaseModel):
+    """Cabeçalho do manual dentro de `RespostaCapitulos` — não é `ManualRef` (schema da busca)."""
+
+    codigo: str
+    descricao: str
+    categoria: str
+
+
+class CapituloItem(BaseModel):
+    capitulo: str
+    ata_codigo: str | None
+    """`max(ata_codigo)` do grupo — `None` quando nenhum documento do capítulo tem ATA (31% do acervo)."""
+    documentos: int
+
+
+class RespostaCapitulos(BaseModel):
+    manual: ManualResumo
+    capitulos: list[CapituloItem]
+
+
+class DocumentoCatalogoItem(BaseModel):
+    doc_id: uuid.UUID
+    titulo: str
+    capitulo: str
+    ata_codigo: str | None
+    paginas: int | None
+    has_text: bool
+    """`False` é um PDF que a busca full-text não alcança (E-01) — a UI precisa avisar."""
+    viewer_url: str
+
+
+class RespostaDocumentosCatalogo(BaseModel):
+    total: int
+    results: list[DocumentoCatalogoItem]
+
+
+# --------------------------------------------------------------------------
 # Publicações avulsas (acervo B, M2)
 # --------------------------------------------------------------------------
 

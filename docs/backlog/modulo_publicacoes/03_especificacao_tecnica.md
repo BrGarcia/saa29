@@ -24,7 +24,7 @@ lista existe para que quem já conhecia o documento saiba **o que mudou** sem re
 | Um `catalog.db` único em `PUBLICACOES_INDEX_PATH`, trocado por `os.replace()` na ativação de edição | **Um índice por edição** (`catalog.<rotulo>.db`), e a edição `VIGENTE` no banco decide qual a busca abre. Ativar é um `UPDATE`, não uma troca de arquivo | §2.4, §7 |
 | `search.buscar` lê `get_settings().publicacoes_index_path` direto | `search.buscar` recebe um `Path` de quem chama; o router resolve por `service.caminho_indice_vigente(db)` | §2.4 |
 | `POST /publicacoes/api/edicoes/{id}/reverter` como rota própria | **Não existe, por decisão.** Reverter é ativar a edição `ANTERIOR`, pelo mesmo `POST .../ativar` — um caminho de código, um conjunto de testes, e nenhuma dúvida sobre o que "reverter" faz quando há mais de uma edição anterior retida. A UI é que rotula o botão como "Reverter" | §3 |
-| `GET /publicacoes/manuais/{manual_path}` e `.../{capitulo}` | **Ainda não existem.** Especificadas em §3 desde o começo, nunca viraram tarefa de marco nenhum — ver a Etapa 2 de [`09_plano_configuracoes.md`](../backlog/modulo_publicacoes/09_plano_configuracoes.md). Quando forem implementadas, o parâmetro será `{codigo}` (`manuais.codigo`), não `{manual_path}`: o `path` é caminho de disco e não pertence a uma URL | §3 |
+| `GET /publicacoes/manuais/{manual_path}` e `.../{capitulo}` | **Implementadas** (Etapa 2 de [`09_plano_configuracoes.md`](../backlog/modulo_publicacoes/09_plano_configuracoes.md)). O parâmetro é `{codigo}` (`manuais.codigo`), não `{manual_path}` como a spec original chamava: o `path` é caminho de disco e não pertence a uma URL. `capitulo == ""` (a raiz do manual, caso do `piloto-fim`) usa o sentinela de URL `_raiz_`, porque um segmento de path vazio não roteia | §3 |
 
 A segunda e a quarta linhas são **reversões de decisão**; a segunda está registrada no adendo do
 [ADR-004](../../architecture/adr/004-modulo-publicacoes.md). A primeira e a terceira são
@@ -533,12 +533,12 @@ Todo endpoint JSON vive sob `/publicacoes/api/...` — **um único sub-prefixo**
 
 | Rota | Tipo | RBAC | Situação | Observação |
 |---|---|---|:--:|---|
-| `GET /publicacoes` | HTML | `CurrentUser` | ✅ | home: busca unificada nos dois acervos |
-| `GET /publicacoes/manuais/{codigo}` | HTML | `CurrentUser` | ⚪ | capítulos — Etapa 2 do `09` |
-| `GET /publicacoes/manuais/{codigo}/{capitulo}` | HTML | `CurrentUser` | ⚪ | documentos — Etapa 2 do `09` |
-| `GET /publicacoes/api/manuais` | JSON | `CurrentUser` | ⚪ | catálogo de manuais — Etapa 2 do `09` |
-| `GET /publicacoes/api/manuais/{codigo}/capitulos` | JSON | `CurrentUser` | ⚪ | Etapa 2 do `09` |
-| `GET /publicacoes/api/manuais/{codigo}/documentos` | JSON | `CurrentUser` | ⚪ | paginado — Etapa 2 do `09` |
+| `GET /publicacoes` | HTML | `CurrentUser` | ✅ | home: busca unificada + índice "Navegar no acervo" por categoria (Etapa 2) |
+| `GET /publicacoes/manuais/{codigo}` | HTML | `CurrentUser` | ✅ | capítulos — Etapa 2 do `09`, renderizada direto do `service` |
+| `GET /publicacoes/manuais/{codigo}/{capitulo}` | HTML | `CurrentUser` | ✅ | documentos, paginados por `?offset=`/`?limit=` — Etapa 2 do `09`. `capitulo == ""` (raiz) usa o sentinela de URL `_raiz_` (`CAPITULO_RAIZ_SLUG`), já que um segmento de path vazio não roteia |
+| `GET /publicacoes/api/manuais` | JSON | `CurrentUser` | ✅ | catálogo de manuais da edição vigente — Etapa 2 do `09` |
+| `GET /publicacoes/api/manuais/{codigo}/capitulos` | JSON | `CurrentUser` | ✅ | Etapa 2 do `09` |
+| `GET /publicacoes/api/manuais/{codigo}/documentos` | JSON | `CurrentUser` | ✅ | paginado, filtro opcional por `capitulo` — Etapa 2 do `09` |
 | `GET /publicacoes/viewer/{doc_id}` | HTML | `CurrentUser` | ✅ | PDF.js; âncora `#page=N` |
 | `GET /publicacoes/avulsas` | HTML | `CurrentUser` | ✅ | lista + filtros |
 | `GET /m/publicacoes` | HTML | `CurrentUser` | ✅ | atalho mobile (`mobile_router.py`) |

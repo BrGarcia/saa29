@@ -10,12 +10,39 @@
     <p class="mobile-section-sub">Busca no acervo de manuais e resolução de mensagem do FIM.</p>
 
     <div class="card" style="margin-bottom: 0.75rem;">
+        <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Navegar no acervo</label>
+        {% for categoria, manuais in categorias_manuais.items() %}
+        <details {% if categoria != "Ordens Técnicas" %}open{% endif %} style="margin-bottom: 0.5rem;">
+            <summary style="cursor: pointer; font-weight: 600; padding: 0.5rem 0; min-height: 44px; display: flex; align-items: center;">{{ categoria }} ({{ manuais|length }})</summary>
+            <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                {% for manual in manuais %}
+                <a href="/publicacoes/manuais/{{ manual.codigo | urlencode }}"
+                   style="display:flex; flex-direction: column; justify-content:center; min-height: 44px; padding: 0.5rem 0.6rem;
+                          border: 1px solid var(--border-color); border-radius: var(--radius-md);
+                          text-decoration: none; color: inherit;">
+                    <span>{{ manual.descricao }}</span>
+                    <span style="color: var(--text-secondary); font-size: 0.8rem;">{{ manual.codigo }} · {{ manual.documentos }} doc(s)</span>
+                </a>
+                {% endfor %}
+            </div>
+        </details>
+        {% endfor %}
+        {% if not categorias_manuais %}
+        <div style="color: var(--text-secondary);">Acervo ainda não indexado nesta instância.</div>
+        {% endif %}
+    </div>
+
+    <div class="card" style="margin-bottom: 0.75rem;">
         <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Buscar</label>
         <input type="text" id="pub-busca-input" class="form-input" placeholder="Ex: sangria do compressor">
-        <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
-            <input type="text" id="pub-filtro-manual" class="form-input" placeholder="Manual (opcional)">
-            <input type="text" id="pub-filtro-capitulo" class="form-input" placeholder="Capítulo (opcional)" style="display:none;">
-            <input type="text" id="pub-filtro-ata" class="form-input" placeholder="ATA" style="max-width: 90px;">
+        <div style="display:flex; flex-direction: column; gap:0.5rem; margin-top:0.5rem;">
+            <select id="pub-filtro-manual" class="form-input">
+                <option value="">Todos os manuais</option>
+            </select>
+            <select id="pub-filtro-capitulo" class="form-input" disabled>
+                <option value="">Todos os capítulos</option>
+            </select>
+            <input type="text" id="pub-filtro-ata" class="form-input" placeholder="ATA (opcional)">
         </div>
         <button type="button" class="btn btn-primary" id="pub-busca-btn" style="width:100%; margin-top:0.5rem;">Buscar</button>
     </div>
