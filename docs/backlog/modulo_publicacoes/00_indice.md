@@ -3,6 +3,19 @@
 > Mapa de leitura desta pasta. `docs/backlog/manuais/` permanece **apenas como referência** do
 > projeto externo que originou a ideia — não editar aquela pasta; toda decisão vigente mora aqui.
 
+## Chegou agora? Três documentos bastam
+
+1. **[`08_status_de_implementacao.md`](08_status_de_implementacao.md)** — o que já existe, tarefa a
+   tarefa, com evidência verificável, e as dívidas conhecidas.
+2. **[`03_especificacao_tecnica.md`](03_especificacao_tecnica.md)** — o contrato: modelo de dados,
+   rotas, RBAC. Comece pela **§0.1**, que lista o que mudou desde o planejamento original.
+3. **[`09_plano_configuracoes.md`](09_plano_configuracoes.md)** — **o que fazer agora.** Tem o
+   próximo trabalho detalhado a ponto de ser executado sem contexto prévio: dados do acervo
+   medidos, contrato das rotas, lista de testes, e as armadilhas do harness que já custaram tempo.
+
+Os demais documentos da pasta são registro datado (medições, pareceres, revisões) — úteis para
+entender *por que* algo é como é, desnecessários para trabalhar.
+
 ## Ordem de leitura recomendada
 
 | # | Documento | O que é | Leia se... |
@@ -16,7 +29,7 @@
 | 6 | [`06_addendum_revisao_5.md`](06_addendum_revisao_5.md) | O que a Revisão 5 muda no parecer, seção por seção | Já leu o parecer e quer só o diff |
 | 7 | [`07_revisao_pre_implementacao.md`](07_revisao_pre_implementacao.md) | **8 bugs antecipados + 2 simplificações + 5 lacunas de convenção**, cada um medido por execução real | Vai implementar — é o documento que evita perder um dia depurando no lugar errado |
 | 8 | [`08_status_de_implementacao.md`](08_status_de_implementacao.md) | **Painel de progresso.** Tarefa a tarefa, com evidência verificável, gates medidos e a próxima tarefa | Quer saber **em que ponto a implementação está** — é o único documento desta pasta que muda com o código |
-| 9 | [`09_plano_configuracoes.md`](09_plano_configuracoes.md) | **Plano da M4 tarefa 4**: `catalog.db` por edição (pré-requisito) + card de gerência de publicações em `/configuracoes` | Vai destravar a única tarefa do M4 que ficou em aberto por lacuna arquitetural |
+| 9 | [`09_plano_configuracoes.md`](09_plano_configuracoes.md) | **Plano de trabalho corrente** — o que fazer agora, em ordem. Etapa 1 (gerência em `/configuracoes`) ✅ concluída; **Etapa 2 (navegação do acervo) ⚪ é a próxima** | **Vai escrever código.** É o único documento com plano executável em aberto |
 | — | [`../../architecture/adr/004-modulo-publicacoes.md`](../../architecture/adr/004-modulo-publicacoes.md) | ADR formal das 4 decisões de arquitetura que sobrevivem a todas as revisões | Quer a decisão registrada no lugar canônico do projeto |
 
 ## Status de cada documento

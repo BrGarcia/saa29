@@ -49,6 +49,8 @@ railway_local_variables.txt
 *.tar
 var/logs/
 var/db
+# WAL/SHM do SQLite — criados enquanto a aplicação roda; `var/db` sozinho não os pega.
+var/db-*
 var/uploads/
 var/tmp/
 

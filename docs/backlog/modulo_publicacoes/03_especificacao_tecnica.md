@@ -23,10 +23,24 @@ lista existe para que quem já conhecia o documento saiba **o que mudou** sem re
 | Piloto do M1 sobre `docs/fim/`, 411 PDFs versionados no repositório | `docs/fim/` **não existe mais** — os PDFs saíram do versionamento (`chore(docs): remove o acervo de PDFs do FIM`). O conteúdo vive em `var/publicacoes/acervo/Manuais/FIM_1741/`; o repositório guarda só uma amostra de 4 arquivos em `tests/fixtures/fim/`, para o CI, e o mapa `docs/fim.json` | §1, §7 |
 | Um `catalog.db` único em `PUBLICACOES_INDEX_PATH`, trocado por `os.replace()` na ativação de edição | **Um índice por edição** (`catalog.<rotulo>.db`), e a edição `VIGENTE` no banco decide qual a busca abre. Ativar é um `UPDATE`, não uma troca de arquivo | §2.4, §7 |
 | `search.buscar` lê `get_settings().publicacoes_index_path` direto | `search.buscar` recebe um `Path` de quem chama; o router resolve por `service.caminho_indice_vigente(db)` | §2.4 |
+| `POST /publicacoes/api/edicoes/{id}/reverter` como rota própria | **Não existe, por decisão.** Reverter é ativar a edição `ANTERIOR`, pelo mesmo `POST .../ativar` — um caminho de código, um conjunto de testes, e nenhuma dúvida sobre o que "reverter" faz quando há mais de uma edição anterior retida. A UI é que rotula o botão como "Reverter" | §3 |
+| `GET /publicacoes/manuais/{manual_path}` e `.../{capitulo}` | **Ainda não existem.** Especificadas em §3 desde o começo, nunca viraram tarefa de marco nenhum — ver a Etapa 2 de [`09_plano_configuracoes.md`](../backlog/modulo_publicacoes/09_plano_configuracoes.md). Quando forem implementadas, o parâmetro será `{codigo}` (`manuais.codigo`), não `{manual_path}`: o `path` é caminho de disco e não pertence a uma URL | §3 |
 
-A segunda linha é uma **reversão de decisão**, registrada no adendo do
-[ADR-004](../../architecture/adr/004-modulo-publicacoes.md) com o motivo. As outras duas são
+A segunda e a quarta linhas são **reversões de decisão**; a segunda está registrada no adendo do
+[ADR-004](../../architecture/adr/004-modulo-publicacoes.md). A primeira e a terceira são
 consequência de uma decisão externa ao módulo (tirar o acervo do git) e da própria segunda.
+
+> **Auditoria de rotas — faça no fecho de cada marco.** A §3 abaixo é o contrato, mas nenhum gate a
+> confere: os gates olham a lista de tarefas. Foi assim que duas rotas especificadas ficaram quatro
+> marcos sem existir. Compare a §3 com a realidade:
+>
+> ```bash
+> python -c "
+> import app.bootstrap.main as m
+> for r in sorted({(r.path, ','.join(sorted(r.methods-{'HEAD','OPTIONS'}))) for r in m.app.routes if getattr(r,'methods',None) and r.path.startswith(('/publicacoes','/m/publicacoes'))}):
+>     print(r)
+> "
+> ```
 
 ---
 
@@ -44,8 +58,11 @@ app/modules/publicacoes/
 └── router.py                    # APIRouter() sem prefix/tags — main.py define
 
 app/web/templates/publicacoes/
-├── lista.html            # home do módulo: busca unificada nos dois acervos
-├── manual.html            # capítulos → documentos de um manual
+├── lista.html            # home do módulo: busca unificada + índice dos manuais
+├── manual.html            # ⚪ capítulos de um manual — Etapa 2 do 09
+├── capitulo.html           # ⚪ documentos de um capítulo — Etapa 2 do 09
+│                            #   (a spec original previa um manual.html só para os
+│                            #    dois níveis; são duas rotas, então são dois templates)
 ├── avulsas.html             # lista/filtros de BO/BS/NPO/BT
 └── viewer.html               # PDF.js, canvas, âncora #page=N
 
@@ -511,27 +528,33 @@ Todo endpoint JSON vive sob `/publicacoes/api/...` — **um único sub-prefixo**
 `API_PREFIXES` registre `"/publicacoes/api/"` sem capturar as páginas HTML
 (`01_achados_do_acervo.md` §7.5).
 
-| Rota | Tipo | RBAC | Observação |
-|---|---|---|---|
-| `GET /publicacoes` | HTML | `CurrentUser` | home: busca unificada nos dois acervos |
-| `GET /publicacoes/manuais/{manual_path}` | HTML | `CurrentUser` | capítulos |
-| `GET /publicacoes/manuais/{manual_path}/{capitulo}` | HTML | `CurrentUser` | documentos |
-| `GET /publicacoes/viewer/{doc_id}` | HTML | `CurrentUser` | PDF.js; âncora `#page=N` |
-| `GET /publicacoes/avulsas` | HTML | `CurrentUser` | lista + filtros |
-| `GET /m/publicacoes` | HTML | `CurrentUser` | atalho mobile (`mobile_router.py`) |
-| `GET /publicacoes/api/busca` | JSON | `CurrentUser` | contrato preservado da `Especificacao.MD` §4 |
-| `GET /publicacoes/api/fim` | JSON | `CurrentUser` | busca por mensagem de falha (`fim.json`) |
-| `GET /publicacoes/api/status` | JSON | `CurrentUser` | versão do índice, contagens, `documentos_sem_texto` |
-| `GET /publicacoes/api/avulsas` | JSON | `CurrentUser` | busca nos metadados |
-| `POST /publicacoes/api/avulsas` | JSON | `EncarregadoInspetorOuAdmin` | cadastro |
-| `PATCH /publicacoes/api/avulsas/{id}` | JSON | `EncarregadoInspetorOuAdmin` | correção / vigência |
-| `DELETE /publicacoes/api/avulsas/{id}` | JSON | `AdminRequired` | soft delete |
-| `POST /publicacoes/api/avulsas/{id}/anexos` | multipart | `EncarregadoInspetorOuAdmin` | limite próprio (§5) |
-| `GET /publicacoes/api/edicoes` | JSON | `AdminRequired` | M4 — edições, status, diff |
-| `POST /publicacoes/api/edicoes/{id}/ativar` | JSON | `AdminRequired` | M4 — troca de ponteiro |
-| `POST /publicacoes/api/edicoes/{id}/reverter` | JSON | `AdminRequired` | M4 |
-| `GET /publicacoes/doc/{doc_id}/pdf` | binário | `CurrentUser` | `FileResponse` com Range, `asyncio.to_thread` para o `stat()` (padrão de `panes/router.py:395`) |
-| `GET /publicacoes/avulsas/{id}/anexo/{anexo_id}` | binário | `CurrentUser` | idem |
+> **Legenda de situação** (conferida em 06/08/2026 — ver a auditoria em §0.1): ✅ existe ·
+> ⚪ especificada e **ainda não implementada** · ⚠️ substituída por decisão registrada em §0.1.
+
+| Rota | Tipo | RBAC | Situação | Observação |
+|---|---|---|:--:|---|
+| `GET /publicacoes` | HTML | `CurrentUser` | ✅ | home: busca unificada nos dois acervos |
+| `GET /publicacoes/manuais/{codigo}` | HTML | `CurrentUser` | ⚪ | capítulos — Etapa 2 do `09` |
+| `GET /publicacoes/manuais/{codigo}/{capitulo}` | HTML | `CurrentUser` | ⚪ | documentos — Etapa 2 do `09` |
+| `GET /publicacoes/api/manuais` | JSON | `CurrentUser` | ⚪ | catálogo de manuais — Etapa 2 do `09` |
+| `GET /publicacoes/api/manuais/{codigo}/capitulos` | JSON | `CurrentUser` | ⚪ | Etapa 2 do `09` |
+| `GET /publicacoes/api/manuais/{codigo}/documentos` | JSON | `CurrentUser` | ⚪ | paginado — Etapa 2 do `09` |
+| `GET /publicacoes/viewer/{doc_id}` | HTML | `CurrentUser` | ✅ | PDF.js; âncora `#page=N` |
+| `GET /publicacoes/avulsas` | HTML | `CurrentUser` | ✅ | lista + filtros |
+| `GET /m/publicacoes` | HTML | `CurrentUser` | ✅ | atalho mobile (`mobile_router.py`) |
+| `GET /publicacoes/api/busca` | JSON | `CurrentUser` | ✅ | contrato preservado da `Especificacao.MD` §4 |
+| `GET /publicacoes/api/fim` | JSON | `CurrentUser` | ✅ | busca por mensagem de falha (`fim.json`) |
+| `GET /publicacoes/api/status` | JSON | `CurrentUser` | ✅ | versão do índice, contagens, `documentos_sem_texto` |
+| `GET /publicacoes/api/avulsas` | JSON | `CurrentUser` | ✅ | busca nos metadados |
+| `POST /publicacoes/api/avulsas` | JSON | `EncarregadoInspetorOuAdmin` | ✅ | cadastro |
+| `PATCH /publicacoes/api/avulsas/{id}` | JSON | `EncarregadoInspetorOuAdmin` | ✅ | correção / vigência |
+| `DELETE /publicacoes/api/avulsas/{id}` | JSON | `AdminRequired` | ✅ | soft delete |
+| `POST /publicacoes/api/avulsas/{id}/anexos` | multipart | `EncarregadoInspetorOuAdmin` | ✅ | limite próprio (§5) |
+| `GET /publicacoes/api/edicoes` | JSON | `AdminRequired` | ✅ | M4 — edições, status, diff |
+| `POST /publicacoes/api/edicoes/{id}/ativar` | JSON | `AdminRequired` | ✅ | M4 — troca de ponteiro |
+| `POST /publicacoes/api/edicoes/{id}/reverter` | JSON | `AdminRequired` | ⚠️ | **substituída**: reverter = ativar a `ANTERIOR` pelo mesmo `/ativar` (§0.1) |
+| `GET /publicacoes/doc/{doc_id}/pdf` | binário | `CurrentUser` | ✅ | `FileResponse` com Range, `asyncio.to_thread` para o `stat()` (padrão de `panes/router.py:395`) |
+| `GET /publicacoes/avulsas/{id}/anexo/{anexo_id}` | binário | `CurrentUser` | ✅ | idem |
 
 **Ordem de declaração:** rotas estáticas (`/publicacoes/manuais`, `/publicacoes/avulsas`,
 `/publicacoes/viewer`, `/publicacoes/doc`) sempre **antes** de qualquer rota com

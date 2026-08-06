@@ -1,9 +1,35 @@
-# Plano — Gerência de Publicações em `/configuracoes` (M4 tarefa 4)
+# Plano de trabalho corrente — módulo `publicacoes`
 
-> **Contexto:** `08_status_de_implementacao.md` fecha o M4 em 6/8 e registra a tarefa 4 como
-> não implementada por uma lacuna arquitetural concreta — não existe `catalog.db` por edição, então
-> "ativar edição" mudaria o status no banco sem mudar o que a busca devolve. Este plano resolve
-> primeiro essa lacuna e só então constrói a tela.
+> **Este é o documento de "o que fazer agora".** O nome do arquivo diz `configuracoes` porque a
+> primeira etapa era o card de `/configuracoes`; ele passou a abrigar também as etapas seguintes, em
+> vez de a pasta virar uma sucessão de planos de uma etapa cada. O nome ficou para não quebrar as
+> referências já gravadas em commits, no `08` e no adendo do ADR-004.
+>
+> **Se você é novo no módulo, leia nesta ordem:**
+> 1. [`00_indice.md`](00_indice.md) — mapa da pasta e quais documentos mudam;
+> 2. [`08_status_de_implementacao.md`](08_status_de_implementacao.md) — o que já existe, com
+>    evidência verificável;
+> 3. [`03_especificacao_tecnica.md`](03_especificacao_tecnica.md) §0.1 — o que mudou desde o
+>    planejamento original;
+> 4. **este documento** — o que falta, em ordem de execução.
+>
+> **Estado das etapas:**
+>
+> | Etapa | Assunto | Situação |
+> |---|---|:--|
+> | 1 | Gerência de publicações em `/configuracoes` (M4 tarefa 4) | ✅ Fases 0, 1 e 2 implementadas |
+> | 2 | **Navegação do acervo** (lacuna do M1) | ⚪ **Próxima — é aqui que você começa** |
+>
+> Cada etapa é independente: a 2 não depende de nada da 1.
+
+---
+
+# Etapa 1 — Gerência de Publicações em `/configuracoes` (M4 tarefa 4) ✅
+
+> **Contexto:** `08_status_de_implementacao.md` fechava o M4 em 6/8 e registrava a tarefa 4 como
+> não implementada por uma lacuna arquitetural concreta — não existia `catalog.db` por edição, então
+> "ativar edição" mudaria o status no banco sem mudar o que a busca devolve. Esta etapa resolveu
+> primeiro essa lacuna e só então construiu a tela.
 >
 > **Escopo:** um card "Publicações" em `/configuracoes`, na estética já definida da página
 > (card com tile de ícone + descrição + botões empilhados; modais `glass-panel` com tabela).
@@ -397,3 +423,386 @@ igualmente para este card. Depois de implementado, alguém precisa abrir `/confi
 navegador real e conferir: layout do card no grid (inclusive no breakpoint de 300px do
 `auto-fit`), os três modais, o badge de status nos quatro estados, e o console limpo de violações
 de CSP.
+
+---
+---
+
+# Etapa 2 — Navegação do acervo (lacuna do M1) ⚪ PRÓXIMA
+
+> **Se você acabou de chegar ao módulo, é aqui que se começa.** Nada nesta etapa depende da Etapa 1.
+
+## 2.1 O problema, e como ele passou despercebido
+
+Hoje `/publicacoes` é **só busca**. Sem digitar um termo, a página não mostra documento nenhum. E os
+dois filtros de refino ("Manual (código)" e "Capítulo") são `<input type="text">` livres: para
+filtrar por manual você precisa **já saber** que o código é `FIM_1741`, e que o capítulo se chama
+`CHAPTER_36`. Nada na interface revela esses valores.
+
+Resultado prático: um mecânico que não sabe o que procurar não tem por onde entrar em um acervo de
+34 manuais e 5.724 documentos.
+
+**Isto estava especificado, com rota e tudo, e nunca virou tarefa.** A tabela de rotas de
+[`03_especificacao_tecnica.md`](03_especificacao_tecnica.md) §3 lista **duas páginas HTML** que não
+existem no código:
+
+| Rota da especificação | Observação na spec | Situação real |
+|---|---|---|
+| `GET /publicacoes/manuais/{manual_path}` | "capítulos" | ❌ **não existe** |
+| `GET /publicacoes/manuais/{manual_path}/{capitulo}` | "documentos" | ❌ **não existe** |
+
+E a matriz RBAC §7 lista, como primeira linha, a ação *"Navegar catálogo / buscar / abrir PDF"*,
+liberada para os quatro perfis. Ou seja: a navegação estava **na tabela de rotas e na matriz de
+permissões**, e mesmo assim não virou tarefa de nenhum marco — nem M1, nem M2, nem M3, nem M4.
+
+### Auditoria completa das rotas (feita em 06/08/2026)
+
+Cruzando a §3 com as rotas realmente registradas na aplicação:
+
+| Rota da §3 | Situação |
+|---|---|
+| `GET /publicacoes/manuais/{manual_path}` | ❌ ausente — **esta etapa** |
+| `GET /publicacoes/manuais/{manual_path}/{capitulo}` | ❌ ausente — **esta etapa** |
+| `POST /publicacoes/api/edicoes/{id}/reverter` | ⚠️ ausente **por decisão**: reverter é ativar a edição `ANTERIOR`, pelo mesmo endpoint `/ativar`. Um caminho de código só. Registrado na §0.1 do contrato |
+| Todas as demais (16) | ✅ existem |
+
+Rotas que existem e a §3 não previa (acrescentadas durante a implementação, todas legítimas):
+`/api/documentos/{doc_id}`, `/api/fim/por-ata/{ata}`, `/api/favoritos*`, `/api/duplicacao`,
+`/api/edicoes/{id}/relatorio`, `/api/edicoes/{id}/arquivar`.
+
+Reproduza a auditoria com:
+
+```bash
+python -c "
+import app.bootstrap.main as m
+for r in sorted({(r.path, ','.join(sorted(r.methods-{'HEAD','OPTIONS'}))) for r in m.app.routes if getattr(r,'methods',None) and r.path.startswith(('/publicacoes','/m/publicacoes'))}):
+    print(r)
+"
+```
+
+**Lição de processo:** os gates de marco conferem a lista de tarefas, não a tabela de rotas. Uma
+rota especificada em §3 que ninguém transformou em tarefa não é vista por gate nenhum. **Ao fechar
+um marco, rode a auditoria acima e cruze com a §3** — foi o cruzamento que faltou por quatro marcos
+seguidos.
+
+## 2.2 Fatos medidos do acervo (base para o desenho)
+
+Medidos em 06/08/2026 no banco local, edição `2026`. **Reproduza antes de confiar** — o acervo pode
+ter mudado:
+
+```bash
+python -c "
+import sqlite3
+c = sqlite3.connect('file:var/db?mode=ro', uri=True)
+E = \"(select id from manuais_edicoes where rotulo='2026')\"
+print(list(c.execute(f'select categoria, count(*) from manuais where edicao_id={E} group by 1 order by 2 desc')))
+"
+```
+
+| Fato | Valor | Consequência para o desenho |
+|---|---|---|
+| Manuais na edição | 34 | Cabe numa única resposta; não precisa paginar o primeiro nível |
+| Categorias distintas | 7 | Agrupar por categoria no primeiro nível |
+| Maior categoria | `Ordens Técnicas` — **17 dos 34** | Metade do acervo cai num grupo só; ele precisa vir recolhido por padrão, ou domina a tela |
+| Maior manual | `AMM_PART2_1651` — 51 capítulos, **1.148 documentos** | **Nunca** carregar todos os documentos de um manual de uma vez |
+| Menor manual | `OTFN1A29AB5_0001` — 1 capítulo, 2 documentos | O desenho precisa não parecer absurdo para um manual de 2 arquivos |
+| Documentos com `ata_codigo` | 3.973 de 5.724 (69%) | Dá para rotular a maioria dos capítulos por ATA, mas **não todos** — precisa de fallback |
+| Capítulo vazio (`''`) na edição `2026` | **0** | No layout do acervo todo PDF está sob um capítulo |
+| Capítulo vazio na edição `piloto-fim` | **2** | Mas o caso existe: o piloto tinha PDFs soltos na raiz. **Trate `capitulo == ''`**, não presuma que sumiu |
+| `descricao_pt` preenchida | Sim, legível | Ex.: `AMM Parte II — Manual de Manutenção da Aeronave (práticas de manutenção)`. **Exiba isto**, não o código |
+
+Nomes de capítulo são crus do diretório: `010_FRONTMATTER`, `015_TRINDEX`, `CHAPTER_05`,
+`040_FISEC_CHAPTER_21`. Feios, mas ordenáveis por prefixo numérico (RN-05).
+
+## 2.3 Colunas disponíveis (não precisa migration)
+
+Tudo o que a navegação precisa **já existe no banco principal**. Esta etapa não tem migration.
+
+```
+manuais              : id, edicao_id, codigo, descricao_pt, categoria, path,
+                       revisao, revisao_data, created_at, updated_at
+manuais_documentos   : id, manual_id, capitulo, ata_codigo, file_key, titulo,
+                       sort_order, paginas, has_text, revision_status,
+                       hash_sha256, created_at, updated_at
+```
+
+**Regra que atravessa a etapa inteira:** toda consulta é escopada pela **edição VIGENTE**
+(`service.obter_edicao_vigente`). Navegar tem de mostrar o acervo em vigor, não a união de todas as
+edições retidas. Um `join` esquecido aqui faz o mesmo documento aparecer duas vezes com ids
+diferentes (achado B2 — o `document_id` inclui a edição no UUID v5).
+
+**Nada disso toca `catalog.db`.** Navegação é catálogo, não busca full-text: banco principal,
+SQLAlchemy, `service.py`. `search.py` não é alterado nesta etapa.
+
+---
+
+## Fase N1 — Endpoints de catálogo
+
+Três rotas novas em `app/modules/publicacoes/router.py`, sob o prefixo `/publicacoes/api/`, todas
+com `CurrentUser` (qualquer perfil autenticado — a matriz RBAC §7 libera para os quatro).
+
+### `GET /api/manuais`
+
+Lista os manuais da edição vigente. Sem paginação (são 34).
+
+```jsonc
+[
+  {
+    "codigo": "AMM_PART2_1651",
+    "descricao": "AMM Parte II — Manual de Manutenção da Aeronave (práticas de manutenção)",
+    "categoria": "Manutenção",
+    "capitulos": 51,
+    "documentos": 1148,
+    "revisao": null          // manuais_documentos.revisao do manual, quando houver
+  }
+]
+```
+
+Ordenação: `categoria`, depois `codigo`. O agrupamento por categoria é feito no cliente — devolver
+uma lista plana mantém o schema simples e deixa a UI livre para agrupar ou não.
+
+Implementação: `select(Manual, count(distinct capitulo), count(documento.id))` com
+`outerjoin(ManualDocumento)` + `group_by(Manual.id)`, filtrando `Manual.edicao_id == vigente.id`.
+**`outerjoin`, não `join`** — um manual sem documento nenhum não pode sumir da listagem (é como se
+descobre que a indexação falhou para ele).
+
+### `GET /api/manuais/{codigo}/capitulos`
+
+```jsonc
+{
+  "manual": { "codigo": "FIM_1741", "descricao": "FIM — Manual de Isolamento de Falhas", "categoria": "Manutenção" },
+  "capitulos": [
+    { "capitulo": "040_FISEC_CHAPTER_21", "ata_codigo": "21", "documentos": 34 },
+    { "capitulo": "010_FRONTMATTER",      "ata_codigo": null, "documentos": 8 }
+  ]
+}
+```
+
+- `ata_codigo`: `max(ata_codigo)` do grupo — dentro de um capítulo do acervo o valor é constante
+  quando existe; `max` evita `GROUP BY` extra. Quando `null`, a UI cai no nome cru.
+- Ordenação por `capitulo` (o prefixo numérico já ordena, RN-05).
+- Manual inexistente na edição vigente → **404**, com `EntidadeNaoEncontradaError`.
+
+### `GET /api/manuais/{codigo}/documentos`
+
+| Parâmetro | Tipo | Padrão | Observação |
+|---|---|---|---|
+| `capitulo` | `str \| None` | `None` | `None` = todos os capítulos do manual |
+| `limit` | `int` 1–100 | 50 | |
+| `offset` | `int` ≥ 0 | 0 | |
+
+```jsonc
+{
+  "total": 1148,
+  "results": [
+    {
+      "doc_id": "…uuid…",
+      "titulo": "Bleed Air Leak Detection",
+      "capitulo": "040_FISEC_CHAPTER_21",
+      "ata_codigo": "21",
+      "paginas": 12,
+      "has_text": true,
+      "viewer_url": "/publicacoes/viewer/…uuid…"
+    }
+  ]
+}
+```
+
+- Ordenação: `sort_order`, depois `titulo` — `sort_order` é o prefixo numérico do arquivo (RN-05) e
+  é o que reproduz a ordem que o mecânico vê no DVD.
+- `viewer_url` montado pelo helper `_viewer_url` que já existe no router, **sem** `#page` (a
+  navegação abre o documento no começo; quem quer a página do trecho vem pela busca).
+- `has_text=false` deve chegar na resposta e ser exibido como aviso: é um PDF que a busca não
+  alcança (E-01), e o usuário precisa saber que não adianta procurar por texto ali.
+
+### Schemas (`app/modules/publicacoes/schemas.py`)
+
+`ManualListItem`, `CapituloItem`, `RespostaCapitulos`, `DocumentoCatalogoItem`,
+`RespostaDocumentosCatalogo`. Seguir o padrão do arquivo: `model_config = ConfigDict(from_attributes=True)`
+só onde há ORM direto; nas agregações, montar o schema explicitamente a partir do `dict` do service
+(como `EdicaoListItem` faz).
+
+### Testes — `tests/unit/test_publicacoes_navegacao.py` (arquivo novo)
+
+| Teste | O que prova |
+|---|---|
+| `test_listar_manuais_agrupa_contagens` | Contagem de capítulos e documentos bate com o inserido |
+| `test_manual_sem_documentos_ainda_aparece` | O `outerjoin` — o modo de falha é o manual sumir da tela quando a indexação falhou para ele |
+| `test_listar_manuais_so_da_edicao_vigente` | Cria duas edições com o mesmo código de manual e confirma que só a vigente aparece. **É o teste central da etapa** |
+| `test_capitulos_ordenados_por_prefixo` | RN-05 |
+| `test_capitulo_sem_ata_devolve_nulo` | Os 31% sem `ata_codigo` |
+| `test_capitulo_vazio_e_representado` | O caso do `piloto-fim` (`capitulo == ''`) não some nem quebra |
+| `test_documentos_paginados_e_ordenados_por_sort_order` | |
+| `test_documentos_filtrados_por_capitulo` | |
+| `test_manual_inexistente_retorna_404` | |
+| `test_navegacao_exige_autenticacao` | 401 sem sessão |
+| `test_mantenedor_pode_navegar` | A matriz §7 libera para os quatro perfis — inclusive o mais restrito |
+
+**Armadilhas do harness** (já custaram tempo antes; leia antes de escrever teste):
+- `client_autenticado` sobrescreve `get_current_user` e **ignora o header `Authorization` pelo resto
+  do teste**. Para exercitar outro perfil no mesmo teste, insira os dados via ORM direto — ver
+  `tests/unit/test_publicacoes_avulsas.py::_inserir_avulsa_direto`.
+- `override_get_db` do `conftest` faz `rollback()` da transação de teste inteira em **qualquer**
+  exceção que passe pela dependência, inclusive um 404 intencional. Depois de uma requisição que
+  devolve erro, as linhas só "flushadas" já não existem. Afirme o estado do banco **antes** da
+  requisição que falha, ou chame o `service` direto — ver
+  `tests/unit/test_publicacoes_edicoes.py::test_ativar_sem_indice_nao_altera_o_status`.
+- Use sufixo único em qualquer campo com `UNIQUE` (`uuid.uuid4().hex[:6]`). Já houve colisão de
+  matrícula custando ~10% de falha intermitente.
+
+**Commit:** `feat(publicacoes): endpoints de navegacao do catalogo`
+
+---
+
+## Fase N2 — Páginas de navegação (desktop)
+
+### Forma: páginas com URL real, como a §3 especificou
+
+A especificação define **duas páginas HTML**, não um drill-down em JavaScript numa página só. Siga
+isso — e não por obediência ao documento, mas porque a escolha é melhor para o uso real:
+
+| | Páginas com URL (§3) | Drill-down em JS |
+|---|---|---|
+| Mandar "veja o capítulo 21 do FIM" para um colega | cola o link | impossível |
+| Botão voltar do navegador | funciona | não funciona |
+| Favoritar um capítulo no navegador | funciona | não funciona |
+| Requisições | 1 por página | 1 por nível |
+
+Num hangar, "manda o link do capítulo" é operação real. O drill-down perderia isso.
+
+### As três telas
+
+```
+/publicacoes                          → home: busca + índice dos 34 manuais por categoria
+/publicacoes/manuais/{codigo}         → capítulos do manual
+/publicacoes/manuais/{codigo}/{cap}   → documentos do capítulo, cada um → viewer
+```
+
+**Rotas em `app/web/pages/router.py`.** Atenção à convenção já registrada na §3: rotas estáticas
+antes das paramétricas no mesmo nível. `/publicacoes/avulsas` e `/publicacoes/viewer/{id}` já estão
+declaradas; `/publicacoes/manuais/...` não colide com elas, mas **declare-as depois de
+`/publicacoes/avulsas`** para manter o padrão de `equipamentos/router.py:194-195`.
+
+O `{codigo}` na URL é o `manuais.codigo` (ex.: `AMM_PART2_1651`), não o `path` do disco — o path é
+detalhe de infraestrutura e não deve aparecer em URL. A §3 chama o parâmetro de `{manual_path}`;
+**use `{codigo}`** e registre a divergência na §0.1 do contrato.
+
+### Índice na home (`lista.html`)
+
+Bloco "Navegar no acervo" **acima** do card de busca, com os 34 manuais agrupados pelas 7
+categorias. Renderizado no servidor a partir de `GET /api/manuais`? **Não** — renderize no servidor
+direto do `service`, sem passar pela API. A página já tem o `db`; uma chamada HTTP a si mesma seria
+um salto desnecessário. A API existe para o mobile e para os `<select>` de refino.
+
+- **`Ordens Técnicas` (17 dos 34) vem recolhido**, os outros 6 grupos abertos. Metade do acervo num
+  grupo só domina a tela se vier aberto.
+- Use `<details>/<summary>` nativo: acessível por teclado de graça, funciona sem JS, e não há
+  componente de acordeão no projeto para reusar — escrever um seria inventar padrão novo.
+- Exiba `descricao_pt`, com o `codigo` em texto secundário. Ninguém procura por `AMM_PART2_1651`.
+
+### Página de capítulos
+
+- Rótulo: `ATA {ata_codigo} — {capitulo}` quando houver `ata_codigo` (69% dos documentos); senão só
+  o nome cru. **Não invente tradução** para `010_FRONTMATTER`.
+- `capitulo == ''` exibe "(raiz do manual)" — o caso existe na edição `piloto-fim`.
+- Contagem de documentos por capítulo em cada linha.
+- Breadcrumb: `Publicações › {descricao do manual}`.
+
+### Página de documentos
+
+- Ordenados por `sort_order` (RN-05: é a ordem que o mecânico vê no DVD).
+- Cada linha: título, nº de páginas, link para `/publicacoes/viewer/{doc_id}`.
+- `has_text == false` ganha aviso com `title` explicando que o documento **não é alcançável pela
+  busca** (E-01) — o usuário precisa saber que não adianta procurar texto ali.
+- Paginação: `?offset=`/`?limit=` na própria URL, com links "anterior/próxima". Server-side, para
+  não perder a propriedade de URL compartilhável. O maior capítulo medido tem poucas dezenas de
+  documentos, então 50 por página basta.
+- Breadcrumb: `Publicações › {manual} › {capítulo}`.
+
+### Conserto dos filtros de refino (mesmo commit)
+
+Trocar os dois `<input type="text">` do card de busca em `lista.html` por `<select>`:
+- **Manual**: populado de `GET /api/manuais`.
+- **Capítulo**: populado de `GET /api/manuais/{codigo}/capitulos` quando um manual é escolhido;
+  desabilitado enquanto não houver manual.
+
+**É aqui que a API da Fase N1 ganha uso no desktop.** E fecha o buraco de descoberta que originou a
+etapa: hoje os campos exigem conhecimento que a interface não fornece.
+
+### Arquivos
+
+| Arquivo | Mudança |
+|---|---|
+| `app/web/pages/router.py` | 2 rotas HTML novas |
+| `app/web/templates/publicacoes/manual.html` | **novo** — capítulos |
+| `app/web/templates/publicacoes/capitulo.html` | **novo** — documentos |
+| `app/web/templates/publicacoes/lista.html` | Bloco "Navegar no acervo" + os 2 `<select>` |
+| `app/web/static/js/publicacoes.js` | Popular os `<select>`. **Sem handler inline** (CSP) |
+
+### Testes a acrescentar em `tests/unit/test_publicacoes_navegacao.py`
+
+`test_pagina_manual_lista_capitulos`, `test_pagina_capitulo_lista_documentos`,
+`test_pagina_manual_inexistente_retorna_404`, `test_home_lista_os_manuais_por_categoria`,
+e um que afirme que o link do documento aponta para `/publicacoes/viewer/{id}`.
+
+**Commit:** `feat(publicacoes): paginas de navegacao do acervo`
+
+---
+
+## Fase N3 — Navegação no mobile (`/m/publicacoes`)
+
+`app/web/templates/mobile/publicacoes.html` tem exatamente o mesmo problema. A forma muda:
+
+- **Uma lista por vez**, navegando pelas mesmas URLs do desktop (`/publicacoes/manuais/...`) —
+  reusar as rotas evita um segundo conjunto de telas para manter em sincronia. Decidir na hora
+  se os templates do desktop já servem no mobile ou se precisam de variantes.
+- Alvos de toque **≥ 44 px** (CA-03, já é critério do módulo).
+- Nenhum backend novo: ou as páginas da N2, ou os endpoints da N1.
+
+Decidir na hora de escrever se vale extrair o JS comum com o desktop. **Não extrair antes de haver
+duplicação real** — as duas telas podem divergir de forma legítima.
+
+**Commit:** `feat(publicacoes): navegacao do acervo no mobile`
+
+---
+
+## Fase N4 — Documentação da Etapa 2
+
+1. **`03_especificacao_tecnica.md`**: acrescentar as 3 rotas em §3 e uma linha na §0.1 registrando
+   que a navegação chegou depois. É o contrato — precisa listar as rotas que existem.
+2. **`08_status_de_implementacao.md`**: fechar a dívida "navegação ausente"; registrar as novas
+   (verificação visual, e o que ficou de fora).
+3. **Este documento**: marcar N1–N3 como implementadas, com a seção "O que a execução mudou em
+   relação ao planejado" — que é o que torna estes planos úteis depois.
+4. **`00_indice.md`**: nada a mudar, salvo se surgir documento novo.
+
+---
+
+## Ordem de execução e commits — Etapa 2
+
+| # | Entrega | Commit |
+|---|---|---|
+| 1 | Fase N1 — 3 endpoints + schemas + 11 testes | `feat(publicacoes): endpoints de navegacao do catalogo` |
+| 2 | Fase N2 — 2 páginas HTML + índice na home + selects de refino | `feat(publicacoes): paginas de navegacao do acervo` |
+| 3 | Fase N3 — navegador mobile | `feat(publicacoes): navegacao do acervo no mobile` |
+| 4 | Fase N4 — documentação | junto do commit 3 |
+
+Rode a suíte **duas vezes** antes de cada commit. Uma execução verde não prova ausência de teste
+instável — foi assim que a Fase 1 desta pasta deixou passar uma falha de ~1/3.
+
+## O que a Etapa 2 deliberadamente não faz
+
+- **Não indexa nem publica nada.** É leitura de catálogo.
+- **Não navega o acervo B (avulsas).** `/publicacoes/avulsas` já tem lista com filtros próprios; o
+  problema é do acervo A.
+- **Não mostra edições não vigentes.** Navegar é sobre o acervo em vigor. Chegar a um documento de
+  edição anterior continua sendo pelo link direto, com o banner "REVISÃO ANTERIOR" que o viewer já
+  exibe.
+- **Não renomeia capítulos no banco.** O rótulo bonito é de exibição; `capitulo` continua sendo a
+  chave crua do diretório, que é o que casa com o disco.
+
+## Verificação que só um humano pode fazer
+
+Depois de N2/N3, alguém precisa abrir num navegador real e conferir: a árvore com `Ordens Técnicas`
+recolhido, um manual grande (`AMM_PART2_1651`, 51 capítulos) sem travar a página, o "carregar mais"
+dentro de um capítulo, os `<select>` de refino populados, e a tela mobile com alvos de toque
+confortáveis. Nada disso é afirmável por teste de fumaça.
