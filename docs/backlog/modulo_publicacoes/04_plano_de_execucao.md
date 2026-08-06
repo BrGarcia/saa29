@@ -4,6 +4,12 @@
 > sessão** (avulsas antes da integração com panes/inspeções) e **quebrados em tarefas**, com os
 > gates reescritos para o CI real (`01_achados_do_acervo.md` §7.4 — sem matriz Postgres, sem
 > mypy).
+>
+> ⚠️ **Este é o plano como foi escrito antes da execução.** M0–M3 estão concluídos e M4 está em
+> 6/8 — o que de fato foi construído, com evidência, está em
+> [`08_status_de_implementacao.md`](08_status_de_implementacao.md), e o que falta do M4 está em
+> [`09_plano_configuracoes.md`](09_plano_configuracoes.md). As tarefas abaixo permanecem como
+> registro do plano original; onde a realidade divergiu, o `08` é a fonte da verdade.
 
 **Ordem:** M0 (fundação) → **M1 (piloto FIM)** → **M2 (avulsas)** → M3 (integração) → M4 (acervo
 completo). M1 e M2 dependem só de M0; a ordem entre elas é a única coisa que mudou em relação ao
@@ -36,12 +42,18 @@ Usa os 411 PDFs de `docs/fim/` (já versionados) **enriquecidos pelo Lucene do `
 `var/publicacoes/acervo/Manuais/FIM_1741/index_2.0/` estiver presente (opcional — 409/411 têm
 correspondência, `01_achados_do_acervo.md` §6).
 
+> **A premissa acima caiu durante a execução.** `docs/fim/` foi removido do versionamento
+> (decisão externa ao módulo: 14 MB no histórico do git). O piloto foi executado a partir do
+> acervo em `var/publicacoes/acervo/Manuais/FIM_1741/`, e o repositório passou a guardar apenas
+> uma amostra de 4 PDFs em `tests/fixtures/fim/` para o CI, mais o mapa `docs/fim.json`.
+> Detalhe e procedência em `tests/fixtures/fim/README.md`.
+
 | # | Tarefa | Detalhe |
 |---|---|---|
 | 1 | `catalog.py`: parser do índice Lucene (copiar de `02_formato_indice_lucene.md` §5, com testes de regressão contra os números do §7 daquele documento) | `app/modules/publicacoes/catalog.py` |
 | 2 | `catalog.py`: ingestão de `fim.json` → estrutura intermediária mensagem→procedimento | idem |
 | 3 | Migration Alembic: `manuais`, `manuais_documentos`, `manuais_fim_map` (**sem `manuais_edicoes`/`pages`/FTS5** — ver nota abaixo) | `migrations/versions/` |
-| 4 | `scripts/publicacoes/indexar.py`: varre um diretório de entrada (parametrizado — `docs/fim/` neste marco), extrai texto **por página** com `pypdfium2`, grava `catalog.db` (`pages`+`pages_fts`), grava o catálogo leve no banco principal via `service.py`. Idempotente, `--dry-run`, resiliente a PDF corrompido (E-02, nunca aborta o lote) | `scripts/publicacoes/indexar.py` |
+| 4 | `scripts/publicacoes/indexar.py`: varre um diretório de entrada (parametrizado; o padrão virou o acervo), extrai texto **por página** com `pypdfium2`, grava `catalog.<edicao>.db` (`pages`+`pages_fts`), grava o catálogo leve no banco principal via `service.py`. Idempotente, `--dry-run`, resiliente a PDF corrompido (E-02, nunca aborta o lote) | `scripts/publicacoes/indexar.py` |
 | 5 | `search.py`: abertura read-only do `catalog.db` (`sqlite3` puro, nunca SQLAlchemy — `01_achados_do_acervo.md` §7.3), BM25, `snippet()` com `<mark>`, sanitização de query (RN-10) | `app/modules/publicacoes/search.py` |
 | 6 | `router.py`: `/publicacoes/api/busca`, `/publicacoes/api/fim`, `/publicacoes/api/status`, `/publicacoes/doc/{id}/pdf` | `app/modules/publicacoes/router.py` |
 | 7 | PDF.js vendorizado em `app/web/static/js/pdfjs/`; viewer em canvas (D-F — nunca iframe, `X-Frame-Options: DENY` é global) | `app/web/static/js/pdfjs/`, `app/web/templates/publicacoes/viewer.html` |

@@ -23,20 +23,25 @@
 
 | Documento | Status | Decisão ou referência? |
 |---|---|---|
-| `opus_plano_de_incorporacao.md` | Histórico — Revisão 5 registrada só como bloco de cabeçalho, corpo não reescrito | Referência (o addendum é que carrega a decisão vigente) |
-| `01_achados_do_acervo.md` | Fechado nesta etapa | Referência factual |
-| `02_formato_indice_lucene.md` | Fechado nesta etapa, parser verificado por execução | Referência técnica |
-| `03_especificacao_tecnica.md` | Fechado nesta etapa | **Decisão** — é o contrato de execução |
-| `04_plano_de_execucao.md` | Fechado nesta etapa | **Decisão** — ordem e escopo de marcos |
-| `05_rastreabilidade_externa.md` | Fechado nesta etapa | Referência de rastreabilidade |
-| `06_addendum_revisao_5.md` | Fechado nesta etapa | **Decisão** — o que muda a partir de agora |
-| `07_revisao_pre_implementacao.md` | Fechado — correções já aplicadas em `03_especificacao_tecnica.md` | **Decisão** — pronto para implementar |
+| `opus_plano_de_incorporacao.md` | Histórico — corpo não reescrito; nota de vigência no topo | Referência (o addendum e o `08` carregam o que vale hoje) |
+| `01_achados_do_acervo.md` | **Datado** — registro de medição de 04–05/08, com nota de vigência no topo | Referência factual (não reescrito quando a realidade muda) |
+| `02_formato_indice_lucene.md` | Fechado, parser verificado por execução | Referência técnica |
+| `03_especificacao_tecnica.md` | **Vivo** — §0.1 lista o que mudou desde o planejamento | **Decisão** — é o contrato de execução |
+| `04_plano_de_execucao.md` | Histórico — plano como escrito antes da execução; o `08` é a fonte da verdade | **Decisão** original de ordem e escopo de marcos |
+| `05_rastreabilidade_externa.md` | Fechado | Referência de rastreabilidade |
+| `06_addendum_revisao_5.md` | Fechado | **Decisão** — o que mudou na Revisão 5 |
+| `07_revisao_pre_implementacao.md` | Datado — os 8 bugs antecipados foram confirmados e tratados | **Decisão** — rastreio de cada um no `08` |
 | `08_status_de_implementacao.md` | **Vivo** — atualizado a cada tarefa concluída | Rastreamento de progresso |
 | `09_plano_configuracoes.md` | **Vivo** — Fase 0 implementada; Fases 1, 2 e 4 pendentes | **Decisão** — reverte o `os.replace()` previsto em `search.py` por resolução do índice pelo banco (adendo no ADR-004) |
-| `004-modulo-publicacoes.md` (ADR) | Proposto | **Decisão formal** |
+| `004-modulo-publicacoes.md` (ADR) | Aceito, com adendo de 06/08 sobre o índice por edição | **Decisão formal** |
 
 > Atenção à assimetria: a tabela acima é o status **dos documentos**, não o da implementação. Quem
 > quer saber o que já foi codificado abre o `08`.
+
+**Três documentos mudam; o resto é registro.** `08` (progresso), `09` (o que falta do M4) e `03`
+(contrato) são atualizados conforme o código anda. Os demais são datados: quando uma premissa deles
+cai, a correção entra como nota de vigência no topo — o corpo não é reescrito, para que o histórico
+do raciocínio continue legível.
 
 ## O que ainda está em aberto (não travado nesta etapa)
 
@@ -48,11 +53,15 @@ parcialmente respondida), D-S7 (backup testado).
 
 ## Resumo de uma frase por decisão travada
 
-- **Piloto FIM primeiro** (`docs/fim/`, 411 PDFs), não o acervo completo, no M1.
+- **Piloto FIM primeiro** (411 PDFs do `FIM_1741`), não o acervo completo, no M1.
 - **`pypdfium2`** para extração por página — resolve D-S2, encerra a questão AGPL.
 - **Publicações avulsas (M2) antes da integração com panes/inspeções (M3)**.
 - **Acervo normalizado** para `var/publicacoes/acervo/` — sem acento, sem espaço.
 - **`catalog.db` só com `sqlite3` puro**, nunca SQLAlchemy.
+- **Um índice por edição** (`catalog.<rotulo>.db`); a edição `VIGENTE` no banco decide qual a busca
+  abre. Revisa o `os.replace()` previsto originalmente — adendo do ADR-004.
+- **O acervo não é versionado.** Nem `docs/fim/` (removido) nem `var/publicacoes/acervo/`. O
+  repositório guarda só `tests/fixtures/fim/` (4 PDFs, 172 KB, para o CI) e `docs/fim.json`.
 - **`API_PREFIXES` recebe `/publicacoes/api/`**, nunca `/publicacoes/`.
 - **`rebuild` obrigatório no FTS5** após a carga — contagem não prova que a busca funciona.
 - **`snippet` com sentinela `\x02`/`\x03`**, escapado no cliente — nunca `<mark>` cru do SQLite.

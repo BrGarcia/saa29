@@ -1,18 +1,20 @@
 # Status de Implementação — Módulo `publicacoes`
 
-> **Este é o único documento desta pasta que muda com o código.** Os outros sete são decisões
-> fechadas; este é o painel que responde "em que ponto estamos".
+> **Este é o painel que responde "em que ponto estamos".** Muda a cada tarefa concluída, junto com
+> [`09_plano_configuracoes.md`](09_plano_configuracoes.md) (o que falta do M4) e
+> [`03_especificacao_tecnica.md`](03_especificacao_tecnica.md) (contrato). O resto da pasta é
+> registro datado — ver a tabela de status em [`00_indice.md`](00_indice.md).
 >
-> Espelha as tarefas de [`04_plano_de_execucao.md`](04_plano_de_execucao.md) **na mesma numeração** —
-> se as duas listas divergirem, o plano é a referência do *escopo* e este documento é a referência
-> do *progresso*.
+> Espelha as tarefas de [`04_plano_de_execucao.md`](04_plano_de_execucao.md) **na mesma numeração**.
+> O plano é a referência do *escopo original*; **onde os dois divergirem, este documento vence** —
+> ele descreve o que existe, o plano descreve o que se pretendia.
 >
 > **Como atualizar:** ao concluir uma tarefa, troque o status e preencha a coluna *Evidência* com o
 > arquivo ou teste que prova a conclusão. Status sem evidência verificável não conta como ✅ — foi
 > essa disciplina que pegou o B7 (índice que "existe" e não busca nada).
 >
-> **Última atualização:** 05/08/2026 · branch `fix/ci-baseline-verde` · 575 testes verdes ·
-> `ruff check .` limpo
+> **Última atualização:** 06/08/2026 · branch `feature/modulo-publicacoes` (a partir de
+> `development`, que já contém o módulo) · **593 testes verdes** · `ruff check` limpo
 
 ---
 
@@ -229,6 +231,7 @@ D-04).
 | ~~**`catalog.db` por edição não existe (bloqueia a tarefa 4)**~~ | **Resolvido** pela Fase 0 de `09_plano_configuracoes.md`: cada edição tem seu `catalog.<rotulo>.db` e a busca resolve o arquivo pela edição `VIGENTE`. Adendo no ADR-004. | `service.caminho_indice_vigente` |
 | **A máquina local ainda usa a queda de compatibilidade** | Verificado nesta sessão contra o estado real: vigente é `piloto-fim`, mas o único índice em disco é o `catalog.db` legado (155 MB, conteúdo da edição `2026`, gravado antes da Fase 0). A busca funciona (351 resultados para "sangria") e loga o aviso a cada consulta. Some com uma reindexação — não foi feita aqui para não gastar ~150s e sobrescrever mais estado local sem necessidade. | `var/publicacoes/` (não versionado) |
 | **`manuais_edicoes`** | A tabela existe e é populada com a linha sintética `piloto-fim`, mas `snapshot_key`, `hash_sha256` e `relatorio_diff` seguem nulos — ganham uso só no M4. | Esperado, não é dívida real |
+| **O CI exercita 4 PDFs, não o acervo** | Depois que `docs/fim/` saiu do versionamento, a amostra em `tests/fixtures/fim/` (4 arquivos, 172 KB) é tudo que o pipeline tem de PDF real. É deliberado — versionar mais reinstala o peso que a remoção quis eliminar — mas significa que classes de arquivo ausentes da amostra (PDF sem camada de texto, PDF corrompido, nome acentuado) só são exercitadas por fixture sintético ou localmente, com o acervo montado. Os testes que dependem do acervo real já se auto-pulam (`@sem_acervo` em `test_publicacoes_catalog.py`), então a ausência é visível, não silenciosa. | `tests/fixtures/fim/README.md` |
 | **`fim.json` duplicado no repositório** | Existem duas cópias idênticas rastreadas: `fim.json` na raiz e `docs/fim.json`. A duplicação **é anterior** ao merge do módulo (já estava na `development`) e não foi tocada aqui para não misturar limpeza com integração. `tests/unit/test_publicacoes_catalog.py` lê a da raiz; o resto do módulo lê `docs/fim.json`. Consolidar numa só é trabalho de uma linha, mas muda o caminho lido por teste — vale fazer isolado. | `fim.json`, `docs/fim.json` |
 | **`test_status_aeronave_atualiza_para_indisponivel_ao_abrir_pane` é instável** | Gera `matricula = "59" + 2 dígitos hex` — 256 valores possíveis, que colidem com as matrículas fixas `5999`/`5998`/`5900` de `tests/architecture/`. Falhou uma vez com 409 durante este merge e passou na repetição. Não tem relação com o módulo publicacoes (a branch nunca tocou o arquivo); é flakiness pré-existente de ~1/256 por execução. Corrigir é trocar por um sufixo realmente único, como já foi feito em `test_publicacoes_avulsas.py`. | `tests/unit/test_aeronaves.py:341` |
 

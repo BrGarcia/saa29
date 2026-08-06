@@ -12,6 +12,24 @@
 
 ---
 
+## 0.1 Correções após a implementação (M0–M4 + Fase 0)
+
+Esta especificação foi escrita **antes** de o módulo existir. Três pontos dela deixaram de ser
+verdade durante a execução. O texto original de cada seção afetada foi corrigido no lugar; esta
+lista existe para que quem já conhecia o documento saiba **o que mudou** sem reler tudo.
+
+| O que a spec dizia | O que vale hoje | Onde |
+|---|---|---|
+| Piloto do M1 sobre `docs/fim/`, 411 PDFs versionados no repositório | `docs/fim/` **não existe mais** — os PDFs saíram do versionamento (`chore(docs): remove o acervo de PDFs do FIM`). O conteúdo vive em `var/publicacoes/acervo/Manuais/FIM_1741/`; o repositório guarda só uma amostra de 4 arquivos em `tests/fixtures/fim/`, para o CI, e o mapa `docs/fim.json` | §1, §7 |
+| Um `catalog.db` único em `PUBLICACOES_INDEX_PATH`, trocado por `os.replace()` na ativação de edição | **Um índice por edição** (`catalog.<rotulo>.db`), e a edição `VIGENTE` no banco decide qual a busca abre. Ativar é um `UPDATE`, não uma troca de arquivo | §2.4, §7 |
+| `search.buscar` lê `get_settings().publicacoes_index_path` direto | `search.buscar` recebe um `Path` de quem chama; o router resolve por `service.caminho_indice_vigente(db)` | §2.4 |
+
+A segunda linha é uma **reversão de decisão**, registrada no adendo do
+[ADR-004](../../architecture/adr/004-modulo-publicacoes.md) com o motivo. As outras duas são
+consequência de uma decisão externa ao módulo (tirar o acervo do git) e da própria segunda.
+
+---
+
 ## 1. Layout de arquivos
 
 ```
@@ -43,8 +61,9 @@ scripts/publicacoes/
 │                          # scripts/__init__.py e scripts/seed/__init__.py existem
 │                          # (scripts/db/ não tem, e é a exceção, não o padrão).
 ├── indexar.py            # indexação OFFLINE — extrai texto por página (pypdfium2) + enriquece
-│                          # com catalog.py (Lucene). Aceita qualquer diretório de entrada:
-│                          # docs/fim/ no M1, var/publicacoes/acervo/ a partir do M4.
+│                          # com catalog.py (Lucene). Aceita qualquer diretório de entrada;
+│                          # o padrão é var/publicacoes/acervo/Manuais. (A entrada `docs/fim/`
+│                          # do M1 não existe mais — ver §0.1.)
 ├── publicar.py            # M4 — estação de publicação: inventário, diff por hash, extração
 │                          # incremental, snapshot ZIP, relatório
 └── merge_data.py            # M4 — merge de novas remessas no acervo existente (RN-08)
@@ -335,12 +354,19 @@ descricao_pt = "{codigo}"   # fallback E-04
 `PUBLICACOES_CATEGORIAS_PATH` aponta para este arquivo (§4). Preenchido incrementalmente — um
 manual sem entrada cai em `[_default]`, nunca quebra a indexação.
 
-### 2.4 `catalog.db` — índice de busca (SQLite dedicado, fora do Alembic)
+### 2.4 `catalog.<edicao>.db` — índice de busca (SQLite dedicado, fora do Alembic)
 
 > **Duas correções da revisão de pré-implementação** (achados B6 e B7), ambas verificadas por
 > execução real de SQLite nesta sessão. O esquema anterior **não conseguiria atender o contrato
 > da API** (filtro por manual/capítulo era impossível) e **devolveria zero resultados
 > silenciosamente** (FTS5 de conteúdo externo não se popula sozinho).
+>
+> **Um arquivo por edição.** O nome é `catalog.<rotulo>.db`, no diretório de
+> `PUBLICACOES_INDEX_PATH` — `catalog.2026.db`, `catalog.piloto-fim.db`, lado a lado. Qual deles a
+> busca abre é decidido pela edição `VIGENTE` em `manuais_edicoes`, resolvido por
+> `service.caminho_indice_vigente(db)` a cada consulta. O esquema abaixo é idêntico em todos.
+> Consequência prática: publicar uma edição nova **não** toca o índice da edição em vigor, e
+> ativar/reverter não move arquivo nenhum. Ver §0.1 e o adendo do ADR-004.
 
 ```sql
 -- gerado por scripts/publicacoes/indexar.py — NUNCA por migration Alembic
@@ -443,9 +469,11 @@ def _abrir_catalog_ro(caminho: Path) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     return conn
 
-async def buscar(query: str, *, manual: str | None = None, limit: int = 20, offset: int = 0) -> dict:
+# `caminho` vem de fora: search.py não sabe o que é uma edição. Quem chama
+# resolve com `service.caminho_indice_vigente(db)` — ver §0.1.
+async def buscar(caminho: Path, query: str, *, manual: str | None = None, limit: int = 20, offset: int = 0) -> dict:
     def _run() -> dict:
-        conn = _abrir_catalog_ro(Path(get_settings().publicacoes_index_path))
+        conn = _abrir_catalog_ro(caminho)
         try:
             # bm25(), snippet() com <mark>, RN-10: sanitizar a query ANTES de
             # montar a expressão MATCH — e SEMPRE via bind parameter:
@@ -463,11 +491,17 @@ Precedente de `sqlite3` em modo somente-leitura já existe no repositório:
 `scripts/maintenance/r2_manager.py:122` (`sqlite3.connect(f"file:{tmp}?mode=ro", uri=True)`).
 
 **Por que abrir conexão por consulta (e não cachear):** além de eliminar qualquer questão de
-thread-safety, é o que torna a **ativação de edição atômica no M4** — trocar o índice vigente é
-um `os.replace(catalog_novo.db, catalog.db)` (atômico no mesmo filesystem); como nenhuma conexão
-fica aberta entre consultas, não há handle preso ao arquivo antigo e a próxima busca já abre o
-novo. Uma conexão cacheada quebraria isso silenciosamente (continuaria lendo o inode antigo). O
-custo de abertura (~1 ms para um SQLite local) é irrelevante frente ao alvo de p95 < 300 ms.
+thread-safety, é o que torna a **ativação de edição imediata** — cada edição tem seu
+`catalog.<rotulo>.db` e o chamador resolve qual abrir a cada consulta, então a busca seguinte à
+ativação já abre o arquivo da edição nova. Uma conexão cacheada quebraria isso silenciosamente
+(continuaria servindo o índice antigo). O custo de abertura (~1 ms para um SQLite local) é
+irrelevante frente ao alvo de p95 < 300 ms.
+
+> **Revisão:** este parágrafo justificava a regra pelo `os.replace(catalog_novo.db, catalog.db)`
+> previsto originalmente. Aquele mecanismo foi descartado — status no banco e arquivo em disco
+> mudavam em momentos diferentes, e reverter exigia mover o arquivo de volta. Motivo completo no
+> adendo do [ADR-004](../../architecture/adr/004-modulo-publicacoes.md). A regra em si continua
+> valendo, e ficou **mais** necessária, não menos.
 
 ---
 
@@ -708,7 +742,7 @@ Acrescentar em `app/bootstrap/config/__init__.py` sob um novo bloco `# --- Módu
 ```python
 # app/bootstrap/config/__init__.py — novos campos em Settings
 publicacoes_acervo_dir: str = Field(default="var/publicacoes/acervo", description="Diretório dos PDFs — dev e produção (VPS com disco persistente)")
-publicacoes_index_path: str = Field(default="var/publicacoes/catalog.db", description="SQLite dedicado do índice de busca — fora do DATABASE_URL")
+publicacoes_index_path: str = Field(default="var/publicacoes/catalog.db", description="SQLite do índice de busca — fora do DATABASE_URL. Dois papéis: o DIRETÓRIO hospeda os índices por edição (catalog.<rotulo>.db, que é o que a busca abre); o arquivo em si é o índice legado, só fallback")
 publicacoes_categorias_path: str = Field(default="config/categorias_manuais.toml", description="Mapa estático de categoria/descrição por manual — substitui manual_type.xml ausente")
 publicacoes_avulsas_max_upload_mb: float = Field(default=50.0, description="Limite de anexo das avulsas — separado de max_upload_size_mb, que é 0.5MB e não muda")
 publicacoes_edicoes_retidas: int = Field(default=2, description="M4 — vigente + anterior online")
