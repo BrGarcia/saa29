@@ -69,7 +69,6 @@ class TestRefreshTokenRotation:
         )
         assert login_response.status_code == 200
 
-        login_body = login_response.json()
         access_token_original = login_response.cookies.get("saa29_token")
         refresh_token_original = login_response.cookies.get("saa29_refresh_token")
         assert access_token_original
@@ -100,7 +99,6 @@ class TestRefreshTokenRotation:
             print("ERRO:", refresh_response.json())
         assert refresh_response.status_code == 200
 
-        refresh_body = refresh_response.json()
         access_token_novo = refresh_response.cookies.get("saa29_token")
         refresh_token_novo = refresh_response.cookies.get("saa29_refresh_token")
         assert access_token_novo != access_token_original

@@ -1,1 +1,8 @@
 *.sh text eol=lf
+
+# PDF.js vendorizado (app/web/static/js/pdfjs/README.md): tratar como binário
+# impede o Git de normalizar quebra de linha nesses arquivos minificados —
+# sem isto, `core.autocrlf` reescreve o arquivo no checkout e ele deixa de
+# ser byte-a-byte igual ao publicado no npm, o que quebra a verificação de
+# integridade de quem for atualizar a versão.
+app/web/static/js/pdfjs/*.mjs -text

@@ -108,10 +108,13 @@ async def login(
         secure=secure
     )
 
+    # noqa S106: os tokens reais vao nos cookies HttpOnly acima; estes campos
+    # sao placeholders literais para nao expor credencial no corpo da resposta.
+    # "bearer" e o tipo definido pelo OAuth2, nao um segredo.
     return schemas.Token(
-        access_token="hidden",
-        refresh_token="hidden",
-        token_type="bearer",
+        access_token="hidden",  # noqa: S106
+        refresh_token="hidden",  # noqa: S106
+        token_type="bearer",  # noqa: S106
         usuario=schemas.UsuarioOut.model_validate(usuario),
     )
 
@@ -230,11 +233,11 @@ async def refresh_access_token(
         # Buscar usuário
         try:
             val_usuario_id = uuid.UUID(usuario_id)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as exc:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="ID de usuário inválido no token",
-            )
+            ) from exc
             
         user_result = await db.execute(
             select(Usuario).where(Usuario.id == val_usuario_id)
@@ -285,16 +288,17 @@ async def refresh_access_token(
             secure=secure
         )
         
+        # noqa S106: mesmos placeholders do login — ver comentario acima.
         return schemas.Token(
-            access_token="hidden",
-            refresh_token="hidden",
-            token_type="bearer",
+            access_token="hidden",  # noqa: S106
+            refresh_token="hidden",  # noqa: S106
+            token_type="bearer",  # noqa: S106
             usuario=schemas.UsuarioOut.model_validate(usuario),
         )
         
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         # RISCO-09: antes engolia qualquer exceção sem log — inclusive
         # falha de infraestrutura (banco fora do ar, erro de driver), que
         # ficava indistinguível de "token inválido" e sem rastro para
@@ -303,7 +307,7 @@ async def refresh_access_token(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token inválido",
-        )
+        ) from exc
 
 
 @router.post(

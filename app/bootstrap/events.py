@@ -11,7 +11,9 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 
 from app.bootstrap.config import get_settings
-from app.bootstrap import tasks, seed
+from app.bootstrap import tasks
+
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -33,7 +35,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         from sqlalchemy import event as sa_event
         from sqlalchemy.orm import Session
         sa_event.listen(Session, "after_commit", tasks.mark_db_dirty)
-        logging.info(
+        logger.info(
             "[R2 Backup] Backup orientado a eventos ativo (debounce: %ds).", 
             tasks.get_backup_debounce_seconds()
         )
@@ -56,7 +58,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # 6. Shutdown: Backup final se houver dados não persistidos no R2
     if tasks.is_db_dirty() and current_settings.storage_backend.lower() == "r2" and current_settings.r2_bucket_name:
-        logging.info("[R2 Backup] Shutdown com dados não salvos — executando backup final...")
+        logger.info("[R2 Backup] Shutdown com dados não salvos — executando backup final...")
         await tasks.run_r2_backup()
 
     # 7. Shutdown: Fechar engine de banco de dados

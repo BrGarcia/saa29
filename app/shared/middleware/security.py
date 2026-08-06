@@ -37,7 +37,17 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "script-src 'self'; "
             "img-src 'self' data: https://*.r2.cloudflarestorage.com; "
             "connect-src 'self' https://*.r2.cloudflarestorage.com; "
-            "frame-src 'self' https://*.r2.cloudflarestorage.com;"
+            "frame-src 'self' https://*.r2.cloudflarestorage.com; "
+            # Delta do viewer de PDF do módulo publicacoes (M1): o PDF.js
+            # vendorizado instancia o worker via `new Worker(workerSrc, {type:
+            # "module"})` apontando para um arquivo same-origin
+            # (`/static/js/pdfjs/pdf.worker.min.mjs`), nunca um Blob — por
+            # isso `'self'` basta, sem precisar de `blob:`. Sem `worker-src`
+            # explícito o worker cairia no fallback de `default-src 'self'`,
+            # que já cobriria o mesmo caso; a diretiva foi tornada explícita
+            # para não depender desse fallback caso `default-src` mude no
+            # futuro. Ver docs/methodology/CSP.md.
+            "worker-src 'self';"
         )
         
         # HSTS em produção (se usando HTTPS)

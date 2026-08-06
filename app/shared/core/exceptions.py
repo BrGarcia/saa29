@@ -95,7 +95,16 @@ def setup_exception_handlers(app: FastAPI, api_prefixes: list[str] | None = None
     # inexistente) é um exemplo real de bug que já aconteceu nesse caminho.
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception):
-        logger.exception("Exceção não tratada em %s %s", request.method, request.url.path)
+        # exc_info explícito em vez de logger.exception(): o handler é chamado
+        # pelo Starlette de dentro do except, então sys.exc_info() estaria
+        # disponível — mas depender disso é frágil e o ruff (LOG004) acusa,
+        # com razão, que a chamada está fora de um bloco except.
+        logger.error(
+            "Exceção não tratada em %s %s",
+            request.method,
+            request.url.path,
+            exc_info=exc,
+        )
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"detail": "Erro interno do servidor."},

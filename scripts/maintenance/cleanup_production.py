@@ -3,10 +3,9 @@ scripts/maintenance/cleanup_production.py
 Script para remover dados de seed injetados acidentalmente em produção.
 """
 import asyncio
-import os
 import sys
 from pathlib import Path
-from sqlalchemy import delete, select
+from sqlalchemy import delete
 
 # Ajustar PYTHONPATH
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -14,10 +13,6 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from app.bootstrap.database import get_session_factory
-from app.modules.aeronaves.models import Aeronave
-from app.modules.equipamentos.models import ModeloEquipamento, SlotInventario
-from app.modules.calendario.models import EventType
-from app.modules.inspecoes.models import SistemaATA
 
 # Listas baseadas nos arquivos de seed
 FROTA_PARA_REMOVER = [
@@ -34,27 +29,27 @@ async def cleanup():
     async with AsyncSessionLocal() as session:
         try:
             # 1. Remover Panes de Teste
-            print(f"🗑️ Removendo Panes de teste...")
+            print("🗑️ Removendo Panes de teste...")
             from app.modules.panes.models import Pane
             stmt_panes = delete(Pane)
             res_panes = await session.execute(stmt_panes)
             print(f"   Done: {res_panes.rowcount} panes removidas.")
 
             # 2. Remover Inspeções e Tarefas de Teste
-            print(f"🗑️ Removendo Inspeções e registros de tarefas...")
+            print("🗑️ Removendo Inspeções e registros de tarefas...")
             from app.modules.inspecoes.models import Inspecao, InspecaoTarefa
             await session.execute(delete(InspecaoTarefa))
             res_insp = await session.execute(delete(Inspecao))
             print(f"   Done: {res_insp.rowcount} inspeções removidas.")
 
             # 3. Remover Itens Instalados (Inventário) - Preservando os Slots
-            print(f"🗑️ Removendo itens instalados nos slots (Inventário)...")
+            print("🗑️ Removendo itens instalados nos slots (Inventário)...")
             from app.modules.equipamentos.models import ItemEquipamento
             res_items = await session.execute(delete(ItemEquipamento))
             print(f"   Done: {res_items.rowcount} itens físicos removidos (Slots agora estão vazios).")
 
             # 4. Remover Usuários de Teste
-            print(f"🗑️ Removendo usuários de teste (mantendo admin)...")
+            print("🗑️ Removendo usuários de teste (mantendo admin)...")
             from app.modules.auth.models import Usuario
             USUARIOS_TESTE = ["encarregado", "inspetor", "mantenedor"]
             stmt_users = delete(Usuario).where(Usuario.username.in_(USUARIOS_TESTE))

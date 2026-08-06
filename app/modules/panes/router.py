@@ -3,6 +3,7 @@ app/panes/router.py
 Endpoints de gestão de panes aeronáuticas.
 """
 
+import asyncio
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -317,7 +318,7 @@ async def upload_anexo(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(e),
-        )
+        ) from e
 
 
 @router.get(
@@ -352,7 +353,7 @@ async def excluir_anexo(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
-        )
+        ) from e
 
 
 @router.get(
@@ -389,7 +390,10 @@ async def baixar_anexo(
         return RedirectResponse(url_or_path)
 
     caminho = Path(url_or_path)
-    if not caminho.exists() or not caminho.is_file():
+    # stat() em thread: bloquear o event loop aqui atrasa toda requisicao
+    # concorrente do mesmo worker.
+    existe = await asyncio.to_thread(lambda: caminho.exists() and caminho.is_file())
+    if not existe:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Arquivo físico do anexo não encontrado.",

@@ -1,0 +1,40 @@
+{% extends "mobile/base_mobile.html" %}
+
+{% block title %}Publicações — SAA29 Mobile{% endblock %}
+
+{% block content %}
+<div id="publicacoes-context" data-status-url="/publicacoes/api/status"></div>
+
+<div class="mobile-section">
+    <h2 class="mobile-section-title">Publicações</h2>
+    <p class="mobile-section-sub">Busca no acervo de manuais e resolução de mensagem do FIM.</p>
+
+    <div class="card" style="margin-bottom: 0.75rem;">
+        <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Buscar</label>
+        <input type="text" id="pub-busca-input" class="form-input" placeholder="Ex: sangria do compressor">
+        <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+            <input type="text" id="pub-filtro-manual" class="form-input" placeholder="Manual (opcional)">
+            <input type="text" id="pub-filtro-capitulo" class="form-input" placeholder="Capítulo (opcional)" style="display:none;">
+            <input type="text" id="pub-filtro-ata" class="form-input" placeholder="ATA" style="max-width: 90px;">
+        </div>
+        <button type="button" class="btn btn-primary" id="pub-busca-btn" style="width:100%; margin-top:0.5rem;">Buscar</button>
+    </div>
+
+    <div class="card" style="margin-bottom: 0.75rem;">
+        <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Mensagem do CAS/EICAS (FIM)</label>
+        <input type="text" id="pub-fim-input" class="form-input" placeholder="Ex: ADC 001">
+        <button type="button" class="btn btn-outline" id="pub-fim-btn" style="width:100%; margin-top:0.5rem;">Resolver procedimento</button>
+        <div id="pub-fim-resultados" style="margin-top: 0.5rem;"></div>
+    </div>
+
+    <div id="pub-status-vazio" class="card" style="display: none; text-align: center; color: var(--text-secondary);">
+        Acervo ainda não indexado nesta instância.
+    </div>
+    <div id="pub-resultados-meta" style="margin: 0.5rem 0; color: var(--text-secondary); font-size: 0.85rem;"></div>
+    <div id="pub-resultados-lista"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/publicacoes.js"></script>
+{% endblock %}

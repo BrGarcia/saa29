@@ -31,7 +31,7 @@ from app.modules.aeronaves.models import Aeronave
 from app.modules.auth.models import Usuario
 from app.modules.auth.security import hash_senha
 from app.modules.panes import service
-from app.modules.panes.models import Anexo, Pane, PaneResponsavel
+from app.modules.panes.models import Anexo, PaneResponsavel
 from app.modules.panes.schemas import AdicionarResponsavel, PaneCreate, PaneUpdate
 from app.shared.core import exceptions as domain_exc
 from app.shared.core.enums import StatusAeronave, StatusPane, TipoPapel

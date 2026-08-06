@@ -9,7 +9,6 @@ import functools
 import boto3
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Optional
 from pathlib import Path
 
 from app.bootstrap.config import get_settings
@@ -63,15 +62,24 @@ class LocalStorageService(StorageService):
         return str(file_path)
 
     async def get_url(self, file_path: str) -> str:
-        # Para local storage, retornamos o caminho absoluto para o router ler o arquivo
-        return str(Path(file_path).resolve())
+        # Para local storage, retornamos o caminho absoluto para o router ler o
+        # arquivo. resolve() toca o filesystem, entao vai para thread pelo mesmo
+        # motivo do upload acima: nao travar o event loop.
+        return await asyncio.to_thread(lambda: str(Path(file_path).resolve()))
 
     async def delete(self, file_path: str) -> bool:
         path = Path(file_path)
-        if path.exists() and path.is_file():
-            path.unlink()
-            return True
-        return False
+
+        # exists()/is_file()/unlink() sao syscalls bloqueantes; com 2 workers
+        # Gunicorn, executa-las na coroutine trava todas as requisicoes
+        # concorrentes daquele worker pela duracao do I/O.
+        def _delete() -> bool:
+            if path.exists() and path.is_file():
+                path.unlink()
+                return True
+            return False
+
+        return await asyncio.to_thread(_delete)
 
 
 class R2StorageService(StorageService):

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block page_title %}Publicações{% endblock %}
+
+{% block content %}
+<div id="publicacoes-context" data-status-url="/publicacoes/api/status"></div>
+
+<div style="margin-bottom: 0.75rem;">
+    <a href="/publicacoes/avulsas" class="btn btn-outline" style="text-decoration: none;">Publicações avulsas (BO/BS/NPO/BT) →</a>
+</div>
+
+<div class="card" style="margin-bottom: 1rem;">
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end;">
+        <div style="flex: 2; min-width: 240px;">
+            <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Buscar no acervo de manuais</label>
+            <input type="text" id="pub-busca-input" class="form-input" placeholder="Ex: sangria do compressor, 34-15-00-810-801-A...">
+        </div>
+        <div style="flex: 1; min-width: 160px;">
+            <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Manual (código)</label>
+            <input type="text" id="pub-filtro-manual" class="form-input" placeholder="Ex: FIM_1741">
+        </div>
+        <div style="flex: 1; min-width: 160px;">
+            <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Capítulo</label>
+            <input type="text" id="pub-filtro-capitulo" class="form-input" placeholder="Ex: CHAPTER_36">
+        </div>
+        <div style="flex: 1; min-width: 120px;">
+            <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">ATA</label>
+            <input type="text" id="pub-filtro-ata" class="form-input" placeholder="Ex: 36" maxlength="2" inputmode="numeric">
+        </div>
+        <button type="button" class="btn btn-primary" id="pub-busca-btn">Buscar</button>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: 1rem;">
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end;">
+        <div style="flex: 1; min-width: 220px;">
+            <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Mensagem de falha (CAS/EICAS) — FIM</label>
+            <input type="text" id="pub-fim-input" class="form-input" placeholder="Ex: ADC 001">
+        </div>
+        <button type="button" class="btn btn-outline" id="pub-fim-btn">Resolver procedimento</button>
+    </div>
+    <div id="pub-fim-resultados" style="margin-top: 0.75rem;"></div>
+</div>
+
+<div id="pub-status-vazio" class="card" style="display: none; text-align: center; color: var(--text-secondary); padding: 2rem;">
+    O acervo de manuais ainda não foi indexado nesta instância — a busca ficará disponível assim que
+    <code>python -m scripts.publicacoes.indexar</code> rodar.
+</div>
+
+<div id="pub-resultados-meta" style="margin: 0.5rem 0; color: var(--text-secondary); font-size: 0.9rem;"></div>
+<div id="pub-resultados-lista"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/publicacoes.js"></script>
+{% endblock %}

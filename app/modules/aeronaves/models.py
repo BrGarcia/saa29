@@ -16,8 +16,7 @@ from app.bootstrap.database import Base
 from app.shared.core.enums import StatusAeronave
 
 if TYPE_CHECKING:
-    from app.modules.equipamentos.models import Instalacao
-    from app.modules.panes.models import Pane
+    pass
 
 
 class Aeronave(Base):

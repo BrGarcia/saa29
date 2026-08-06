@@ -1,7 +1,4 @@
-import os
-import sys
 import pytest
-import sqlite3
 from unittest.mock import patch, MagicMock
 from botocore.exceptions import ClientError
 

@@ -3,13 +3,13 @@ app/bootstrap/tasks.py
 Gerenciamento de tarefas em segundo plano e backups (R2).
 """
 
-import os
 import sys
 import logging
 import asyncio
 from typing import Optional
 
-from app.bootstrap.config import get_settings
+logger = logging.getLogger(__name__)
+
 
 # --- Estado Global para Backups ---
 _db_dirty: bool = False          # True quando há escrita não salva no R2
@@ -73,15 +73,15 @@ async def run_r2_backup() -> None:
         try:
             stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=60.0)
             if process.returncode == 0:
-                logging.info("[R2 Backup] %s", stdout.decode().strip())
+                logger.info("[R2 Backup] %s", stdout.decode().strip())
             else:
-                logging.warning("[R2 Backup] Falha: %s", stderr.decode().strip())
+                logger.warning("[R2 Backup] Falha: %s", stderr.decode().strip())
         except asyncio.TimeoutError:
             process.kill()
             await process.communicate()
-            logging.error("[R2 Backup] Timeout após 60 segundos.")
+            logger.error("[R2 Backup] Timeout após 60 segundos.")
     except Exception as exc:
-        logging.error("[R2 Backup] Erro inesperado: %s", exc)
+        logger.error("[R2 Backup] Erro inesperado: %s", exc)
 
 
 async def token_cleanup_task() -> None:
@@ -94,11 +94,11 @@ async def token_cleanup_task() -> None:
             async with get_session_factory()() as session:
                 await limpar_tokens_expirados(session)
                 await session.commit()
-            logging.info("[Token Cleanup] Limpeza de tokens executada com sucesso.")
+            logger.info("[Token Cleanup] Limpeza de tokens executada com sucesso.")
         except asyncio.CancelledError:
             break
         except Exception as exc:
-            logging.error("[Token Cleanup] Erro na limpeza: %s", exc)
+            logger.error("[Token Cleanup] Erro na limpeza: %s", exc)
         await asyncio.sleep(3600)  # Roda a cada 1 hora
 
 
@@ -119,14 +119,14 @@ async def anexos_travados_cleanup_task() -> None:
                 quantidade = await limpar_anexos_processando_antigos(session)
                 await session.commit()
             if quantidade:
-                logging.warning(
+                logger.warning(
                     "[Anexos Travados] %d anexo(s) preso(s) em 'processando' marcado(s) como ERRO.",
                     quantidade,
                 )
         except asyncio.CancelledError:
             break
         except Exception as exc:
-            logging.error("[Anexos Travados] Erro na limpeza: %s", exc)
+            logger.error("[Anexos Travados] Erro na limpeza: %s", exc)
         await asyncio.sleep(900)  # Roda a cada 15 minutos
 
 

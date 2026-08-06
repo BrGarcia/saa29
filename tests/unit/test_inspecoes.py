@@ -549,7 +549,7 @@ async def test_reordenar_tarefas_template(db: AsyncSession):
         schemas.ReordenarTarefaItem(id=t2.id, ordem=5),
     ])
 
-    reordenadas = await service.reordenar_tarefas_template(db, tipo.id, novas_ordens)
+    await service.reordenar_tarefas_template(db, tipo.id, novas_ordens)
     
     # Busca individualmente para confirmar persistencia
     await db.refresh(t1)

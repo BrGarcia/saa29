@@ -28,7 +28,8 @@ logger = logging.getLogger(__name__)
 # calculou pelo nome do arquivo, nem se os slots confirmados pertenciam de
 # fato à prévia. O token abaixo assina (aeronave_id + slot_ids da prévia)
 # para que a confirmação possa validar contra o que foi realmente exibido.
-_PREVIEW_TOKEN_TYPE = "xlsx_inventario_preview"
+# noqa S105: discriminador de tipo do token, nao o segredo que o assina.
+_PREVIEW_TOKEN_TYPE = "xlsx_inventario_preview"  # noqa: S105
 _PREVIEW_TOKEN_TTL_MINUTES = 15
 
 
@@ -147,7 +148,8 @@ async def obter_previa_xlsx_inventario(
 
         xlsx_data: dict[tuple[str, str], str] = {} # (PN, POS) -> SN
         for row in ws.iter_rows(min_row=2, values_only=True):
-            if len(row) < 6: continue
+            if len(row) < 6:
+                continue
             pn_xlsx = str(row[1]).strip().upper() if row[1] else None
             pos_xlsx = str(row[4]).strip().upper() if row[4] else ""
             sn_xlsx = str(row[5]).strip() if row[5] else None
@@ -183,7 +185,7 @@ async def obter_previa_xlsx_inventario(
             if not sn_xlsx or sn_xlsx.lower() in ("none", "", "-"):
                 sn_final = ""
                 status = "REMOVED"
-                status_msg = f"∅ Removido (vazio no XLSX)"
+                status_msg = "∅ Removido (vazio no XLSX)"
             else:
                 sn_final = sn_xlsx
                 status = "OK"
@@ -204,7 +206,8 @@ async def obter_previa_xlsx_inventario(
             status_msg=status_msg
         ))
 
-    if hasattr(wb, 'close'): wb.close()
+    if hasattr(wb, 'close'):
+        wb.close()
 
     resultado.preview_token = _gerar_preview_token(
         aeronave.id, [item.slot_id for item in resultado.itens]

@@ -1,5 +1,4 @@
 import sqlite3
-import re
 
 def update_slots():
     conn = sqlite3.connect('saa29_local.db')
@@ -10,13 +9,14 @@ def update_slots():
             lines = f.readlines()
 
         # Encontrar a tabela (pula cabeçalho e separador)
-        table_lines = [l.strip() for l in lines if l.strip().startswith('|') and 'Part Number' not in l and ':---' not in l]
+        table_lines = [linha.strip() for linha in lines if linha.strip().startswith('|') and 'Part Number' not in linha and ':---' not in linha]
 
         updated_count = 0
         for line in table_lines:
             # | PN | Equipamento | Slot | Código XLSX | Status |
             parts = [p.strip() for p in line.split('|')]
-            if len(parts) < 5: continue
+            if len(parts) < 5:
+                continue
             
             pn = parts[1]
             slot_nome = parts[3]
@@ -32,7 +32,8 @@ def update_slots():
             # Buscar o modelo_id pelo PN
             cursor.execute("SELECT id FROM modelos_equipamento WHERE part_number = ?", (pn,))
             modelo = cursor.fetchone()
-            if not modelo: continue
+            if not modelo:
+                continue
             modelo_id = modelo[0]
 
             # Atualizar o slot específico desse modelo

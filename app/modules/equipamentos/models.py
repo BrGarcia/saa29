@@ -14,7 +14,7 @@ import uuid
 from datetime import datetime, date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, DateTime, Date, Integer, ForeignKey, func, UniqueConstraint, Index, text
+from sqlalchemy import String, DateTime, Date, ForeignKey, func, UniqueConstraint, Index, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.bootstrap.database import Base

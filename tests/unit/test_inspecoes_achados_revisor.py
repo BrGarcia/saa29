@@ -17,7 +17,6 @@ Cobertura:
 
 import uuid
 import pytest
-from datetime import date
 
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
@@ -32,7 +31,7 @@ from app.modules.inspecoes import schemas, service
 from app.modules.inspecoes.router import router as inspecoes_router
 from app.modules.panes.models import Pane
 from app.shared.core import exceptions as domain_exc
-from app.shared.core.enums import StatusAeronave, StatusInspecao, StatusTarefaInspecao
+from app.shared.core.enums import StatusAeronave, StatusTarefaInspecao
 
 from tests.unit.test_inspecoes_refatoracao import criar_usuario_teste, criar_aeronave_teste, criar_tipo_com_tarefas
 

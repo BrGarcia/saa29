@@ -3,10 +3,10 @@ app/pages/router.py
 Rotas do Frontend (Jinja2 Templates). Servindo o MVP de Interface.
 """
 
-from fastapi import APIRouter, Request, Depends, status
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from app.bootstrap.dependencies import get_current_user, require_role, AdminRequired
+from app.bootstrap.dependencies import get_current_user, AdminRequired
 
 router = APIRouter(tags=["Frontend"])
 
@@ -84,6 +84,26 @@ async def vencimentos_page(request: Request, _=Depends(get_current_user)):
 async def calendario_page(request: Request, _=Depends(get_current_user)):
     """Calendario operacional do SAA29."""
     return templates.TemplateResponse("calendario.html", {"request": request})
+
+
+@router.get("/publicacoes", response_class=HTMLResponse, include_in_schema=False)
+async def publicacoes_lista_page(request: Request, _=Depends(get_current_user)):
+    """Busca unificada no acervo de manuais e resolução de mensagem do FIM."""
+    return templates.TemplateResponse("publicacoes/lista.html", {"request": request})
+
+
+@router.get("/publicacoes/viewer/{doc_id}", response_class=HTMLResponse, include_in_schema=False)
+async def publicacoes_viewer_page(request: Request, doc_id: str, _=Depends(get_current_user)):
+    """Viewer de PDF em canvas (PDF.js) — nunca iframe (D-F)."""
+    return templates.TemplateResponse(
+        "publicacoes/viewer.html", {"request": request, "doc_id": doc_id}
+    )
+
+
+@router.get("/publicacoes/avulsas", response_class=HTMLResponse, include_in_schema=False)
+async def publicacoes_avulsas_page(request: Request, _=Depends(get_current_user)):
+    """Lista/filtros/cadastro de BO/BS/NPO/BT (acervo B, M2)."""
+    return templates.TemplateResponse("publicacoes/avulsas.html", {"request": request})
 
 
 @router.get("/configuracoes", response_class=HTMLResponse, include_in_schema=False)

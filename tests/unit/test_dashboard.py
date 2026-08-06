@@ -11,8 +11,7 @@ Metodologia:
 
 import uuid
 import pytest
-import pytest_asyncio
-from datetime import date, datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from httpx import AsyncClient
 

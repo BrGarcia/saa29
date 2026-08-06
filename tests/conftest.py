@@ -10,6 +10,8 @@ Estratégia (Método Akita – Dia 3):
 """
 
 import os
+import sys
+import threading
 import uuid
 import pytest
 import pytest_asyncio
@@ -20,6 +22,14 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 # Forçar storage local durante os testes
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["APP_ENV"] = "testing"
+# Chave de assinatura da suíte. O validador de Settings exige no mínimo 32
+# caracteres (app/bootstrap/config/__init__.py:144) e não abre exceção para
+# APP_ENV=testing; como o CI não tem .env, sem esta linha a importação de
+# `app.bootstrap.main` logo abaixo falha antes de qualquer teste rodar.
+# Atribuição direta (e não `setdefault`) de propósito: este arquivo é o dono
+# único de APP_SECRET_KEY durante os testes, para que o resultado não dependa
+# do .env da máquina nem de variável definida no workflow.
+os.environ["APP_SECRET_KEY"] = "saa29-suite-de-testes-chave-fixa-sem-valor-de-producao"
 
 from app.bootstrap.main import app
 from app.bootstrap.database import Base
@@ -61,9 +71,30 @@ async def criar_tabelas():
     yield
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    
+
     # Fundamental para evitar que o pytest "trave" após rodar todos os testes
     await test_engine.dispose()
+
+    # Diagnóstico de processo pendurado (visto no CI: os testes terminam e
+    # imprimem "N passed", mas o processo do pytest fica vivo até o job
+    # estourar o teto de 6h do Actions e ser morto à força). O suspeito
+    # nº 1 é uma thread não-daemon que sobrevive ao dispose acima — cada
+    # conexão do aiosqlite abre a sua própria e só a fecha quando alguém
+    # chama `.close()` explicitamente. Isto não corrige o vazamento; só
+    # aponta o nome da thread no log **antes** do processo travar, para que
+    # a próxima ocorrência diga qual é a culpada em vez de só "expirou".
+    sobreviventes = [
+        t for t in threading.enumerate()
+        if t is not threading.main_thread() and not t.daemon
+    ]
+    if sobreviventes:
+        print(
+            f"\n⚠️  {len(sobreviventes)} thread(s) não-daemon sobrevive(m) ao fim "
+            "da suíte — candidata(s) a travar a saída do processo:",
+            file=sys.stderr,
+        )
+        for t in sobreviventes:
+            print(f"    - {t.name!r} (ident={t.ident}, alive={t.is_alive()})", file=sys.stderr)
 
 
 @pytest_asyncio.fixture

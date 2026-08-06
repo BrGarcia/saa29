@@ -72,5 +72,6 @@ class Token(BaseModel):
     """Resposta do endpoint de login."""
     access_token: str
     refresh_token: str | None = None  # Novo: refresh token retornado no login
-    token_type: str = "bearer"
+    # noqa S105: "bearer" e o tipo de token definido pelo OAuth2, nao um segredo.
+    token_type: str = "bearer"  # noqa: S105
     usuario: UsuarioOut

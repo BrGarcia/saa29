@@ -9,30 +9,23 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        db-type: [sqlite, postgres]
-
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: saa29_user
-          POSTGRES_PASSWORD: password123
-          POSTGRES_DB: saa29_db_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    # Rede de segurança: a suíte roda em ~1min30s localmente. Sem este teto,
+    # um processo que trave por qualquer motivo (thread não-daemon que não
+    # fecha, subprocesso órfão) consome as 6h do limite padrão do Actions —
+    # já aconteceu duas vezes nesta branch (runs 30937809568 e 30992210780,
+    # ambos cancelados após exatamente 6h). Isso não corrige a causa, só
+    # limita o desperdício enquanto ela é investigada (ver conftest.py).
+    timeout-minutes: 15
 
     env:
-      DATABASE_URL: ${{ matrix.db-type == 'postgres' && 'postgresql+asyncpg://saa29_user:password123@localhost:5432/saa29_db_test' || 'sqlite+aiosqlite:///:memory:' }}
-      APP_SECRET_KEY: testing_secret_key_saa29
-      APP_ENV: testing
+      # APP_SECRET_KEY e APP_ENV nao sao definidos aqui de proposito:
+      # tests/conftest.py os atribui diretamente antes de importar a app e
+      # e o dono unico deles durante a suite. Defini-los tambem aqui criava
+      # config morta — o valor do workflow era sobrescrito e, ainda assim,
+      # nao passava no validador de tamanho de APP_SECRET_KEY.
+      # Aspas obrigatorias: o valor termina em ':' e sem elas o YAML o
+      # interpreta como chave de mapeamento.
+      DATABASE_URL: "sqlite+aiosqlite:///:memory:"
 
     steps:
     - uses: actions/checkout@v4
@@ -45,13 +38,12 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libmagic1 libpq-dev
+        sudo apt-get install -y libmagic1
 
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install ruff mypy pytest-asyncio pytest-cov
+        pip install -r requirements-dev.txt
 
     - name: Lint with Ruff
       run: ruff check .

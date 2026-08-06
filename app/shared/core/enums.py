@@ -99,3 +99,56 @@ class StatusTarefaInspecao(str, enum.Enum):
     PENDENTE = "PENDENTE"
     CONCLUIDA = "CONCLUIDA"
     NA = "N/A"
+
+
+class RevisionStatus(str, enum.Enum):
+    """
+    Estado de revisão de um documento do acervo de manuais, vindo do campo
+    `revision` do índice Lucene legado (`index_2.0/`).
+
+    O índice usa 6 valores, não os 3 documentados: além de U/R/N aparecem
+    '0', '1' e '2' residualmente (16 casos em 5.719 documentos medidos). Eles
+    caem em DESCONHECIDO em vez de serem forçados em um dos três estados
+    esperados — ver docs/backlog/modulo_publicacoes/02_formato_indice_lucene.md
+    §6 armadilha 3. Documento sem entrada no índice também é DESCONHECIDO.
+    """
+    UNCHANGED = "UNCHANGED"        # 'U'
+    REVISED = "REVISED"            # 'R'
+    NOVO = "NOVO"                  # 'N'
+    DESCONHECIDO = "DESCONHECIDO"  # '0'/'1'/'2' e ausência de entrada
+
+
+class TipoPublicacao(str, enum.Enum):
+    """Tipo de publicação avulsa (acervo B: BO/BS/NPO/BT)."""
+    BO = "BO"
+    BS = "BS"
+    NPO = "NPO"
+    BT = "BT"
+    OUTRO = "OUTRO"
+
+
+class StatusPublicacaoAvulsa(str, enum.Enum):
+    """
+    Estado de vigência de uma publicação avulsa.
+
+    SUBSTITUIDO aponta para a publicação que a sucede via
+    `substituida_por_id` — a cadeia de substituição é o que permite navegar
+    da revisão antiga para a vigente sem descartar o histórico.
+    """
+    VIGENTE = "VIGENTE"
+    CANCELADO = "CANCELADO"
+    SUBSTITUIDO = "SUBSTITUIDO"
+
+
+class StatusEdicao(str, enum.Enum):
+    """
+    Estado de uma edição do acervo de manuais no ciclo de republicação.
+
+    ARQUIVADA descarta apenas artefatos de disco/R2 (PDFs, catalog.db da
+    edição); as linhas de catálogo NUNCA sofrem hard delete, porque sustentam
+    as FKs da auditoria de acesso (03_especificacao_tecnica.md §2.1).
+    """
+    AGUARDANDO_ATIVACAO = "AGUARDANDO_ATIVACAO"
+    VIGENTE = "VIGENTE"
+    ANTERIOR = "ANTERIOR"
+    ARQUIVADA = "ARQUIVADA"

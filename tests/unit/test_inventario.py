@@ -6,10 +6,9 @@ Alinhado com a arquitetura PN vs Slot e novas siglas (CEI, CES, 1P, 2P).
 
 import uuid
 import pytest
-import asyncio
-from datetime import date, timedelta, datetime
+from datetime import timedelta, datetime
 from httpx import AsyncClient
-from sqlalchemy import select, update
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.equipamentos.models import SlotInventario, Instalacao
 
@@ -192,7 +191,7 @@ class TestInventarioFull:
         logs = response.json()
 
         # Buscar o log específico deste teste na lista (pode haver sujeira de outros testes)
-        nosso_log = next((l for l in logs if l["item_sn"] == sn.upper()), None)
+        nosso_log = next((log for log in logs if log["item_sn"] == sn.upper()), None)
 
         assert nosso_log is not None, f"Log para o item {sn} não encontrado no histórico"
         assert nosso_log["usuario_trigrama"] == "ABC"
@@ -245,7 +244,7 @@ class TestInventarioFull:
 
         historico = await client.get(f"{INVENTARIO_URL}/historico", headers=headers)
         logs = historico.json()
-        nosso_log = next((l for l in logs if l["item_sn"] == sn.upper()), None)
+        nosso_log = next((log for log in logs if log["item_sn"] == sn.upper()), None)
 
         assert nosso_log is not None
         # O autor registrado é sempre quem autenticou a requisição, nunca o

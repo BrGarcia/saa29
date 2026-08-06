@@ -7,7 +7,7 @@ import uuid
 from datetime import date
 from fastapi import APIRouter, status
 from app.modules.vencimentos import schemas, service
-from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin, AdminRequired, EncarregadoInspetorOuAdmin, ExecucaoPermitida
+from app.bootstrap.dependencies import DBSession, CurrentUser, AdminRequired, EncarregadoInspetorOuAdmin, ExecucaoPermitida
 from app.shared.core.enums import StatusVencimento
 
 router = APIRouter()
