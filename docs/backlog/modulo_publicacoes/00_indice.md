@@ -12,7 +12,9 @@
 3. **[`09_plano_configuracoes.md`](09_plano_configuracoes.md)** — o plano de trabalho da gerência de
    edições e da navegação do acervo, com as duas etapas concluídas. Fica como referência de contrato
    e de "o que a execução mudou em relação ao planejado"; o que resta no módulo (RSS/disco da VPS,
-   verificação visual) não é mais trabalho de código descrito aqui — ver o `08`.
+   Fase 4/mobile do explorador) não é mais trabalho de código descrito aqui — ver o `08`. **A UI de
+   desktop que a Etapa 2 construiu foi substituída pelo explorador** — ver `melhorias.md` e
+   `10_plano_preview_explorador.md` (nota de vigência no topo do `09`).
 
 Os demais documentos da pasta são registro datado (medições, pareceres, revisões) — úteis para
 entender *por que* algo é como é, desnecessários para trabalhar.
@@ -31,6 +33,8 @@ entender *por que* algo é como é, desnecessários para trabalhar.
 | 7 | [`07_revisao_pre_implementacao.md`](07_revisao_pre_implementacao.md) | **8 bugs antecipados + 2 simplificações + 5 lacunas de convenção**, cada um medido por execução real | Vai implementar — é o documento que evita perder um dia depurando no lugar errado |
 | 8 | [`08_status_de_implementacao.md`](08_status_de_implementacao.md) | **Painel de progresso.** Tarefa a tarefa, com evidência verificável, gates medidos e a próxima tarefa | Quer saber **em que ponto a implementação está** — é o único documento desta pasta que muda com o código |
 | 9 | [`09_plano_configuracoes.md`](09_plano_configuracoes.md) | Plano de trabalho da gerência de edições e da navegação do acervo — Etapa 1 (gerência em `/configuracoes`) ✅ e Etapa 2 (navegação do acervo) ✅, ambas concluídas | Quer o contrato de cada endpoint/página e o registro de "o que a execução mudou em relação ao planejado" |
+| — | [`melhorias.md`](melhorias.md) | **Adotado.** Avaliação de viabilidade que virou a implementação real de `/publicacoes` — o porquê de cada decisão de design do explorador | Quer entender por que o explorador é como é, ou por que certas ideias óbvias não coube |
+| — | [`10_plano_preview_explorador.md`](10_plano_preview_explorador.md) | **Adotado — promovido.** `/publicacoes` e `/publicacoes/viewer/{id}` SÃO o explorador e o viewer avançado, não uma prévia paralela; §8 tem o de-para da promoção | Quer saber o que mudou de nome/lugar na promoção, ou por que a navegação de `/publicacoes` é client-fetch |
 | — | [`../../architecture/adr/004-modulo-publicacoes.md`](../../architecture/adr/004-modulo-publicacoes.md) | ADR formal das 4 decisões de arquitetura que sobrevivem a todas as revisões | Quer a decisão registrada no lugar canônico do projeto |
 
 ## Status de cada documento
@@ -46,7 +50,9 @@ entender *por que* algo é como é, desnecessários para trabalhar.
 | `06_addendum_revisao_5.md` | Fechado | **Decisão** — o que mudou na Revisão 5 |
 | `07_revisao_pre_implementacao.md` | Datado — os 8 bugs antecipados foram confirmados e tratados | **Decisão** — rastreio de cada um no `08` |
 | `08_status_de_implementacao.md` | **Vivo** — atualizado a cada tarefa concluída | Rastreamento de progresso |
-| `09_plano_configuracoes.md` | **Vivo, mas sem trabalho de código pendente** — Etapas 1 e 2 concluídas | **Decisão** — reverte o `os.replace()` previsto em `search.py` por resolução do índice pelo banco (adendo no ADR-004); registra as 3 rotas de navegação que a §3 do contrato especificava e nunca tinham virado tarefa |
+| `09_plano_configuracoes.md` | **Vivo, mas sem trabalho de código pendente** — Etapas 1 e 2 concluídas; nota de vigência registra a UI de desktop da Etapa 2 como substituída pelo explorador | **Decisão** — reverte o `os.replace()` previsto em `search.py` por resolução do índice pelo banco (adendo no ADR-004); registra as 3 rotas de navegação que a §3 do contrato especificava e nunca tinham virado tarefa — essas 3 rotas seguem em uso (pelo explorador e/ou pelo mobile) |
+| `melhorias.md` | **Adotado** — implementado e promovido | **Decisão** — registro do porquê do design |
+| `10_plano_preview_explorador.md` | **Adotado — promovido** (§8.5 tem o de-para) | **Decisão** — mecanismo de avaliação, hoje histórico |
 | `004-modulo-publicacoes.md` (ADR) | Aceito, com adendo de 06/08 sobre o índice por edição | **Decisão formal** |
 
 > Atenção à assimetria: a tabela acima é o status **dos documentos**, não o da implementação. Quem
@@ -80,3 +86,7 @@ parcialmente respondida), D-S7 (backup testado).
 - **`rebuild` obrigatório no FTS5** após a carga — contagem não prova que a busca funciona.
 - **`snippet` com sentinela `\x02`/`\x03`**, escapado no cliente — nunca `<mark>` cru do SQLite.
 - **`document_id` inclui a edição** e trafega entre bancos sempre via `uuid.UUID()`.
+- **`/publicacoes` e `/publicacoes/viewer/{id}` são um explorador de arquivos** (árvore
+  Categoria → Manual → Capítulo, viewer com zoom/rotação/miniaturas/busca interna), promovido após
+  avaliação manual — não mais a home de busca renderizada server-side. Mobile fica de fora por ora
+  (Fase 4 não iniciada); `manual.html`/`capitulo.html` seguem vivas só para o mobile.

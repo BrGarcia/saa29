@@ -94,28 +94,27 @@ async def calendario_page(request: Request, _=Depends(get_current_user)):
 
 
 @router.get("/publicacoes", response_class=HTMLResponse, include_in_schema=False)
-async def publicacoes_lista_page(request: Request, db: DBSession, _=Depends(get_current_user)):
+async def publicacoes_lista_page(request: Request, _=Depends(get_current_user)):
     """
-    Busca unificada no acervo de manuais e resolução de mensagem do FIM.
-
-    O índice "Navegar no acervo" é renderizado direto do `service`, sem passar
-    por `GET /api/manuais`: a página já tem `db`, e uma chamada HTTP a si
-    mesma seria um salto desnecessário. A API existe para o mobile e para os
-    `<select>` de refino da busca (Etapa 2 de `09_plano_configuracoes.md`).
+    Explorador do acervo: árvore Categoria → Manual → Capítulo, busca por
+    nome/conteúdo, resolução de mensagem do FIM. Client-fetch puro em
+    `publicacoes_explorador.js` sobre `GET /api/manuais` e os demais
+    endpoints de `app/modules/publicacoes` — esta rota não toca o banco.
     """
-    manuais = await publicacoes_service.listar_manuais_vigentes(db)
-    categorias_manuais: dict[str, list[dict]] = {}
-    for manual in manuais:
-        categorias_manuais.setdefault(manual["categoria"], []).append(manual)
-    return templates.TemplateResponse(
-        "publicacoes/lista.html",
-        {"request": request, "categorias_manuais": categorias_manuais},
-    )
+    return templates.TemplateResponse("publicacoes/lista.html", {"request": request})
 
 
 @router.get("/publicacoes/viewer/{doc_id}", response_class=HTMLResponse, include_in_schema=False)
 async def publicacoes_viewer_page(request: Request, doc_id: str, _=Depends(get_current_user)):
-    """Viewer de PDF em canvas (PDF.js) — nunca iframe (D-F)."""
+    """
+    Viewer de PDF em canvas (PDF.js) — nunca iframe (D-F). Zoom, ajuste à
+    largura/página, rotação, tela cheia, miniaturas sob demanda e busca de
+    texto dentro do documento (`publicacoes_viewer.js`).
+
+    `doc_id: str`, não `uuid.UUID`: um id malformado só falha quando o JS
+    chama a API (`/api/documentos/{doc_id}`, que aí sim valida), não aqui —
+    a página trata o erro no cliente em vez de devolver 422 de path.
+    """
     return templates.TemplateResponse(
         "publicacoes/viewer.html", {"request": request, "doc_id": doc_id}
     )

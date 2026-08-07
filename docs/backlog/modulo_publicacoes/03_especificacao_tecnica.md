@@ -14,7 +14,7 @@
 
 ## 0.1 Correções após a implementação (M0–M4 + Fase 0)
 
-Esta especificação foi escrita **antes** de o módulo existir. Três pontos dela deixaram de ser
+Esta especificação foi escrita **antes** de o módulo existir. Vários pontos dela deixaram de ser
 verdade durante a execução. O texto original de cada seção afetada foi corrigido no lugar; esta
 lista existe para que quem já conhecia o documento saiba **o que mudou** sem reler tudo.
 
@@ -25,10 +25,15 @@ lista existe para que quem já conhecia o documento saiba **o que mudou** sem re
 | `search.buscar` lê `get_settings().publicacoes_index_path` direto | `search.buscar` recebe um `Path` de quem chama; o router resolve por `service.caminho_indice_vigente(db)` | §2.4 |
 | `POST /publicacoes/api/edicoes/{id}/reverter` como rota própria | **Não existe, por decisão.** Reverter é ativar a edição `ANTERIOR`, pelo mesmo `POST .../ativar` — um caminho de código, um conjunto de testes, e nenhuma dúvida sobre o que "reverter" faz quando há mais de uma edição anterior retida. A UI é que rotula o botão como "Reverter" | §3 |
 | `GET /publicacoes/manuais/{manual_path}` e `.../{capitulo}` | **Implementadas** (Etapa 2 de [`09_plano_configuracoes.md`](../backlog/modulo_publicacoes/09_plano_configuracoes.md)). O parâmetro é `{codigo}` (`manuais.codigo`), não `{manual_path}` como a spec original chamava: o `path` é caminho de disco e não pertence a uma URL. `capitulo == ""` (a raiz do manual, caso do `piloto-fim`) usa o sentinela de URL `_raiz_`, porque um segmento de path vazio não roteia | §3 |
+| `GET /publicacoes` renderizada direto do `service` (busca + índice "Navegar no acervo" por categoria, servidos já montados em HTML) | **Substituída.** `/publicacoes` e `/publicacoes/viewer/{doc_id}` viraram um explorador de arquivos (árvore Categoria → Manual → Capítulo, viewer com zoom/rotação/miniaturas/busca interna) — client-fetch puro em `publicacoes_explorador.js`/`publicacoes_viewer.js` sobre os endpoints de `§3`, incluindo o novo `GET /api/catalogo/busca` (busca por nome/caminho). A página deixou de receber `db`; nasceu como prévia sob flag (avaliada manualmente pelo desenvolvedor) e foi promovida — ver `08_status_de_implementacao.md`. `/publicacoes/manuais/{codigo}[/{capitulo}]` **continuam existindo, inalteradas**: é o que `mobile/publicacoes.html` ainda usa para navegar (mobile não tem o explorador — decisão de escopo, não lacuna) | §3, `08_status_de_implementacao.md` |
 
 A segunda e a quarta linhas são **reversões de decisão**; a segunda está registrada no adendo do
 [ADR-004](../../architecture/adr/004-modulo-publicacoes.md). A primeira e a terceira são
-consequência de uma decisão externa ao módulo (tirar o acervo do git) e da própria segunda.
+consequência de uma decisão externa ao módulo (tirar o acervo do git) e da própria segunda. A
+quinta é a Etapa 2 de `09_plano_configuracoes.md` fechando uma lacuna que a spec original só
+especificava. A sexta é a promoção do explorador (`melhorias.md`, `10_plano_preview_explorador.md`)
+— também reversão de decisão, mas de um design deste próprio módulo (Etapa 2 da N2), não da
+`Especificacao.MD` externa.
 
 > **Auditoria de rotas — faça no fecho de cada marco.** A §3 abaixo é o contrato, mas nenhum gate a
 > confere: os gates olham a lista de tarefas. Foi assim que duas rotas especificadas ficaram quatro
@@ -533,16 +538,17 @@ Todo endpoint JSON vive sob `/publicacoes/api/...` — **um único sub-prefixo**
 
 | Rota | Tipo | RBAC | Situação | Observação |
 |---|---|---|:--:|---|
-| `GET /publicacoes` | HTML | `CurrentUser` | ✅ | home: busca unificada + índice "Navegar no acervo" por categoria (Etapa 2) |
-| `GET /publicacoes/manuais/{codigo}` | HTML | `CurrentUser` | ✅ | capítulos — Etapa 2 do `09`, renderizada direto do `service` |
-| `GET /publicacoes/manuais/{codigo}/{capitulo}` | HTML | `CurrentUser` | ✅ | documentos, paginados por `?offset=`/`?limit=` — Etapa 2 do `09`. `capitulo == ""` (raiz) usa o sentinela de URL `_raiz_` (`CAPITULO_RAIZ_SLUG`), já que um segmento de path vazio não roteia |
-| `GET /publicacoes/api/manuais` | JSON | `CurrentUser` | ✅ | catálogo de manuais da edição vigente — Etapa 2 do `09` |
-| `GET /publicacoes/api/manuais/{codigo}/capitulos` | JSON | `CurrentUser` | ✅ | Etapa 2 do `09` |
-| `GET /publicacoes/api/manuais/{codigo}/documentos` | JSON | `CurrentUser` | ✅ | paginado, filtro opcional por `capitulo` — Etapa 2 do `09` |
-| `GET /publicacoes/viewer/{doc_id}` | HTML | `CurrentUser` | ✅ | PDF.js; âncora `#page=N` |
+| `GET /publicacoes` | HTML | `CurrentUser` | ✅ | explorador do acervo (árvore Categoria → Manual → Capítulo, busca por nome/conteúdo, FIM) — client-fetch puro, sem `db` no handler; ver §0.1 |
+| `GET /publicacoes/manuais/{codigo}` | HTML | `CurrentUser` | ✅ | capítulos — Etapa 2 do `09`, renderizada direto do `service`. Só usada por `mobile/publicacoes.html` (desktop navega pelo explorador) |
+| `GET /publicacoes/manuais/{codigo}/{capitulo}` | HTML | `CurrentUser` | ✅ | documentos, paginados por `?offset=`/`?limit=` — Etapa 2 do `09`. `capitulo == ""` (raiz) usa o sentinela de URL `_raiz_` (`CAPITULO_RAIZ_SLUG`), já que um segmento de path vazio não roteia. Idem: uso restrito ao mobile |
+| `GET /publicacoes/api/manuais` | JSON | `CurrentUser` | ✅ | catálogo de manuais da edição vigente — consumida pelo explorador e por `mobile/publicacoes.html` |
+| `GET /publicacoes/api/manuais/{codigo}/capitulos` | JSON | `CurrentUser` | ✅ | árvore do explorador, sob demanda |
+| `GET /publicacoes/api/manuais/{codigo}/documentos` | JSON | `CurrentUser` | ✅ | paginado, filtro opcional por `capitulo` — painel de conteúdo do explorador |
+| `GET /publicacoes/api/catalogo/busca` | JSON | `CurrentUser` | ✅ | busca por NOME/caminho (título, capítulo, `file_key`, manual) — banco principal, não `catalog.db`. Complementa `/api/busca` (conteúdo), não substitui |
+| `GET /publicacoes/viewer/{doc_id}` | HTML | `CurrentUser` | ✅ | PDF.js; zoom, ajuste largura/página, rotação, tela cheia, miniaturas sob demanda, busca de texto no documento; âncora `#page=N` |
 | `GET /publicacoes/avulsas` | HTML | `CurrentUser` | ✅ | lista + filtros |
-| `GET /m/publicacoes` | HTML | `CurrentUser` | ✅ | atalho mobile (`mobile_router.py`) |
-| `GET /publicacoes/api/busca` | JSON | `CurrentUser` | ✅ | contrato preservado da `Especificacao.MD` §4 |
+| `GET /m/publicacoes` | HTML | `CurrentUser` | ✅ | atalho mobile (`mobile_router.py`) — experiência própria, não o explorador |
+| `GET /publicacoes/api/busca` | JSON | `CurrentUser` | ✅ | contrato preservado da `Especificacao.MD` §4; `documento_id` opcional restringe a busca a um único documento (usado pelo viewer) |
 | `GET /publicacoes/api/fim` | JSON | `CurrentUser` | ✅ | busca por mensagem de falha (`fim.json`) |
 | `GET /publicacoes/api/status` | JSON | `CurrentUser` | ✅ | versão do índice, contagens, `documentos_sem_texto` |
 | `GET /publicacoes/api/avulsas` | JSON | `CurrentUser` | ✅ | busca nos metadados |

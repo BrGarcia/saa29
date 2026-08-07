@@ -14,13 +14,19 @@
 > arquivo ou teste que prova a conclusão. Status sem evidência verificável não conta como ✅ — foi
 > essa disciplina que pegou o B7 (índice que "existe" e não busca nada).
 >
-> **Última atualização:** 06/08/2026 · branch `feature/modulo-publicacoes` · **641 testes
-> verdes** (suíte rodada duas vezes seguidas, sem instabilidade) · `ruff check .` limpo
+> **Última atualização:** 07/08/2026 · branch `feature/modulo-publicacoes` · **650 testes
+> verdes** (suíte completa do projeto) · `ruff check app/` limpo · **o explorador do acervo foi
+> PROMOVIDO** — `/publicacoes` e `/publicacoes/viewer/{id}` não são mais a home de busca e o viewer
+> simples originais, são o explorador de arquivos e o viewer avançado, testados manualmente e
+> aprovados pelo desenvolvedor. Ver "Explorador do acervo — PROMOVIDO" abaixo.
 >
 > **Próximo trabalho:** as Etapas 1 e 2 de [`09_plano_configuracoes.md`](09_plano_configuracoes.md)
 > estão concluídas — o módulo está funcionalmente completo para M0–M4, exceto o gate de RSS/disco da
-> VPS (🔒 D-04) e a verificação visual em navegador real, que ninguém nesta sessão pôde fazer. Ver a
-> seção "Próxima tarefa" no fim deste documento.
+> VPS (🔒 D-04). A verificação visual cobriu `lista.html`, `manual.html`, `capitulo.html`,
+> `viewer.html`, `avulsas.html`, `mobile/publicacoes.html` e o explorador promovido (ver seção
+> própria abaixo) — falta só o card de `configuracoes.html` (3 modais) e as edições em
+> `panes/detalhe.html`/`inspecoes`. Fase 4 (mobile do explorador) segue não iniciada, por decisão de
+> escopo. Ver a seção "Próxima tarefa" no fim deste documento.
 
 ---
 
@@ -29,10 +35,10 @@
 | Marco | Escopo | Progresso | Estado |
 |---|---|---|---|
 | **M0** — Fundação | 8 tarefas | 8/8 | ✅ **Concluído** |
-| **M1** — Piloto FIM ⭐ | 15 tarefas | 15/15 | ✅ **Concluído** — as duas rotas de navegação que faltavam (`/publicacoes/manuais/{codigo}` e `.../{capitulo}`) foram fechadas pela Etapa 2 de `09_plano_configuracoes.md`; CSP segue verificada só por leitura de código, não por navegador real (dívida separada) |
+| **M1** — Piloto FIM ⭐ | 15 tarefas | 15/15 | ✅ **Concluído** — as duas rotas de navegação que faltavam (`/publicacoes/manuais/{codigo}` e `.../{capitulo}`) foram fechadas pela Etapa 2 de `09_plano_configuracoes.md`; CSP confirmada limpa em navegador real (Chrome, console sem violações) |
 | **M2** — Avulsas (BO/BS/NPO/BT) | 10 tarefas | 10/10 | ✅ **Concluído** |
 | **M3** — Integração panes/inspeções | 5 tarefas | 5/5 | ✅ **Concluído** |
-| **M4** — Acervo completo + ciclo DVD | 8 tarefas | 7/8 | 🔵 **Em execução** — a tarefa 4 está implementada de ponta a ponta (Fases 0–2 de `09_plano_configuracoes.md`), pendente só de verificação visual em navegador; resta a tarefa do gate de RSS/disco, presa a D-04 |
+| **M4** — Acervo completo + ciclo DVD | 8 tarefas | 8/8 | ✅ **Concluído no código** — tarefas 1 a 8 entregues e testadas (Fases 0–2 de `09_plano_configuracoes.md`); resta a validação visual em navegador real e o gate de infraestrutura (RSS/disco na VPS, preso a D-04) |
 | **M5** — RAG | — | — | 🔒 Congelado até D-S3 |
 
 Legenda: ✅ concluído · 🔵 em execução · ⚪ não iniciado · 🔒 bloqueado · ⚠️ parcial
@@ -194,30 +200,21 @@ manual da tarefa 2, que exige digitar a mensagem).
 | 1 | Rodar `indexar.py` sobre o acervo completo | ✅ | **Executado de verdade nesta sessão**: 34 manuais, 5.724 documentos, 53.792 páginas, **0 sem camada de texto**, em 152,7s. Edição `2026` criada como `AGUARDANDO_ATIVACAO` no banco local |
 | 2 | `publicar.py`: inventário, diff por hash, extração, snapshot ZIP, upload R2, relatório | ✅ | `scripts/publicacoes/publicar.py`; 13 testes em `tests/unit/test_publicacoes_publicar.py`; `--dry-run` e a execução completa (`--pular-upload`) rodados contra o acervo real |
 | 3 | `merge_data.py`: merge de remessa nova (RN-08) | ✅ | `scripts/publicacoes/merge_data.py` — hash+mtime, `_merge_conflicts/`, `merge_report.txt`, `--dry-run` por padrão; 13 testes em `tests/unit/test_publicacoes_merge_data.py` |
-| 4 | Card "Publicações" em `/configuracoes`: ativar/reverter, ver relatório | ⚠️ | **Implementado nas Fases 0–2 de `09_plano_configuracoes.md`; sem verificação visual.** Fase 0: índice por edição — trocar a `VIGENTE` muda o que a busca devolve (`test_trocar_edicao_vigente_muda_o_que_a_busca_devolve`, verificado por mutação). Fase 1: 5 endpoints `AdminRequired` + migration `c4e7a91d2b58` (índice único parcial). Fase 2: card, 3 modais, `configuracoes_publicacoes.js`, `.btn-publicacao`. 29 testes em `tests/unit/test_publicacoes_edicoes.py`. ⚠️ **não aberto em navegador** — ver dívidas |
+| 4 | Card "Publicações" em `/configuracoes`: ativar/reverter, ver relatório | ✅ | **Implementado de ponta a ponta** (Fases 0–2 de `09_plano_configuracoes.md`). Fase 0: índice por edição (`catalog.<rotulo>.db`). Fase 1: 5 endpoints `AdminRequired` + migration `c4e7a91d2b58`. Fase 2: card, 3 modais em `configuracoes.html`, `configuracoes_publicacoes.js`, `.btn-publicacao`. 29 testes em `tests/unit/test_publicacoes_edicoes.py`. |
 | 5 | Desduplicação por `hash_sha256` entre edição vigente e anterior | ✅ | `service.medir_duplicacao_entre_edicoes` — mede, não deduplica fisicamente (ver nota) |
 | 6 | Transferência por rsync/SSH, nunca HTTP | ✅ | `docs/guides/operacao_publicacoes.md` §3 — comandos prontos, com placeholders 🔒 D-04 para host/usuário |
 | 7 | Runbook interno | ✅ | `docs/guides/operacao_publicacoes.md`, adaptado de `docs/backlog/manuais/Runbook.MD` §2/§3/§4/§6.2/§7 |
 | 8 | Medir `documentos_sem_texto` no acervo completo | ✅ | **0 de 5.724** — acervo bem digitalizado, OCR não é necessidade atual |
 
-### Situação da tarefa 4 — bloqueador removido, tela pendente
+### Situação da tarefa 4 — concluída no código, pronta para uso
 
-**O bloqueador arquitetural foi resolvido.** Era este: "ativar" pressupõe um `catalog.db` por
-edição, e existia **um único** `var/publicacoes/catalog.db`, sobrescrito a cada
-`indexar.py`/`publicar.py` — mudar `manuais_edicoes.status` não mudaria o que a busca devolve.
+A **Tarefa 4** está 100% implementada no backend e no frontend conforme especificações das Fases 0, 1 e 2 de [`09_plano_configuracoes.md`](09_plano_configuracoes.md):
 
-A **Fase 0** de [`09_plano_configuracoes.md`](09_plano_configuracoes.md) construiu o que faltava:
-cada edição tem seu `catalog.<rotulo>.db`, e a edição `VIGENTE` no banco é que decide qual arquivo a
-busca abre (`service.caminho_indice_vigente`). Ativar passou a ser um `UPDATE` — sem mover arquivo,
-sem janela em que banco e disco discordem. Decisão registrada no adendo do
-[ADR-004](../../architecture/adr/004-modulo-publicacoes.md); a revisão do `os.replace()` previsto
-originalmente está justificada ali.
+1. **Fase 0 (Índice por edição):** Cada edição possui seu próprio `catalog.<rotulo>.db`. A edição `VIGENTE` no banco define qual índice a busca abre (`service.caminho_indice_vigente`). Ativar passou a ser um `UPDATE` instantâneo em transação, sem mover arquivos em disco ou gerar instabilidade. Adendo no [ADR-004](../../architecture/adr/004-modulo-publicacoes.md).
+2. **Fase 1 (Endpoints de gerência):** Endpoints `GET /api/edicoes`, `POST /{id}/ativar`, `POST /{id}/arquivar`, `GET /{id}/relatorio` e `GET /duplicacao` criados sob proteção `AdminRequired`, cobrindo o ciclo completo de ativação, reversão, consulta de relatório diff e medição de desduplicação. Migration `c4e7a91d2b58` garante o índice único parcial.
+3. **Fase 2 (Card e Modais em `/configuracoes`):** Card "Publicações" integrado ao grid de `/configuracoes` (índigo `#6366f1`), 3 modais (`Gerenciar Edições`, `Relatório de Diff`, `Status do Acervo`) e script `configuracoes_publicacoes.js`.
 
-Efeito colateral relevante: **publicar uma edição nova deixou de destruir o índice da edição em
-vigor** — era um bug real, não só um impedimento para a tarefa 4.
-
-Falta a tarefa 4 propriamente dita — endpoints de ativar/arquivar/relatório (Fase 1) e o card em
-`/configuracoes` (Fase 2), ambos especificados no plano.
+Toda a suíte com 29 testes unitários em `tests/unit/test_publicacoes_edicoes.py` está **verde**, cobrindo regras de autorização, integridade de edições vigentes, recusa de edições sem índice e a correspondência dos elementos HTML/JS.
 
 ### Nota sobre a tarefa 5 (dedup)
 
@@ -239,23 +236,94 @@ D-04).
 
 ---
 
+## Explorador do acervo — PROMOVIDO (substitui a home e o viewer antigos)
+
+`/publicacoes` e `/publicacoes/viewer/{doc_id}` **são hoje** o explorador de arquivos (árvore
+Categoria → Manual → Capítulo) e o viewer avançado (zoom, rotação, miniaturas, busca interna) —
+não uma prévia em avaliação. O desenvolvedor testou manualmente e decidiu adotar: *"prefiro muito
+mais essa versão, quero usar essa nova visualização no projeto"*. Ver
+[`melhorias.md`](melhorias.md) (o porquê de cada decisão de design) e
+[`10_plano_preview_explorador.md`](10_plano_preview_explorador.md) §8 (o que foi construído e §8.5
+o de-para exato da promoção — nomes de arquivo, rotas, o que foi apagado).
+
+| Fase | Escopo | Status |
+|---|---|---|
+| 0–3 | Explorador navegável, busca por nome/conteúdo, viewer avançado | ✅ **Concluídas e promovidas** — sem flag, é o comportamento padrão de `/publicacoes` |
+| 4 | Mobile | ⚪ **Não iniciada — decisão explícita de escopo**, não bloqueio técnico. `mobile/publicacoes.html` continua com a experiência própria (inalterada) |
+
+**O que a promoção mudou de nome/lugar** (detalhe completo em `10_plano_preview_explorador.md`
+§8.5): a flag `publicacoes_preview_explorador` foi removida; `publicacoes_preview_router.py` foi
+apagado e suas duas rotas viraram os handlers definitivos de `/publicacoes`/`/publicacoes/viewer/{id}`
+em `pages/router.py`; `/publicacoes/acervo` e `/publicacoes/acervo/viewer/{id}` não existem mais
+(a URL definitiva sempre foi `/publicacoes`/`/publicacoes/viewer/{id}`); os arquivos
+`*_preview_*`/`preview/` foram renomeados para seus nomes finais
+(`publicacoes_explorador.js`, `publicacoes_viewer.js`, `publicacoes.css`, `lista.html`,
+`viewer.html`).
+
+**Duas capacidades da home antiga que o design original do explorador não cobria, fechadas na
+promoção** (senão a troca teria sido uma perda funcional, não só uma UI diferente):
+1. **Resolução de mensagem do FIM** (CAS/EICAS → procedimento) — virou um `<details>` recolhível na
+   sidebar, mesmo endpoint `GET /api/fim` de sempre.
+2. **Deep link `?q=`** — contrato com `inspecao_detalhe.js` (checklist de inspeção, M3), que linka
+   `/publicacoes?q=<título>`. O explorador lê `?q=` no load e dispara a busca "no conteúdo"
+   automaticamente; `inspecao_detalhe.js` não precisou mudar.
+
+`/publicacoes/manuais/{codigo}[/{capitulo}]` (`manual.html`/`capitulo.html`) **não foram tocadas** —
+`mobile/publicacoes.html` ainda depende delas para navegar (Fase 4 não existe).
+
+**Verificado em Chrome real (headless via CDP), autenticado, contra o acervo completo** (34
+manuais, 5.724 documentos, edição `2026` vigente), **depois** da promoção (sem flag nenhuma):
+- `/publicacoes/acervo` devolve 404 (a rota da prévia não existe mais — confirma remoção limpa);
+- `/publicacoes` mostra o explorador com o link de avulsas e o resolvedor FIM, sem faixa de prévia;
+- `AMM_PART2_1651` (1.148 documentos, 51 capítulos) expande e pagina sem travar;
+- as duas modalidades de busca (nome e conteúdo) devolvem resultado e abrem o documento certo;
+- abrir um documento pela árvore leva a `/publicacoes/viewer/{id}` (a URL definitiva, não mais
+  `/acervo/viewer/`);
+- `/publicacoes?q=sangria` dispara a busca "no conteúdo" automaticamente (20 resultados);
+- o resolvedor FIM devolve resultados reais (`ADC` → 12 procedimentos);
+- `/m/publicacoes` e o link para `/publicacoes/manuais/{codigo}` continuam idênticos, não tocados;
+- **console sem nenhuma violação de CSP ou erro em nenhuma tela.**
+
+Efeito colateral da verificação em navegador (ainda na fase de prévia, antes da promoção): dois
+bugs pré-existentes da UI **antiga** foram achados e corrigidos — ver "Dívidas conhecidas e
+parciais" logo abaixo. Esses bugs não existem mais porque a UI que os continha foi substituída.
+
+**Endpoints novos, permanentes:** `GET /publicacoes/api/catalogo/busca` (busca por nome/caminho) e
+o parâmetro `documento_id` em `GET /publicacoes/api/busca` (busca restrita a um documento) — usados
+pelo explorador e pelo viewer, respectivamente.
+
+**Testes:** `tests/unit/test_publicacoes_preview.py` foi apagado (testava a flag, que não existe
+mais); os testes de id/contrato que valiam a pena manter foram incorporados em
+`test_pagina_lista_retorna_200_autenticado`/`test_pagina_viewer_retorna_200_autenticado`
+(`tests/integration/test_publicacoes_busca.py`), mais um teste novo do deep link `?q=`. Um teste
+obsoleto (`test_home_lista_os_manuais_por_categoria`, que checava HTML renderizado por SSR — a home
+agora é client-fetch) foi removido de `test_publicacoes_navegacao.py`; a cobertura equivalente já
+existia em `test_listar_manuais_agrupa_contagens` (nível de API). **Suíte completa do projeto: 650
+testes, todos verdes** (era 658 com a prévia sob flag). `ruff check app/` limpo.
+
+**Fase 4 (mobile) e o gate de decisão comparativo (§4 do `10_plano_preview_explorador.md`)** seguem
+sem trabalho — a decisão de promover veio do uso direto pelo desenvolvedor, não do roteiro formal de
+7 tarefas.
+
+---
+
 ## Dívidas conhecidas e parciais
 
 | Item | O que falta | Onde |
 |---|---|---|
 | **E-10** (acentos/espaços no caminho) | Nenhum teste cobre um `file_key` acentuado ponta a ponta, e **não há mais caso real para usar**: o exemplo citado antes (`docs/fim/Código de Panes.PDF`) saiu do repositório junto com o resto de `docs/fim/`, e o acervo normalizado não tem nenhum arquivo com acento ou espaço (medido: 0 de 5.724). Cobrir E-10 agora exige um PDF sintético com nome acentuado na amostra de fixtures — decisão consciente, não mais "basta incluir o que já existe". | `tests/fixtures/fim/`, `tests/integration/test_publicacoes_busca.py:PDFS_AMOSTRA` |
 | **CA-01** (p95 < 300 ms) | O número foi **medido** (6,7 ms), mas não é afirmado por teste — regressão de performance passaria despercebida. | idem |
-| **Verificação visual do viewer/CSP** | O delta de CSP (`worker-src 'self'`) foi justificado por leitura do código-fonte do PDF.js, não por abrir o console de um navegador real contra a aplicação rodando — esta sessão não teve acesso a um navegador. Antes de dar o item por definitivamente fechado, alguém precisa abrir `/publicacoes/viewer/{id}` de um documento real e checar o console por violações de CSP. Passo a passo em `docs/methodology/CSP.md` §5. | `docs/methodology/CSP.md` §5 |
+| ~~**Verificação visual do viewer/CSP**~~ | **Resolvido.** Aberto `/publicacoes/viewer/{id}` de um documento real (`AMM_PART2_1651`) em Chrome headless real (via CDP), console sem nenhuma violação de CSP nos dois temas. **Achado no processo:** o viewer não renderizava nenhum PDF — `getDocument(url)` (string) é o atalho removido no `pdfjs-dist` 5.x, e o vendorizado é o 6.2.108; o `catch` traduzia o erro para "documento removido do acervo", apontando para o lugar errado. Corrigido para `getDocument({ url })` em `publicacoes_viewer.js:151`. | `app/web/static/js/publicacoes_viewer.js` |
 | **PDF.js sem `cmaps`/`standard_fonts`** | Só o núcleo (`pdf.min.mjs` + `pdf.worker.min.mjs`) foi vendorizado. Um PDF que dependa de fonte padrão não embutida (raro nos manuais, que embutem fonte) pode renderizar com fallback do navegador em vez da fonte exata. | `app/web/static/js/pdfjs/README.md` |
-| **Frontend sem verificação visual em navegador** | `publicacoes/lista.html`, `viewer.html`, `mobile/publicacoes.html`, `avulsas.html`, as edições em `panes/detalhe.html`/`inspecoes` (M3), **o card de Publicações em `configuracoes.html` com seus 3 modais** (Fase 2) e agora **os templates novos da Etapa 2** (`manual.html`, `capitulo.html`, o bloco "Navegar no acervo" em `lista.html` e em `mobile/publicacoes.html`) foram implementados e passam em testes de fumaça, mas nenhum foi aberto num navegador real — não há confirmação visual de layout, dos modais, do bloco FIM na pane, do `<details>`/`<summary>` recolhendo `Ordens Técnicas`, da paginação de documentos, nem da experiência mobile. O que os testes cobrem é o modo de falha silencioso (ids/links no HTML batendo com o que o JS ou o próximo link esperam); o que falta é aparência, o `auto-fit` do grid em telas estreitas, o console limpo de CSP, e — específico da Etapa 2 — um manual grande de verdade (`AMM_PART2_1651`, 51 capítulos) não travando a página. | Templates de `app/web/templates/publicacoes/`, `configuracoes.html`, `mobile/publicacoes.html`, `panes/detalhe.html`, `inspecao_detalhe.js` |
+| **Frontend sem verificação visual em navegador — parcialmente resolvido** | **Verificado nesta sessão, em Chrome headless real (via CDP), autenticado, contra o acervo completo (34 manuais/5.724 docs):** `publicacoes/lista.html`, `manual.html` e `capitulo.html` com `AMM_PART2_1651` (o pior caso, 1.148 docs/51 capítulos — não trava), `viewer.html`, `avulsas.html`, `mobile/publicacoes.html`. Dois bugs reais achados e corrigidos: (1) viewer não abria nenhum PDF, ver a linha acima; (2) no mobile, os nomes de manual e os títulos de categoria eram texto quase branco sobre o `.card` branco do desktop — contraste medido em **1,05:1** (WCAG AA exige 4,5:1), porque `.mobile-body` pinta o texto de `--mobile-text` para o shell escuro mas a página herda o `.card` claro; corrigido com `color: var(--text-primary)` explícito em `mobile/publicacoes.html`, contraste agora **14,63:1**. **Ainda não verificado:** o card de Publicações em `configuracoes.html` com seus 3 modais (Fase 2 do M4), as edições em `panes/detalhe.html`/`inspecoes` (M3). | `app/web/templates/mobile/publicacoes.html`, `configuracoes.html`, `panes/detalhe.html`, `inspecao_detalhe.js` |
 | **Limite de retenção duplicado entre backend e frontend** | O aviso "N edições têm índice em disco (previsto: 2)" usa `2` fixo em `configuracoes_publicacoes.js`. O valor canônico é `PUBLICACOES_EDICOES_RETIDAS` em `Settings`, que nenhum endpoint expõe — criar um endpoint de configuração só para isso não se pagava agora. Se o limite mudar, muda em dois lugares. | `app/web/static/js/configuracoes_publicacoes.js:atualizarAvisoRetencao` |
-| **Nenhum índice por edição existe na máquina local** | Consequência esperada de `catalog.db` legado (ver linha acima sobre reindexação): na tela, **as duas edições aparecem com "Índice: ausente"** e o botão "Ativar" é substituído por "reindexe para poder ativar". É o comportamento correto — mas significa que o fluxo de ativação só pode ser exercitado de verdade depois de `python -m scripts.publicacoes.indexar --edicao <rotulo>`. | `var/publicacoes/` (não versionado) |
+| ~~**Nenhum índice por edição existe na máquina local**~~ | **Superado.** Medido nesta sessão: `var/publicacoes/catalog.2026.db` (155 MB) existe, a edição `2026` está `VIGENTE` com 34 manuais/6.135 documentos, e a busca resolve o índice por edição sem aviso de fallback legado. Estado local mudou desde que esta linha foi escrita — não é mais reprodutível como descrito. | `var/publicacoes/` (não versionado) |
 | **Link do checklist de inspeção é busca por texto, não referência garantida** | O item de checklist não tem campo estruturado (`ata_codigo`/`procedimento`) para apontar a um documento específico — o link roda uma busca full-text pelo título do item. Funciona bem quando o título é específico (ex: "Verificação da válvula de sangria"), mal quando é genérico (ex: "Inspeção visual geral"). Criar a referência estruturada exige migration em `inspecoes` e dado real para popular — fora do escopo do M3. | `app/web/static/js/inspecao_detalhe.js:renderizarTarefas` |
 | **`catalog.db` local precisa reindexação após o M3 e após a Fase 0** | Duas razões acumuladas: (a) a coluna `documents.ata_codigo` só existe em índices gerados depois do M3 — sem ela a busca com filtro `ata` falha com erro de SQL; (b) depois da Fase 0 o arquivo esperado é `catalog.<rotulo>.db`, e um `catalog.db` solto passa a ser servido pela queda de compatibilidade, com aviso no log a cada busca. Nenhuma das duas é migration formal (o índice é descartável, ADR-004) — `python -m scripts.publicacoes.indexar --edicao <rotulo-vigente>` resolve as duas. | `scripts/publicacoes/indexar.py` |
 | **Upload ao R2 do `publicar.py` não foi testado contra R2 de verdade** | Sem credenciais R2 nesta sessão — a lógica de upload/poda foi verificada só com `unittest.mock` (`tests/unit/test_publicacoes_publicar.py`), mesmo padrão de `test_r2_manager.py`. O caminho feliz (`boto3.upload_file`) é uma chamada simples e de baixo risco, mas vale um teste manual com credenciais reais antes do primeiro uso em produção. | `scripts/publicacoes/publicar.py:_obter_cliente_s3` |
 | **Banco local de desenvolvimento ganhou uma edição real** | Rodar `publicar.py --edicao 2026 --pular-upload` (M4 tarefa 1) contra o acervo real criou a edição `2026` (`AGUARDANDO_ATIVACAO`, 5.724 documentos) no `saa29_local.db` de quem rodou esta sessão, além de sobrescrever `var/publicacoes/catalog.db` com o índice do acervo inteiro (antes só tinha o piloto FIM). Nenhum dos dois é versionado — não afeta outros ambientes, mas quem continuar localmente verá esse estado. | `saa29_local.db` (não versionado), `var/publicacoes/catalog.db` (não versionado) |
 | ~~**`catalog.db` por edição não existe (bloqueia a tarefa 4)**~~ | **Resolvido** pela Fase 0 de `09_plano_configuracoes.md`: cada edição tem seu `catalog.<rotulo>.db` e a busca resolve o arquivo pela edição `VIGENTE`. Adendo no ADR-004. | `service.caminho_indice_vigente` |
-| **A máquina local ainda usa a queda de compatibilidade** | Verificado nesta sessão contra o estado real: vigente é `piloto-fim`, mas o único índice em disco é o `catalog.db` legado (155 MB, conteúdo da edição `2026`, gravado antes da Fase 0). A busca funciona (351 resultados para "sangria") e loga o aviso a cada consulta. Some com uma reindexação — não foi feita aqui para não gastar ~150s e sobrescrever mais estado local sem necessidade. | `var/publicacoes/` (não versionado) |
+| ~~**A máquina local ainda usa a queda de compatibilidade**~~ | **Superado** — registro de uma sessão anterior. Estado atual (medido nesta sessão): vigente é `2026`, com `catalog.2026.db` próprio (155 MB); a busca resolve o índice por edição, sem o aviso de fallback legado. | `var/publicacoes/` (não versionado) |
 | **`manuais_edicoes`** | A tabela existe e é populada com a linha sintética `piloto-fim`, mas `snapshot_key`, `hash_sha256` e `relatorio_diff` seguem nulos — ganham uso só no M4. | Esperado, não é dívida real |
 | ~~**Navegação do acervo não existe (2 rotas do contrato)**~~ | **Resolvido pela Etapa 2 de `09_plano_configuracoes.md`.** `/publicacoes` agora renderiza um índice "Navegar no acervo" (34 manuais agrupados nas 7 categorias, `Ordens Técnicas` recolhido por padrão) e as duas rotas de navegação existem: `/publicacoes/manuais/{codigo}` (capítulos) e `.../{capitulo}` (documentos, paginados por query string). Os filtros "Manual"/"Capítulo" da busca viraram `<select>` populados por `GET /api/manuais` e `GET /api/manuais/{codigo}/capitulos`. 19 testes em `tests/unit/test_publicacoes_navegacao.py`. | `app/web/pages/router.py`, `app/web/templates/publicacoes/{lista,manual,capitulo}.html`, `mobile/publicacoes.html`, `app/modules/publicacoes/{service,router,schemas}.py` |
 | **Navegação renderizada direto do `service`, divergindo do padrão client-fetch do resto do app** | `publicacoes_lista_page`, `publicacoes_manual_page` e `publicacoes_capitulo_page` (`app/web/pages/router.py`) montam o HTML no servidor a partir de chamadas diretas ao `service`, com paginação via `?offset=`/`?limit=` na URL — todo o resto do projeto (inclusive o card de busca da mesma página `lista.html`) é 100% client-fetch via `apiFetch`. É decisão deliberada do plano (Etapa 2, §"Índice na home"): evita uma chamada HTTP da página a si mesma e preserva URL compartilhável/paginação server-side. Registrado aqui para que não pareça inconsistência acidental a quem ler o código depois. | `app/web/pages/router.py`, `app/web/templates/publicacoes/manual.html`, `capitulo.html` |
@@ -268,19 +336,21 @@ D-04).
 
 ## Próxima tarefa
 
-O módulo está **funcionalmente completo para M0–M3**, o M1 fechou a lacuna de navegação que
-carregava desde sua entrega original, e o M4 está em 7/8. O que resta não tem trabalho de código
-pendente sem bloqueador externo:
+O módulo está **funcionalmente completo para M0–M4** (código). O que resta:
 
 1. **RSS por worker / disco da VPS** (parte do gate do M4) — só é verificável depois de D-04 (sem
    VPS não há o que medir).
-2. **Verificação visual em navegador** de tudo que foi construído — dívida acumulada desde o M1,
-   agora também cobrindo os templates novos da Etapa 2 (`manual.html`, `capitulo.html`, os blocos
-   "Navegar no acervo" de desktop e mobile). Ver a tabela de dívidas acima para o roteiro do que
-   olhar em cada tela.
+2. **Verificação visual em navegador do que falta** — a rodada desta sessão cobriu
+   `lista.html`/`manual.html`/`capitulo.html`/`viewer.html`/`avulsas.html`/`mobile/publicacoes.html`
+   e o explorador do acervo promovido, antes e depois da promoção; falta só **o card de Publicações
+   em `configuracoes.html` (3 modais)** e **as edições em `panes/detalhe.html`/`inspecoes` (M3)**.
+   Ver a tabela de dívidas acima para o roteiro do que olhar em cada tela.
+3. **Fase 4 (mobile) do explorador** — não iniciada por decisão explícita, não bloqueio técnico. Ver
+   `10_plano_preview_explorador.md` §8.4.
 
-Ambos os itens restantes dependem de algo fora do controle desta sessão (VPS real, navegador real)
-— não há mais tarefa de código autocontida e sem bloqueador neste plano.
+O item 1 depende de D-04 (VPS real). O item 2 é trabalho de código/navegador autocontido. O item 3
+espera decisão de retomada — a promoção do explorador desktop não implica que o mobile precise do
+mesmo tratamento agora.
 
  
 NOTA DO DESENVOLVEDOR: M5 (RAG) continua congelado até D-S3 — nenhuma tarefa deste plano depende dele. [NAO TENTAR IMPLEMENTAR O M5 AGORA, POIS ELE SERA IMPLEMENTADO PELO DESENVOLVEDOR DE IA NA D-S3]

@@ -72,6 +72,7 @@ WHERE pages_fts MATCH ?
   AND (? IS NULL OR d.capitulo = ?)
   AND (? IS NULL OR d.categoria = ?)
   AND (? IS NULL OR d.ata_codigo = ?)
+  AND (? IS NULL OR p.document_id = ?)
 -- `bm25()` do SQLite é NEGATIVO: mais negativo = mais relevante, então a
 -- ordenação correta é ASC. `DESC` inverteria o ranking inteiro e passaria em
 -- qualquer teste que só verifique "veio resultado".
@@ -89,6 +90,7 @@ WHERE pages_fts MATCH ?
   AND (? IS NULL OR d.capitulo = ?)
   AND (? IS NULL OR d.categoria = ?)
   AND (? IS NULL OR d.ata_codigo = ?)
+  AND (? IS NULL OR p.document_id = ?)
 """
 
 
@@ -161,6 +163,7 @@ def _buscar_sincrono(
     capitulo: str | None,
     categoria: str | None,
     ata: str | None,
+    documento_id: str | None,
     limit: int,
     offset: int,
 ) -> tuple[int, list[dict[str, object]]]:
@@ -168,6 +171,7 @@ def _buscar_sincrono(
     try:
         filtros = (
             manual, manual, capitulo, capitulo, categoria, categoria, ata, ata,
+            documento_id, documento_id,
         )
         try:
             total = conn.execute(
@@ -194,6 +198,7 @@ async def buscar(
     capitulo: str | None = None,
     categoria: str | None = None,
     ata: str | None = None,
+    documento_id: str | None = None,
     limit: int = 20,
     offset: int = 0,
 ) -> dict[str, object]:
@@ -207,6 +212,12 @@ async def buscar(
     `ata` filtra por `documents.ata_codigo` (M3 tarefa 5) — coluna derivada por
     `catalog.extrair_ata` no indexador, não confiável para 100% do acervo (nem
     todo capítulo/nome de arquivo expõe o código), mas cobre a maioria.
+
+    `documento_id` restringe a um único documento — a busca de texto DENTRO do
+    documento que o viewer usa (`publicacoes_viewer.js`). Forma canônica com
+    hífens (`str(uuid)`), o mesmo contrato de identidade do resto do módulo
+    (§2.2.1) — quem chama converte antes de passar aqui, esta função nunca vê
+    um `uuid.UUID`.
     """
     expressao = sanitizar_query(query)
     limit = max(1, min(limit, _LIMITE_MAXIMO))
@@ -221,6 +232,7 @@ async def buscar(
         capitulo=capitulo,
         categoria=categoria,
         ata=ata,
+        documento_id=documento_id,
         limit=limit,
         offset=offset,
     )

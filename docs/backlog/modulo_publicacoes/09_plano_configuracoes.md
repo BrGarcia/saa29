@@ -18,11 +18,12 @@
 > | Etapa | Assunto | Situação |
 > |---|---|:--|
 > | 1 | Gerência de publicações em `/configuracoes` (M4 tarefa 4) | ✅ Fases 0, 1 e 2 implementadas |
-> | 2 | **Navegação do acervo** (lacuna do M1) | ✅ Fases N1, N2 e N3 implementadas — falta só a verificação visual em navegador (ninguém nesta sessão teve acesso a um) |
+> | 2 | **Navegação do acervo** (lacuna do M1) | ✅ Fases N1, N2 e N3 implementadas — verificação visual feita. **Nota de vigência abaixo:** a UI de desktop que a Fase N2 construiu (bloco "Navegar no acervo" + `<select>` em `lista.html`, renderizado server-side) foi **substituída** por um explorador de arquivos — ver `melhorias.md`/`10_plano_preview_explorador.md`. A Fase N1 (os 3 endpoints JSON) e a Fase N3 (mobile) continuam exatamente como descritas aqui |
 >
 > Cada etapa é independente: a 2 não depende de nada da 1. Com as duas concluídas, não sobra tarefa
-> de código autocontida neste plano — o que resta (RSS/disco da VPS, verificação visual) depende de
-> algo fora do controle de quem só tem o repositório: uma VPS real (D-04) ou um navegador real.
+> de código autocontida neste plano — o que resta (RSS/disco da VPS, verificação visual do que falta)
+> depende de algo fora do controle de quem só tem o repositório: uma VPS real (D-04), ou é a Fase 4
+> (mobile) do explorador, ainda não iniciada por decisão de escopo.
 
 ---
 
@@ -682,11 +683,19 @@ só onde há ORM direto; nas agregações, montar o schema explicitamente a part
 
 ---
 
-## Fase N2 — Páginas de navegação (desktop) ✅ **IMPLEMENTADA**
+## Fase N2 — Páginas de navegação (desktop) ✅ **IMPLEMENTADA (parcialmente substituída — ver nota)**
 
 > **Estado:** concluída. `manual.html` e `capitulo.html` novos; bloco "Navegar no acervo" e os dois
 > `<select>` de refino em `lista.html`; `publicacoes.js` ganhou as funções que populam os selects.
 > 6 testes novos em `tests/unit/test_publicacoes_navegacao.py`. Divergências no fim da fase.
+>
+> **⚠️ Nota de vigência.** A parte de `lista.html` (o bloco "Navegar no acervo" e a decisão de
+> renderizar server-side "sem passar pela API") **foi substituída**: `/publicacoes` hoje é um
+> explorador de arquivos (árvore Categoria → Manual → Capítulo), client-fetch puro, sem `db` no
+> handler — o oposto da decisão descrita logo abaixo em "Índice na home". Ver `melhorias.md` e
+> `10_plano_preview_explorador.md` §8.5 para o quê e o porquê. `manual.html`/`capitulo.html`
+> **continuam existindo e inalteradas** — só o mobile as usa agora (Fase N3, abaixo, intacta). O
+> resto desta seção é mantido como registro de como a Fase N2 foi construída originalmente.
 
 ### Forma: páginas com URL real, como a §3 especificou
 

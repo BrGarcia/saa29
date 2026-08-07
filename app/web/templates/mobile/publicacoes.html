@@ -12,14 +12,19 @@
     <div class="card" style="margin-bottom: 0.75rem;">
         <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Navegar no acervo</label>
         {% for categoria, manuais in categorias_manuais.items() %}
+        {# `color` explícito no summary e no link abaixo, nunca herdado: `.mobile-body`
+           pinta o texto de --mobile-text (#F8FAFC, para o shell escuro) e estes
+           elementos ficam dentro do `.card` do desktop, que é branco — herdar dava
+           1,05:1 de contraste (medido), ou seja, texto invisível. --text-primary
+           acerta nos dois temas. #}
         <details {% if categoria != "Ordens Técnicas" %}open{% endif %} style="margin-bottom: 0.5rem;">
-            <summary style="cursor: pointer; font-weight: 600; padding: 0.5rem 0; min-height: 44px; display: flex; align-items: center;">{{ categoria }} ({{ manuais|length }})</summary>
+            <summary style="cursor: pointer; font-weight: 600; padding: 0.5rem 0; min-height: 44px; display: flex; align-items: center; color: var(--text-primary);">{{ categoria }} ({{ manuais|length }})</summary>
             <div style="display: flex; flex-direction: column; gap: 0.4rem;">
                 {% for manual in manuais %}
                 <a href="/publicacoes/manuais/{{ manual.codigo | urlencode }}"
                    style="display:flex; flex-direction: column; justify-content:center; min-height: 44px; padding: 0.5rem 0.6rem;
                           border: 1px solid var(--border-color); border-radius: var(--radius-md);
-                          text-decoration: none; color: inherit;">
+                          text-decoration: none; color: var(--text-primary);">
                     <span>{{ manual.descricao }}</span>
                     <span style="color: var(--text-secondary); font-size: 0.8rem;">{{ manual.codigo }} · {{ manual.documentos }} doc(s)</span>
                 </a>

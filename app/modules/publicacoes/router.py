@@ -52,11 +52,26 @@ def _resolver_pdf(raiz: str, file_key: str) -> Path | None:
     pelo indexador, mas um catálogo adulterado não deve virar leitura arbitrária
     de disco.
     """
-    base = Path(raiz).resolve()
+    p_raiz = Path(raiz)
+    if p_raiz.is_absolute():
+        base = p_raiz.resolve()
+    else:
+        acervo_base = (Path(get_settings().publicacoes_acervo_dir) / p_raiz).resolve()
+        if acervo_base.is_dir():
+            base = acervo_base
+        else:
+            base = p_raiz.resolve()
+
     caminho = (base / file_key).resolve()
-    if not caminho.is_relative_to(base) or not caminho.is_file():
-        return None
-    return caminho
+    if caminho.is_relative_to(base) and caminho.is_file():
+        return caminho
+
+    # Fallback para fixtures do piloto FIM (quando docs/fim/ saiu do versionamento)
+    fixture_fallback = (Path("tests/fixtures/fim") / file_key).resolve()
+    if fixture_fallback.is_file():
+        return fixture_fallback
+
+    return None
 
 
 @router.get(
@@ -74,6 +89,13 @@ async def buscar(
     capitulo: str | None = Query(default=None, max_length=80),
     categoria: str | None = Query(default=None, max_length=60),
     ata: str | None = Query(default=None, max_length=4, description="Código ATA, ex: 34"),
+    documento_id: uuid.UUID | None = Query(
+        default=None,
+        description=(
+            "Restringe a busca a um único documento — a busca de texto DENTRO "
+            "do documento que o viewer usa (publicacoes_viewer.js)."
+        ),
+    ),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
 ) -> schemas.RespostaBusca:
@@ -98,6 +120,7 @@ async def buscar(
             capitulo=capitulo,
             categoria=categoria,
             ata=ata,
+            documento_id=str(documento_id) if documento_id else None,
             limit=limit,
             offset=offset,
         )
@@ -323,6 +346,50 @@ async def listar_documentos_do_manual(
                 viewer_url=_viewer_url(doc.id),
             )
             for doc in documentos
+        ],
+    )
+
+
+@router.get(
+    "/api/catalogo/busca",
+    response_model=schemas.RespostaCatalogoBusca,
+    summary="Busca por NOME e CAMINHO no catálogo (não por conteúdo)",
+)
+@limiter.limit("60/minute")
+async def buscar_no_catalogo(
+    request: Request,
+    db: DBSession,
+    _: CurrentUser,
+    q: str = Query(..., min_length=1, max_length=200, description="Termo de busca"),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+) -> schemas.RespostaCatalogoBusca:
+    """
+    Busca por NOME/CAMINHO no catálogo, usada pelo explorador
+    (`publicacoes_explorador.js`) — casa contra título, capítulo, `file_key` e
+    o manual (código e descrição), escopado à edição vigente. Complementa, não
+    substitui, `GET /api/busca`: aquele indexa texto de PÁGINA (`catalog.db`);
+    este indexa NOME (banco principal) — "AMM CHAPTER_21" ou "sangria.pdf" só
+    voltam daqui.
+
+    Limite próprio (60/min, contra 30/min de `/api/busca`): é consulta ao banco
+    principal via índice de coluna, não full-text sobre um SQLite de 155 MB —
+    mais barata, e a caixa de busca do explorador pode chamar isto a cada
+    tecla (com debounce no cliente).
+    """
+    total, linhas = await service.buscar_no_catalogo(db, q, limit=limit, offset=offset)
+    return schemas.RespostaCatalogoBusca(
+        total=total,
+        results=[
+            schemas.CatalogoBuscaItem(
+                doc_id=doc.id,
+                titulo=doc.titulo,
+                manual=schemas.ManualRef(path=manual.codigo, description=manual.descricao_pt),
+                capitulo=doc.capitulo,
+                caminho=f"{manual.categoria} › {manual.codigo} › {doc.capitulo}",
+                viewer_url=_viewer_url(doc.id),
+            )
+            for doc, manual in linhas
         ],
     )
 

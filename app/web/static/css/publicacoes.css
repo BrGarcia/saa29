@@ -1,0 +1,599 @@
+/*
+app/web/static/css/publicacoes.css
+Estilos do explorador do acervo (desktop): árvore Categoria → Manual →
+Capítulo, painel de conteúdo em lista/ícones, busca por nome/conteúdo,
+resolução de mensagem do FIM e o viewer avançado (zoom, ajuste, rotação,
+miniaturas, busca dentro do documento).
+
+Mobile continua na experiência própria de `mobile/publicacoes.html` — este
+arquivo não é carregado lá.
+*/
+
+/* ==========================================================================
+   Layout de duas colunas
+   ========================================================================== */
+
+.pub-acervo-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 1rem;
+    align-items: start;
+}
+
+.pub-acervo-sidebar {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 0.75rem;
+    position: sticky;
+    top: 0.75rem;
+    max-height: calc(100vh - 1.5rem);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    overflow: hidden;
+}
+
+.pub-acervo-avulsas-link {
+    text-decoration: none;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.pub-acervo-fim {
+    flex-shrink: 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.4rem 0.6rem;
+}
+
+.pub-acervo-fim summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    padding: 0.2rem 0;
+}
+
+.pub-acervo-fim-corpo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+}
+
+.pub-acervo-fim-resultado {
+    padding: 0.3rem 0;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.82rem;
+}
+
+.pub-acervo-arvore {
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Nó da árvore — categoria, manual e capítulo compartilham a base; o
+   recuo vem de `padding-left` incremental por nível (`--pub-acervo-nivel`). */
+.pub-acervo-node {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.5rem;
+    padding-left: calc(0.5rem + (var(--pub-acervo-nivel, 0) * 1.1rem));
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: var(--text-primary);
+    user-select: none;
+    line-height: 1.3;
+}
+
+.pub-acervo-node:hover {
+    background: var(--bg-tertiary);
+}
+
+.pub-acervo-node.is-selecionado {
+    background: var(--bg-tertiary);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.pub-acervo-node-chevron {
+    display: flex;
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+    color: var(--text-secondary);
+}
+
+.pub-acervo-node.is-aberto > .pub-acervo-node-chevron {
+    transform: rotate(90deg);
+}
+
+.pub-acervo-node-chevron.is-invisivel {
+    visibility: hidden;
+}
+
+.pub-acervo-node-icone {
+    flex-shrink: 0;
+    display: flex;
+    color: var(--text-secondary);
+}
+
+.pub-acervo-node.is-selecionado .pub-acervo-node-icone {
+    color: var(--primary-color);
+}
+
+.pub-acervo-node-rotulo {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.pub-acervo-node-contagem {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+}
+
+.pub-acervo-filhos {
+    display: none;
+}
+
+.pub-acervo-filhos.is-aberto {
+    display: block;
+}
+
+.pub-acervo-node-carregando {
+    padding: 0.35rem 0.5rem;
+    padding-left: calc(0.5rem + (var(--pub-acervo-nivel, 0) * 1.1rem));
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-style: italic;
+}
+
+/* --- Coluna principal --- */
+
+.pub-acervo-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.pub-acervo-toolbar {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 0.6rem 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.pub-acervo-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+    font-size: 0.88rem;
+    min-width: 0;
+}
+
+.pub-acervo-breadcrumb button {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font: inherit;
+    padding: 0.15rem 0.3rem;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+}
+
+.pub-acervo-breadcrumb button:hover {
+    background: var(--bg-tertiary);
+    color: var(--primary-color);
+}
+
+.pub-acervo-breadcrumb button.is-atual {
+    color: var(--text-primary);
+    font-weight: 600;
+    cursor: default;
+}
+
+.pub-acervo-breadcrumb button.is-atual:hover {
+    background: none;
+    color: var(--text-primary);
+}
+
+.pub-acervo-breadcrumb-sep {
+    color: var(--text-secondary);
+}
+
+.pub-acervo-acoes {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+.pub-acervo-acoes .btn-icon.is-ativo {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.pub-acervo-painel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1rem;
+    min-height: 220px;
+}
+
+.pub-acervo-estado-vazio {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 2.5rem 1rem;
+}
+
+/* --- Cards de pasta/documento (visão em lista) --- */
+
+.pub-acervo-lista {
+    display: flex;
+    flex-direction: column;
+}
+
+.pub-acervo-item-lista {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.55rem 0.4rem;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    border-radius: var(--radius-md);
+}
+
+.pub-acervo-item-lista:last-child {
+    border-bottom: none;
+}
+
+.pub-acervo-item-lista:hover {
+    background: var(--bg-tertiary);
+}
+
+.pub-acervo-item-lista-icone {
+    flex-shrink: 0;
+    display: flex;
+    color: var(--text-secondary);
+}
+
+.pub-acervo-item-lista-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.pub-acervo-item-lista-titulo {
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pub-acervo-item-lista-meta {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+/* --- Cards de pasta/documento (visão em ícones) --- */
+
+.pub-acervo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.75rem;
+}
+
+.pub-acervo-item-icone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.4rem;
+    padding: 0.85rem 0.5rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.pub-acervo-item-icone:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+.pub-acervo-item-icone-icone {
+    color: var(--text-secondary);
+}
+
+.pub-acervo-item-icone-titulo {
+    font-size: 0.82rem;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.25;
+}
+
+.pub-acervo-item-icone-meta {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+
+.pub-acervo-aviso-sem-texto {
+    color: var(--status-warning);
+}
+
+/* --- Paginação de documentos --- */
+
+.pub-acervo-paginacao {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   Busca por nome/caminho e no conteúdo
+   ========================================================================== */
+
+.pub-acervo-busca-modos {
+    display: flex;
+    gap: 0.3rem;
+    margin-bottom: 0.4rem;
+}
+
+.pub-acervo-busca-modos button {
+    flex: 1;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    border-radius: var(--radius-md);
+    padding: 0.3rem 0.4rem;
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+
+.pub-acervo-busca-modos button.is-ativo {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+}
+
+.pub-acervo-busca-resultados {
+    margin-top: 0.5rem;
+    max-height: 320px;
+    overflow-y: auto;
+    display: none;
+}
+
+.pub-acervo-busca-resultados.is-aberto {
+    display: block;
+}
+
+.pub-acervo-busca-resultado {
+    display: block;
+    padding: 0.45rem 0.4rem;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.pub-acervo-busca-resultado:hover {
+    background: var(--bg-tertiary);
+}
+
+.pub-acervo-busca-resultado-titulo {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.pub-acervo-busca-resultado-caminho {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.pub-acervo-busca-resultado-trecho {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin-top: 0.1rem;
+}
+
+.pub-acervo-busca-resultado-trecho mark {
+    background: var(--status-warning-bg);
+    color: inherit;
+    border-radius: 2px;
+}
+
+/* ==========================================================================
+   Viewer — toolbar e miniaturas
+   ========================================================================== */
+
+.pub-viewer-shell {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+}
+
+.pub-viewer-toolbar {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 0.55rem 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.pub-viewer-toolbar-grupo {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.pub-viewer-pagina-input {
+    width: 3.2rem;
+    text-align: center;
+    padding: 0.35rem 0.2rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font: inherit;
+}
+
+.pub-viewer-zoom-nivel {
+    min-width: 3.4rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.pub-viewer-corpo {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 0.75rem;
+    align-items: start;
+}
+
+.pub-viewer-miniaturas {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 0.5rem;
+    max-height: calc(100vh - 8rem);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.pub-viewer-miniatura {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    cursor: pointer;
+    padding: 0.3rem;
+    border-radius: var(--radius-md);
+    border: 2px solid transparent;
+}
+
+.pub-viewer-miniatura:hover {
+    background: var(--bg-tertiary);
+}
+
+.pub-viewer-miniatura.is-atual {
+    border-color: var(--primary-color);
+}
+
+.pub-viewer-miniatura canvas {
+    width: 100%;
+    height: auto;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    background: #fff;
+}
+
+.pub-viewer-miniatura-num {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+
+.pub-viewer-palco {
+    display: flex;
+    justify-content: center;
+    overflow: auto;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    padding: 1rem;
+    max-height: calc(100vh - 8rem);
+}
+
+.pub-viewer-palco canvas {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    max-width: 100%;
+    background: #fff;
+}
+
+.pub-viewer-shell:fullscreen .pub-viewer-palco {
+    max-height: 100vh;
+    background: #000;
+}
+
+.pub-viewer-busca-doc {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.pub-viewer-busca-doc input {
+    width: 11rem;
+}
+
+.pub-viewer-busca-doc-resultados {
+    position: relative;
+}
+
+.pub-viewer-busca-doc-lista {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.3rem);
+    width: 22rem;
+    max-width: 80vw;
+    max-height: 22rem;
+    overflow-y: auto;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md, 0 8px 24px rgba(0,0,0,0.25));
+    padding: 0.4rem;
+    z-index: 20;
+    display: none;
+}
+
+.pub-viewer-busca-doc-lista.is-aberto {
+    display: block;
+}
+
+/* ==========================================================================
+   Responsividade mínima — degrau de defesa, não uma experiência mobile
+   dedicada (mobile continua em mobile/publicacoes.html). Só evita que a
+   janela desktop redimensionada quebre o layout.
+   ========================================================================== */
+
+@media (max-width: 860px) {
+    .pub-acervo-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .pub-acervo-sidebar {
+        position: static;
+        max-height: 340px;
+    }
+
+    .pub-viewer-corpo {
+        grid-template-columns: 1fr;
+    }
+
+    .pub-viewer-miniaturas {
+        display: none;
+    }
+}

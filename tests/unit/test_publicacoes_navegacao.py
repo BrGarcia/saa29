@@ -320,26 +320,6 @@ async def test_mantenedor_pode_navegar(
 
 
 @pytest.mark.asyncio
-async def test_home_lista_os_manuais_por_categoria(
-    client_autenticado: AsyncClient, db: AsyncSession
-):
-    edicao = await _inserir_edicao(db)
-    await _inserir_manual(
-        db,
-        edicao,
-        codigo="FIM_1741",
-        descricao="FIM — Isolamento de Falhas",
-        categoria="Manutenção",
-    )
-    await db.flush()
-
-    html = (await client_autenticado.get("/publicacoes")).text
-    assert "FIM — Isolamento de Falhas" in html
-    assert "/publicacoes/manuais/FIM_1741" in html
-    assert "Manutenção" in html
-
-
-@pytest.mark.asyncio
 async def test_pagina_manual_lista_capitulos(
     client_autenticado: AsyncClient, db: AsyncSession
 ):

@@ -228,6 +228,31 @@ class RespostaDocumentosCatalogo(BaseModel):
     results: list[DocumentoCatalogoItem]
 
 
+class CatalogoBuscaItem(BaseModel):
+    """
+    Um resultado de `GET /api/catalogo/busca` — busca por NOME/CAMINHO, não por
+    conteúdo (essa continua em `ResultadoBusca`/`GET /api/busca`).
+
+    Usado pelo explorador (`publicacoes_explorador.js`): casa contra título,
+    capítulo, `file_key` e o código/descrição do manual — o FTS de
+    `GET /api/busca` indexa texto de PÁGINA, não nomes, então não acha
+    "AMM CHAPTER_21" nem "sangria.pdf".
+    """
+
+    doc_id: uuid.UUID
+    titulo: str
+    manual: ManualRef
+    capitulo: str
+    caminho: str
+    """Trilha legível ("Manutenção › AMM_PART1_1651 › CHAPTER_21") para o resultado indicar onde o documento está."""
+    viewer_url: str
+
+
+class RespostaCatalogoBusca(BaseModel):
+    total: int
+    results: list[CatalogoBuscaItem]
+
+
 # --------------------------------------------------------------------------
 # Publicações avulsas (acervo B, M2)
 # --------------------------------------------------------------------------

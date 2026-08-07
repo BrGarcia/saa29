@@ -373,6 +373,53 @@ async def test_api_busca_aplica_filtro_de_ata(api, client_autenticado: AsyncClie
 
 
 @pytest.mark.asyncio
+async def test_filtro_por_documento_restringe_a_um_unico_pdf(indice_e_catalogo):
+    """
+    Busca de texto DENTRO de um documento, usada pelo viewer
+    (`publicacoes_viewer.js`). A amostra tem 2 PDFs que falam em "sangria"
+    (ATA 36); filtrar por `documento_id` de só um deles tem que zerar o outro
+    sem afetar a busca sem filtro.
+    """
+    indice, payload = indice_e_catalogo
+    doc_36_11 = next(d for d in payload.documentos if "36-11-00" in d.file_key)
+
+    sem_filtro = await search.buscar(indice, "sangria", limit=100)
+    com_filtro = await search.buscar(
+        indice, "sangria", documento_id=str(doc_36_11.id), limit=100
+    )
+
+    assert sem_filtro["total"] >= 2  # os dois PDFs de sangria da amostra
+    assert com_filtro["total"] > 0
+    assert com_filtro["total"] < sem_filtro["total"]
+    assert all(
+        uuid.UUID(str(r["document_id"])) == doc_36_11.id for r in com_filtro["results"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_api_busca_aplica_filtro_de_documento(api, client_autenticado: AsyncClient):
+    indice, payload = api
+    doc_36_11 = next(d for d in payload.documentos if "36-11-00" in d.file_key)
+
+    com_filtro = (
+        await client_autenticado.get(
+            "/publicacoes/api/busca",
+            params={"q": "sangria", "documento_id": str(doc_36_11.id)},
+        )
+    ).json()
+    outro_documento = (
+        await client_autenticado.get(
+            "/publicacoes/api/busca",
+            params={"q": "sangria", "documento_id": str(uuid.uuid4())},
+        )
+    ).json()
+
+    assert com_filtro["total"] > 0
+    assert all(r["doc_id"] == str(doc_36_11.id) for r in com_filtro["results"])
+    assert outro_documento["total"] == 0  # UUID aleatório não bate com nenhum documento
+
+
+@pytest.mark.asyncio
 async def test_ordenacao_por_bm25_traz_o_mais_relevante_primeiro(indice_e_catalogo):
     """
     `bm25()` do SQLite é negativo — a ordenação correta é ASC.
@@ -919,9 +966,35 @@ async def test_busca_cai_para_o_indice_legado_quando_nao_ha_por_edicao(
 
 @pytest.mark.asyncio
 async def test_pagina_lista_retorna_200_autenticado(client_autenticado: AsyncClient):
+    """
+    `publicacoes_explorador.js` faz `getElementById` para cada um destes — um
+    id renomeado só no template ou só no JS não quebra em lint nem em testes
+    de API, e passaria despercebido até alguém abrir a página.
+    """
     resposta = await client_autenticado.get("/publicacoes")
     assert resposta.status_code == 200
     assert "text/html" in resposta.headers["content-type"]
+    for id_esperado in [
+        "pub-acervo-arvore", "pub-acervo-painel", "pub-acervo-breadcrumb",
+        "pub-acervo-voltar", "pub-acervo-avancar", "pub-acervo-raiz",
+        "pub-acervo-view-lista", "pub-acervo-view-icones", "pub-acervo-ordenar",
+        "pub-acervo-busca-input", "pub-acervo-busca-resultados",
+        "pub-acervo-fim-input", "pub-acervo-fim-btn", "pub-acervo-fim-resultados",
+    ]:
+        assert f'id="{id_esperado}"' in resposta.text, f"id ausente no template: {id_esperado}"
+    assert 'href="/publicacoes/avulsas"' in resposta.text
+    assert "/static/js/publicacoes_explorador.js" in resposta.text
+
+
+@pytest.mark.asyncio
+async def test_pagina_lista_honra_deep_link_de_busca(client_autenticado: AsyncClient):
+    """
+    Contrato com `inspecao_detalhe.js` (checklist de inspeção, M3): o link
+    `/publicacoes?q=...` precisa continuar abrindo a página — a busca em si
+    (disparada pelo JS ao ler `?q=`) não é testável aqui, é client-side.
+    """
+    resposta = await client_autenticado.get("/publicacoes", params={"q": "sangria do compressor"})
+    assert resposta.status_code == 200
 
 
 @pytest.mark.asyncio
@@ -929,6 +1002,13 @@ async def test_pagina_viewer_retorna_200_autenticado(client_autenticado: AsyncCl
     resposta = await client_autenticado.get(f"/publicacoes/viewer/{uuid.uuid4()}")
     assert resposta.status_code == 200
     assert "text/html" in resposta.headers["content-type"]
+    for id_esperado in [
+        "pub-viewer-canvas", "pub-viewer-miniaturas", "pub-viewer-pagina-input",
+        "pub-viewer-zoom-mais", "pub-viewer-zoom-menos", "pub-viewer-rotacionar",
+        "pub-viewer-tela-cheia", "pub-viewer-busca-input", "pub-viewer-favorito",
+    ]:
+        assert f'id="{id_esperado}"' in resposta.text, f"id ausente no template: {id_esperado}"
+    assert "/static/js/publicacoes_viewer.js" in resposta.text
 
 
 @pytest.mark.asyncio

@@ -25,7 +25,7 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from sqlalchemy import case, delete, func, select
+from sqlalchemy import case, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -546,6 +546,57 @@ async def listar_documentos_do_manual(
         .all()
     )
     return int(total), list(documentos)
+
+
+async def buscar_no_catalogo(
+    db: AsyncSession, termo: str, *, limit: int = 20, offset: int = 0
+) -> tuple[int, list[tuple[ManualDocumento, Manual]]]:
+    """
+    Busca por NOME/CAMINHO na edição vigente, usada pelo explorador do
+    acervo: o FTS de `search.buscar` indexa texto de PÁGINA, não nomes, então
+    "AMM CHAPTER_21" ou "sangria.pdf" não voltam nada de lá.
+
+    `ilike` casa substring sem diferenciar caixa nos dois dialetos do projeto
+    (SQLite e Postgres) — sem sintaxe de operador para o usuário aprender, o
+    mesmo motivo por trás de `search.sanitizar_query` tokenizar em vez de
+    expor MATCH cru.
+    """
+    vigente = await obter_edicao_vigente(db)
+    if vigente is None:
+        return 0, []
+
+    padrao = f"%{termo}%"
+    filtros = (
+        Manual.edicao_id == vigente.id,
+        or_(
+            ManualDocumento.titulo.ilike(padrao),
+            ManualDocumento.capitulo.ilike(padrao),
+            ManualDocumento.file_key.ilike(padrao),
+            Manual.codigo.ilike(padrao),
+            Manual.descricao_pt.ilike(padrao),
+        ),
+    )
+
+    total = (
+        await db.execute(
+            select(func.count(ManualDocumento.id))
+            .select_from(ManualDocumento)
+            .join(Manual, Manual.id == ManualDocumento.manual_id)
+            .where(*filtros)
+        )
+    ).scalar_one()
+
+    linhas = (
+        await db.execute(
+            select(ManualDocumento, Manual)
+            .join(Manual, Manual.id == ManualDocumento.manual_id)
+            .where(*filtros)
+            .order_by(Manual.codigo, ManualDocumento.sort_order, ManualDocumento.titulo)
+            .limit(limit)
+            .offset(offset)
+        )
+    ).all()
+    return int(total), [(doc, manual) for doc, manual in linhas]
 
 
 # --------------------------------------------------------------------------

@@ -3,78 +3,69 @@
 {% block page_title %}Publicações{% endblock %}
 
 {% block content %}
-<div id="publicacoes-context" data-status-url="/publicacoes/api/status"></div>
+<link rel="stylesheet" href="/static/css/publicacoes.css">
 
-<div style="margin-bottom: 0.75rem;">
-    <a href="/publicacoes/avulsas" class="btn btn-outline" style="text-decoration: none;">Publicações avulsas (BO/BS/NPO/BT) →</a>
-</div>
-
-<div class="card" style="margin-bottom: 1rem;">
-    <h3 style="margin: 0 0 0.75rem 0;">Navegar no acervo</h3>
-    {% for categoria, manuais in categorias_manuais.items() %}
-    <details {% if categoria != "Ordens Técnicas" %}open{% endif %} style="margin-bottom: 0.5rem;">
-        <summary style="cursor: pointer; font-weight: 600; padding: 0.35rem 0;">{{ categoria }} ({{ manuais|length }})</summary>
-        <ul style="list-style: none; margin: 0.25rem 0 0 0; padding: 0;">
-            {% for manual in manuais %}
-            <li style="padding: 0.35rem 0.25rem; border-top: 1px solid var(--border-color);">
-                <a href="/publicacoes/manuais/{{ manual.codigo | urlencode }}" style="text-decoration: none;">{{ manual.descricao }}</a>
-                <span style="color: var(--text-secondary); font-size: 0.8rem;"> — {{ manual.codigo }} · {{ manual.documentos }} doc(s)</span>
-            </li>
-            {% endfor %}
-        </ul>
-    </details>
-    {% endfor %}
-    {% if not categorias_manuais %}
-    <div style="color: var(--text-secondary);">O acervo de manuais ainda não foi indexado nesta instância.</div>
-    {% endif %}
-</div>
-
-<div class="card" style="margin-bottom: 1rem;">
-    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end;">
-        <div style="flex: 2; min-width: 240px;">
-            <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Buscar no acervo de manuais</label>
-            <input type="text" id="pub-busca-input" class="form-input" placeholder="Ex: sangria do compressor, 34-15-00-810-801-A...">
+<div id="pub-acervo-app" class="pub-acervo-layout">
+    <aside class="pub-acervo-sidebar">
+        <div class="pub-acervo-busca">
+            <div class="pub-acervo-busca-modos" role="tablist" aria-label="Modo de busca">
+                <button type="button" class="is-ativo" data-modo="nome">Por nome</button>
+                <button type="button" data-modo="conteudo">No conteúdo</button>
+            </div>
+            <input type="text" id="pub-acervo-busca-input" class="form-input"
+                   placeholder="Buscar no acervo…" autocomplete="off">
+            <div id="pub-acervo-busca-resultados" class="pub-acervo-busca-resultados"></div>
         </div>
-        <div style="flex: 1; min-width: 160px;">
-            <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Manual</label>
-            <select id="pub-filtro-manual" class="form-input">
-                <option value="">Todos</option>
-            </select>
-        </div>
-        <div style="flex: 1; min-width: 160px;">
-            <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Capítulo</label>
-            <select id="pub-filtro-capitulo" class="form-input" disabled>
-                <option value="">Todos</option>
-            </select>
-        </div>
-        <div style="flex: 1; min-width: 120px;">
-            <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">ATA</label>
-            <input type="text" id="pub-filtro-ata" class="form-input" placeholder="Ex: 36" maxlength="2" inputmode="numeric">
-        </div>
-        <button type="button" class="btn btn-primary" id="pub-busca-btn">Buscar</button>
-    </div>
-</div>
 
-<div class="card" style="margin-bottom: 1rem;">
-    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end;">
-        <div style="flex: 1; min-width: 220px;">
-            <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Mensagem de falha (CAS/EICAS) — FIM</label>
-            <input type="text" id="pub-fim-input" class="form-input" placeholder="Ex: ADC 001">
+        <a href="/publicacoes/avulsas" class="btn btn-outline pub-acervo-avulsas-link">
+            Publicações avulsas (BO/BS/NPO/BT) →
+        </a>
+
+        <details class="pub-acervo-fim">
+            <summary>Mensagem do CAS/EICAS (FIM)</summary>
+            <div class="pub-acervo-fim-corpo">
+                <input type="text" id="pub-acervo-fim-input" class="form-input" placeholder="Ex: ADC 001">
+                <button type="button" class="btn btn-outline" id="pub-acervo-fim-btn">Resolver procedimento</button>
+                <div id="pub-acervo-fim-resultados"></div>
+            </div>
+        </details>
+
+        <div id="pub-acervo-arvore" class="pub-acervo-arvore" role="tree" aria-label="Árvore do acervo">
+            <div class="pub-acervo-estado-vazio">Carregando acervo…</div>
         </div>
-        <button type="button" class="btn btn-outline" id="pub-fim-btn">Resolver procedimento</button>
-    </div>
-    <div id="pub-fim-resultados" style="margin-top: 0.75rem;"></div>
-</div>
+    </aside>
 
-<div id="pub-status-vazio" class="card" style="display: none; text-align: center; color: var(--text-secondary); padding: 2rem;">
-    O acervo de manuais ainda não foi indexado nesta instância — a busca ficará disponível assim que
-    <code>python -m scripts.publicacoes.indexar</code> rodar.
+    <main class="pub-acervo-main">
+        <div class="pub-acervo-toolbar">
+            <nav id="pub-acervo-breadcrumb" class="pub-acervo-breadcrumb" aria-label="Caminho atual"></nav>
+            <div class="pub-acervo-acoes">
+                <button type="button" class="btn-icon" id="pub-acervo-voltar" title="Voltar" aria-label="Voltar" disabled>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <button type="button" class="btn-icon" id="pub-acervo-avancar" title="Avançar" aria-label="Avançar" disabled>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6"/></svg>
+                </button>
+                <button type="button" class="btn-icon" id="pub-acervo-raiz" title="Início do acervo" aria-label="Início do acervo">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m3 9 9-7 9 7"/><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 10v10a1 1 0 0 0 1 1h3v-6h6v6h3a1 1 0 0 0 1-1V10"/></svg>
+                </button>
+                <button type="button" class="btn-icon is-ativo" id="pub-acervo-view-lista" title="Visualização em lista" aria-label="Visualização em lista">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                </button>
+                <button type="button" class="btn-icon" id="pub-acervo-view-icones" title="Visualização em ícones" aria-label="Visualização em ícones">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1" stroke-width="2"/></svg>
+                </button>
+                <button type="button" class="btn-icon" id="pub-acervo-ordenar" title="Alternar ordenação (padrão do acervo / nome A-Z)" aria-label="Alternar ordenação">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m3 8 4-4 4 4M7 4v16m10-4-4 4-4-4m4 4V4"/></svg>
+                </button>
+            </div>
+        </div>
+        <div id="pub-acervo-painel" class="pub-acervo-painel">
+            <div class="pub-acervo-estado-vazio">Carregando acervo…</div>
+        </div>
+    </main>
 </div>
-
-<div id="pub-resultados-meta" style="margin: 0.5rem 0; color: var(--text-secondary); font-size: 0.9rem;"></div>
-<div id="pub-resultados-lista"></div>
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/publicacoes.js"></script>
+<script src="/static/js/publicacoes_explorador.js"></script>
 {% endblock %}
