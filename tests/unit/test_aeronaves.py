@@ -338,7 +338,15 @@ class TestEndpointsAdicionais:
         headers = usuario_e_token["headers"]
         rnd = uuid.uuid4().hex[:6]
         dados = dict(dados_aeronave_valida)
-        dados["matricula"] = f"59{rnd[:2]}"
+        # `59{2 dígitos hex}` daria só 256 matrículas possíveis, e ~25 delas já
+        # existem no banco de teste: as 20 de `seed.FROTA_PADRAO` (que
+        # `tests/architecture/test_quality_helpers.py` grava via
+        # `ensure_default_aeronaves`, fora da transação do teste, portanto
+        # persistidas na sessão inteira), mais 5999/5998/5900 de
+        # `tests/architecture/` e a 5916 do fixture. Resultado: ~10% de chance
+        # de 409 por matrícula duplicada — medido em 2 falhas a cada 12
+        # execuções da suíte. O sufixo inteiro elimina a colisão.
+        dados["matricula"] = f"59{rnd}"
         dados["serial_number"] = f"SN-IND-{rnd}"
         aeronave = await client.post(AERONAVES_URL, json=dados, headers=headers)
         assert aeronave.status_code == 201
@@ -373,7 +381,8 @@ class TestEndpointsAdicionais:
         headers = usuario_e_token["headers"]
         rnd = uuid.uuid4().hex[:6]
         dados = dict(dados_aeronave_valida)
-        dados["matricula"] = f"58{rnd[:2]}"
+        # Mesmo motivo do teste anterior: sufixo inteiro, não 2 dígitos.
+        dados["matricula"] = f"58{rnd}"
         dados["serial_number"] = f"SN-INSP-{rnd}"
         aeronave = await client.post(AERONAVES_URL, json=dados, headers=headers)
         assert aeronave.status_code == 201

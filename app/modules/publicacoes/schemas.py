@@ -17,7 +17,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.shared.core.enums import StatusPublicacaoAvulsa, TipoPublicacao
+from app.shared.core.enums import StatusEdicao, StatusPublicacaoAvulsa, StatusUploadJob, TipoPublicacao
 
 
 class ManualRef(BaseModel):
@@ -93,6 +93,57 @@ class StatusPublicacoes(BaseModel):
     atualizado_em: float | None
 
 
+class EdicaoListItem(BaseModel):
+    """Uma edição na tela de gerência (`/configuracoes`)."""
+
+    id: uuid.UUID
+    rotulo: str
+    status: StatusEdicao
+    data_publicacao: datetime
+    manuais: int
+    documentos: int
+    indice_disponivel: bool
+    """
+    O `catalog.<rotulo>.db` está em disco?
+
+    A UI só oferece "Ativar" quando `True` — ativar sem índice é recusado com
+    409 pelo servidor, e oferecer um botão que será recusado é pior do que não
+    oferecer.
+    """
+    tem_relatorio: bool
+    snapshot_key: str | None
+
+
+class RelatorioEdicaoOut(BaseModel):
+    """
+    Relatório de diff da publicação, como **texto puro**.
+
+    Markdown cru de propósito: é o que `publicar.py` gravou, e a UI o exibe em
+    `<pre>` escapado. Renderizar markdown exigiria um renderer no cliente para
+    exibir contagens e nomes de arquivo — risco de XSS sem ganho.
+    """
+
+    edicao_id: uuid.UUID
+    rotulo: str
+    relatorio: str | None
+
+
+class DuplicacaoOut(BaseModel):
+    """Sobreposição por hash entre a edição vigente e a anterior (M4 tarefa 5)."""
+
+    vigente: str | None
+    anterior: str | None
+    documentos_vigente: int
+    documentos_anterior: int
+    duplicados_por_hash: int
+    bytes_potencialmente_economizaveis: int | None
+    """
+    Sempre `None` hoje: o tamanho do arquivo não é guardado no catálogo.
+    Explícito em vez de estimado — um número inventado aqui viraria base de
+    decisão de disco na VPS (D-04).
+    """
+
+
 class FavoritoCreate(BaseModel):
     """Exatamente um dos dois deve vir preenchido — mesmo XOR do `CheckConstraint` (achado B1)."""
 
@@ -118,6 +169,88 @@ class DocumentoOut(BaseModel):
     ata_codigo: str | None
     paginas: int | None
     has_text: bool
+
+
+# --------------------------------------------------------------------------
+# Navegação do catálogo (Etapa 2 de 09_plano_configuracoes.md — lacuna do M1)
+#
+# Sempre escopado pela edição VIGENTE (`service.obter_edicao_vigente`) — não
+# existe aqui nenhuma forma de listar o acervo de uma edição arquivada ou
+# anterior; isso continua sendo só pelo link direto (banner "REVISÃO
+# ANTERIOR" do viewer).
+# --------------------------------------------------------------------------
+
+
+class ManualListItem(BaseModel):
+    """Uma linha de `GET /api/manuais` — o índice da home, agrupado por categoria no cliente."""
+
+    codigo: str
+    descricao: str
+    categoria: str
+    capitulos: int
+    documentos: int
+    revisao: str | None
+
+
+class ManualResumo(BaseModel):
+    """Cabeçalho do manual dentro de `RespostaCapitulos` — não é `ManualRef` (schema da busca)."""
+
+    codigo: str
+    descricao: str
+    categoria: str
+
+
+class CapituloItem(BaseModel):
+    capitulo: str
+    ata_codigo: str | None
+    """`max(ata_codigo)` do grupo — `None` quando nenhum documento do capítulo tem ATA (31% do acervo)."""
+    documentos: int
+
+
+class RespostaCapitulos(BaseModel):
+    manual: ManualResumo
+    capitulos: list[CapituloItem]
+
+
+class DocumentoCatalogoItem(BaseModel):
+    doc_id: uuid.UUID
+    titulo: str
+    capitulo: str
+    ata_codigo: str | None
+    paginas: int | None
+    has_text: bool
+    """`False` é um PDF que a busca full-text não alcança (E-01) — a UI precisa avisar."""
+    viewer_url: str
+
+
+class RespostaDocumentosCatalogo(BaseModel):
+    total: int
+    results: list[DocumentoCatalogoItem]
+
+
+class CatalogoBuscaItem(BaseModel):
+    """
+    Um resultado de `GET /api/catalogo/busca` — busca por NOME/CAMINHO, não por
+    conteúdo (essa continua em `ResultadoBusca`/`GET /api/busca`).
+
+    Usado pelo explorador (`publicacoes_explorador.js`): casa contra título,
+    capítulo, `file_key` e o código/descrição do manual — o FTS de
+    `GET /api/busca` indexa texto de PÁGINA, não nomes, então não acha
+    "AMM CHAPTER_21" nem "sangria.pdf".
+    """
+
+    doc_id: uuid.UUID
+    titulo: str
+    manual: ManualRef
+    capitulo: str
+    caminho: str
+    """Trilha legível ("Manutenção › AMM_PART1_1651 › CHAPTER_21") para o resultado indicar onde o documento está."""
+    viewer_url: str
+
+
+class RespostaCatalogoBusca(BaseModel):
+    total: int
+    results: list[CatalogoBuscaItem]
 
 
 # --------------------------------------------------------------------------
@@ -228,3 +361,49 @@ class DocumentoViewerOut(BaseModel):
     edicao_rotulo: str
     edicao_vigente: bool
     equivalente_vigente_id: uuid.UUID | None
+
+
+class UploadIniciarIn(BaseModel):
+    rotulo: str = Field(..., min_length=1, max_length=20, description="Rótulo da edição (ex: '2027')")
+    tamanho_bytes: int = Field(..., gt=0, description="Tamanho total em bytes declarado")
+    nome_arquivo: str = Field(default="edicao.zip", max_length=255)
+
+
+class UploadIniciarOut(BaseModel):
+    job_id: uuid.UUID
+    file_key: str
+    upload_id_r2: str | None
+    tamanho_parte_mb: int
+
+
+class ParteUrlOut(BaseModel):
+    numero: int
+    url: str
+
+
+class ParteEtagsIn(BaseModel):
+    numero: int
+    etag: str
+
+
+class UploadConcluirIn(BaseModel):
+    partes: list[ParteEtagsIn] = Field(..., min_length=1)
+
+
+class UploadJobOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    rotulo: str
+    status: StatusUploadJob
+    etapa: str | None
+    progresso_pct: int
+    erro: str | None
+    file_key: str
+    upload_id_r2: str | None
+    tamanho_declarado: int
+    edicao_id: uuid.UUID | None
+    criado_por_id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+

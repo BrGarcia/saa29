@@ -25,7 +25,8 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from sqlalchemy import case, delete, func, select
+from sqlalchemy import case, delete, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -38,7 +39,9 @@ from app.modules.publicacoes.models import (
     PublicacaoAcesso,
     PublicacaoFavorito,
 )
+from app.shared.core.db_utils import escape_like
 from app.shared.core.enums import RevisionStatus, StatusEdicao
+from app.shared.core.exceptions import ConflitoNegocioError, EntidadeNaoEncontradaError
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +49,28 @@ logger = logging.getLogger(__name__)
 # também é chamado por scripts, que não passam por Query (precedente:
 # inspecoes/service.py).
 LIMITE_MAXIMO_LISTAGEM = 100
+
+# Rótulos aceitos na composição do nome de arquivo do índice. `rotulo` é
+# `String(20)` de texto livre, criado por script — o regex é o que garante que
+# ele não possa introduzir separador de caminho. Como nenhum caractere aceito
+# aqui é separador em nenhuma plataforma, `base / f"catalog.{rotulo}.db"` é
+# sempre um filho direto de `base`, sem precisar de `resolve()` para provar.
+# `\Z` (não `$`) fecha a string de fato — `$` casaria também antes de um `\n`
+# final, que a classe de caracteres abaixo não rejeita por si só.
+_RE_ROTULO_INDICE = re.compile(r"^[A-Za-z0-9._-]{1,20}\Z")
+
+
+class RotuloInvalidoError(ValueError):
+    """O rótulo da edição não pode compor um nome de arquivo seguro."""
+
+
+def _validar_rotulo(rotulo: str) -> None:
+    """Levanta `RotuloInvalidoError` se `rotulo` não puder compor nome de arquivo."""
+    if not _RE_ROTULO_INDICE.match(rotulo):
+        raise RotuloInvalidoError(
+            f"Rótulo de edição inválido para nome de arquivo: {rotulo!r}. "
+            "Aceitos: letras, dígitos, ponto, hífen e sublinhado (até 20)."
+        )
 
 
 @dataclass
@@ -81,7 +106,10 @@ class ManualPayload:
 
 
 async def obter_ou_criar_edicao(
-    db: AsyncSession, rotulo: str, *, status: StatusEdicao = StatusEdicao.VIGENTE
+    db: AsyncSession,
+    rotulo: str,
+    *,
+    status: StatusEdicao | None = None,
 ) -> ManualEdicao:
     """
     Edição de rótulo `rotulo`, criando-a se ainda não existir.
@@ -90,16 +118,41 @@ async def obter_ou_criar_edicao(
     mesma edição precisa encontrar a MESMA linha — criar uma segunda edição com
     outro `id` não quebraria os UUIDs (eles derivam do rótulo, não do id), mas
     duplicaria o catálogo inteiro. Daí o get-or-create em vez de insert.
+
+    Se `status` não for informado: se ainda não existir nenhuma edição VIGENTE no
+    sistema, a primeira edição é criada como VIGENTE. Caso já exista uma edição
+    VIGENTE, a nova é criada como AGUARDANDO_ATIVACAO.
     """
+    _validar_rotulo(rotulo)
+
     edicao = (
         await db.execute(select(ManualEdicao).where(ManualEdicao.rotulo == rotulo))
     ).scalar_one_or_none()
     if edicao is not None:
         return edicao
 
+    if status is None:
+        edicao_vigente = await obter_edicao_vigente(db)
+        status = StatusEdicao.AGUARDANDO_ATIVACAO if edicao_vigente else StatusEdicao.VIGENTE
+
     edicao = ManualEdicao(rotulo=rotulo, status=status)
-    db.add(edicao)
-    await db.flush()
+    try:
+        async with db.begin_nested():
+            db.add(edicao)
+            await db.flush()
+    except IntegrityError as exc:
+        edicao_existente = (
+            await db.execute(select(ManualEdicao).where(ManualEdicao.rotulo == rotulo))
+        ).scalar_one_or_none()
+        if edicao_existente is not None:
+            logger.info("Corrida ao criar edição %r (%s); devolvendo a já existente.", rotulo, exc.orig)
+            return edicao_existente
+        logger.error("Falha ao criar edição %r com status %s: %s", rotulo, status.value, exc.orig)
+        raise ConflitoNegocioError(
+            f"Não foi possível criar a edição {rotulo!r} com status {status.value!r}. "
+            "Já existe outra edição com status VIGENTE no sistema."
+        ) from exc
+
     logger.info("Edição %r criada (status=%s).", rotulo, status.value)
     return edicao
 
@@ -115,6 +168,12 @@ async def obter_equivalente_vigente(
     é exatamente por isso que esta função precisa existir: o link do viewer
     aponta para o documento da edição em que foi gerado, e a UI usa isto para
     oferecer o caminho de volta para a edição vigente.
+
+    `.limit(1)` é cinto-e-suspensório deliberado (DÚVIDA-01): o índice único
+    parcial `uq_manuais_edicoes_vigente_unica` já garante no máximo uma
+    edição VIGENTE — é a garantia primária —, mas `obter_edicao_vigente` usa
+    o mesmo `.limit(1)` por segurança, e as duas funções devem concordar em
+    vez de uma confiar só no índice e a outra não.
     """
     if documento.manual.edicao.status == StatusEdicao.VIGENTE:
         return None
@@ -129,6 +188,7 @@ async def obter_equivalente_vigente(
                 ManualDocumento.file_key == documento.file_key,
                 ManualEdicao.status == StatusEdicao.VIGENTE,
             )
+            .limit(1)
         )
     ).scalar_one_or_none()
 
@@ -149,17 +209,6 @@ async def obter_edicao_vigente(db: AsyncSession) -> ManualEdicao | None:
 # Índice de busca por edição
 # --------------------------------------------------------------------------
 
-# Rótulos aceitos na composição do nome de arquivo do índice. `rotulo` é
-# `String(20)` de texto livre, criado por script — o regex é o que garante que
-# ele não possa introduzir separador de caminho. Como nenhum caractere aceito
-# aqui é separador em nenhuma plataforma, `base / f"catalog.{rotulo}.db"` é
-# sempre um filho direto de `base`, sem precisar de `resolve()` para provar.
-_RE_ROTULO_INDICE = re.compile(r"^[A-Za-z0-9._-]{1,20}$")
-
-
-class RotuloInvalidoError(ValueError):
-    """O rótulo da edição não pode compor um nome de arquivo seguro."""
-
 
 def caminho_indice_da_edicao(rotulo: str) -> Path:
     """
@@ -173,11 +222,7 @@ def caminho_indice_da_edicao(rotulo: str) -> Path:
 
     Pura de propósito — não toca o disco, para ser barata e testável isolada.
     """
-    if not _RE_ROTULO_INDICE.match(rotulo):
-        raise RotuloInvalidoError(
-            f"Rótulo de edição inválido para nome de arquivo: {rotulo!r}. "
-            "Aceitos: letras, dígitos, ponto, hífen e sublinhado (até 20)."
-        )
+    _validar_rotulo(rotulo)
     base = Path(get_settings().publicacoes_index_path).parent
     return base / f"catalog.{rotulo}.db"
 
@@ -201,7 +246,21 @@ def resolver_caminho_indice(rotulo: str | None) -> Path:
     if rotulo is None:
         return legado
 
-    caminho = caminho_indice_da_edicao(rotulo)
+    try:
+        caminho = caminho_indice_da_edicao(rotulo)
+    except RotuloInvalidoError:
+        # BUG-01: uma edição com rótulo inválido gravada antes da validação em
+        # `obter_ou_criar_edicao` não pode derrubar `/api/busca`/`/api/status`
+        # com 500 — mesma queda para o legado do caso "índice ausente" logo
+        # abaixo. `search.buscar`/`status_indice` já tratam arquivo ausente
+        # como estado vazio, não erro (E-12).
+        logger.warning(
+            "Edição %r tem rótulo inválido para nome de arquivo; usando o "
+            "catalog.db legado (%s).",
+            rotulo, legado,
+        )
+        return legado
+
     if caminho.is_file():
         return caminho
 
@@ -218,6 +277,16 @@ def resolver_caminho_indice(rotulo: str | None) -> Path:
     return caminho
 
 
+async def _indice_existe(rotulo: str) -> bool:
+    """Se o `catalog.<rotulo>.db` daquela edição está em disco."""
+    try:
+        caminho = caminho_indice_da_edicao(rotulo)
+    except RotuloInvalidoError:
+        # Rótulo que não compõe nome de arquivo nunca teve índice próprio.
+        return False
+    return await asyncio.to_thread(caminho.is_file)
+
+
 async def caminho_indice_vigente(db: AsyncSession) -> Path:
     """
     Índice da edição VIGENTE — o que `GET /api/busca` e `/api/status` abrem.
@@ -231,6 +300,389 @@ async def caminho_indice_vigente(db: AsyncSession) -> Path:
     edicao = await obter_edicao_vigente(db)
     rotulo = edicao.rotulo if edicao is not None else None
     return await asyncio.to_thread(resolver_caminho_indice, rotulo)
+
+
+# --------------------------------------------------------------------------
+# Ciclo de vida da edição (M4 tarefa 4, Fase 1)
+# --------------------------------------------------------------------------
+
+
+async def obter_edicao(db: AsyncSession, edicao_id: uuid.UUID) -> ManualEdicao:
+    edicao = await db.get(ManualEdicao, edicao_id)
+    if edicao is None:
+        raise EntidadeNaoEncontradaError("Edição não encontrada.")
+    return edicao
+
+
+async def listar_edicoes(db: AsyncSession) -> list[dict[str, object]]:
+    """
+    Todas as edições, com o que a tela de gerência precisa para decidir.
+
+    `indice_disponivel` é conferido no disco, edição por edição: é ele que
+    define se "Ativar" pode sequer ser oferecido. Sem essa checagem a tela
+    ofereceria um botão que o servidor recusaria — ou, pior, ativaria uma
+    edição cuja busca cairia no índice legado.
+    """
+    linhas = (
+        await db.execute(
+            select(
+                ManualEdicao,
+                func.count(func.distinct(Manual.id)),
+                func.count(ManualDocumento.id),
+            )
+            .outerjoin(Manual, Manual.edicao_id == ManualEdicao.id)
+            .outerjoin(ManualDocumento, ManualDocumento.manual_id == Manual.id)
+            .group_by(ManualEdicao.id)
+            .order_by(ManualEdicao.data_publicacao.desc())
+        )
+    ).all()
+
+    # MELHORIA-02: `_indice_existe` faz `asyncio.to_thread` — despachado em
+    # paralelo, não um `await` por vez dentro da comprehension (que seria
+    # sequencial, N despachos de thread em série para N edições).
+    disponibilidade = await asyncio.gather(
+        *(_indice_existe(edicao.rotulo) for edicao, _, _ in linhas)
+    )
+
+    return [
+        {
+            "id": edicao.id,
+            "rotulo": edicao.rotulo,
+            "status": edicao.status,
+            "data_publicacao": edicao.data_publicacao,
+            "manuais": int(manuais),
+            "documentos": int(documentos),
+            "indice_disponivel": indice_disponivel,
+            "tem_relatorio": edicao.relatorio_diff is not None,
+            "snapshot_key": edicao.snapshot_key,
+        }
+        for (edicao, manuais, documentos), indice_disponivel in zip(
+            linhas, disponibilidade, strict=True
+        )
+    ]
+
+
+async def ativar_edicao(
+    db: AsyncSession, edicao_id: uuid.UUID, *, usuario_id: uuid.UUID
+) -> ManualEdicao:
+    """
+    Promove `edicao_id` a VIGENTE e rebaixa a vigente atual a ANTERIOR.
+
+    **Reverter é ativar a edição ANTERIOR** — não existe operação inversa
+    separada. Um caminho de código, um conjunto de testes, e nenhuma dúvida
+    sobre o que "reverter" faz quando há mais de uma edição anterior retida.
+
+    A transação cobre as duas escritas: nunca há instante persistido com duas
+    edições vigentes ou nenhuma. E como a busca resolve o índice pela edição
+    vigente (`caminho_indice_vigente`), a consulta seguinte ao commit já lê o
+    índice novo — sem mover arquivo, sem downtime.
+
+    Três recusas explícitas, todas 409:
+
+    - já VIGENTE: no-op silencioso esconderia um clique que o operador acha
+      que fez efeito;
+    - ARQUIVADA: os artefatos de disco podem já ter sido descartados;
+    - **sem índice em disco**: é a que importa. Sem ela, ativar mudaria o
+      status no banco e a busca continuaria devolvendo o conteúdo da edição
+      antiga (pela queda para o índice legado) — o botão pareceria funcionar
+      e mentiria, que é exatamente o que a Fase 0 existiu para impedir.
+    """
+    edicao = await obter_edicao(db, edicao_id)
+
+    if edicao.status == StatusEdicao.VIGENTE:
+        raise ConflitoNegocioError(f"A edição {edicao.rotulo!r} já é a vigente.")
+    if edicao.status == StatusEdicao.ARQUIVADA:
+        raise ConflitoNegocioError(
+            f"A edição {edicao.rotulo!r} está arquivada — seus artefatos de disco "
+            "podem ter sido descartados. Republique-a antes de ativar."
+        )
+    if not await _indice_existe(edicao.rotulo):
+        # `_indice_existe` já devolveu False, o que inclui o caso "rótulo
+        # inválido" (BUG-01) — `caminho_indice_da_edicao` levantaria de novo
+        # aqui sem proteção, trocando o 409 informativo abaixo por um 500.
+        try:
+            caminho = caminho_indice_da_edicao(edicao.rotulo)
+        except RotuloInvalidoError:
+            raise ConflitoNegocioError(
+                f"A edição {edicao.rotulo!r} tem um rótulo inválido e não pode "
+                "ter índice de busca. Corrija o rótulo antes de ativar."
+            ) from None
+        raise ConflitoNegocioError(
+            f"A edição {edicao.rotulo!r} não tem índice de busca em disco "
+            f"({caminho}). Ative apenas depois de "
+            f"reindexar: python -m scripts.publicacoes.indexar --edicao {edicao.rotulo}"
+        )
+
+    anterior = await obter_edicao_vigente(db)
+    if anterior is not None:
+        anterior.status = StatusEdicao.ANTERIOR
+        # Flush SEPARADO, antes de promover: o índice único parcial
+        # `uq_manuais_edicoes_vigente_unica` é verificado por statement, e num
+        # flush único o SQLAlchemy pode emitir o UPDATE que promove ANTES do
+        # que rebaixa — duas linhas VIGENTE por um instante, e a operação
+        # inteira falha com IntegrityError. Libera o lugar, depois ocupa.
+        #
+        # Continua atômico: os dois flushes estão na MESMA transação, então um
+        # rollback desfaz os dois e nunca há commit com o acervo sem vigente.
+        await db.flush()
+
+    edicao.status = StatusEdicao.VIGENTE
+    # `publicado_por_id` fica nulo quando a edição nasce de script offline (sem
+    # usuário logado). A ativação pela tela tem usuário — é a primeira vez que
+    # há alguém a quem atribuir a decisão, e é a que importa para auditoria.
+    edicao.publicado_por_id = usuario_id
+    await db.flush()
+
+    logger.info(
+        "Edição %r ativada por %s (anterior: %s).",
+        edicao.rotulo, usuario_id, anterior.rotulo if anterior else "nenhuma",
+    )
+    return edicao
+
+
+async def arquivar_edicao(db: AsyncSession, edicao_id: uuid.UUID) -> ManualEdicao:
+    """
+    Marca a edição como ARQUIVADA.
+
+    Ação **separada** de ativar, e humana: ativar não arquiva a anterior
+    sozinha. Arquivar declara que os artefatos de disco daquela edição podem
+    ser descartados, e isso não é efeito colateral de publicar outra coisa.
+
+    Não apaga linha nenhuma do catálogo — `publicacoes_acessos` referencia
+    documentos de edições velhas e a auditoria precisa sobreviver (achado B4).
+    """
+    edicao = await obter_edicao(db, edicao_id)
+
+    if edicao.status == StatusEdicao.VIGENTE:
+        raise ConflitoNegocioError(
+            f"A edição {edicao.rotulo!r} está em vigor — ative outra antes de arquivá-la."
+        )
+    if edicao.status == StatusEdicao.ARQUIVADA:
+        raise ConflitoNegocioError(f"A edição {edicao.rotulo!r} já está arquivada.")
+
+    edicao.status = StatusEdicao.ARQUIVADA
+    await db.flush()
+    logger.info("Edição %r arquivada.", edicao.rotulo)
+    return edicao
+
+
+# --------------------------------------------------------------------------
+# Navegação do catálogo (Etapa 2 de 09_plano_configuracoes.md — lacuna do M1)
+#
+# Só o banco principal — SQLAlchemy, catálogo LEVE. Nunca toca `catalog.db`;
+# isto é navegação, não busca full-text (`search.py` não muda nesta etapa).
+# Toda função abaixo é escopada pela edição VIGENTE: navegar mostra o acervo
+# em vigor, não a união de edições retidas (um `join` esquecido faria o mesmo
+# manual aparecer duas vezes com ids diferentes — achado B2).
+# --------------------------------------------------------------------------
+
+
+async def listar_manuais_vigentes(db: AsyncSession) -> list[dict[str, object]]:
+    """
+    Os manuais da edição vigente, com contagem de capítulos/documentos.
+
+    `outerjoin`, não `join`: um manual sem documento nenhum (indexação falhou
+    para ele) não pode sumir da listagem — é como se descobre o problema.
+    """
+    vigente = await obter_edicao_vigente(db)
+    if vigente is None:
+        return []
+
+    linhas = (
+        await db.execute(
+            select(
+                Manual.codigo,
+                Manual.descricao_pt,
+                Manual.categoria,
+                Manual.revisao,
+                func.count(func.distinct(ManualDocumento.capitulo)),
+                func.count(ManualDocumento.id),
+            )
+            .select_from(Manual)
+            .outerjoin(ManualDocumento, ManualDocumento.manual_id == Manual.id)
+            .where(Manual.edicao_id == vigente.id)
+            .group_by(Manual.id)
+            .order_by(Manual.categoria, Manual.codigo)
+        )
+    ).all()
+
+    return [
+        {
+            "codigo": codigo,
+            "descricao": descricao_pt,
+            "categoria": categoria,
+            "capitulos": int(capitulos),
+            "documentos": int(documentos),
+            "revisao": revisao,
+        }
+        for codigo, descricao_pt, categoria, revisao, capitulos, documentos in linhas
+    ]
+
+
+async def _manual_da_edicao_vigente(db: AsyncSession, codigo: str) -> Manual:
+    """
+    O manual `codigo` na edição VIGENTE, ou 404.
+
+    Escopado pela vigente de propósito: um manual que só existe numa edição
+    arquivada não deve aparecer na navegação (achado B2 — o mesmo código de
+    manual existe em edições diferentes, com `manual_id` diferente).
+    """
+    vigente = await obter_edicao_vigente(db)
+    manual = (
+        (
+            await db.execute(
+                select(Manual).where(
+                    Manual.edicao_id == vigente.id, Manual.codigo == codigo
+                )
+            )
+        ).scalar_one_or_none()
+        if vigente is not None
+        else None
+    )
+    if manual is None:
+        raise EntidadeNaoEncontradaError(
+            f"Manual {codigo!r} não encontrado na edição vigente."
+        )
+    return manual
+
+
+async def obter_cabecalho_manual(db: AsyncSession, codigo: str) -> dict[str, str]:
+    """Só o cabeçalho (sem capítulos) — usado pelo breadcrumb da página de documentos."""
+    manual = await _manual_da_edicao_vigente(db, codigo)
+    return {
+        "codigo": manual.codigo,
+        "descricao": manual.descricao_pt,
+        "categoria": manual.categoria,
+    }
+
+
+async def obter_manual_com_capitulos(db: AsyncSession, codigo: str) -> dict[str, object]:
+    """Cabeçalho do manual + capítulos, ordenados pelo prefixo numérico (RN-05)."""
+    manual = await _manual_da_edicao_vigente(db, codigo)
+
+    linhas = (
+        await db.execute(
+            select(
+                ManualDocumento.capitulo,
+                func.max(ManualDocumento.ata_codigo),
+                func.count(ManualDocumento.id),
+            )
+            .where(ManualDocumento.manual_id == manual.id)
+            .group_by(ManualDocumento.capitulo)
+            .order_by(ManualDocumento.capitulo)
+        )
+    ).all()
+
+    return {
+        "manual": {
+            "codigo": manual.codigo,
+            "descricao": manual.descricao_pt,
+            "categoria": manual.categoria,
+        },
+        "capitulos": [
+            {"capitulo": capitulo, "ata_codigo": ata_codigo, "documentos": int(documentos)}
+            for capitulo, ata_codigo, documentos in linhas
+        ],
+    }
+
+
+async def listar_documentos_do_manual(
+    db: AsyncSession,
+    codigo: str,
+    *,
+    capitulo: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> tuple[int, list[ManualDocumento]]:
+    """
+    Documentos do manual `codigo` (edição vigente), ordenados por `sort_order`
+    (RN-05) — a ordem que o mecânico via no DVD.
+
+    `capitulo=None` devolve todos os capítulos do manual.
+    """
+    manual = await _manual_da_edicao_vigente(db, codigo)
+
+    limit = max(1, min(limit, LIMITE_MAXIMO_LISTAGEM))
+    offset = max(0, offset)
+
+    filtros = [ManualDocumento.manual_id == manual.id]
+    if capitulo is not None:
+        filtros.append(ManualDocumento.capitulo == capitulo)
+
+    total = (
+        await db.execute(select(func.count(ManualDocumento.id)).where(*filtros))
+    ).scalar_one()
+    documentos = (
+        (
+            await db.execute(
+                select(ManualDocumento)
+                .where(*filtros)
+                .order_by(ManualDocumento.sort_order, ManualDocumento.titulo)
+                .limit(limit)
+                .offset(offset)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return int(total), list(documentos)
+
+
+async def buscar_no_catalogo(
+    db: AsyncSession, termo: str, *, limit: int = 20, offset: int = 0
+) -> tuple[int, list[tuple[ManualDocumento, Manual]]]:
+    """
+    Busca por NOME/CAMINHO na edição vigente, usada pelo explorador do
+    acervo: o FTS de `search.buscar` indexa texto de PÁGINA, não nomes, então
+    "AMM CHAPTER_21" ou "sangria.pdf" não voltam nada de lá.
+
+    `ilike` casa substring sem diferenciar caixa nos dois dialetos do projeto
+    (SQLite e Postgres) — sem sintaxe de operador para o usuário aprender, o
+    mesmo motivo por trás de `search.sanitizar_query` tokenizar em vez de
+    expor MATCH cru.
+    """
+    vigente = await obter_edicao_vigente(db)
+    if vigente is None:
+        return 0, []
+
+    limit = max(1, min(limit, LIMITE_MAXIMO_LISTAGEM))
+    offset = max(0, offset)
+
+    # escape_like neutraliza `%`/`_` digitados pelo usuário (SEC-07) — sem
+    # isso, buscar "CHAPTER_21" também casaria "CHAPTERX21", já que `_` é
+    # curinga de LIKE/ILIKE e o domínio é dominado por nomes com `_`.
+    padrao = f"%{escape_like(termo)}%"
+    filtros = (
+        Manual.edicao_id == vigente.id,
+        or_(
+            ManualDocumento.titulo.ilike(padrao, escape="\\"),
+            ManualDocumento.capitulo.ilike(padrao, escape="\\"),
+            ManualDocumento.file_key.ilike(padrao, escape="\\"),
+            Manual.codigo.ilike(padrao, escape="\\"),
+            Manual.descricao_pt.ilike(padrao, escape="\\"),
+        ),
+    )
+
+    total = (
+        await db.execute(
+            select(func.count(ManualDocumento.id))
+            .select_from(ManualDocumento)
+            .join(Manual, Manual.id == ManualDocumento.manual_id)
+            .where(*filtros)
+        )
+    ).scalar_one()
+
+    linhas = (
+        await db.execute(
+            select(ManualDocumento, Manual)
+            .join(Manual, Manual.id == ManualDocumento.manual_id)
+            .where(*filtros)
+            .order_by(Manual.codigo, ManualDocumento.sort_order, ManualDocumento.titulo)
+            .limit(limit)
+            .offset(offset)
+        )
+    ).all()
+    return int(total), [(doc, manual) for doc, manual in linhas]
 
 
 # --------------------------------------------------------------------------
@@ -339,13 +791,18 @@ async def sincronizar_fim_map(
     db: AsyncSession, pares: list[tuple[str, str]], edicao: ManualEdicao
 ) -> dict[str, int]:
     """
-    Reconstrói `manuais_fim_map` a partir de [(mensagem, procedimento)].
+    Reconstrói a fatia de `manuais_fim_map` da edição `edicao`, a partir de
+    [(mensagem, procedimento)].
 
     `documento_id` é resolvido por `file_key` dentro da edição: o nome do PDF de
     um procedimento é convenção medida (`catalog.nome_pdf_de_procedimento`).
     Procedimento sem PDF grava `documento_id = NULL` em vez de ser descartado —
     a mensagem continua resolvendo para um código que o mecânico procura no
     manual em papel (4 dos 253 casos do piloto).
+
+    Escopado por `edicao_id` (BUG-03): o `DELETE` abaixo só atinge as linhas
+    desta edição, então indexar uma edição nova (ainda `AGUARDANDO_ATIVACAO`)
+    nunca mais reescreve o mapa da edição VIGENTE.
     """
     from app.modules.publicacoes.catalog import nome_pdf_de_procedimento
 
@@ -354,16 +811,30 @@ async def sincronizar_fim_map(
             select(ManualDocumento.id, ManualDocumento.file_key)
             .join(Manual, Manual.id == ManualDocumento.manual_id)
             .where(Manual.edicao_id == edicao.id)
+            # RISCO-02: sem ORDER BY, "a última ocorrência vence" no dict
+            # comprehension abaixo dependia da ordem que o banco devolvesse
+            # as linhas — não garantida nem estável entre execuções. Ordenar
+            # por manual/file_key torna uma colisão real ao menos
+            # determinística entre reindexações.
+            .order_by(Manual.codigo, ManualDocumento.file_key)
         )
     ).all()
     # Chaveado pelo BASENAME em maiúsculas: o `file_key` carrega o caminho
-    # relativo (com capítulo, quando existe) e o procedimento só conhece o nome
-    # do arquivo.
-    por_nome = {
-        file_key.rsplit("/", 1)[-1].upper(): doc_id for doc_id, file_key in documentos
-    }
+    # relativo (com capítulo, quando existe) e o procedimento só conhece o
+    # nome do arquivo. `file_key` é sempre POSIX — `pdf_path.as_posix()` em
+    # `indexar.py` — então `rsplit("/", ...)` vale em qualquer plataforma.
+    por_nome: dict[str, uuid.UUID] = {}
+    for doc_id, file_key in documentos:
+        chave = file_key.rsplit("/", 1)[-1].upper()
+        if chave in por_nome:
+            logger.warning(
+                "Dois documentos da edição %r com o mesmo nome de arquivo "
+                "(%r) — mapa do FIM usará %s, não %s.",
+                edicao.rotulo, chave, doc_id, por_nome[chave],
+            )
+        por_nome[chave] = doc_id
 
-    await db.execute(delete(ManualFimMap))
+    await db.execute(delete(ManualFimMap).where(ManualFimMap.edicao_id == edicao.id))
 
     resolvidos = 0
     for mensagem, procedimento in pares:
@@ -372,6 +843,7 @@ async def sincronizar_fim_map(
             resolvidos += 1
         db.add(
             ManualFimMap(
+                edicao_id=edicao.id,
                 mensagem=mensagem,
                 procedimento=procedimento,
                 documento_id=documento_id,
@@ -415,10 +887,15 @@ async def buscar_por_mensagem_fim(
     Casamento por prefixo: quem digita `ADC` quer as mensagens `ADC 001`,
     `ADC 002`… O `escape_like` neutraliza `%`/`_` digitados pelo usuário, que
     de outro modo virariam curinga (SEC-07).
-    """
-    from app.shared.core.db_utils import escape_like
 
-    limit = min(limit, LIMITE_MAXIMO_LISTAGEM)
+    Escopado pela edição VIGENTE (BUG-03): sem isso, uma edição indexada mas
+    ainda não ativada poderia responder no lugar da vigente.
+    """
+    vigente = await obter_edicao_vigente(db)
+    if vigente is None:
+        return []
+
+    limit = max(1, min(limit, LIMITE_MAXIMO_LISTAGEM))
     padrao = f"{escape_like(termo.strip().upper())}%"
 
     linhas = (
@@ -427,7 +904,10 @@ async def buscar_por_mensagem_fim(
             .outerjoin(
                 ManualDocumento, ManualDocumento.id == ManualFimMap.documento_id
             )
-            .where(func.upper(ManualFimMap.mensagem).like(padrao, escape="\\"))
+            .where(
+                ManualFimMap.edicao_id == vigente.id,
+                func.upper(ManualFimMap.mensagem).like(padrao, escape="\\"),
+            )
             .order_by(ManualFimMap.mensagem)
             .limit(limit)
         )
@@ -445,10 +925,15 @@ async def listar_fim_por_ata(
     (`34-15-00-810-801-A` → ATA 34) — convenção do próprio FIM, não uma coluna
     dedicada em `manuais_fim_map`. Alimenta o bloco "Procedimentos FIM do ATA
     XX" no detalhe da pane, filtrado pelo `sistema_ata` da pane aberta.
-    """
-    from app.shared.core.db_utils import escape_like
 
-    limit = min(limit, LIMITE_MAXIMO_LISTAGEM)
+    Escopado pela edição VIGENTE (BUG-03) — mesmo motivo de
+    `buscar_por_mensagem_fim`.
+    """
+    vigente = await obter_edicao_vigente(db)
+    if vigente is None:
+        return []
+
+    limit = max(1, min(limit, LIMITE_MAXIMO_LISTAGEM))
     padrao = f"{escape_like(ata_codigo)}-%"
     linhas = (
         await db.execute(
@@ -456,7 +941,10 @@ async def listar_fim_por_ata(
             .outerjoin(
                 ManualDocumento, ManualDocumento.id == ManualFimMap.documento_id
             )
-            .where(ManualFimMap.procedimento.like(padrao, escape="\\"))
+            .where(
+                ManualFimMap.edicao_id == vigente.id,
+                ManualFimMap.procedimento.like(padrao, escape="\\"),
+            )
             .order_by(ManualFimMap.procedimento)
             .limit(limit)
         )
@@ -497,14 +985,17 @@ async def medir_duplicacao_entre_edicoes(db: AsyncSession) -> dict[str, object]:
             "bytes_potencialmente_economizaveis": None,
         }
 
-    hashes_vigente = dict(
-        (await db.execute(
-            select(ManualDocumento.hash_sha256, func.count(ManualDocumento.id))
-            .join(Manual, Manual.id == ManualDocumento.manual_id)
-            .where(Manual.edicao_id == vigente.id, ManualDocumento.hash_sha256.is_not(None))
-            .group_by(ManualDocumento.hash_sha256)
-        )).all()
+    # MELHORIA-03: interseção de hashes calculada no banco (`IN (subquery)`),
+    # não materializando todos os hashes de uma edição em memória Python. A
+    # versão anterior também fazia um `GROUP BY`+`count()` cuja contagem
+    # nunca era lida (só o pertencimento da chave importava) — trabalho puro
+    # de banco descartado.
+    hashes_vigente_subq = (
+        select(ManualDocumento.hash_sha256)
+        .join(Manual, Manual.id == ManualDocumento.manual_id)
+        .where(Manual.edicao_id == vigente.id, ManualDocumento.hash_sha256.is_not(None))
     )
+
     total_vigente, total_anterior = (
         await db.execute(
             select(
@@ -513,18 +1004,21 @@ async def medir_duplicacao_entre_edicoes(db: AsyncSession) -> dict[str, object]:
             )
             .select_from(ManualDocumento)
             .join(Manual, Manual.id == ManualDocumento.manual_id)
+            .where(Manual.edicao_id.in_((vigente.id, anterior.id)))
         )
     ).one()
 
-    hashes_anteriores = (
+    duplicados = (
         await db.execute(
-            select(ManualDocumento.hash_sha256)
+            select(func.count(ManualDocumento.id))
             .join(Manual, Manual.id == ManualDocumento.manual_id)
-            .where(Manual.edicao_id == anterior.id, ManualDocumento.hash_sha256.is_not(None))
+            .where(
+                Manual.edicao_id == anterior.id,
+                ManualDocumento.hash_sha256.is_not(None),
+                ManualDocumento.hash_sha256.in_(hashes_vigente_subq),
+            )
         )
-    ).scalars().all()
-
-    duplicados = sum(1 for h in hashes_anteriores if h in hashes_vigente)
+    ).scalar_one()
 
     return {
         "vigente": vigente.rotulo,
@@ -571,7 +1065,13 @@ async def status_do_catalogo(db: AsyncSession) -> dict[str, object]:
             .where(Manual.edicao_id == edicao.id)
         )
     ).one()
-    total_fim = (await db.execute(select(func.count(ManualFimMap.id)))).scalar_one()
+    total_fim = (
+        await db.execute(
+            select(func.count(ManualFimMap.id)).where(
+                ManualFimMap.edicao_id == edicao.id
+            )
+        )
+    ).scalar_one()
 
     return {
         "edicao": edicao.rotulo,
@@ -632,63 +1132,70 @@ async def listar_favoritos(
     )
 
 
+async def _favoritar(
+    db: AsyncSession, favorito: PublicacaoFavorito, *filtros: object
+) -> PublicacaoFavorito:
+    """
+    Insere `favorito`, devolvendo o já existente em vez de propagar
+    `IntegrityError` (RISCO-01).
+
+    Sem pre-check separado de "já existe": um SELECT seguido de INSERT deixa
+    a mesma janela TOCTOU que `calendario.service.create_event_type` já
+    fechou (`achados_calendario.md`, RISCO-03) — duas requisições quase
+    simultâneas (duplo toque na estrela de favorito, gesto comum em UI de
+    toque) passariam as duas pela checagem. A `UniqueConstraint` de
+    `PublicacaoFavorito` é a única fonte de verdade; o SAVEPOINT cobre o
+    caminho comum (favoritar duas vezes em série) e a corrida real com o
+    mesmo código.
+    """
+    try:
+        async with db.begin_nested():
+            db.add(favorito)
+            await db.flush()
+    except IntegrityError as exc:
+        logger.info("Favorito já existente (%s); devolvendo o existente.", exc.orig)
+        return (await db.execute(select(PublicacaoFavorito).where(*filtros))).scalar_one()
+    return favorito
+
+
 async def favoritar_documento(
     db: AsyncSession, usuario_id: uuid.UUID, documento_id: uuid.UUID
 ) -> PublicacaoFavorito:
     """
     Idempotente: favoritar duas vezes o mesmo documento devolve o favorito já
-    existente em vez de violar a `UniqueConstraint` (achado B1) — poupa o
-    cliente de precisar checar antes de tentar.
+    existente em vez de violar a `UniqueConstraint` (achado B1) — à prova de
+    corrida via SAVEPOINT (RISCO-01), não só de repetição em série.
     """
-    from app.shared.core import exceptions as domain_exc
-
     if await obter_documento(db, documento_id) is None:
-        raise domain_exc.EntidadeNaoEncontradaError("Documento não encontrado.")
-
-    existente = (
-        await db.execute(
-            select(PublicacaoFavorito).where(
-                PublicacaoFavorito.usuario_id == usuario_id,
-                PublicacaoFavorito.documento_id == documento_id,
-            )
-        )
-    ).scalar_one_or_none()
-    if existente is not None:
-        return existente
+        raise EntidadeNaoEncontradaError("Documento não encontrado.")
 
     favorito = PublicacaoFavorito(usuario_id=usuario_id, documento_id=documento_id)
-    db.add(favorito)
-    await db.flush()
-    return favorito
+    return await _favoritar(
+        db,
+        favorito,
+        PublicacaoFavorito.usuario_id == usuario_id,
+        PublicacaoFavorito.documento_id == documento_id,
+    )
 
 
 async def favoritar_avulsa(
     db: AsyncSession, usuario_id: uuid.UUID, avulsa_id: uuid.UUID
 ) -> PublicacaoFavorito:
+    """Idempotente e à prova de corrida — mesmo contrato de `favoritar_documento`."""
     from app.modules.publicacoes import avulsas as avulsas_module
 
     await avulsas_module.obter_avulsa(db, avulsa_id)  # 404 se não existir/inativa
 
-    existente = (
-        await db.execute(
-            select(PublicacaoFavorito).where(
-                PublicacaoFavorito.usuario_id == usuario_id,
-                PublicacaoFavorito.avulsa_id == avulsa_id,
-            )
-        )
-    ).scalar_one_or_none()
-    if existente is not None:
-        return existente
-
     favorito = PublicacaoFavorito(usuario_id=usuario_id, avulsa_id=avulsa_id)
-    db.add(favorito)
-    await db.flush()
-    return favorito
+    return await _favoritar(
+        db,
+        favorito,
+        PublicacaoFavorito.usuario_id == usuario_id,
+        PublicacaoFavorito.avulsa_id == avulsa_id,
+    )
 
 
 async def remover_favorito(db: AsyncSession, usuario_id: uuid.UUID, favorito_id: uuid.UUID) -> None:
-    from app.shared.core import exceptions as domain_exc
-
     favorito = (
         await db.execute(
             select(PublicacaoFavorito).where(
@@ -698,7 +1205,7 @@ async def remover_favorito(db: AsyncSession, usuario_id: uuid.UUID, favorito_id:
         )
     ).scalar_one_or_none()
     if favorito is None:
-        raise domain_exc.EntidadeNaoEncontradaError("Favorito não encontrado.")
+        raise EntidadeNaoEncontradaError("Favorito não encontrado.")
 
     await db.delete(favorito)
     await db.flush()

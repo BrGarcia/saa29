@@ -12,6 +12,43 @@
 
 ---
 
+## 0.1 Correções após a implementação (M0–M4 + Fase 0)
+
+Esta especificação foi escrita **antes** de o módulo existir. Vários pontos dela deixaram de ser
+verdade durante a execução. O texto original de cada seção afetada foi corrigido no lugar; esta
+lista existe para que quem já conhecia o documento saiba **o que mudou** sem reler tudo.
+
+| O que a spec dizia | O que vale hoje | Onde |
+|---|---|---|
+| Piloto do M1 sobre `docs/fim/`, 411 PDFs versionados no repositório | `docs/fim/` **não existe mais** — os PDFs saíram do versionamento (`chore(docs): remove o acervo de PDFs do FIM`). O conteúdo vive em `var/publicacoes/acervo/Manuais/FIM_1741/`; o repositório guarda só uma amostra de 4 arquivos em `tests/fixtures/fim/`, para o CI, e o mapa `docs/fim.json` | §1, §7 |
+| Um `catalog.db` único em `PUBLICACOES_INDEX_PATH`, trocado por `os.replace()` na ativação de edição | **Um índice por edição** (`catalog.<rotulo>.db`), e a edição `VIGENTE` no banco decide qual a busca abre. Ativar é um `UPDATE`, não uma troca de arquivo | §2.4, §7 |
+| `search.buscar` lê `get_settings().publicacoes_index_path` direto | `search.buscar` recebe um `Path` de quem chama; o router resolve por `service.caminho_indice_vigente(db)` | §2.4 |
+| `POST /publicacoes/api/edicoes/{id}/reverter` como rota própria | **Não existe, por decisão.** Reverter é ativar a edição `ANTERIOR`, pelo mesmo `POST .../ativar` — um caminho de código, um conjunto de testes, e nenhuma dúvida sobre o que "reverter" faz quando há mais de uma edição anterior retida. A UI é que rotula o botão como "Reverter" | §3 |
+| `GET /publicacoes/manuais/{manual_path}` e `.../{capitulo}` | **Implementadas** (Etapa 2 de [`09_plano_configuracoes.md`](../backlog/modulo_publicacoes/09_plano_configuracoes.md)). O parâmetro é `{codigo}` (`manuais.codigo`), não `{manual_path}` como a spec original chamava: o `path` é caminho de disco e não pertence a uma URL. `capitulo == ""` (a raiz do manual, caso do `piloto-fim`) usa o sentinela de URL `_raiz_`, porque um segmento de path vazio não roteia | §3 |
+| `GET /publicacoes` renderizada direto do `service` (busca + índice "Navegar no acervo" por categoria, servidos já montados em HTML) | **Substituída.** `/publicacoes` e `/publicacoes/viewer/{doc_id}` viraram um explorador de arquivos (árvore Categoria → Manual → Capítulo, viewer com zoom/rotação/miniaturas/busca interna) — client-fetch puro em `publicacoes_explorador.js`/`publicacoes_viewer.js` sobre os endpoints de `§3`, incluindo o novo `GET /api/catalogo/busca` (busca por nome/caminho). A página deixou de receber `db`; nasceu como prévia sob flag (avaliada manualmente pelo desenvolvedor) e foi promovida — ver `08_status_de_implementacao.md`. `/publicacoes/manuais/{codigo}[/{capitulo}]` **continuam existindo, inalteradas**: é o que `mobile/publicacoes.html` ainda usa para navegar (mobile não tem o explorador — decisão de escopo, não lacuna) | §3, `08_status_de_implementacao.md` |
+
+A segunda e a quarta linhas são **reversões de decisão**; a segunda está registrada no adendo do
+[ADR-004](../../architecture/adr/004-modulo-publicacoes.md). A primeira e a terceira são
+consequência de uma decisão externa ao módulo (tirar o acervo do git) e da própria segunda. A
+quinta é a Etapa 2 de `09_plano_configuracoes.md` fechando uma lacuna que a spec original só
+especificava. A sexta é a promoção do explorador (`melhorias.md`, `10_plano_preview_explorador.md`)
+— também reversão de decisão, mas de um design deste próprio módulo (Etapa 2 da N2), não da
+`Especificacao.MD` externa.
+
+> **Auditoria de rotas — faça no fecho de cada marco.** A §3 abaixo é o contrato, mas nenhum gate a
+> confere: os gates olham a lista de tarefas. Foi assim que duas rotas especificadas ficaram quatro
+> marcos sem existir. Compare a §3 com a realidade:
+>
+> ```bash
+> python -c "
+> import app.bootstrap.main as m
+> for r in sorted({(r.path, ','.join(sorted(r.methods-{'HEAD','OPTIONS'}))) for r in m.app.routes if getattr(r,'methods',None) and r.path.startswith(('/publicacoes','/m/publicacoes'))}):
+>     print(r)
+> "
+> ```
+
+---
+
 ## 1. Layout de arquivos
 
 ```
@@ -26,8 +63,11 @@ app/modules/publicacoes/
 └── router.py                    # APIRouter() sem prefix/tags — main.py define
 
 app/web/templates/publicacoes/
-├── lista.html            # home do módulo: busca unificada nos dois acervos
-├── manual.html            # capítulos → documentos de um manual
+├── lista.html            # home do módulo: busca unificada + índice dos manuais
+├── manual.html            # ⚪ capítulos de um manual — Etapa 2 do 09
+├── capitulo.html           # ⚪ documentos de um capítulo — Etapa 2 do 09
+│                            #   (a spec original previa um manual.html só para os
+│                            #    dois níveis; são duas rotas, então são dois templates)
 ├── avulsas.html             # lista/filtros de BO/BS/NPO/BT
 └── viewer.html               # PDF.js, canvas, âncora #page=N
 
@@ -43,8 +83,9 @@ scripts/publicacoes/
 │                          # scripts/__init__.py e scripts/seed/__init__.py existem
 │                          # (scripts/db/ não tem, e é a exceção, não o padrão).
 ├── indexar.py            # indexação OFFLINE — extrai texto por página (pypdfium2) + enriquece
-│                          # com catalog.py (Lucene). Aceita qualquer diretório de entrada:
-│                          # docs/fim/ no M1, var/publicacoes/acervo/ a partir do M4.
+│                          # com catalog.py (Lucene). Aceita qualquer diretório de entrada;
+│                          # o padrão é var/publicacoes/acervo/Manuais. (A entrada `docs/fim/`
+│                          # do M1 não existe mais — ver §0.1.)
 ├── publicar.py            # M4 — estação de publicação: inventário, diff por hash, extração
 │                          # incremental, snapshot ZIP, relatório
 └── merge_data.py            # M4 — merge de novas remessas no acervo existente (RN-08)
@@ -335,12 +376,19 @@ descricao_pt = "{codigo}"   # fallback E-04
 `PUBLICACOES_CATEGORIAS_PATH` aponta para este arquivo (§4). Preenchido incrementalmente — um
 manual sem entrada cai em `[_default]`, nunca quebra a indexação.
 
-### 2.4 `catalog.db` — índice de busca (SQLite dedicado, fora do Alembic)
+### 2.4 `catalog.<edicao>.db` — índice de busca (SQLite dedicado, fora do Alembic)
 
 > **Duas correções da revisão de pré-implementação** (achados B6 e B7), ambas verificadas por
 > execução real de SQLite nesta sessão. O esquema anterior **não conseguiria atender o contrato
 > da API** (filtro por manual/capítulo era impossível) e **devolveria zero resultados
 > silenciosamente** (FTS5 de conteúdo externo não se popula sozinho).
+>
+> **Um arquivo por edição.** O nome é `catalog.<rotulo>.db`, no diretório de
+> `PUBLICACOES_INDEX_PATH` — `catalog.2026.db`, `catalog.piloto-fim.db`, lado a lado. Qual deles a
+> busca abre é decidido pela edição `VIGENTE` em `manuais_edicoes`, resolvido por
+> `service.caminho_indice_vigente(db)` a cada consulta. O esquema abaixo é idêntico em todos.
+> Consequência prática: publicar uma edição nova **não** toca o índice da edição em vigor, e
+> ativar/reverter não move arquivo nenhum. Ver §0.1 e o adendo do ADR-004.
 
 ```sql
 -- gerado por scripts/publicacoes/indexar.py — NUNCA por migration Alembic
@@ -443,9 +491,11 @@ def _abrir_catalog_ro(caminho: Path) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     return conn
 
-async def buscar(query: str, *, manual: str | None = None, limit: int = 20, offset: int = 0) -> dict:
+# `caminho` vem de fora: search.py não sabe o que é uma edição. Quem chama
+# resolve com `service.caminho_indice_vigente(db)` — ver §0.1.
+async def buscar(caminho: Path, query: str, *, manual: str | None = None, limit: int = 20, offset: int = 0) -> dict:
     def _run() -> dict:
-        conn = _abrir_catalog_ro(Path(get_settings().publicacoes_index_path))
+        conn = _abrir_catalog_ro(caminho)
         try:
             # bm25(), snippet() com <mark>, RN-10: sanitizar a query ANTES de
             # montar a expressão MATCH — e SEMPRE via bind parameter:
@@ -463,11 +513,17 @@ Precedente de `sqlite3` em modo somente-leitura já existe no repositório:
 `scripts/maintenance/r2_manager.py:122` (`sqlite3.connect(f"file:{tmp}?mode=ro", uri=True)`).
 
 **Por que abrir conexão por consulta (e não cachear):** além de eliminar qualquer questão de
-thread-safety, é o que torna a **ativação de edição atômica no M4** — trocar o índice vigente é
-um `os.replace(catalog_novo.db, catalog.db)` (atômico no mesmo filesystem); como nenhuma conexão
-fica aberta entre consultas, não há handle preso ao arquivo antigo e a próxima busca já abre o
-novo. Uma conexão cacheada quebraria isso silenciosamente (continuaria lendo o inode antigo). O
-custo de abertura (~1 ms para um SQLite local) é irrelevante frente ao alvo de p95 < 300 ms.
+thread-safety, é o que torna a **ativação de edição imediata** — cada edição tem seu
+`catalog.<rotulo>.db` e o chamador resolve qual abrir a cada consulta, então a busca seguinte à
+ativação já abre o arquivo da edição nova. Uma conexão cacheada quebraria isso silenciosamente
+(continuaria servindo o índice antigo). O custo de abertura (~1 ms para um SQLite local) é
+irrelevante frente ao alvo de p95 < 300 ms.
+
+> **Revisão:** este parágrafo justificava a regra pelo `os.replace(catalog_novo.db, catalog.db)`
+> previsto originalmente. Aquele mecanismo foi descartado — status no banco e arquivo em disco
+> mudavam em momentos diferentes, e reverter exigia mover o arquivo de volta. Motivo completo no
+> adendo do [ADR-004](../../architecture/adr/004-modulo-publicacoes.md). A regra em si continua
+> valendo, e ficou **mais** necessária, não menos.
 
 ---
 
@@ -477,27 +533,34 @@ Todo endpoint JSON vive sob `/publicacoes/api/...` — **um único sub-prefixo**
 `API_PREFIXES` registre `"/publicacoes/api/"` sem capturar as páginas HTML
 (`01_achados_do_acervo.md` §7.5).
 
-| Rota | Tipo | RBAC | Observação |
-|---|---|---|---|
-| `GET /publicacoes` | HTML | `CurrentUser` | home: busca unificada nos dois acervos |
-| `GET /publicacoes/manuais/{manual_path}` | HTML | `CurrentUser` | capítulos |
-| `GET /publicacoes/manuais/{manual_path}/{capitulo}` | HTML | `CurrentUser` | documentos |
-| `GET /publicacoes/viewer/{doc_id}` | HTML | `CurrentUser` | PDF.js; âncora `#page=N` |
-| `GET /publicacoes/avulsas` | HTML | `CurrentUser` | lista + filtros |
-| `GET /m/publicacoes` | HTML | `CurrentUser` | atalho mobile (`mobile_router.py`) |
-| `GET /publicacoes/api/busca` | JSON | `CurrentUser` | contrato preservado da `Especificacao.MD` §4 |
-| `GET /publicacoes/api/fim` | JSON | `CurrentUser` | busca por mensagem de falha (`fim.json`) |
-| `GET /publicacoes/api/status` | JSON | `CurrentUser` | versão do índice, contagens, `documentos_sem_texto` |
-| `GET /publicacoes/api/avulsas` | JSON | `CurrentUser` | busca nos metadados |
-| `POST /publicacoes/api/avulsas` | JSON | `EncarregadoInspetorOuAdmin` | cadastro |
-| `PATCH /publicacoes/api/avulsas/{id}` | JSON | `EncarregadoInspetorOuAdmin` | correção / vigência |
-| `DELETE /publicacoes/api/avulsas/{id}` | JSON | `AdminRequired` | soft delete |
-| `POST /publicacoes/api/avulsas/{id}/anexos` | multipart | `EncarregadoInspetorOuAdmin` | limite próprio (§5) |
-| `GET /publicacoes/api/edicoes` | JSON | `AdminRequired` | M4 — edições, status, diff |
-| `POST /publicacoes/api/edicoes/{id}/ativar` | JSON | `AdminRequired` | M4 — troca de ponteiro |
-| `POST /publicacoes/api/edicoes/{id}/reverter` | JSON | `AdminRequired` | M4 |
-| `GET /publicacoes/doc/{doc_id}/pdf` | binário | `CurrentUser` | `FileResponse` com Range, `asyncio.to_thread` para o `stat()` (padrão de `panes/router.py:395`) |
-| `GET /publicacoes/avulsas/{id}/anexo/{anexo_id}` | binário | `CurrentUser` | idem |
+> **Legenda de situação** (conferida em 06/08/2026 — ver a auditoria em §0.1): ✅ existe ·
+> ⚪ especificada e **ainda não implementada** · ⚠️ substituída por decisão registrada em §0.1.
+
+| Rota | Tipo | RBAC | Situação | Observação |
+|---|---|---|:--:|---|
+| `GET /publicacoes` | HTML | `CurrentUser` | ✅ | explorador do acervo (árvore Categoria → Manual → Capítulo, busca por nome/conteúdo, FIM) — client-fetch puro, sem `db` no handler; ver §0.1 |
+| `GET /publicacoes/manuais/{codigo}` | HTML | `CurrentUser` | ✅ | capítulos — Etapa 2 do `09`, renderizada direto do `service`. Só usada por `mobile/publicacoes.html` (desktop navega pelo explorador) |
+| `GET /publicacoes/manuais/{codigo}/{capitulo}` | HTML | `CurrentUser` | ✅ | documentos, paginados por `?offset=`/`?limit=` — Etapa 2 do `09`. `capitulo == ""` (raiz) usa o sentinela de URL `_raiz_` (`CAPITULO_RAIZ_SLUG`), já que um segmento de path vazio não roteia. Idem: uso restrito ao mobile |
+| `GET /publicacoes/api/manuais` | JSON | `CurrentUser` | ✅ | catálogo de manuais da edição vigente — consumida pelo explorador e por `mobile/publicacoes.html` |
+| `GET /publicacoes/api/manuais/{codigo}/capitulos` | JSON | `CurrentUser` | ✅ | árvore do explorador, sob demanda |
+| `GET /publicacoes/api/manuais/{codigo}/documentos` | JSON | `CurrentUser` | ✅ | paginado, filtro opcional por `capitulo` — painel de conteúdo do explorador |
+| `GET /publicacoes/api/catalogo/busca` | JSON | `CurrentUser` | ✅ | busca por NOME/caminho (título, capítulo, `file_key`, manual) — banco principal, não `catalog.db`. Complementa `/api/busca` (conteúdo), não substitui |
+| `GET /publicacoes/viewer/{doc_id}` | HTML | `CurrentUser` | ✅ | PDF.js; zoom, ajuste largura/página, rotação, tela cheia, miniaturas sob demanda, busca de texto no documento; âncora `#page=N` |
+| `GET /publicacoes/avulsas` | HTML | `CurrentUser` | ✅ | lista + filtros |
+| `GET /m/publicacoes` | HTML | `CurrentUser` | ✅ | atalho mobile (`mobile_router.py`) — experiência própria, não o explorador |
+| `GET /publicacoes/api/busca` | JSON | `CurrentUser` | ✅ | contrato preservado da `Especificacao.MD` §4; `documento_id` opcional restringe a busca a um único documento (usado pelo viewer) |
+| `GET /publicacoes/api/fim` | JSON | `CurrentUser` | ✅ | busca por mensagem de falha (`fim.json`) |
+| `GET /publicacoes/api/status` | JSON | `CurrentUser` | ✅ | versão do índice, contagens, `documentos_sem_texto` |
+| `GET /publicacoes/api/avulsas` | JSON | `CurrentUser` | ✅ | busca nos metadados |
+| `POST /publicacoes/api/avulsas` | JSON | `EncarregadoInspetorOuAdmin` | ✅ | cadastro |
+| `PATCH /publicacoes/api/avulsas/{id}` | JSON | `EncarregadoInspetorOuAdmin` | ✅ | correção / vigência |
+| `DELETE /publicacoes/api/avulsas/{id}` | JSON | `AdminRequired` | ✅ | soft delete |
+| `POST /publicacoes/api/avulsas/{id}/anexos` | multipart | `EncarregadoInspetorOuAdmin` | ✅ | limite próprio (§5) |
+| `GET /publicacoes/api/edicoes` | JSON | `AdminRequired` | ✅ | M4 — edições, status, diff |
+| `POST /publicacoes/api/edicoes/{id}/ativar` | JSON | `AdminRequired` | ✅ | M4 — troca de ponteiro |
+| `POST /publicacoes/api/edicoes/{id}/reverter` | JSON | `AdminRequired` | ⚠️ | **substituída**: reverter = ativar a `ANTERIOR` pelo mesmo `/ativar` (§0.1) |
+| `GET /publicacoes/doc/{doc_id}/pdf` | binário | `CurrentUser` | ✅ | `FileResponse` com Range, `asyncio.to_thread` para o `stat()` (padrão de `panes/router.py:395`) |
+| `GET /publicacoes/avulsas/{id}/anexo/{anexo_id}` | binário | `CurrentUser` | ✅ | idem |
 
 **Ordem de declaração:** rotas estáticas (`/publicacoes/manuais`, `/publicacoes/avulsas`,
 `/publicacoes/viewer`, `/publicacoes/doc`) sempre **antes** de qualquer rota com
@@ -708,7 +771,7 @@ Acrescentar em `app/bootstrap/config/__init__.py` sob um novo bloco `# --- Módu
 ```python
 # app/bootstrap/config/__init__.py — novos campos em Settings
 publicacoes_acervo_dir: str = Field(default="var/publicacoes/acervo", description="Diretório dos PDFs — dev e produção (VPS com disco persistente)")
-publicacoes_index_path: str = Field(default="var/publicacoes/catalog.db", description="SQLite dedicado do índice de busca — fora do DATABASE_URL")
+publicacoes_index_path: str = Field(default="var/publicacoes/catalog.db", description="SQLite do índice de busca — fora do DATABASE_URL. Dois papéis: o DIRETÓRIO hospeda os índices por edição (catalog.<rotulo>.db, que é o que a busca abre); o arquivo em si é o índice legado, só fallback")
 publicacoes_categorias_path: str = Field(default="config/categorias_manuais.toml", description="Mapa estático de categoria/descrição por manual — substitui manual_type.xml ausente")
 publicacoes_avulsas_max_upload_mb: float = Field(default=50.0, description="Limite de anexo das avulsas — separado de max_upload_size_mb, que é 0.5MB e não muda")
 publicacoes_edicoes_retidas: int = Field(default=2, description="M4 — vigente + anterior online")

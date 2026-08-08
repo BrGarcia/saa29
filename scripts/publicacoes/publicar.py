@@ -60,9 +60,10 @@ import app.modules.equipamentos.models  # noqa: F401
 import app.modules.inspecoes.models     # noqa: F401
 import app.modules.panes.models         # noqa: F401
 import app.modules.vencimentos.models   # noqa: F401
+import shutil
 from app.modules.publicacoes import service
 from app.modules.publicacoes.models import Manual, ManualDocumento
-from app.shared.core.enums import StatusEdicao
+from app.shared.core.enums import StatusEdicao, StatusUploadJob
 from scripts.publicacoes import indexar as indexar_mod
 
 logger = logging.getLogger("publicacoes.publicar")
@@ -250,6 +251,126 @@ def podar_snapshots_antigos(cliente_s3, bucket: str, manter: int) -> list[str]:
 
 
 # --------------------------------------------------------------------------
+# Validação de Segurança do ZIP (M4.Web §4)
+# --------------------------------------------------------------------------
+
+EXTENSOES_ZIP_PROIBIDAS = {
+    ".exe", ".bat", ".cmd", ".sh", ".py", ".dll", ".so", ".pif", ".application",
+    ".gadget", ".msi", ".msp", ".com", ".scr", ".hta", ".cpl", ".msc", ".jar",
+    ".vbs", ".js", ".jse", ".ws", ".wsf", ".wsc", ".wsh", ".ps1", ".ps1xml",
+    ".ps2", ".ps2xml", ".psc1", ".psc2", ".msh", ".msh1", ".msh2", ".mshxml",
+    ".msh1xml", ".msh2xml", ".scf", ".lnk", ".inf", ".reg"
+}
+
+
+class ValidacaoZipError(ValueError):
+    """Exceção para pacotes ZIP maliciosos ou fora do padrão aceito."""
+    pass
+
+
+def validar_pacote_zip(
+    caminho_zip: Path,
+    *,
+    max_descomprimido_bytes: int = 8 * 1024 * 1024 * 1024,  # 8 GB
+    max_entradas: int = 10000,
+    max_compressao_ratio: float = 50.0,
+) -> int:
+    """
+    Valida a integridade e segurança do arquivo ZIP antes da extração.
+    Retorna o número de entradas no arquivo ZIP.
+    Lança ValidacaoZipError em caso de Zip-Slip, Zip Bomb ou arquivos não permitidos.
+    """
+    if not caminho_zip.is_file():
+        raise ValidacaoZipError(f"Arquivo ZIP não encontrado: {caminho_zip}")
+
+    total_descomprimido = 0
+    total_entradas = 0
+
+    with zipfile.ZipFile(caminho_zip, "r") as zf:
+        infolist = zf.infolist()
+        if len(infolist) > max_entradas:
+            raise ValidacaoZipError(
+                f"O arquivo ZIP contém muitas entradas ({len(infolist)} > máximo de {max_entradas})."
+            )
+
+        for member in infolist:
+            total_entradas += 1
+            filename = member.filename
+
+            # 1. Contenção de caminho (Zip-Slip)
+            if filename.startswith("/") or filename.startswith("\\") or ".." in filename or ":" in filename:
+                raise ValidacaoZipError(
+                    f"Caminho suspeito detectado no pacote ZIP (Zip-Slip risk): {filename!r}"
+                )
+
+            # 2. Allowlist / Denylist de extensões
+            p = Path(filename)
+            ext = p.suffix.lower()
+            if ext in EXTENSOES_ZIP_PROIBIDAS:
+                raise ValidacaoZipError(
+                    f"Extensão de arquivo proibida encontrada no pacote ZIP: {filename!r}"
+                )
+
+            if not member.is_dir():
+                # 3. Zip bomb (teto total e razão por entrada)
+                uncompressed_size = member.file_size
+                compressed_size = member.compress_size
+                total_descomprimido += uncompressed_size
+
+                if total_descomprimido > max_descomprimido_bytes:
+                    raise ValidacaoZipError(
+                        f"Tamanho total descomprimido excede o limite máximo permitido ({max_descomprimido_bytes // (1024 * 1024)} MB)."
+                    )
+
+                if compressed_size > 0:
+                    ratio = uncompressed_size / compressed_size
+                    if ratio > max_compressao_ratio and uncompressed_size > 10 * 1024 * 1024:
+                        raise ValidacaoZipError(
+                            f"Razão de compressão suspeita na entrada {filename!r} (ratio: {ratio:.1f}x > {max_compressao_ratio}x)."
+                        )
+
+    return total_entradas
+
+
+async def atualizar_progresso_job(
+    job_id: str | None,
+    etapa: str,
+    pct: int,
+    *,
+    status: StatusUploadJob | None = None,
+    erro: str | None = None,
+    edicao_id: uuid.UUID | None = None,
+) -> None:
+    """Atualiza a linha de publicacoes_upload_jobs no banco principal em sessão própria."""
+    if not job_id:
+        return
+    try:
+        from sqlalchemy import select
+        import uuid as uuid_mod
+        from app.modules.publicacoes.models import PublicacoesUploadJob
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            job_uuid = uuid_mod.UUID(job_id) if isinstance(job_id, str) else job_id
+            job = (
+                await session.execute(
+                    select(PublicacoesUploadJob).where(PublicacoesUploadJob.id == job_uuid)
+                )
+            ).scalar_one_or_none()
+            if job:
+                job.etapa = etapa
+                job.progresso_pct = pct
+                if status is not None:
+                    job.status = status
+                if erro is not None:
+                    job.erro = erro
+                if edicao_id is not None:
+                    job.edicao_id = edicao_id
+                await session.commit()
+    except Exception as exc:
+        logger.warning("Não foi possível atualizar o progresso do job %s: %s", job_id, exc)
+
+
+# --------------------------------------------------------------------------
 # CLI
 # --------------------------------------------------------------------------
 
@@ -266,6 +387,14 @@ def montar_parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path(settings.publicacoes_acervo_dir) / "Manuais",
         help="Diretório do acervo (um subdiretório por manual).",
+    )
+    parser.add_argument(
+        "--de-upload",
+        help="Caminho ou key do arquivo ZIP de upload no storage.",
+    )
+    parser.add_argument(
+        "--job-id",
+        help="UUID do job de upload para acompanhamento de progresso no banco.",
     )
     parser.add_argument(
         "--dry-run",
@@ -292,8 +421,64 @@ async def main(argv: list[str] | None = None) -> int:
     args = montar_parser().parse_args(argv)
     settings = get_settings()
 
+    staging_dir: Path | None = None
+    if args.de-upload:
+        await atualizar_progresso_job(args.job_id, "Iniciando download do pacote do storage...", 10)
+        staging_dir = Path("var/publicacoes/staging") / (args.job_id or args.edicao)
+        staging_dir.mkdir(parents=True, exist_ok=True)
+        caminho_zip_staging = staging_dir / "edicao.zip"
+
+        try:
+            # Baixar ou copiar arquivo do storage para staging
+            if settings.storage_backend.lower() == "r2":
+                cliente_s3 = _obter_cliente_s3(settings)
+                logger.info("Baixando %s do R2 para %s...", args.de-upload, caminho_zip_staging)
+                cliente_s3.download_file(settings.r2_bucket_name, args.de-upload, str(caminho_zip_staging))
+            else:
+                caminho_origem = Path(settings.upload_dir) / args.de-upload
+                if not caminho_origem.is_file():
+                    caminho_origem = Path(args.de-upload)
+                if not caminho_origem.is_file():
+                    raise FileNotFoundError(f"Arquivo de upload local não encontrado: {args.de-upload}")
+                shutil.copyfile(caminho_origem, caminho_zip_staging)
+
+            await atualizar_progresso_job(args.job_id, "Validando integridade e segurança do ZIP...", 20)
+            validar_pacote_zip(caminho_zip_staging)
+
+            # Extração para pasta temporária de Manuais
+            pasta_manuais_staging = staging_dir / "Manuais"
+            pasta_manuais_staging.mkdir(parents=True, exist_ok=True)
+            await atualizar_progresso_job(args.job_id, "Descompactando manuais...", 30)
+
+            with zipfile.ZipFile(caminho_zip_staging, "r") as zf:
+                zf.extractall(pasta_manuais_staging)
+
+            # Se o ZIP descompactado tiver uma subpasta "Manuais" ou com o nome da edição, ajusta
+            if (pasta_manuais_staging / "Manuais").is_dir():
+                args.acervo = pasta_manuais_staging / "Manuais"
+            elif (pasta_manuais_staging / args.edicao).is_dir():
+                args.acervo = pasta_manuais_staging / args.edicao
+            else:
+                args.acervo = pasta_manuais_staging
+
+        except Exception as exc:
+            logger.error("Erro no processamento do upload: %s", exc)
+            await atualizar_progresso_job(
+                args.job_id,
+                "Falha na validação ou extração do pacote ZIP",
+                0,
+                status=StatusUploadJob.FALHOU,
+                erro=str(exc),
+            )
+            if staging_dir and staging_dir.exists():
+                shutil.rmtree(staging_dir, ignore_errors=True)
+            return 1
+
     if not args.acervo.is_dir():
         logger.error("Acervo não encontrado: %s", args.acervo)
+        await atualizar_progresso_job(
+            args.job_id, "Diretório de acervo não encontrado", 0, status=StatusUploadJob.FALHOU, erro=f"Acervo não encontrado: {args.acervo}"
+        )
         return 1
 
     session_factory = get_session_factory()
@@ -301,6 +486,7 @@ async def main(argv: list[str] | None = None) -> int:
         edicao_vigente = await service.obter_edicao_vigente(db)
         antigo = await inventario_da_edicao_vigente(db)
 
+    await atualizar_progresso_job(args.job_id, "Calculando inventário e diff do acervo...", 40)
     logger.info("Inventariando %s…", args.acervo)
     novo = inventariar_acervo(args.acervo)
     diff = calcular_diff(antigo, novo)
@@ -330,25 +516,15 @@ async def main(argv: list[str] | None = None) -> int:
             edicao_vigente.rotulo, args.edicao,
         )
 
+    nova_edicao_obj = None
     if not args.pular_indexacao:
-        # Pré-cria a edição como AGUARDANDO_ATIVACAO ANTES de indexar: o
-        # indexador (`indexar.gravar_no_banco_principal`) faz um get-or-create
-        # com status VIGENTE por padrão (comportamento certo para o piloto do
-        # M1, que não tem conceito de ativação) — se a linha já existir, o
-        # status informado ali é ignorado e o que ficou gravado aqui prevalece.
-        # Sem este passo, toda reindexação publicaria a edição já vigente,
-        # pulando a revisão humana do relatório de diff que a tarefa 4 exige.
+        await atualizar_progresso_job(args.job_id, "Reindexando acervo...", 50)
         async with session_factory() as db:
             await service.obter_ou_criar_edicao(
                 db, args.edicao, status=StatusEdicao.AGUARDANDO_ATIVACAO
             )
             await db.commit()
 
-        # Sem `--indice`: o default do indexador deriva de `--edicao`
-        # (`catalog.<edicao>.db`), e é justamente essa derivação que garante que
-        # publicar uma edição nova não sobrescreva o índice da edição em vigor.
-        # Passar um caminho explícito aqui duplicaria a regra em dois lugares —
-        # e o lugar onde ela pode ser esquecida é este.
         logger.info("Reindexando o acervo inteiro sob a edição %r…", args.edicao)
         codigo = await indexar_mod.main([
             "--entrada", str(args.acervo),
@@ -357,14 +533,18 @@ async def main(argv: list[str] | None = None) -> int:
         ])
         if codigo != 0:
             logger.error("Indexação falhou (código %d) — publicação abortada.", codigo)
+            await atualizar_progresso_job(
+                args.job_id, "Indexação do acervo falhou", 0, status=StatusUploadJob.FALHOU, erro=f"Erro na indexação (código {codigo})"
+            )
             return codigo
 
         async with session_factory() as db:
-            nova_edicao = await service.obter_ou_criar_edicao(db, args.edicao)
-            nova_edicao.relatorio_diff = relatorio
+            nova_edicao_obj = await service.obter_ou_criar_edicao(db, args.edicao)
+            nova_edicao_obj.relatorio_diff = relatorio
             await db.commit()
 
     if not args.pular_upload:
+        await atualizar_progresso_job(args.job_id, "Gerando snapshot da edição e enviando ao storage...", 85)
         with __import__("tempfile").TemporaryDirectory() as tmp:
             caminho_zip = Path(tmp) / f"{args.edicao}.zip"
             logger.info("Gerando snapshot ZIP de %s…", args.acervo)
@@ -384,6 +564,32 @@ async def main(argv: list[str] | None = None) -> int:
                                 settings.publicacoes_snapshots_retidos, ", ".join(removidos))
             except RuntimeError as exc:
                 logger.warning("Upload ao R2 pulado: %s", exc)
+
+    # Limpeza explícita da key temporária de upload no R2/storage local
+    if args.de-upload:
+        try:
+            if settings.storage_backend.lower() == "r2":
+                cliente_s3 = _obter_cliente_s3(settings)
+                cliente_s3.delete_object(Bucket=settings.r2_bucket_name, Key=args.de-upload)
+                logger.info("Key temporária de upload removida do R2: %s", args.de-upload)
+            else:
+                caminho_temp = Path(settings.upload_dir) / args.de-upload
+                if caminho_temp.is_file():
+                    caminho_temp.unlink()
+        except Exception as exc:
+            logger.warning("Falha ao apagar arquivo de upload temporário %s: %s", args.de-upload, exc)
+
+    # Limpar pasta local de staging se existia
+    if staging_dir and staging_dir.exists():
+        shutil.rmtree(staging_dir, ignore_errors=True)
+
+    await atualizar_progresso_job(
+        args.job_id,
+        "Publicação concluída com sucesso (aguardando ativação)",
+        100,
+        status=StatusUploadJob.CONCLUIDO,
+        edicao_id=nova_edicao_obj.id if nova_edicao_obj else None,
+    )
 
     logger.info(
         "Publicação da edição %r concluída — status AGUARDANDO_ATIVACAO. "

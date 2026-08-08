@@ -99,6 +99,47 @@ async def test_favoritar_documento_e_idempotente(
 
 
 @pytest.mark.asyncio
+async def test_favoritar_documento_apos_corrida_devolve_o_existente(
+    db: AsyncSession, documento_real, usuario_no_banco
+):
+    """
+    RISCO-01: sem pre-check separado, o par pode já existir no banco quando o
+    INSERT roda — exatamente o que uma corrida real (duplo toque na estrela
+    de favorito) produziria. O SAVEPOINT + `except IntegrityError` precisa
+    absorver isso e devolver o favorito já persistido, não deixar a
+    `IntegrityError` subir como 500.
+    """
+    from app.modules.publicacoes.models import PublicacaoFavorito
+
+    concorrente = PublicacaoFavorito(
+        usuario_id=usuario_no_banco.id, documento_id=documento_real.id
+    )
+    db.add(concorrente)
+    await db.flush()
+
+    resultado = await service.favoritar_documento(db, usuario_no_banco.id, documento_real.id)
+    assert resultado.id == concorrente.id
+
+
+@pytest.mark.asyncio
+async def test_favoritar_avulsa_apos_corrida_devolve_o_existente(
+    db: AsyncSession, client_autenticado: AsyncClient, usuario_no_banco
+):
+    """Mesmo cenário do teste acima, para o acervo B (avulsas)."""
+    from app.modules.publicacoes.models import PublicacaoFavorito
+
+    avulsa = (await client_autenticado.post(URL_AVULSAS, json=payload_bs())).json()
+    avulsa_id = uuid.UUID(avulsa["id"])
+
+    concorrente = PublicacaoFavorito(usuario_id=usuario_no_banco.id, avulsa_id=avulsa_id)
+    db.add(concorrente)
+    await db.flush()
+
+    resultado = await service.favoritar_avulsa(db, usuario_no_banco.id, avulsa_id)
+    assert resultado.id == concorrente.id
+
+
+@pytest.mark.asyncio
 async def test_favoritar_documento_inexistente_retorna_404(client_autenticado: AsyncClient):
     resposta = await client_autenticado.post(
         URL_FAVORITOS, json={"documento_id": str(uuid.uuid4())}

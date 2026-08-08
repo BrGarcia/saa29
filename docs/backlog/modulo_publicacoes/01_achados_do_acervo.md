@@ -6,6 +6,23 @@
 >
 > **Data da medição:** 2026-08-04/05 · **Ambiente:** `.venv` local, Python 3.13, sem dependências
 > além da biblioteca padrão (nenhuma lib de PDF foi necessária para produzir estes números).
+>
+> ---
+>
+> ⚠️ **Nota de vigência (2026-08-06).** Este documento é um **registro de medição datado** e não é
+> reescrito quando a realidade muda — os números continuam válidos para o estado do disco naquela
+> data. Uma premissa mudou desde então:
+>
+> **`docs/fim/` não existe mais no repositório.** Os 411 PDFs foram removidos do versionamento
+> (`chore(docs): remove o acervo de PDFs do FIM`). Toda contagem abaixo que se refere a `docs/fim/`
+> continua verdadeira sobre aquele conteúdo, que hoje vive em
+> `var/publicacoes/acervo/Manuais/FIM_1741/` — **em revisão diferente**: os arquivos do acervo são
+> ~15% menores que as cópias que estavam em `docs/fim/`. O repositório guarda apenas uma amostra de
+> 4 PDFs em `tests/fixtures/fim/` (ver o README de lá) e o mapa `docs/fim.json`.
+>
+> Uma medição desta base foi **corrigida** ao ser refeita contra o acervo: a cobertura do `fim.json`
+> é de **253/253** procedimentos com PDF, não 249/253 — a cópia em `docs/fim/` estava incompleta.
+> A correção está em `tests/unit/test_publicacoes_catalog.py::test_regressao_fim_json_e_cobertura_do_piloto`.
 
 ---
 

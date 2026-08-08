@@ -152,3 +152,15 @@ class StatusEdicao(str, enum.Enum):
     VIGENTE = "VIGENTE"
     ANTERIOR = "ANTERIOR"
     ARQUIVADA = "ARQUIVADA"
+
+
+class StatusUploadJob(str, enum.Enum):
+    """
+    Estado do job de upload e processamento de edições do acervo.
+    """
+    ENVIANDO = "ENVIANDO"
+    PROCESSANDO = "PROCESSANDO"
+    CONCLUIDO = "CONCLUIDO"
+    FALHOU = "FALHOU"
+    CANCELADO = "CANCELADO"
+

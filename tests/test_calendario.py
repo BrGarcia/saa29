@@ -523,9 +523,26 @@ async def test_create_event_para_terceiro_sem_privilegio_levanta_domain_exc_tipa
         )
 
 
-# ------------------------------------------------------------------ #
-#  MELHORIA-06 — _get_task_events removida (código morto)
-# ------------------------------------------------------------------ #
-
 def test_get_task_events_foi_removida():
     assert not hasattr(service, "_get_task_events")
+
+
+@pytest.mark.asyncio
+async def test_get_events_ordena_datetimes_mistas_sem_typeerror(db: AsyncSession):
+    """
+    Garante que get_events não lança TypeError quando eventos possuem datetimes
+    com misturas de timezone-aware e timezone-naive.
+    """
+    usuario = await criar_usuario_teste(db, funcao="ENCARREGADO", trigrama="ENC")
+    tipo = await criar_tipo_evento(db)
+    await criar_evento_teste(db, usuario, tipo)
+    await criar_inspecao_com_dpe(db, usuario)
+
+    eventos = await service.get_events(
+        db,
+        start_date=datetime(2026, 5, 1, 0, 0, tzinfo=timezone.utc),
+        end_date=datetime(2026, 5, 31, 23, 59, tzinfo=timezone.utc),
+        current_user=usuario,
+    )
+    assert len(eventos) >= 2
+

@@ -24,17 +24,20 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     Date,
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -43,6 +46,7 @@ from app.shared.core.enums import (
     RevisionStatus,
     StatusEdicao,
     StatusPublicacaoAvulsa,
+    StatusUploadJob,
     TipoPublicacao,
 )
 
@@ -65,6 +69,24 @@ class ManualEdicao(Base):
     """
 
     __tablename__ = "manuais_edicoes"
+    __table_args__ = (
+        # No máximo uma edição VIGENTE. Índice PARCIAL: ANTERIOR e ARQUIVADA
+        # podem repetir à vontade — só o estado "em vigor" é exclusivo.
+        #
+        # Rede de segurança do que `service.ativar_edicao` já valida em Python
+        # dentro da transação. A validação em Python dá a mensagem legível; o
+        # índice cobre o caso que ela não vê: dois processos ativando ao mesmo
+        # tempo, cada um na sua transação. Sem ele, o banco aceitaria duas
+        # linhas VIGENTE e a busca passaria a depender de qual tem
+        # `data_publicacao` maior — falha silenciosa, não erro.
+        Index(
+            "uq_manuais_edicoes_vigente_unica",
+            "status",
+            unique=True,
+            sqlite_where=text("status = 'VIGENTE'"),
+            postgresql_where=text("status = 'VIGENTE'"),
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     rotulo: Mapped[str] = mapped_column(
@@ -256,17 +278,30 @@ class ManualFimMap(Base):
     mas indexar um subconjunto — uma amostra, um manual só — deixa o resto sem
     documento. Um procedimento sem PDF continua sendo informação útil: a
     mensagem resolve para um código que o mecânico procura no manual em papel.
+
+    **Escopado por edição** (BUG-03): antes de `edicao_id` existir, a tabela
+    era global e `sincronizar_fim_map` apagava e reescrevia o mapa inteiro a
+    cada indexação — reindexar uma edição nova (ainda `AGUARDANDO_ATIVACAO`)
+    fazia o mapa da edição VIGENTE apontar para documentos da edição errada
+    até alguém ativar a nova. Com `edicao_id`, cada edição tem seu próprio
+    mapa; as leituras filtram pela vigente, e `sincronizar_fim_map` só apaga
+    e reescreve a fatia da edição que está sendo indexada.
     """
 
     __tablename__ = "manuais_fim_map"
     __table_args__ = (
-        UniqueConstraint("mensagem", name="uq_manuais_fim_map_mensagem"),
+        UniqueConstraint(
+            "edicao_id", "mensagem", name="uq_manuais_fim_map_edicao_mensagem"
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    # Sem `index=True`: a UniqueConstraint abaixo já cria o índice único que a
-    # busca por mensagem usa — um segundo índice sobre a mesma coluna só custa
-    # escrita.
+    edicao_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("manuais_edicoes.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # Sem `index=True`: a UniqueConstraint acima já cria o índice composto que
+    # a busca por mensagem usa — um segundo índice sobre a mesma coluna só
+    # custa escrita.
     mensagem: Mapped[str] = mapped_column(
         String(20), nullable=False, comment="Ex: 'ADC 001'"
     )
@@ -503,3 +538,69 @@ class PublicacaoFavorito(Base):
     def __repr__(self) -> str:
         alvo = self.documento_id or self.avulsa_id
         return f"<PublicacaoFavorito usuario={self.usuario_id} alvo={alvo}>"
+
+
+class PublicacoesUploadJob(Base):
+    """
+    Registro de tentativa de upload e processamento de edições do acervo (M4.Web).
+    Atua como single-flight lock (no máximo 1 job ativo por vez) e trilha de auditoria.
+    """
+
+    __tablename__ = "publicacoes_upload_jobs"
+    __table_args__ = (
+        Index(
+            "uq_publicacoes_upload_jobs_ativo_unico",
+            text("1"),
+            unique=True,
+            sqlite_where=text("status IN ('ENVIANDO', 'PROCESSANDO')"),
+            postgresql_where=text("status IN ('ENVIANDO', 'PROCESSANDO')"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    rotulo: Mapped[str] = mapped_column(
+        String(20), nullable=False, comment="Rótulo da edição (ex: '2027')"
+    )
+    status: Mapped[StatusUploadJob] = mapped_column(
+        Enum(StatusUploadJob),
+        nullable=False,
+        default=StatusUploadJob.ENVIANDO,
+        index=True,
+    )
+    etapa: Mapped[str | None] = mapped_column(
+        String(100), nullable=True, comment="Descrição da etapa atual"
+    )
+    progresso_pct: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, comment="Progresso de 0 a 100%"
+    )
+    erro: Mapped[str | None] = mapped_column(
+        Text, nullable=True, comment="Mensagem de erro detalhada quando FALHOU"
+    )
+    file_key: Mapped[str] = mapped_column(
+        String(500), nullable=False, comment="Caminho/Key do ZIP no Storage"
+    )
+    upload_id_r2: Mapped[str | None] = mapped_column(
+        String(200), nullable=True, comment="UploadID multipart no S3/R2 ou local"
+    )
+    tamanho_declarado: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0, comment="Tamanho declarado em bytes"
+    )
+    edicao_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("manuais_edicoes.id", ondelete="SET NULL"), nullable=True
+    )
+    criado_por_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=False
+    )
+    processo_pid: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, comment="PID do subprocesso worker"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    criado_por = relationship("Usuario", foreign_keys=[criado_por_id])
+    edicao = relationship("ManualEdicao", foreign_keys=[edicao_id])
+

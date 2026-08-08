@@ -13,6 +13,14 @@ ver `docs/backlog/modulo_publicacoes/06_addendum_revisao_5.md`)
 **Restrição cumprida:** nenhuma linha de código foi escrita ou alterada. Este documento é
 exclusivamente parecer + plano.
 
+> ⚠️ **Nota de vigência (06/08/2026):** o módulo **foi implementado** — M0–M3 completos, M4 em 6/8.
+> Este parecer permanece como registro do raciocínio original e **não é reescrito**. Para o estado
+> real, leia [`08_status_de_implementacao.md`](08_status_de_implementacao.md); para o contrato
+> vigente, [`03_especificacao_tecnica.md`](03_especificacao_tecnica.md) (cuja §0.1 lista o que
+> mudou desde o planejamento). Duas premissas deste documento caíram: `docs/fim/` não é mais
+> versionado, e o índice de busca é um arquivo **por edição**, não um `catalog.db` único trocado
+> por `os.replace()`.
+
 > **Revisão 2 — o que mudou:** acrescentadas a §8 (**ciclo de publicação anual via DVD**:
 > estação de publicação, diff por hash, snapshot ZIP, ativação/reversão pela UI) e a §9
 > (**publicações avulsas — BO, BS, NPO, BT**: cadastro manual, anexos escaneados, busca por

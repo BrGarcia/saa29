@@ -598,6 +598,17 @@ async def main(argv: list[str] | None = None) -> int:
     )
     args = montar_parser().parse_args(argv)
 
+    # Validar `--edicao` cedo, antes de qualquer trabalho (BUG-01): se só a
+    # linha abaixo validasse, passar `--indice` explícito faria essa
+    # validação nunca rodar — o rótulo inválido só falharia tarde, com
+    # traceback cru dentro de `gravar_no_banco_principal`, ou pior, seria
+    # persistido e derrubaria `/api/busca` depois.
+    try:
+        service.caminho_indice_da_edicao(args.edicao)
+    except service.RotuloInvalidoError as exc:
+        logger.error(str(exc))
+        return 1
+
     # O default de `--indice` não pode sair do argparse: ele depende de
     # `--edicao`, que só é conhecida depois do parse.
     indice: Path = args.indice or service.caminho_indice_da_edicao(args.edicao)

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block page_title %}{{ manual.descricao }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 0.75rem; color: var(--text-secondary); font-size: 0.9rem;">
+    <a href="/publicacoes" style="text-decoration: none;">Publicações</a> › {{ manual.descricao }}
+</div>
+
+<div class="card" style="margin-bottom: 1rem;">
+    <h2 style="margin: 0 0 0.25rem 0;">{{ manual.descricao }}</h2>
+    <div style="color: var(--text-secondary); font-size: 0.9rem;">
+        {{ manual.codigo }} · {{ manual.categoria }} · {{ capitulos|length }} capítulo(s)
+    </div>
+</div>
+
+{% if capitulos %}
+<div class="card">
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background: rgba(0,0,0,0.1); text-align: left;">
+                <th style="padding: 0.6rem 0.5rem;">Capítulo</th>
+                <th style="padding: 0.6rem 0.5rem;">ATA</th>
+                <th style="padding: 0.6rem 0.5rem;">Documentos</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cap in capitulos %}
+            <tr style="border-top: 1px solid var(--border-color);">
+                <td style="padding: 0.6rem 0.5rem;">
+                    <a href="/publicacoes/manuais/{{ manual.codigo | urlencode }}/{{ (cap.capitulo if cap.capitulo else capitulo_raiz_slug) | urlencode }}">
+                        {% if cap.capitulo %}
+                            {% if cap.ata_codigo %}ATA {{ cap.ata_codigo }} — {% endif %}{{ cap.capitulo }}
+                        {% else %}
+                            (raiz do manual)
+                        {% endif %}
+                    </a>
+                </td>
+                <td style="padding: 0.6rem 0.5rem; color: var(--text-secondary);">{{ cap.ata_codigo or "—" }}</td>
+                <td style="padding: 0.6rem 0.5rem; color: var(--text-secondary);">{{ cap.documentos }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+    Nenhum documento indexado para este manual ainda.
+</div>
+{% endif %}
+{% endblock %}

@@ -156,7 +156,7 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(calendario_router,   prefix="/api/v1/calendario", tags=["Calendario"])
     app.include_router(dashboard_router,    prefix="/dashboard",    tags=["Dashboard"])
     app.include_router(publicacoes_router,  prefix="/publicacoes",  tags=["Publicações"])
-    
+
     # Frontend Pages (Root / UI)
     app.include_router(mobile_router)
     app.include_router(pages_router)

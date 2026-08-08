@@ -7,6 +7,12 @@
 >
 > **Data:** 2026-08-05 · **Método:** leitura cruzada + **execução real** de SQLite/SQLAlchemy para
 > cada hipótese testável. Nenhum achado abaixo é opinião de leitura: os marcados 🔬 foram medidos.
+>
+> ⚠️ **Nota de vigência (2026-08-06):** documento datado, não reescrito. Os 8 bugs antecipados aqui
+> foram todos confirmados e tratados na implementação — o rastreio de cada um está em
+> [`08_status_de_implementacao.md`](08_status_de_implementacao.md). Onde o texto cita `docs/fim/`,
+> leia `var/publicacoes/acervo/Manuais/FIM_1741/`: aquela pasta saiu do versionamento (ver a nota
+> em [`01_achados_do_acervo.md`](01_achados_do_acervo.md)).
 
 **Resultado:** 8 bugs que teriam ido para o código, 2 simplificações, 5 lacunas de convenção.
 Todas as correções já foram **aplicadas** em `03_especificacao_tecnica.md`.

@@ -7,7 +7,8 @@ Projetado com foco em concisão, alta legibilidade e conformidade CSP.
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from app.bootstrap.dependencies import get_current_user
+from app.bootstrap.dependencies import get_current_user, DBSession
+from app.modules.publicacoes import service as publicacoes_service
 
 router = APIRouter(prefix="/m", tags=["Mobile Frontend"])
 
@@ -32,6 +33,18 @@ async def mobile_tarefas_aeronave_page(request: Request, aeronave_id: str, user=
 
 
 @router.get("/publicacoes", response_class=HTMLResponse, include_in_schema=False)
-async def mobile_publicacoes_page(request: Request, user=Depends(get_current_user)):
-    """Atalho mobile para a busca de publicações — reusa publicacoes.js do desktop."""
-    return templates.TemplateResponse("mobile/publicacoes.html", {"request": request, "user": user})
+async def mobile_publicacoes_page(request: Request, db: DBSession, user=Depends(get_current_user)):
+    """
+    Busca + navegação do acervo, mobile — reusa `publicacoes.js` do desktop e as
+    mesmas rotas de navegação (`/publicacoes/manuais/...`, Etapa 2 de
+    `09_plano_configuracoes.md`), para não manter um segundo conjunto de telas
+    em sincronia.
+    """
+    manuais = await publicacoes_service.listar_manuais_vigentes(db)
+    categorias_manuais: dict[str, list[dict]] = {}
+    for manual in manuais:
+        categorias_manuais.setdefault(manual["categoria"], []).append(manual)
+    return templates.TemplateResponse(
+        "mobile/publicacoes.html",
+        {"request": request, "user": user, "categorias_manuais": categorias_manuais},
+    )

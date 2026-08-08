@@ -373,6 +373,53 @@ async def test_api_busca_aplica_filtro_de_ata(api, client_autenticado: AsyncClie
 
 
 @pytest.mark.asyncio
+async def test_filtro_por_documento_restringe_a_um_unico_pdf(indice_e_catalogo):
+    """
+    Busca de texto DENTRO de um documento, usada pelo viewer
+    (`publicacoes_viewer.js`). A amostra tem 2 PDFs que falam em "sangria"
+    (ATA 36); filtrar por `documento_id` de só um deles tem que zerar o outro
+    sem afetar a busca sem filtro.
+    """
+    indice, payload = indice_e_catalogo
+    doc_36_11 = next(d for d in payload.documentos if "36-11-00" in d.file_key)
+
+    sem_filtro = await search.buscar(indice, "sangria", limit=100)
+    com_filtro = await search.buscar(
+        indice, "sangria", documento_id=str(doc_36_11.id), limit=100
+    )
+
+    assert sem_filtro["total"] >= 2  # os dois PDFs de sangria da amostra
+    assert com_filtro["total"] > 0
+    assert com_filtro["total"] < sem_filtro["total"]
+    assert all(
+        uuid.UUID(str(r["document_id"])) == doc_36_11.id for r in com_filtro["results"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_api_busca_aplica_filtro_de_documento(api, client_autenticado: AsyncClient):
+    indice, payload = api
+    doc_36_11 = next(d for d in payload.documentos if "36-11-00" in d.file_key)
+
+    com_filtro = (
+        await client_autenticado.get(
+            "/publicacoes/api/busca",
+            params={"q": "sangria", "documento_id": str(doc_36_11.id)},
+        )
+    ).json()
+    outro_documento = (
+        await client_autenticado.get(
+            "/publicacoes/api/busca",
+            params={"q": "sangria", "documento_id": str(uuid.uuid4())},
+        )
+    ).json()
+
+    assert com_filtro["total"] > 0
+    assert all(r["doc_id"] == str(doc_36_11.id) for r in com_filtro["results"])
+    assert outro_documento["total"] == 0  # UUID aleatório não bate com nenhum documento
+
+
+@pytest.mark.asyncio
 async def test_ordenacao_por_bm25_traz_o_mais_relevante_primeiro(indice_e_catalogo):
     """
     `bm25()` do SQLite é negativo — a ordenação correta é ASC.
@@ -703,6 +750,94 @@ async def test_api_fim_procedimento_sem_pdf_devolve_doc_id_nulo(
     assert corpo["results"][0]["viewer_url"] is None
 
 
+@pytest.mark.asyncio
+async def test_indexar_edicao_nao_vigente_nao_apaga_o_mapa_da_vigente(
+    com_fim_map, entrada: Path, tmp_path: Path, db: AsyncSession
+):
+    """
+    BUG-03: o fluxo normal de publicação — indexar uma edição nova, que nasce
+    `AGUARDANDO_ATIVACAO` enquanto a anterior segue `VIGENTE` — não pode
+    reescrever o mapa do FIM da vigente com documentos da edição nova.
+
+    `com_fim_map` já deixa `EDICAO` (VIGENTE) com o mapa populado; este teste
+    indexa uma SEGUNDA edição, sobre a MESMA amostra de PDFs, sem ativá-la, e
+    confirma que a busca continua resolvendo para os documentos da vigente.
+    """
+    from app.shared.core.enums import StatusEdicao
+
+    pares, _ = com_fim_map
+
+    outro_rotulo = "teste-fim-nova"
+    payloads_nova = _indexar(
+        entrada, tmp_path / f"catalog.{outro_rotulo}.db", edicao_rotulo=outro_rotulo
+    )
+    edicao_nova = await service.obter_ou_criar_edicao(
+        db, outro_rotulo, status=StatusEdicao.AGUARDANDO_ATIVACAO
+    )
+    await service.sincronizar_catalogo(db, edicao_nova, payloads_nova)
+    await service.sincronizar_fim_map(db, pares, edicao_nova)
+
+    mensagem = pares[0][0]
+    resultado = await service.buscar_por_mensagem_fim(db, mensagem[:3])
+    achado = next(mapa for mapa, _doc in resultado if mapa.mensagem == mensagem)
+
+    ids_da_nova = {doc.id for manual in payloads_nova for doc in manual.documentos}
+    assert achado.edicao_id != edicao_nova.id
+    assert achado.documento_id not in ids_da_nova
+
+
+@pytest.mark.asyncio
+async def test_sincronizar_fim_map_colisao_de_basename_e_deterministica(
+    db: AsyncSession, caplog
+):
+    """
+    RISCO-02: dois documentos da mesma edição com o mesmo nome de arquivo (em
+    capítulos diferentes) colidem na chave do mapa do FIM. Sem `ORDER BY`, qual
+    dos dois "vence" não é garantido nem estável entre execuções — este teste
+    trava que a colisão é ao menos determinística (ordenada por manual/caminho)
+    e que aparece em log, não silenciosa.
+    """
+    import logging
+
+    from app.modules.publicacoes.models import Manual, ManualDocumento
+    from app.shared.core.enums import StatusEdicao
+
+    edicao = await service.obter_ou_criar_edicao(db, "colisao", status=StatusEdicao.VIGENTE)
+    manual = Manual(
+        edicao_id=edicao.id, codigo="FIM_1741", descricao_pt="FIM",
+        categoria="FIM", path="FIM_1741",
+    )
+    db.add(manual)
+    await db.flush()
+
+    nome_pdf = "FIM1741_34-15-00-810-801-A-.PDF"
+    doc_perde = ManualDocumento(
+        id=uuid.uuid4(), manual_id=manual.id, capitulo="CHAPTER_A",
+        file_key=f"CHAPTER_A/{nome_pdf}", titulo="Perde", sort_order=0,
+        has_text=True,
+    )
+    doc_vence = ManualDocumento(
+        id=uuid.uuid4(), manual_id=manual.id, capitulo="CHAPTER_B",
+        file_key=f"CHAPTER_B/{nome_pdf}", titulo="Vence", sort_order=0,
+        has_text=True,
+    )
+    db.add_all([doc_perde, doc_vence])
+    await db.flush()
+
+    with caplog.at_level(logging.WARNING, logger="app.modules.publicacoes.service"):
+        resultado = await service.sincronizar_fim_map(
+            db, [("ADC 001", "34-15-00-810-801-A")], edicao
+        )
+
+    assert resultado["com_documento"] == 1
+    assert any("mesmo nome de arquivo" in m for m in caplog.messages)
+
+    # Determinístico: CHAPTER_B ordena depois de CHAPTER_A — a última
+    # ocorrência da query ordenada é quem "vence" o dict, sempre a mesma.
+    mapa = await service.buscar_por_mensagem_fim(db, "ADC")
+    assert mapa[0][0].documento_id == doc_vence.id
+
+
 # --------------------------------------------------------------------------
 # Metadados do viewer e banner de revisão anterior (§2.2)
 # --------------------------------------------------------------------------
@@ -825,7 +960,20 @@ async def test_trocar_edicao_vigente_muda_o_que_a_busca_devolve(
     ele que sustenta a promessa da Fase 0 — mudar o status no banco muda de
     fato o resultado da busca, sem mover arquivo nenhum.
     """
+    from app.modules.auth.models import Usuario
+    from app.modules.auth.security import hash_senha
     from app.shared.core.enums import StatusEdicao
+
+    # `publicado_por_id` tem FK para `usuarios` com ondelete RESTRICT, e o
+    # SQLite do projeto roda com `PRAGMA foreign_keys=ON` — um uuid4 solto seria
+    # recusado. `client_autenticado` cria um usuário mas não o expõe.
+    usuario_ativador = Usuario(
+        nome="Ativador", posto="Cap", especialidade="ELT", funcao="ADMINISTRADOR",
+        ramal="9001", username=f"ativador.{uuid.uuid4().hex[:6]}",
+        senha_hash=hash_senha("x"),
+    )
+    db.add(usuario_ativador)
+    await db.flush()
 
     ed_a = await service.obter_ou_criar_edicao(db, "ed-a", status=StatusEdicao.VIGENTE)
     await service.sincronizar_catalogo(
@@ -856,9 +1004,15 @@ async def test_trocar_edicao_vigente_muda_o_que_a_busca_devolve(
     assert ids_a, "pré-condição: a edição vigente inicial precisa responder à busca"
 
     # A ativação inteira: dois UPDATEs, nenhum arquivo movido.
-    ed_a.status = StatusEdicao.ANTERIOR
-    ed_b.status = StatusEdicao.VIGENTE
-    await db.flush()
+    #
+    # Pelo `service`, e não trocando `status` na mão: o índice único parcial
+    # `uq_manuais_edicoes_vigente_unica` (Fase 1) é verificado por statement, e
+    # num flush único o SQLAlchemy ordena os UPDATEs por chave primária — com
+    # UUID aleatório, a promoção vinha antes do rebaixamento em ~1/3 das
+    # execuções e o teste falhava com IntegrityError. `service.ativar_edicao`
+    # faz o flush em duas etapas justamente por isso; usar o caminho real aqui
+    # elimina a instabilidade E exercita a Fase 1 de quebra.
+    await service.ativar_edicao(db, ed_b.id, usuario_id=usuario_ativador.id)
 
     ids_b = await _ids_da_busca()
     assert ids_b, "a edição recém-ativada precisa responder à mesma busca"
@@ -900,9 +1054,35 @@ async def test_busca_cai_para_o_indice_legado_quando_nao_ha_por_edicao(
 
 @pytest.mark.asyncio
 async def test_pagina_lista_retorna_200_autenticado(client_autenticado: AsyncClient):
+    """
+    `publicacoes_explorador.js` faz `getElementById` para cada um destes — um
+    id renomeado só no template ou só no JS não quebra em lint nem em testes
+    de API, e passaria despercebido até alguém abrir a página.
+    """
     resposta = await client_autenticado.get("/publicacoes")
     assert resposta.status_code == 200
     assert "text/html" in resposta.headers["content-type"]
+    for id_esperado in [
+        "pub-acervo-arvore", "pub-acervo-painel", "pub-acervo-breadcrumb",
+        "pub-acervo-voltar", "pub-acervo-avancar", "pub-acervo-raiz",
+        "pub-acervo-view-lista", "pub-acervo-view-icones", "pub-acervo-ordenar",
+        "pub-acervo-busca-input", "pub-acervo-busca-resultados",
+        "pub-acervo-fim-input", "pub-acervo-fim-btn", "pub-acervo-fim-resultados",
+    ]:
+        assert f'id="{id_esperado}"' in resposta.text, f"id ausente no template: {id_esperado}"
+    assert 'href="/publicacoes/avulsas"' in resposta.text
+    assert "/static/js/publicacoes_explorador.js" in resposta.text
+
+
+@pytest.mark.asyncio
+async def test_pagina_lista_honra_deep_link_de_busca(client_autenticado: AsyncClient):
+    """
+    Contrato com `inspecao_detalhe.js` (checklist de inspeção, M3): o link
+    `/publicacoes?q=...` precisa continuar abrindo a página — a busca em si
+    (disparada pelo JS ao ler `?q=`) não é testável aqui, é client-side.
+    """
+    resposta = await client_autenticado.get("/publicacoes", params={"q": "sangria do compressor"})
+    assert resposta.status_code == 200
 
 
 @pytest.mark.asyncio
@@ -910,6 +1090,13 @@ async def test_pagina_viewer_retorna_200_autenticado(client_autenticado: AsyncCl
     resposta = await client_autenticado.get(f"/publicacoes/viewer/{uuid.uuid4()}")
     assert resposta.status_code == 200
     assert "text/html" in resposta.headers["content-type"]
+    for id_esperado in [
+        "pub-viewer-canvas", "pub-viewer-miniaturas", "pub-viewer-pagina-input",
+        "pub-viewer-zoom-mais", "pub-viewer-zoom-menos", "pub-viewer-rotacionar",
+        "pub-viewer-tela-cheia", "pub-viewer-busca-input", "pub-viewer-favorito",
+    ]:
+        assert f'id="{id_esperado}"' in resposta.text, f"id ausente no template: {id_esperado}"
+    assert "/static/js/publicacoes_viewer.js" in resposta.text
 
 
 @pytest.mark.asyncio
