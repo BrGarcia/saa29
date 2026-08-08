@@ -43,6 +43,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 4. Iniciar Tarefas em Segundo Plano
     cleanup_task = asyncio.create_task(tasks.token_cleanup_task())
     anexos_cleanup_task = asyncio.create_task(tasks.anexos_travados_cleanup_task())
+    await tasks.recuperar_jobs_upload_interrompidos()
 
     yield
 

@@ -17,7 +17,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.shared.core.enums import StatusEdicao, StatusPublicacaoAvulsa, TipoPublicacao
+from app.shared.core.enums import StatusEdicao, StatusPublicacaoAvulsa, StatusUploadJob, TipoPublicacao
 
 
 class ManualRef(BaseModel):
@@ -361,3 +361,49 @@ class DocumentoViewerOut(BaseModel):
     edicao_rotulo: str
     edicao_vigente: bool
     equivalente_vigente_id: uuid.UUID | None
+
+
+class UploadIniciarIn(BaseModel):
+    rotulo: str = Field(..., min_length=1, max_length=20, description="Rótulo da edição (ex: '2027')")
+    tamanho_bytes: int = Field(..., gt=0, description="Tamanho total em bytes declarado")
+    nome_arquivo: str = Field(default="edicao.zip", max_length=255)
+
+
+class UploadIniciarOut(BaseModel):
+    job_id: uuid.UUID
+    file_key: str
+    upload_id_r2: str | None
+    tamanho_parte_mb: int
+
+
+class ParteUrlOut(BaseModel):
+    numero: int
+    url: str
+
+
+class ParteEtagsIn(BaseModel):
+    numero: int
+    etag: str
+
+
+class UploadConcluirIn(BaseModel):
+    partes: list[ParteEtagsIn] = Field(..., min_length=1)
+
+
+class UploadJobOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    rotulo: str
+    status: StatusUploadJob
+    etapa: str | None
+    progresso_pct: int
+    erro: str | None
+    file_key: str
+    upload_id_r2: str | None
+    tamanho_declarado: int
+    edicao_id: uuid.UUID | None
+    criado_por_id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+

@@ -1,12 +1,12 @@
 # Sugestão — Envio de Atualizações das Publicações pela Web
 
 > Proposta de fluxo para o envio de atualizações do acervo de publicações,
-> consolidando [envio_publicacoes_zip.md](envio_publicacoes_zip.md) (por que
+> consolidando [docs\guides\envio_publicacoes_zip.md](envio_publicacoes_zip.md) (por que
 > não existe upload `.zip` via HTTP hoje) e
-> [opcoes_upload_inspetor.md](opcoes_upload_inspetor.md) (as três opções de
+> [docs\guides\opcoes_upload_inspetor.md](opcoes_upload_inspetor.md) (as três opções de
 > arquitetura para o INSPETOR), à luz do código atual do módulo
 > (`app/modules/publicacoes/`) e dos achados da revisão de 2026-08-08
-> (`app/modules/publicacoes/ACHADOS.md`).
+> ([docs/backlog/modulo_publicacoes/dividas/ACHADOS.md](../backlog/modulo_publicacoes/dividas/ACHADOS.md)).
 
 ---
 
@@ -153,7 +153,219 @@ Os quatro limites da tabela do guia original continuam valendo; o que muda é
 
 ---
 
-## 7. Referências
+## 7. Implementação detalhada da Opção 1
+
+> Plano de construção, ancorado no código existente: `StorageService`
+> (`app/shared/core/storage.py`) já tem `R2StorageService` com boto3; a
+> dependência de papel `InspetorOuAdmin` já existe
+> (`app/bootstrap/dependencies.py:155`); e o `publicar.py` já expõe
+> `--edicao`, `--acervo`, `--relatorio-dir` — o modo de upload é uma extensão
+> do parser atual, não um script novo.
+
+### 7.1 Infra e configuração (pré-requisito único)
+
+Regra de CORS no bucket R2 — sem ela nada funciona, e há uma pegadinha real:
+além de permitir `PUT`, é preciso **expor o header `ETag`**, porque o
+JavaScript precisa ler o ETag de cada parte para concluir o multipart:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://<dominio-da-aplicacao>"],
+    "AllowedMethods": ["PUT"],
+    "AllowedHeaders": ["content-type"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+Settings novas (`get_settings()`): `publicacoes_upload_max_gb` (teto do ZIP,
+ex.: 4), `publicacoes_upload_parte_mb` (ex.: 100) e
+`publicacoes_staging_dir` (ex.: `var/publicacoes/staging/`). As chaves no R2
+são sempre geradas pelo servidor no padrão
+`publicacoes/uploads/<job_id>/edicao.zip` — o cliente nunca escolhe key.
+
+### 7.2 Modelo de dados: `publicacoes_upload_jobs`
+
+Uma linha por tentativa de envio — é o estado que a UI consulta e a trilha de
+auditoria de quem enviou o quê:
+
+```
+id                UUID PK
+rotulo            String(20)  NOT NULL  — validado com _RE_ROTULO_INDICE na entrada
+status            Enum: ENVIANDO | PROCESSANDO | CONCLUIDO | FALHOU | CANCELADO
+etapa             String(60)  — "baixando", "validando zip", "indexando AMM_PART1…"
+progresso_pct     Integer     — 0–100, atualizado pelo worker
+erro              Text NULL   — mensagem legível quando FALHOU
+file_key          String(500) — key no R2 (gerada pelo servidor)
+upload_id_r2      String(200) — id do multipart, para concluir/abortar
+tamanho_declarado BigInteger  — bytes informados no início
+edicao_id         UUID NULL FK manuais_edicoes  — preenchido ao concluir
+criado_por_id     UUID FK usuarios (RESTRICT)
+created_at / updated_at
+```
+
+Duas regras estruturais, ambas com precedente no módulo:
+
+1. **Índice único parcial "um job ativo por vez"** (`status IN (ENVIANDO,
+   PROCESSANDO)`) — mesmo padrão de `uq_manuais_edicoes_vigente_unica`. É o
+   lock de single-flight: não existe motivo para processar duas edições em
+   paralelo numa VPS pequena, e a constraint fecha a corrida que uma checagem
+   em Python deixaria aberta (lição do achado RISCO-01 da revisão).
+2. **Máquina de estados só avança**:
+
+```
+ENVIANDO ──concluir──► PROCESSANDO ──worker ok──► CONCLUIDO
+   │                        │
+   ├─cancelar/24h──► CANCELADO (aborta multipart no R2)
+   └─erro───────────► FALHOU ◄──worker falhou────┘
+```
+
+### 7.3 Extensão do `StorageService`
+
+Quatro métodos novos na ABC, implementados no `R2StorageService` com o
+`s3_client` que já existe (todos via `_run_in_executor`, como os atuais):
+
+```python
+async def iniciar_multipart(self, file_key: str, content_type: str) -> str: ...
+    # create_multipart_upload → UploadId
+async def presign_parte(self, file_key: str, upload_id: str, numero: int) -> str: ...
+    # generate_presigned_url("upload_part", ExpiresIn=3600)
+async def concluir_multipart(self, file_key, upload_id, partes: list[dict]) -> None: ...
+    # complete_multipart_upload com [{PartNumber, ETag}]
+async def abortar_multipart(self, file_key: str, upload_id: str) -> None: ...
+```
+
+`LocalStorageService` (dev sem R2) não suporta presigned URLs do R2. Para garantir
+que o desenvolvimento local e os testes funcionem sem dependência da nuvem:
+implementar os métodos de multipart no `LocalStorageService` salvando e
+montando partes localmente em `var/publicacoes/staging/chunks/<job_id>/`. No
+router, caso `storage_backend == "local"`, os endpoints de parte realizam o `PUT`
+diretamente contra a API para gravação na pasta de staging local. O caminho de
+produção permanece usando a presigned URL do R2.
+
+### 7.4 Endpoints (router.py, seção nova "Upload de edições")
+
+Todos sob `/publicacoes/api/edicoes/uploads`, role `InspetorOuAdmin`
+(dependência já existente), rate limit apertado — é operação rara:
+
+| Método/rota | Faz | Recusas |
+|---|---|---|
+| `POST /uploads` `{rotulo, tamanho_bytes, nome_arquivo}` | valida rótulo (`_validar_rotulo`) e teto de tamanho; cria o job `ENVIANDO`; `iniciar_multipart`; devolve `{job_id, tamanho_parte_mb}` | 409 se já há job ativo (constraint §7.2); 409 se o rótulo já é de edição `VIGENTE`/`ARQUIVADA`; 400 rótulo inválido |
+| `POST /uploads/{id}/partes` `{numero}` | devolve URL presigned daquela parte — **sob demanda**, uma por vez, o que dá retry natural (pedir de novo = URL nova) sem gerar 30 URLs antecipadas | 409 se o job não está `ENVIANDO` |
+| `POST /uploads/{id}/concluir` `{partes: [{numero, etag}]}` | `concluir_multipart`; `HEAD` no objeto conferindo tamanho == declarado; transiciona para `PROCESSANDO`; dispara o subprocesso (§7.5) | 409 estado errado; 400 partes faltando |
+| `POST /uploads/{id}/cancelar` | aborta o multipart no R2 (senão o R2 cobra pelas partes órfãs) e marca `CANCELADO`; se `PROCESSANDO`, sinaliza o worker | — |
+| `GET /uploads/{id}` / `GET /uploads?limit=10` | status/etapa/progresso/erro — é o que a UI faz polling | — |
+
+A **ativação não ganha endpoint novo**: quando o job chega a `CONCLUIDO`, a
+edição aparece na listagem existente (`GET /api/edicoes`) com
+`indice_disponivel=true`, e o botão `[ATIVAR]` segue `AdminRequired`.
+
+### 7.5 Worker: subprocesso `publicar.py --de-upload`
+
+Extensão do parser atual (que já tem `--edicao`, `--acervo`,
+`--pular-upload`, `--relatorio-dir`):
+
+```bash
+python -m scripts.publicacoes.publicar \
+    --edicao 2027 --de-upload publicacoes/uploads/<job_id>/edicao.zip --job-id <job_id>
+```
+
+Sequência dentro do script (tudo que já existe é reaproveitado sem mudança):
+
+1. **Checar disco**: `shutil.disk_usage` — exigir espaço para ZIP + extração
+   + margem; senão `FALHOU` com erro legível ("libere X GB").
+2. **Baixar em streaming** (`download_fileobj`) para
+   `<staging>/<job_id>/edicao.zip` — nunca materializar em RAM.
+3. **Validar o ZIP** (checklist do §4: contenção, bomba, allowlist, contagem)
+   lendo o índice central do ZIP **antes** de extrair qualquer byte.
+4. **Extrair contido** para `<staging>/<job_id>/Manuais/`.
+5. **Rodar o pipeline existente** com `--acervo <staging>/<job_id>/Manuais`:
+   inventário, diff por hash, extração de texto, `catalog.<rotulo>.db`,
+   edição `AGUARDANDO_ATIVACAO` explícita, `relatorio_diff`.
+6. **Promover o staging ao acervo definitivo**
+   (`var/publicacoes/acervo/edicoes/<rotulo>/`) com `os.replace` do diretório
+   — a promoção é o último passo, então um crash em qualquer etapa anterior
+   nunca deixa acervo pela metade no lugar definitivo.
+7. Marcar `CONCLUIDO` (+ `edicao_id`), apagar o staging local e apagar explicitamente o ZIP temporário do R2 (`s3_client.delete_object(Bucket=bucket, Key=file_key)` da chave em `publicacoes/uploads/<job_id>/edicao.zip`) — evitando acúmulo de arquivos temporários de 3 GB no bucket R2 (o snapshot oficial retido da edição é gravado separadamente em `publicacoes/snapshots/<rotulo>.zip`).
+
+O job row em `publicacoes_upload_jobs` é atualizado dinamicamente pelo próprio script
+(que abre sua própria sessão assíncrona de banco via `get_session_factory()`, mesmo
+padrão de `indexar.py`) em fronteiras de etapa e a cada manual processado — com 34
+manuais, isso dá progresso em incrementos graduais de ~3%, permitindo o acompanhamento em tempo real na UI.
+
+Supervisão no lado web (`app/bootstrap/tasks.py` é o lugar natural):
+
+- disparo com `asyncio.create_subprocess_exec`, guardando o PID no job;
+- **recuperação de crash**: na subida da aplicação, todo job `PROCESSANDO`
+  cujo processo não existe mais vira `FALHOU` ("processo interrompido —
+  reenvie"); como o pipeline é idempotente, reenviar é sempre seguro;
+- **faxina diária**: abortar multiparts `ENVIANDO` com mais de 24 h e apagar
+  stagings órfãos (multipart incompleto no R2 custa dinheiro).
+
+### 7.6 Front-end (vanilla JS, card Publicações)
+
+`publicacoes_upload.js`, mesmo padrão dos outros cards:
+
+1. `<input type="file" accept=".zip">` + drag-and-drop na área do card.
+2. Fatiar com `File.prototype.slice` no tamanho de parte informado pelo
+   servidor; enviar com `fetch` PUT, **2 partes em paralelo** (bom uso do
+   link sem saturar), lendo o `ETag` do response header de cada uma.
+3. Retry por parte (3 tentativas, backoff; ao esgotar, pedir URL nova ao
+   endpoint de partes — cobre URL expirada em upload longo).
+4. Barra de progresso do envio = partes confirmadas × tamanho; depois do
+   `concluir`, troca para polling de `GET /uploads/{id}` a cada 3–5 s
+   mostrando `etapa` + `progresso_pct`.
+5. Estados finais: `CONCLUIDO` → recarrega a lista de edições e mostra o link
+   do relatório de diff; `FALHOU` → exibe `erro` com botão "tentar novamente"
+   (que simplesmente inicia um job novo).
+6. `beforeunload` com aviso enquanto `ENVIANDO` (fechar a aba mata o envio;
+   o processamento, não — ele roda no servidor).
+
+### 7.7 Segurança — resumo do que cada camada garante
+
+| Camada | Garantia |
+|---|---|
+| Endpoint inicial | papel `InspetorOuAdmin`; rótulo validado com a regra já existente do módulo; teto de tamanho declarado; key gerada só pelo servidor |
+| Presigned URL | curta duração (1 h), escopo de UMA parte de UM objeto; o navegador nunca vê credencial do R2 |
+| Concluir | tamanho real conferido contra o declarado antes de processar |
+| Worker | validação completa do ZIP (§4) antes de extrair; extração contida; disco checado antes; staging isolado até a promoção final |
+| Ativação | continua `AdminRequired`, atômica e reversível — o upload não consegue mudar o que está em vigor |
+| Auditoria | job row registra quem enviou, quando, qual rótulo e o resultado; `publicado_por_id` continua registrando quem ativou |
+
+### 7.8 Testes mínimos para o gate
+
+- **Unidade (validador de ZIP)**: fixtures com Zip-Slip (`../`, caminho
+  absoluto, drive letter), zip bomb (razão de compressão alta), extensão fora
+  da allowlist, ZIP saudável de amostra — o validador é código puro, barato
+  de cobrir exaustivamente.
+- **Unidade (máquina de estados)**: transições ilegais devolvem 409; job
+  ativo bloqueia segundo `POST /uploads` (a constraint, não só o código).
+- **Integração**: fluxo completo contra `LocalStorageService`/modo dev com um
+  mini-acervo de 2 manuais — do `POST /uploads` até `indice_disponivel=true`
+  e ativação bem-sucedida.
+- **Integração (recuperação)**: matar o worker no meio → job vira `FALHOU`
+  na subida; reenviar converge (idempotência já testada pelo módulo).
+- **Manual, uma vez**: upload real de ~3 GB via R2 em rede doméstica típica,
+  medindo memória do worker web durante (deve ficar plana — nada do volume
+  passa por ele).
+
+### 7.9 Ordem de entrega (fatias verificáveis)
+
+1. `StorageService` multipart + script de teste de CORS (sem UI — valida a
+   infra primeiro, que é o único risco fora do nosso controle).
+2. Migração + model do job + endpoints com testes (worker ainda fake).
+3. `publicar.py --de-upload` (download, validação, staging, promoção) +
+   testes do validador.
+4. Supervisão (disparo, recuperação de crash, faxina).
+5. JS do card + polling.
+6. Runbook em `operacao_publicacoes.md` + remoção do aviso "não há upload
+   web" de `envio_publicacoes_zip.md` (apontando para este fluxo).
+
+---
+
+## 8. Referências
 
 - [envio_publicacoes_zip.md](envio_publicacoes_zip.md) — motivação dos limites e fluxo CLI atual.
 - [opcoes_upload_inspetor.md](opcoes_upload_inspetor.md) — as três opções comparadas.

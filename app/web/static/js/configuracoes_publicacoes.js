@@ -63,6 +63,11 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("btn-ir-avulsas")?.addEventListener("click", () => {
         window.location.href = "/publicacoes/avulsas";
     });
+
+    // Upload de Edições (.zip)
+    document.getElementById("btn-toggle-area-upload")?.addEventListener("click", toggleAreaUpload);
+    document.getElementById("form-upload-edicao")?.addEventListener("submit", tratarSubmitUpload);
+    document.getElementById("btn-cancelar-upload")?.addEventListener("click", cancelarUploadAtual);
 });
 
 // ==========================================
@@ -392,3 +397,173 @@ async function carregarStatusAcervo() {
         grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 1rem; color: var(--status-danger);">Erro ao carregar o status do acervo.</div>';
     }
 }
+
+// ==========================================
+// Upload de Edição (.zip) — M4.Web
+// ==========================================
+
+let currentUploadJobId = null;
+let currentUploadPollingTimer = null;
+
+function toggleAreaUpload() {
+    const painel = document.getElementById("painel-upload-edicao");
+    if (painel) {
+        painel.style.display = painel.style.display === "none" ? "block" : "none";
+    }
+}
+
+async function tratarSubmitUpload(event) {
+    event.preventDefault();
+    const inputRotulo = /** @type {HTMLInputElement} */ (document.getElementById("upload-edicao-rotulo"));
+    const inputArquivo = /** @type {HTMLInputElement} */ (document.getElementById("upload-edicao-arquivo"));
+    const btnSubmit = /** @type {HTMLButtonElement} */ (document.getElementById("btn-iniciar-upload"));
+
+    if (!inputRotulo || !inputArquivo || !inputArquivo.files || inputArquivo.files.length === 0) {
+        showToast("Selecione um arquivo .zip e informe o rótulo.", "warning");
+        return;
+    }
+
+    const rotulo = inputRotulo.value.trim();
+    const file = inputArquivo.files[0];
+
+    if (!file.name.toLowerCase().endsWith(".zip")) {
+        showToast("O arquivo deve ser um pacote .zip.", "warning");
+        return;
+    }
+
+    btnSubmit.disabled = true;
+    const containerStatus = document.getElementById("status-upload-container");
+    if (containerStatus) containerStatus.style.display = "flex";
+
+    atualizarBarraUpload("Iniciando upload...", 0);
+
+    try {
+        // 1. Iniciar upload job no servidor
+        const initResp = await apiFetch("/publicacoes/api/edicoes/uploads", {
+            method: "POST",
+            body: JSON.stringify({
+                rotulo: rotulo,
+                tamanho_bytes: file.size,
+                nome_arquivo: file.name,
+            }),
+        });
+
+        currentUploadJobId = initResp.job_id;
+        const tamanhoParte = (initResp.tamanho_parte_mb || 100) * 1024 * 1024;
+        const totalPartes = Math.ceil(file.size / tamanhoParte);
+        const partesEtags = [];
+
+        // 2. Enviar partes
+        for (let i = 0; i < totalPartes; i++) {
+            const numeroParte = i + 1;
+            const start = i * tamanhoParte;
+            const end = Math.min(start + tamanhoParte, file.size);
+            const chunk = file.slice(start, end);
+
+            const pctEtapa = Math.round((i / totalPartes) * 40);
+            atualizarBarraUpload(`Enviando parte ${numeroParte} de ${totalPartes}...`, pctEtapa);
+
+            const parteResp = await apiFetch(`/publicacoes/api/edicoes/uploads/${currentUploadJobId}/partes?numero=${numeroParte}`, {
+                method: "POST",
+            });
+
+            let etag = "";
+            if (parteResp.url.startsWith("/publicacoes/api/edicoes/uploads/local-parte")) {
+                const localResp = await fetch(parteResp.url, {
+                    method: "PUT",
+                    body: chunk,
+                });
+                if (!localResp.ok) throw new Error(`Falha no upload da parte ${numeroParte} local.`);
+                const localJson = await localResp.json();
+                etag = localJson.etag;
+            } else {
+                const r2Resp = await fetch(parteResp.url, {
+                    method: "PUT",
+                    body: chunk,
+                });
+                if (!r2Resp.ok) throw new Error(`Falha no upload da parte ${numeroParte} para o storage.`);
+                etag = r2Resp.headers.get("ETag") || `etag-${numeroParte}`;
+            }
+
+            partesEtags.push({ numero: numeroParte, etag: etag });
+        }
+
+        // 3. Concluir multipart
+        atualizarBarraUpload("Consolidando partes no storage...", 45);
+        await apiFetch(`/publicacoes/api/edicoes/uploads/${currentUploadJobId}/concluir`, {
+            method: "POST",
+            body: JSON.stringify({ partes: partesEtags }),
+        });
+
+        // 4. Iniciar Polling de progresso
+        iniciarPollingUpload(currentUploadJobId);
+    } catch (err) {
+        showToast(err.message || "Erro no envio do arquivo.", "error");
+        atualizarBarraUpload(`Erro: ${err.message}`, 0);
+        btnSubmit.disabled = false;
+    }
+}
+
+function iniciarPollingUpload(jobId) {
+    if (currentUploadPollingTimer) clearInterval(currentUploadPollingTimer);
+
+    const checarStatus = async () => {
+        try {
+            const job = await apiFetch(`/publicacoes/api/edicoes/uploads/${jobId}`);
+            atualizarBarraUpload(job.etapa || "Processando...", job.progresso_pct || 50);
+
+            if (job.status === "CONCLUIDO") {
+                clearInterval(currentUploadPollingTimer);
+                showToast(`Edição "${job.rotulo}" enviada e processada com sucesso!`, "success");
+                carregarEdicoes();
+                resetarFormUpload();
+            } else if (job.status === "FALHOU") {
+                clearInterval(currentUploadPollingTimer);
+                showToast(`Erro no processamento: ${job.erro || 'Falha desconhecida'}`, "error");
+                atualizarBarraUpload(`Falhou: ${job.erro || 'Erro no servidor'}`, 0);
+                const btnSubmit = /** @type {HTMLButtonElement} */ (document.getElementById("btn-iniciar-upload"));
+                if (btnSubmit) btnSubmit.disabled = false;
+            } else if (job.status === "CANCELADO") {
+                clearInterval(currentUploadPollingTimer);
+                showToast("Upload cancelado.", "info");
+                resetarFormUpload();
+            }
+        } catch (err) {
+            console.error("Erro ao checar status do job de upload:", err);
+        }
+    };
+
+    checarStatus();
+    currentUploadPollingTimer = setInterval(checarStatus, 3000);
+}
+
+async function cancelarUploadAtual() {
+    if (!currentUploadJobId) return;
+    try {
+        await apiFetch(`/publicacoes/api/edicoes/uploads/${currentUploadJobId}/cancelar`, { method: "POST" });
+        showToast("Solicitação de cancelamento enviada.", "info");
+    } catch (err) {
+        showToast("Erro ao cancelar o upload.", "error");
+    }
+}
+
+function atualizarBarraUpload(etapaTexto, pct) {
+    const textEtapa = document.getElementById("text-upload-etapa");
+    const textPct = document.getElementById("text-upload-pct");
+    const bar = document.getElementById("bar-upload-progresso");
+
+    if (textEtapa) textEtapa.textContent = etapaTexto;
+    if (textPct) textPct.textContent = `${pct}%`;
+    if (bar) bar.style.width = `${pct}%`;
+}
+
+function resetarFormUpload() {
+    const form = /** @type {HTMLFormElement} */ (document.getElementById("form-upload-edicao"));
+    if (form) form.reset();
+    const btnSubmit = /** @type {HTMLButtonElement} */ (document.getElementById("btn-iniciar-upload"));
+    if (btnSubmit) btnSubmit.disabled = false;
+    const containerStatus = document.getElementById("status-upload-container");
+    if (containerStatus) containerStatus.style.display = "none";
+    currentUploadJobId = null;
+}
+

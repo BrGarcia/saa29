@@ -24,6 +24,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     Date,
@@ -45,6 +46,7 @@ from app.shared.core.enums import (
     RevisionStatus,
     StatusEdicao,
     StatusPublicacaoAvulsa,
+    StatusUploadJob,
     TipoPublicacao,
 )
 
@@ -536,3 +538,69 @@ class PublicacaoFavorito(Base):
     def __repr__(self) -> str:
         alvo = self.documento_id or self.avulsa_id
         return f"<PublicacaoFavorito usuario={self.usuario_id} alvo={alvo}>"
+
+
+class PublicacoesUploadJob(Base):
+    """
+    Registro de tentativa de upload e processamento de edições do acervo (M4.Web).
+    Atua como single-flight lock (no máximo 1 job ativo por vez) e trilha de auditoria.
+    """
+
+    __tablename__ = "publicacoes_upload_jobs"
+    __table_args__ = (
+        Index(
+            "uq_publicacoes_upload_jobs_ativo_unico",
+            text("1"),
+            unique=True,
+            sqlite_where=text("status IN ('ENVIANDO', 'PROCESSANDO')"),
+            postgresql_where=text("status IN ('ENVIANDO', 'PROCESSANDO')"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    rotulo: Mapped[str] = mapped_column(
+        String(20), nullable=False, comment="Rótulo da edição (ex: '2027')"
+    )
+    status: Mapped[StatusUploadJob] = mapped_column(
+        Enum(StatusUploadJob),
+        nullable=False,
+        default=StatusUploadJob.ENVIANDO,
+        index=True,
+    )
+    etapa: Mapped[str | None] = mapped_column(
+        String(100), nullable=True, comment="Descrição da etapa atual"
+    )
+    progresso_pct: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, comment="Progresso de 0 a 100%"
+    )
+    erro: Mapped[str | None] = mapped_column(
+        Text, nullable=True, comment="Mensagem de erro detalhada quando FALHOU"
+    )
+    file_key: Mapped[str] = mapped_column(
+        String(500), nullable=False, comment="Caminho/Key do ZIP no Storage"
+    )
+    upload_id_r2: Mapped[str | None] = mapped_column(
+        String(200), nullable=True, comment="UploadID multipart no S3/R2 ou local"
+    )
+    tamanho_declarado: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0, comment="Tamanho declarado em bytes"
+    )
+    edicao_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("manuais_edicoes.id", ondelete="SET NULL"), nullable=True
+    )
+    criado_por_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=False
+    )
+    processo_pid: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, comment="PID do subprocesso worker"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    criado_por = relationship("Usuario", foreign_keys=[criado_por_id])
+    edicao = relationship("ManualEdicao", foreign_keys=[edicao_id])
+

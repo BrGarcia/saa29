@@ -130,6 +130,56 @@ async def anexos_travados_cleanup_task() -> None:
         await asyncio.sleep(900)  # Roda a cada 15 minutos
 
 
+async def recuperar_jobs_upload_interrompidos() -> int:
+    """
+    Verifica se há jobs de upload em status PROCESSANDO cujos processos morreram (crash/restart).
+    Marca o status como FALHOU para permitir que o usuário tente novamente.
+    """
+    import os
+    from sqlalchemy import select
+    from app.bootstrap.database import get_session_factory
+    from app.modules.publicacoes.models import PublicacoesUploadJob
+    from app.shared.core.enums import StatusUploadJob
+
+    recuperados = 0
+    try:
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            jobs = (
+                await session.execute(
+                    select(PublicacoesUploadJob).where(
+                        PublicacoesUploadJob.status == StatusUploadJob.PROCESSANDO
+                    )
+                )
+            ).scalars().all()
+
+            for job in jobs:
+                processo_ativo = False
+                if job.processo_pid:
+                    try:
+                        os.kill(job.processo_pid, 0)
+                        processo_ativo = True
+                    except OSError:
+                        processo_ativo = False
+
+                if not processo_ativo:
+                    job.status = StatusUploadJob.FALHOU
+                    job.etapa = "Processo interrompido"
+                    job.erro = "Processo de tratamento interrompido pelo servidor (crash/restart). Reenvie a edição."
+                    recuperados += 1
+
+            if recuperados:
+                await session.commit()
+                logger.warning(
+                    "[Uploads] %d job(s) de upload interrompido(s) recuperado(s) e marcado(s) como FALHOU.",
+                    recuperados,
+                )
+    except Exception as exc:
+        logger.error("[Uploads] Erro na verificação de jobs interrompidos: %s", exc)
+
+    return recuperados
+
+
 def is_db_dirty() -> bool:
     """Retorna se há alterações pendentes de backup."""
     return _db_dirty
@@ -137,3 +187,4 @@ def is_db_dirty() -> bool:
 def get_backup_debounce_seconds() -> int:
     """Retorna o tempo de debounce configurado."""
     return _BACKUP_DEBOUNCE_SECONDS
+

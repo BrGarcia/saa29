@@ -19,18 +19,23 @@ M2: avulsas (CRUD + anexos).
 # dependência e vira query param obrigatório, e a busca passa a devolver 422
 # pedindo um parâmetro chamado `_`. Nenhum router do projeto usa o import.
 import asyncio
+import logging
 import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse, RedirectResponse
+from sqlalchemy.exc import IntegrityError
 
 from app.bootstrap.config import get_settings
-from app.bootstrap.dependencies import AdminRequired, CurrentUser, DBSession, EncarregadoInspetorOuAdmin
+from app.bootstrap.dependencies import AdminRequired, CurrentUser, DBSession, EncarregadoInspetorOuAdmin, InspetorOuAdmin
 from app.modules.publicacoes import avulsas, schemas, search, service
-from app.shared.core.enums import StatusEdicao, StatusPublicacaoAvulsa, TipoPublicacao
+from app.shared.core.enums import StatusEdicao, StatusPublicacaoAvulsa, StatusUploadJob, TipoPublicacao
 from app.shared.core.file_validators import ler_upload_com_limite, validate_file_upload
 from app.shared.core.limiter import limiter
+from app.shared.core.storage import LocalStorageService, get_storage_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -66,10 +71,14 @@ def _resolver_pdf(raiz: str, file_key: str) -> Path | None:
     if caminho.is_relative_to(base) and caminho.is_file():
         return caminho
 
-    # Fallback para fixtures do piloto FIM (quando docs/fim/ saiu do versionamento)
-    fixture_fallback = (Path("tests/fixtures/fim") / file_key).resolve()
-    if fixture_fallback.is_file():
-        return fixture_fallback
+    # Fallback para fixtures do piloto FIM (apenas em dev/test, com contenção de caminho)
+    settings = get_settings()
+    if settings.app_env in ("development", "testing") or settings.app_debug:
+        fixture_base = Path("tests/fixtures/fim").resolve()
+        if fixture_base.is_dir():
+            fixture_fallback = (fixture_base / file_key).resolve()
+            if fixture_fallback.is_relative_to(fixture_base) and fixture_fallback.is_file():
+                return fixture_fallback
 
     return None
 
@@ -758,3 +767,318 @@ async def criar_favorito(
 )
 async def remover_favorito(favorito_id: uuid.UUID, db: DBSession, usuario_atual: CurrentUser) -> None:
     await service.remover_favorito(db, usuario_atual.id, favorito_id)
+
+
+# --------------------------------------------------------------------------
+# Upload de Edições (M4.Web)
+# --------------------------------------------------------------------------
+
+@router.post(
+    "/api/edicoes/uploads",
+    response_model=schemas.UploadIniciarOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Iniciar upload de nova edição (.zip)",
+)
+@limiter.limit("5/hour")
+async def iniciar_upload_edicao(
+    request: Request,
+    dados: schemas.UploadIniciarIn,
+    db: DBSession,
+    usuario_atual: InspetorOuAdmin,
+) -> schemas.UploadIniciarOut:
+    """
+    Valida rótulo e tamanho declarado, e cria o job de upload (status ENVIANDO).
+    Inicia o multipart no storage e retorna as credenciais/chaves para envio das partes.
+    """
+    # 1. Validar rótulo
+    try:
+        service._validar_rotulo(dados.rotulo)
+    except service.RotuloInvalidoError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+    # 2. Teto de tamanho declarado (ex: 4 GB = 4 * 1024 * 1024 * 1024 bytes)
+    max_gb = getattr(get_settings(), "publicacoes_upload_max_gb", 4)
+    max_bytes = max_gb * 1024 * 1024 * 1024
+    if dados.tamanho_bytes > max_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Tamanho do arquivo excede o limite máximo permitido de {max_gb} GB.",
+        )
+
+    # 3. Recusar se já existe edição com esse rótulo que esteja VIGENTE
+    from sqlalchemy import select
+    from app.modules.publicacoes.models import ManualEdicao, PublicacoesUploadJob
+    edicao_existente = (
+        await db.execute(select(ManualEdicao).where(ManualEdicao.rotulo == dados.rotulo))
+    ).scalar_one_or_none()
+    if edicao_existente is not None and edicao_existente.status == StatusEdicao.VIGENTE:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A edição {dados.rotulo!r} já está VIGENTE. Para atualizar o acervo, crie uma nova edição.",
+        )
+
+    # 4. Iniciar multipart no storage
+    job_id = uuid.uuid4()
+    file_key = f"publicacoes/uploads/{job_id}/edicao.zip"
+    storage = get_storage_service()
+
+    try:
+        upload_id_r2 = await storage.iniciar_multipart(file_key, content_type="application/zip")
+    except Exception as exc:
+        logger.error("Falha ao iniciar multipart no storage: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Não foi possível iniciar a sessão de upload no storage.",
+        ) from exc
+
+    # 5. Criar registro do job (com trava single-flight)
+    job = PublicacoesUploadJob(
+        id=job_id,
+        rotulo=dados.rotulo,
+        status=StatusUploadJob.ENVIANDO,
+        etapa="Aguardando upload das partes...",
+        progresso_pct=0,
+        file_key=file_key,
+        upload_id_r2=upload_id_r2,
+        tamanho_declarado=dados.tamanho_bytes,
+        criado_por_id=usuario_atual.id,
+    )
+    db.add(job)
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        # Abortar multipart no storage se falhou no banco
+        try:
+            await storage.abortar_multipart(file_key, upload_id_r2)
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Já existe um envio ou processamento de publicação em andamento.",
+        ) from exc
+
+    return schemas.UploadIniciarOut(
+        job_id=job.id,
+        file_key=file_key,
+        upload_id_r2=upload_id_r2,
+        tamanho_parte_mb=100,
+    )
+
+
+@router.post(
+    "/api/edicoes/uploads/{job_id}/partes",
+    response_model=schemas.ParteUrlOut,
+    summary="Obter URL pré-assinada para upload da parte N",
+)
+async def obter_url_parte_upload(
+    job_id: uuid.UUID,
+    db: DBSession,
+    usuario_atual: InspetorOuAdmin,
+    numero: int = Query(..., ge=1, le=10000, description="Número da parte (1-based)"),
+) -> schemas.ParteUrlOut:
+    from sqlalchemy import select
+    from app.modules.publicacoes.models import PublicacoesUploadJob
+    job = (
+        await db.execute(select(PublicacoesUploadJob).where(PublicacoesUploadJob.id == job_id))
+    ).scalar_one_or_none()
+    if job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job de upload não encontrado.")
+
+    if job.status != StatusUploadJob.ENVIANDO:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Upload não está mais aguardando partes (status atual: {job.status.value}).",
+        )
+
+    storage = get_storage_service()
+    url = await storage.presign_parte(job.file_key, job.upload_id_r2 or "", numero)
+    return schemas.ParteUrlOut(numero=numero, url=url)
+
+
+@router.put(
+    "/api/edicoes/uploads/local-parte",
+    summary="Endpoint dev local para upload de partes (LocalStorageService)",
+)
+async def upload_parte_local_dev(
+    request: Request,
+    upload_id: str = Query(..., description="ID de upload gerado pelo LocalStorageService"),
+    numero: int = Query(..., ge=1, description="Número da parte"),
+    usuario_atual: InspetorOuAdmin = None,
+):
+    storage = get_storage_service()
+    if not isinstance(storage, LocalStorageService):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Endpoint exclusivo para modo de armazenamento local.",
+        )
+    body_bytes = await request.body()
+    etag = await storage.salvar_parte_local(upload_id, numero, body_bytes)
+    return {"etag": etag}
+
+
+@router.post(
+    "/api/edicoes/uploads/{job_id}/concluir",
+    response_model=schemas.UploadJobOut,
+    summary="Concluir upload das partes e iniciar processamento em segundo plano",
+)
+async def concluir_upload_edicao(
+    job_id: uuid.UUID,
+    dados: schemas.UploadConcluirIn,
+    db: DBSession,
+    usuario_atual: InspetorOuAdmin,
+) -> schemas.UploadJobOut:
+    from sqlalchemy import select
+    from app.modules.publicacoes.models import PublicacoesUploadJob
+    job = (
+        await db.execute(select(PublicacoesUploadJob).where(PublicacoesUploadJob.id == job_id))
+    ).scalar_one_or_none()
+    if job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job de upload não encontrado.")
+
+    if job.status != StatusUploadJob.ENVIANDO:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Upload não está em estado de envio (status atual: {job.status.value}).",
+        )
+
+    storage = get_storage_service()
+    partes_dict = [{"numero": p.numero, "etag": p.etag} for p in dados.partes]
+
+    try:
+        await storage.concluir_multipart(job.file_key, job.upload_id_r2 or "", partes_dict)
+    except Exception as exc:
+        logger.error("Falha ao concluir multipart no storage para job %s: %s", job_id, exc)
+        job.status = StatusUploadJob.FALHOU
+        job.erro = f"Falha ao consolidar o arquivo no storage: {exc}"
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Não foi possível concluir o upload das partes: {exc}",
+        ) from exc
+
+    job.status = StatusUploadJob.PROCESSANDO
+    job.etapa = "Upload concluído. Disparando processamento do acervo..."
+    job.progresso_pct = 5
+    await db.commit()
+
+    # Disparar subprocesso do publicar.py em segundo plano
+    import sys
+    cmd = [
+        sys.executable,
+        "-m",
+        "scripts.publicacoes.publicar",
+        "--edicao",
+        job.rotulo,
+        "--de-upload",
+        job.file_key,
+        "--job-id",
+        str(job.id),
+    ]
+
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        job.processo_pid = proc.pid
+        await db.commit()
+    except Exception as exc:
+        logger.error("Falha ao disparar subprocesso worker para job %s: %s", job_id, exc)
+        job.status = StatusUploadJob.FALHOU
+        job.erro = f"Falha ao iniciar o worker de processamento: {exc}"
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Falha ao iniciar o processo de tratamento da publicação no servidor.",
+        ) from exc
+
+    return schemas.UploadJobOut.model_validate(job)
+
+
+@router.post(
+    "/api/edicoes/uploads/{job_id}/cancelar",
+    response_model=schemas.UploadJobOut,
+    summary="Cancelar upload/processamento de edição",
+)
+async def cancelar_upload_edicao(
+    job_id: uuid.UUID,
+    db: DBSession,
+    usuario_atual: InspetorOuAdmin,
+) -> schemas.UploadJobOut:
+    from sqlalchemy import select
+    from app.modules.publicacoes.models import PublicacoesUploadJob
+    job = (
+        await db.execute(select(PublicacoesUploadJob).where(PublicacoesUploadJob.id == job_id))
+    ).scalar_one_or_none()
+    if job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job de upload não encontrado.")
+
+    if job.status not in (StatusUploadJob.ENVIANDO, StatusUploadJob.PROCESSANDO):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Job não pode ser cancelado no status atual ({job.status.value}).",
+        )
+
+    storage = get_storage_service()
+    if job.status == StatusUploadJob.ENVIANDO:
+        try:
+            await storage.abortar_multipart(job.file_key, job.upload_id_r2 or "")
+        except Exception as exc:
+            logger.warning("Falha ao abortar multipart para job cancelado %s: %s", job_id, exc)
+
+    if job.status == StatusUploadJob.PROCESSANDO and job.processo_pid:
+        import os, signal
+        try:
+            os.kill(job.processo_pid, signal.SIGTERM)
+        except OSError:
+            pass
+
+    job.status = StatusUploadJob.CANCELADO
+    job.etapa = "Cancelado pelo usuário"
+    await db.commit()
+    return schemas.UploadJobOut.model_validate(job)
+
+
+@router.get(
+    "/api/edicoes/uploads/{job_id}",
+    response_model=schemas.UploadJobOut,
+    summary="Consultar status de um job de upload",
+)
+async def obter_upload_job(
+    job_id: uuid.UUID,
+    db: DBSession,
+    usuario_atual: InspetorOuAdmin,
+) -> schemas.UploadJobOut:
+    from sqlalchemy import select
+    from app.modules.publicacoes.models import PublicacoesUploadJob
+    job = (
+        await db.execute(select(PublicacoesUploadJob).where(PublicacoesUploadJob.id == job_id))
+    ).scalar_one_or_none()
+    if job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job de upload não encontrado.")
+    return schemas.UploadJobOut.model_validate(job)
+
+
+@router.get(
+    "/api/edicoes/uploads",
+    response_model=list[schemas.UploadJobOut],
+    summary="Listar últimos jobs de upload",
+)
+async def listar_upload_jobs(
+    db: DBSession,
+    usuario_atual: InspetorOuAdmin,
+    limit: int = Query(default=10, ge=1, le=50),
+) -> list[schemas.UploadJobOut]:
+    from sqlalchemy import select
+    from app.modules.publicacoes.models import PublicacoesUploadJob
+    jobs = (
+        await db.execute(
+            select(PublicacoesUploadJob)
+            .order_by(PublicacoesUploadJob.created_at.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+    return [schemas.UploadJobOut.model_validate(j) for j in jobs]
+

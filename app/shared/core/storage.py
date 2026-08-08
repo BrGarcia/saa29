@@ -33,14 +33,36 @@ class StorageService(ABC):
         """Deleta um arquivo de Storage."""
         pass
 
+    @abstractmethod
+    async def iniciar_multipart(self, file_key: str, content_type: str = "application/zip") -> str:
+        """Inicia upload multipart e retorna upload_id (UploadId no R2 ou UUID local)."""
+        pass
+
+    @abstractmethod
+    async def presign_parte(self, file_key: str, upload_id: str, numero: int) -> str:
+        """Gera URL pré-assinada (ou endpoint dev local) para upload da parte N."""
+        pass
+
+    @abstractmethod
+    async def concluir_multipart(self, file_key: str, upload_id: str, partes: list[dict]) -> None:
+        """Conclui upload multipart reunindo todas as partes ({PartNumber, ETag})."""
+        pass
+
+    @abstractmethod
+    async def abortar_multipart(self, file_key: str, upload_id: str) -> None:
+        """Aborta o upload multipart e descarta partes incompletas."""
+        pass
+
 
 class LocalStorageService(StorageService):
-    """Implementação de Storage Local na pasta `uploads`."""
+    """Implementação de Storage Local na pasta `uploads` com staging local de chunks."""
 
     def __init__(self):
         settings = get_settings()
         self.upload_dir = Path(settings.upload_dir)
         self.upload_dir.mkdir(parents=True, exist_ok=True)
+        self.staging_chunks_dir = Path("var/publicacoes/staging/chunks")
+        self.staging_chunks_dir.mkdir(parents=True, exist_ok=True)
 
     async def upload(self, file_content: bytes, original_filename: str, content_type: str) -> str:
         # Sanitizar nome de arquivo contra path traversal (Defesa em Profundidade)
@@ -80,6 +102,50 @@ class LocalStorageService(StorageService):
             return False
 
         return await asyncio.to_thread(_delete)
+
+    async def iniciar_multipart(self, file_key: str, content_type: str = "application/zip") -> str:
+        upload_id = uuid.uuid4().hex
+        chunk_dir = self.staging_chunks_dir / upload_id
+        chunk_dir.mkdir(parents=True, exist_ok=True)
+        return upload_id
+
+    async def presign_parte(self, file_key: str, upload_id: str, numero: int) -> str:
+        return f"/publicacoes/api/edicoes/uploads/local-parte?upload_id={upload_id}&numero={numero}"
+
+    async def salvar_parte_local(self, upload_id: str, numero: int, content: bytes) -> str:
+        chunk_dir = self.staging_chunks_dir / upload_id
+        chunk_dir.mkdir(parents=True, exist_ok=True)
+        part_file = chunk_dir / f"part_{numero:04d}.dat"
+        await asyncio.to_thread(part_file.write_bytes, content)
+        return f"local-etag-{numero}"
+
+    async def concluir_multipart(self, file_key: str, upload_id: str, partes: list[dict]) -> None:
+        chunk_dir = self.staging_chunks_dir / upload_id
+        dest_path = Path(file_key)
+        if not dest_path.is_absolute():
+            dest_path = self.upload_dir / file_key
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+
+        def _montar():
+            part_files = sorted(chunk_dir.glob("part_*.dat"))
+            with open(dest_path, "wb") as out_f:
+                for pf in part_files:
+                    with open(pf, "rb") as in_f:
+                        out_f.write(in_f.read())
+                    pf.unlink()
+            if chunk_dir.exists():
+                chunk_dir.rmdir()
+
+        await asyncio.to_thread(_montar)
+
+    async def abortar_multipart(self, file_key: str, upload_id: str) -> None:
+        chunk_dir = self.staging_chunks_dir / upload_id
+        def _limpar():
+            if chunk_dir.exists():
+                for pf in chunk_dir.glob("*"):
+                    pf.unlink()
+                chunk_dir.rmdir()
+        await asyncio.to_thread(_limpar)
 
 
 class R2StorageService(StorageService):
@@ -151,6 +217,54 @@ class R2StorageService(StorageService):
                 raise
                 
         return await self._run_in_executor(perform_delete)
+
+    async def iniciar_multipart(self, file_key: str, content_type: str = "application/zip") -> str:
+        def perform_iniciar():
+            res = self.s3_client.create_multipart_upload(
+                Bucket=self.bucket_name,
+                Key=file_key,
+                ContentType=content_type
+            )
+            return res["UploadId"]
+        return await self._run_in_executor(perform_iniciar)
+
+    async def presign_parte(self, file_key: str, upload_id: str, numero: int) -> str:
+        def perform_presign():
+            return self.s3_client.generate_presigned_url(
+                ClientMethod="upload_part",
+                Params={
+                    "Bucket": self.bucket_name,
+                    "Key": file_key,
+                    "UploadId": upload_id,
+                    "PartNumber": numero,
+                },
+                ExpiresIn=3600,
+            )
+        return await self._run_in_executor(perform_presign)
+
+    async def concluir_multipart(self, file_key: str, upload_id: str, partes: list[dict]) -> None:
+        def perform_concluir():
+            parts_formatted = []
+            for i, p in enumerate(partes):
+                part_num = int(p.get("numero") or p.get("PartNumber") or (i + 1))
+                etag = str(p.get("etag") or p.get("ETag") or "")
+                parts_formatted.append({"PartNumber": part_num, "ETag": etag})
+            self.s3_client.complete_multipart_upload(
+                Bucket=self.bucket_name,
+                Key=file_key,
+                UploadId=upload_id,
+                MultipartUpload={"Parts": parts_formatted},
+            )
+        await self._run_in_executor(perform_concluir)
+
+    async def abortar_multipart(self, file_key: str, upload_id: str) -> None:
+        def perform_abortar():
+            self.s3_client.abort_multipart_upload(
+                Bucket=self.bucket_name,
+                Key=file_key,
+                UploadId=upload_id,
+            )
+        await self._run_in_executor(perform_abortar)
 
 
 @functools.lru_cache(maxsize=1)

@@ -106,7 +106,10 @@ class ManualPayload:
 
 
 async def obter_ou_criar_edicao(
-    db: AsyncSession, rotulo: str, *, status: StatusEdicao = StatusEdicao.VIGENTE
+    db: AsyncSession,
+    rotulo: str,
+    *,
+    status: StatusEdicao | None = None,
 ) -> ManualEdicao:
     """
     Edição de rótulo `rotulo`, criando-a se ainda não existir.
@@ -116,11 +119,9 @@ async def obter_ou_criar_edicao(
     outro `id` não quebraria os UUIDs (eles derivam do rótulo, não do id), mas
     duplicaria o catálogo inteiro. Daí o get-or-create em vez de insert.
 
-    Valida `rotulo` contra `_RE_ROTULO_INDICE` NA CRIAÇÃO (BUG-01): é o único
-    ponto de entrada de edição nova, e validar aqui — em vez de só na hora de
-    resolver o índice, tarde demais — impede que uma edição com rótulo inválido
-    chegue a existir e derrube `/api/busca`/`/api/status` (caminho_indice_vigente)
-    ou `ativar_edicao` com 500 em vez de erro de domínio.
+    Se `status` não for informado: se ainda não existir nenhuma edição VIGENTE no
+    sistema, a primeira edição é criada como VIGENTE. Caso já exista uma edição
+    VIGENTE, a nova é criada como AGUARDANDO_ATIVACAO.
     """
     _validar_rotulo(rotulo)
 
@@ -130,22 +131,27 @@ async def obter_ou_criar_edicao(
     if edicao is not None:
         return edicao
 
-    # RISCO-01: o SELECT acima é o "get" de get-or-create, não uma checagem
-    # de duplicidade — `rotulo` é `unique=True`, então uma corrida real entre
-    # ele e este INSERT ainda pode acontecer. O SAVEPOINT (mesmo padrão de
-    # `calendario/service.py:create_event_type`) cobre essa janela: se outra
-    # requisição criou a mesma edição nesse meio-tempo, devolve a existente
-    # em vez de propagar `IntegrityError`.
+    if status is None:
+        edicao_vigente = await obter_edicao_vigente(db)
+        status = StatusEdicao.AGUARDANDO_ATIVACAO if edicao_vigente else StatusEdicao.VIGENTE
+
     edicao = ManualEdicao(rotulo=rotulo, status=status)
     try:
         async with db.begin_nested():
             db.add(edicao)
             await db.flush()
     except IntegrityError as exc:
-        logger.info("Corrida ao criar edição %r (%s); devolvendo a já existente.", rotulo, exc.orig)
-        return (
+        edicao_existente = (
             await db.execute(select(ManualEdicao).where(ManualEdicao.rotulo == rotulo))
-        ).scalar_one()
+        ).scalar_one_or_none()
+        if edicao_existente is not None:
+            logger.info("Corrida ao criar edição %r (%s); devolvendo a já existente.", rotulo, exc.orig)
+            return edicao_existente
+        logger.error("Falha ao criar edição %r com status %s: %s", rotulo, status.value, exc.orig)
+        raise ConflitoNegocioError(
+            f"Não foi possível criar a edição {rotulo!r} com status {status.value!r}. "
+            "Já existe outra edição com status VIGENTE no sistema."
+        ) from exc
 
     logger.info("Edição %r criada (status=%s).", rotulo, status.value)
     return edicao

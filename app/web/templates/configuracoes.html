@@ -177,7 +177,7 @@
         </div>
 
         <!-- Painel Publicações -->
-        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;" data-role="ADMINISTRADOR">
+        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;" data-role="INSPETOR">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
                 <div
                     style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(99, 102, 241, 0.1); color: #6366f1; display: flex; align-items: center; justify-content: center;">
@@ -963,6 +963,51 @@
              em disco do que o previsto para ficar online (gate do M4). -->
         <div id="aviso-retencao-edicoes"
             style="display: none; margin-bottom: 1rem; padding: 0.75rem 1rem; border-radius: var(--radius-md); background: rgba(230, 126, 34, 0.1); color: var(--status-warning); font-size: 0.85rem;">
+        </div>
+
+        <!-- Botão e área de Upload de Nova Edição (.zip) -->
+        <div style="margin-bottom: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <button type="button" class="btn btn-publicacao" id="btn-toggle-area-upload">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align: middle; margin-right: 5px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Carregar Nova Edição (.zip)
+                </button>
+            </div>
+
+            <!-- Painel expansível de Upload -->
+            <div id="painel-upload-edicao" style="display: none; margin-top: 1rem; padding: 1.25rem; border-radius: var(--radius-md); background: rgba(99, 102, 241, 0.05); border: 1px dashed #6366f1;">
+                <form id="form-upload-edicao" style="display: flex; flex-direction: column; gap: 1rem;">
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                        <div style="flex: 1; min-width: 180px;">
+                            <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem;">Rótulo da Nova Edição (ex: 2027)</label>
+                            <input type="text" id="upload-edicao-rotulo" required placeholder="Ex: 2027" maxlength="20" class="input-control" style="width: 100%; padding: 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);" />
+                        </div>
+                        <div style="flex: 2; min-width: 250px;">
+                            <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem;">Arquivo do Acervo (.zip)</label>
+                            <input type="file" id="upload-edicao-arquivo" accept=".zip" required class="input-control" style="width: 100%; padding: 0.4rem;" />
+                        </div>
+                        <div style="display: flex; align-items: flex-end;">
+                            <button type="submit" class="btn btn-publicacao" id="btn-iniciar-upload" style="padding: 0.55rem 1.2rem;">Enviar e Processar</button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Status e Barra de Progresso -->
+                <div id="status-upload-container" style="display: none; margin-top: 1.25rem; flex-direction: column; gap: 0.5rem;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600;">
+                        <span id="text-upload-etapa">Aguardando início...</span>
+                        <span id="text-upload-pct">0%</span>
+                    </div>
+                    <div style="width: 100%; height: 10px; background: rgba(0,0,0,0.1); border-radius: 5px; overflow: hidden;">
+                        <div id="bar-upload-progresso" style="width: 0%; height: 100%; background: var(--primary-color); transition: width 0.3s ease;"></div>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
+                        <button type="button" class="btn btn-outline" id="btn-cancelar-upload" style="font-size: 0.8rem; padding: 0.25rem 0.6rem;">Cancelar Upload</button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div style="overflow-y: auto; flex-grow: 1; padding-right: 0.5rem;">
