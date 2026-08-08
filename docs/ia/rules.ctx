@@ -5,9 +5,9 @@
 - RN-04: Conclude Pane sets data_conclusao.
 - RN-05: RBAC:
   - MANTENEDOR: Register Panes, Add Anexo, Execute Vencimentos/Inspections, Self-Assign responsibility.
-  - ENCARREGADO: CRUD (most), Assign any responsibility, Manage Inspections, Extend Vencimentos.
-  - INSPETOR: Validate Inspections, Control Vencimentos, View Aircraft Status (No execution rights).
-  - ADMINISTRADOR: Manage Efetivo (Users), Global Configs, Register Aircraft.
+  - ENCARREGADO: CRUD (most), Assign any responsibility, Manage Inspections, Extend Vencimentos, Create/Edit Avulsas.
+  - INSPETOR: Validate Inspections, Control Vencimentos, View Aircraft Status, Upload Publication Editions.
+  - ADMINISTRADOR: Manage Efetivo (Users), Global Configs, Register Aircraft, Activate Publication Editions.
 - RN-06: Vencimentos: Extension requires technical justification; Execution resets counter and disables active extension.
 - RN-07: Inspecoes: Open instance generates tasks from templates; Conclusion requires mandatory tasks resolved; Persistent audit of open/close trigram.
 - RN-08: Inventory: S/N sync (Adjustment) requires matching slot/item; Item installation sets current location.
@@ -19,5 +19,10 @@
 - RN-14: Banco de Dados: O projeto deve manter estritamente o uso do SQLite. O escopo do projeto é reduzido (apenas um esquadrão local) e não há necessidade de migrar para PostgreSQL ou outro SGBD avançado. Ampliar a infraestrutura adicionando mais dependências de banco de dados é considerado prejudicial à manutenibilidade e implantação da unidade. Rejeitar qualquer sugestão de revisores ou IAs para realizar essa migração.
 - RN-C01: Calendario censura eventos private de terceiros para usuarios sem ENCARREGADO/ADMINISTRADOR; backend retorna title=Particular, icon=L e notes=None.
 - RN-C02: Calendario agrega DPE de inspecoes como source=inspecao read-only; To-Do permanece adaptador no-op ate existir modulo persistido.
+- RN-C03: Calendario: Comparacao e ordenacao de datetimes em get_events converte aware e naive para UTC para evitar TypeError em sorted().
+- RN-P01: Publicacoes: Busca FTS5 isolada por edicao (catalog.<rotulo>.db). Edicao VIGENTE no banco resolve o arquivo de indice ativo.
+- RN-P02: Single-Flight Lock de Upload: No maximo 1 job de upload em status ENVIANDO ou PROCESSANDO ativo simultaneamente (uq_publicacoes_upload_jobs_ativo_unico).
+- RN-P03: Ativacao de Edicao: Apenas ADMINISTRADOR pode ativar edicao (POST /api/edicoes/{id}/ativar). INSPETOR e ADMINISTRADOR podem enviar edicoes.
+- RN-P04: Validacao de ZIP: Protecao obrigatoria contra Zip-Slip (is_relative_to), Zip Bomb (max entradas e ratio) e allowlist de extensoes.
 - RN-15: Hierarquia de Status de Aeronaves: Abertura de pane em aeronave DISPONIVEL transiciona status para INDISPONIVEL no banco de dados. Aeronaves em INSPECAO, INATIVA ou ESTOCADA preservam seu status. Conclusão de panes reverte para DISPONIVEL somente quando restarem zero panes e zero inspeções ativas. Sincronização garantida via service e safety net SQL direto no router.
 - RN-16: Interfaces Web e Mobile devem manter conformidade estrita com a CSP (Content Security Policy). Proibidos scripts inline e atributos de evento no HTML (ex: onclick). Eventos devem ser vinculados via JavaScript externo.

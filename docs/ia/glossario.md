@@ -20,11 +20,16 @@ dpe: data_prevista_encerramento
 trigrama: user_audit_code
 status_inspecao: ABERTA_EM_ANDAMENTO_CONCLUIDA_CANCELADA
 status_tarefa_inspecao: PENDENTE_CONCLUIDA_NA
+rotulo_edicao: acervo_edition_version_identifier (ex: 2026, 2027)
+catalog_db: sqlite_fts5_search_index_per_edition (catalog.<rotulo>.db)
+upload_job: publication_zip_upload_and_processing_tracker
+single_flight_lock: concurrency_guard_allowing_only_one_active_upload (uq_publicacoes_upload_jobs_ativo_unico)
+avulsa: standalone_publication_bulletin_or_norm (BS, BO, NPO, BT)
+explorador_acervo: tree_file_explorer_for_manuals
 rbac: role_based_access_control
 token_blacklist: revoked_access_token_registry
 token_refresh: persisted_refresh_token
 csrf: forged_request_protection
-rbac: role_based_access_control
 service_layer: business_logic_layer
 soft_delete: logical_disable_without_physical_delete
 r2: cloudflare_s3_compatible_storage

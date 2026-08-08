@@ -1,18 +1,19 @@
 # modules.ctx
-- app/bootstrap: config,database,dependencies,create_app
+- app/bootstrap: config,database,dependencies,create_app,tasks,events
 - app/modules/auth: auth_users,jwt,refresh,blacklist
 - app/modules/efetivo: availability,absences,scales
 - app/modules/aeronaves: aircraft_crud,status
 - app/modules/panes: flow,attachments,responsaveis,sistemas_ata_lookup,export_reports
 - app/modules/equipamentos: catalog,slots,physical_items,inventory,export_reports
 - app/modules/vencimentos: temporal_intel,maint_rules,extensions
-- app/modules/inspecoes: active_backend,task_catalog,decoupling,audit_persistent,export_reports
-- app/modules/calendario: active_fullstack,event_types,calendar_events,rbac_censorship,api_v1_router,frontend_calendar,inspecoes_dpe_aggregation
+- app/modules/inspecoes: active_backend,task_catalog,decoupling,audit_persistent,export_reports,pdf_service
+- app/modules/calendario: active_fullstack,event_types,calendar_events,rbac_censorship,api_v1_router,frontend_calendar,inspecoes_dpe_aggregation,safe_tz_sorting
+- app/modules/publicacoes: active_fullstack,acervo_catalog_search,fts5_bm25,avulsas_crud,favoritos,edicoes_acervo,upload_jobs_m4_web,pdf_viewer_canvas,explorador_tree
 - app/modules/dashboard: active_fullstack,dashboard_resumo,consolidated_metrics,frontend_dashboard
 - app/shared/contracts: ddd_domain_lookup_protocols (AeronaveLookupProtocol)
 - app/shared/exporter: generic_csv_and_xlsx_report_generator
-- app/shared/core: enums,helpers,storage,validators,exceptions
+- app/shared/core: enums,helpers,storage,validators,exceptions,limiter
 - app/shared/middleware: csrf
 - app/shared/services/image: pipeline,validator,converter,resizer,optimizer
-- app/web: router,jinja_templates,static_js_css
-- scripts: db_init,seed_base,inventory_seed,ops_maintenance
+- app/web: router,pages_router,mobile_router,jinja_templates,static_js_css
+- scripts: db_init,seed_base,inventory_seed,ops_maintenance,publicacoes_indexar,publicacoes_publicar,publicacoes_merge_data
