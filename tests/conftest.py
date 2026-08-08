@@ -53,6 +53,27 @@ def _enable_sqlite_pragmas(dbapi_connection, connection_record):
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.execute("PRAGMA synchronous=NORMAL")
     cursor.close()
+    # Desliga o begin/commit implícito do driver pysqlite/aiosqlite: sem isto,
+    # SAVEPOINT (`Session.begin_nested()`, usado por
+    # `calendario.service.create_event_type` e — a partir da correção do
+    # RISCO-01 — por `publicacoes.service._favoritar`/`obter_ou_criar_edicao`)
+    # é "liberado" (RELEASE SAVEPOINT) de um jeito que o driver confunde com
+    # commit implícito da transação inteira: um `session.rollback()` LOGO
+    # DEPOIS não desfaz nada, e a linha sobrevive para o próximo teste que
+    # reusa a mesma conexão do pool — poluição silenciosa entre testes,
+    # medida e reproduzida isolando `begin_nested()` num teste mínimo antes
+    # desta correção. É o workaround padrão do próprio SQLAlchemy para
+    # pysqlite (aplica-se também ao aiosqlite, que envolve o mesmo sqlite3):
+    # https://docs.sqlalchemy.org/en/20/dialects/sqlite.html#serializable-isolation-savepoints-transactional-ddl
+    dbapi_connection.isolation_level = None
+
+
+@event.listens_for(test_engine.sync_engine, "begin")
+def _sqlite_begin_explicito(conn):
+    # Par do listener acima: com `isolation_level = None`, o driver não abre
+    # transação nenhuma sozinho — o SQLAlchemy precisa pedir o `BEGIN`
+    # explicitamente aqui, ou toda escrita roda em autocommit.
+    conn.exec_driver_sql("BEGIN")
 
 TestSessionLocal = async_sessionmaker(
     bind=test_engine,

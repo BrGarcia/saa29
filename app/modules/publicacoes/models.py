@@ -276,17 +276,30 @@ class ManualFimMap(Base):
     mas indexar um subconjunto — uma amostra, um manual só — deixa o resto sem
     documento. Um procedimento sem PDF continua sendo informação útil: a
     mensagem resolve para um código que o mecânico procura no manual em papel.
+
+    **Escopado por edição** (BUG-03): antes de `edicao_id` existir, a tabela
+    era global e `sincronizar_fim_map` apagava e reescrevia o mapa inteiro a
+    cada indexação — reindexar uma edição nova (ainda `AGUARDANDO_ATIVACAO`)
+    fazia o mapa da edição VIGENTE apontar para documentos da edição errada
+    até alguém ativar a nova. Com `edicao_id`, cada edição tem seu próprio
+    mapa; as leituras filtram pela vigente, e `sincronizar_fim_map` só apaga
+    e reescreve a fatia da edição que está sendo indexada.
     """
 
     __tablename__ = "manuais_fim_map"
     __table_args__ = (
-        UniqueConstraint("mensagem", name="uq_manuais_fim_map_mensagem"),
+        UniqueConstraint(
+            "edicao_id", "mensagem", name="uq_manuais_fim_map_edicao_mensagem"
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    # Sem `index=True`: a UniqueConstraint abaixo já cria o índice único que a
-    # busca por mensagem usa — um segundo índice sobre a mesma coluna só custa
-    # escrita.
+    edicao_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("manuais_edicoes.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # Sem `index=True`: a UniqueConstraint acima já cria o índice composto que
+    # a busca por mensagem usa — um segundo índice sobre a mesma coluna só
+    # custa escrita.
     mensagem: Mapped[str] = mapped_column(
         String(20), nullable=False, comment="Ex: 'ADC 001'"
     )

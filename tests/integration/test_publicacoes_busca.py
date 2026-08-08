@@ -750,6 +750,94 @@ async def test_api_fim_procedimento_sem_pdf_devolve_doc_id_nulo(
     assert corpo["results"][0]["viewer_url"] is None
 
 
+@pytest.mark.asyncio
+async def test_indexar_edicao_nao_vigente_nao_apaga_o_mapa_da_vigente(
+    com_fim_map, entrada: Path, tmp_path: Path, db: AsyncSession
+):
+    """
+    BUG-03: o fluxo normal de publicação — indexar uma edição nova, que nasce
+    `AGUARDANDO_ATIVACAO` enquanto a anterior segue `VIGENTE` — não pode
+    reescrever o mapa do FIM da vigente com documentos da edição nova.
+
+    `com_fim_map` já deixa `EDICAO` (VIGENTE) com o mapa populado; este teste
+    indexa uma SEGUNDA edição, sobre a MESMA amostra de PDFs, sem ativá-la, e
+    confirma que a busca continua resolvendo para os documentos da vigente.
+    """
+    from app.shared.core.enums import StatusEdicao
+
+    pares, _ = com_fim_map
+
+    outro_rotulo = "teste-fim-nova"
+    payloads_nova = _indexar(
+        entrada, tmp_path / f"catalog.{outro_rotulo}.db", edicao_rotulo=outro_rotulo
+    )
+    edicao_nova = await service.obter_ou_criar_edicao(
+        db, outro_rotulo, status=StatusEdicao.AGUARDANDO_ATIVACAO
+    )
+    await service.sincronizar_catalogo(db, edicao_nova, payloads_nova)
+    await service.sincronizar_fim_map(db, pares, edicao_nova)
+
+    mensagem = pares[0][0]
+    resultado = await service.buscar_por_mensagem_fim(db, mensagem[:3])
+    achado = next(mapa for mapa, _doc in resultado if mapa.mensagem == mensagem)
+
+    ids_da_nova = {doc.id for manual in payloads_nova for doc in manual.documentos}
+    assert achado.edicao_id != edicao_nova.id
+    assert achado.documento_id not in ids_da_nova
+
+
+@pytest.mark.asyncio
+async def test_sincronizar_fim_map_colisao_de_basename_e_deterministica(
+    db: AsyncSession, caplog
+):
+    """
+    RISCO-02: dois documentos da mesma edição com o mesmo nome de arquivo (em
+    capítulos diferentes) colidem na chave do mapa do FIM. Sem `ORDER BY`, qual
+    dos dois "vence" não é garantido nem estável entre execuções — este teste
+    trava que a colisão é ao menos determinística (ordenada por manual/caminho)
+    e que aparece em log, não silenciosa.
+    """
+    import logging
+
+    from app.modules.publicacoes.models import Manual, ManualDocumento
+    from app.shared.core.enums import StatusEdicao
+
+    edicao = await service.obter_ou_criar_edicao(db, "colisao", status=StatusEdicao.VIGENTE)
+    manual = Manual(
+        edicao_id=edicao.id, codigo="FIM_1741", descricao_pt="FIM",
+        categoria="FIM", path="FIM_1741",
+    )
+    db.add(manual)
+    await db.flush()
+
+    nome_pdf = "FIM1741_34-15-00-810-801-A-.PDF"
+    doc_perde = ManualDocumento(
+        id=uuid.uuid4(), manual_id=manual.id, capitulo="CHAPTER_A",
+        file_key=f"CHAPTER_A/{nome_pdf}", titulo="Perde", sort_order=0,
+        has_text=True,
+    )
+    doc_vence = ManualDocumento(
+        id=uuid.uuid4(), manual_id=manual.id, capitulo="CHAPTER_B",
+        file_key=f"CHAPTER_B/{nome_pdf}", titulo="Vence", sort_order=0,
+        has_text=True,
+    )
+    db.add_all([doc_perde, doc_vence])
+    await db.flush()
+
+    with caplog.at_level(logging.WARNING, logger="app.modules.publicacoes.service"):
+        resultado = await service.sincronizar_fim_map(
+            db, [("ADC 001", "34-15-00-810-801-A")], edicao
+        )
+
+    assert resultado["com_documento"] == 1
+    assert any("mesmo nome de arquivo" in m for m in caplog.messages)
+
+    # Determinístico: CHAPTER_B ordena depois de CHAPTER_A — a última
+    # ocorrência da query ordenada é quem "vence" o dict, sempre a mesma.
+    mapa = await service.buscar_por_mensagem_fim(db, "ADC")
+    assert mapa[0][0].documento_id == doc_vence.id
+
+
 # --------------------------------------------------------------------------
 # Metadados do viewer e banner de revisão anterior (§2.2)
 # --------------------------------------------------------------------------

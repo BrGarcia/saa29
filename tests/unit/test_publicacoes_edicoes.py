@@ -274,6 +274,59 @@ async def test_invariante_uma_unica_vigente_apos_sequencia_de_ativacoes(
 
 
 # --------------------------------------------------------------------------
+# Validação de rótulo (BUG-01)
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("rotulo", ["2024/R1", "a b", "x" * 21])
+async def test_obter_ou_criar_edicao_rejeita_rotulo_invalido(db: AsyncSession, rotulo: str):
+    """
+    Raiz do BUG-01: só `caminho_indice_da_edicao` validava, tarde demais — uma
+    edição com rótulo inválido conseguia ser criada e persistida.
+    """
+    with pytest.raises(service.RotuloInvalidoError):
+        await service.obter_ou_criar_edicao(db, rotulo)
+
+
+@pytest.mark.asyncio
+async def test_edicao_com_rotulo_invalido_nao_derruba_api_status(
+    client_autenticado: AsyncClient, db: AsyncSession, indices: Path
+):
+    """
+    Uma edição com rótulo inválido só existe hoje se tiver sido gravada antes
+    desta validação, ou por acesso direto ao ORM (simulado aqui). `/api/status`
+    resolve o índice da vigente e precisa cair no legado, não estourar 500.
+    """
+    from app.modules.publicacoes.models import ManualEdicao
+
+    db.add(ManualEdicao(rotulo="2024/R1", status=StatusEdicao.VIGENTE))
+    await db.flush()
+
+    resposta = await client_autenticado.get("/publicacoes/api/status")
+    assert resposta.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_ativar_edicao_com_rotulo_invalido_retorna_409_nao_500(
+    client_autenticado: AsyncClient, db: AsyncSession, indices: Path
+):
+    """
+    `_indice_existe` já devolve False para rótulo inválido, entrando no ramo
+    que monta a mensagem de 409 com `caminho_indice_da_edicao` — sem proteção
+    ali, o 409 informativo vira 500.
+    """
+    from app.modules.publicacoes.models import ManualEdicao
+
+    orfa = ManualEdicao(rotulo="2024/R1", status=StatusEdicao.AGUARDANDO_ATIVACAO)
+    db.add(orfa)
+    await db.flush()
+
+    resposta = await client_autenticado.post(f"{URL}/{orfa.id}/ativar")
+    assert resposta.status_code == 409
+
+
+# --------------------------------------------------------------------------
 # Arquivar
 # --------------------------------------------------------------------------
 

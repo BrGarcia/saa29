@@ -142,3 +142,56 @@ async def test_busca_sem_edicao_vigente_devolve_vazio(client_autenticado: AsyncC
 async def test_busca_exige_autenticacao(client: AsyncClient):
     resposta = await client.get(URL, params={"q": "sangria"})
     assert resposta.status_code in (401, 403)
+
+
+# --------------------------------------------------------------------------
+# BUG-02: `_`/`%` do usuário precisam ser tratados como texto literal, não
+# como curinga de LIKE/ILIKE (SEC-07) — domínio dominado por nomes com `_`.
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_busca_trata_sublinhado_como_literal_nao_curinga(
+    client_autenticado: AsyncClient, db: AsyncSession
+):
+    """`_` é curinga de LIKE — sem escape, `CHAPTER_21` também casaria `CHAPTERX21`."""
+    edicao = await _inserir_edicao(db)
+    manual = await _inserir_manual(db, edicao, codigo="AMM_PART1_1651")
+    db.add(_documento(manual, capitulo="CHAPTER_21", titulo="Documento literal"))
+    db.add(_documento(manual, capitulo="CHAPTERX21", titulo="Documento sem sublinhado"))
+    await db.flush()
+
+    corpo = (await client_autenticado.get(URL, params={"q": "CHAPTER_21"})).json()
+    assert corpo["total"] == 1
+    assert corpo["results"][0]["titulo"] == "Documento literal"
+
+
+@pytest.mark.asyncio
+async def test_busca_trata_porcentagem_como_literal_nao_curinga(
+    client_autenticado: AsyncClient, db: AsyncSession
+):
+    """`%` é curinga de LIKE — sem escape, buscar `%` devolveria o acervo inteiro."""
+    edicao = await _inserir_edicao(db)
+    manual = await _inserir_manual(db, edicao, codigo="AMM_PART1_1651")
+    db.add(_documento(manual, capitulo="CHAPTER_36", titulo="Documento qualquer"))
+    await db.flush()
+
+    corpo = (await client_autenticado.get(URL, params={"q": "%"})).json()
+    assert corpo["total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_busca_no_catalogo_limita_a_limite_maximo_listagem(db: AsyncSession):
+    """
+    RISCO-03: o service também é chamado por scripts, que não passam por
+    `Query(le=100)`. `limit` precisa ser clampado dentro do próprio service.
+    """
+    edicao = await _inserir_edicao(db)
+    manual = await _inserir_manual(db, edicao, codigo="AMM_PART1_1651")
+    for i in range(105):
+        db.add(_documento(manual, capitulo="CHAPTER_20", titulo=f"Documento {i:03d}"))
+    await db.flush()
+
+    total, linhas = await service.buscar_no_catalogo(db, "Documento", limit=10_000)
+    assert total == 105
+    assert len(linhas) == service.LIMITE_MAXIMO_LISTAGEM

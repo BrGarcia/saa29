@@ -166,3 +166,14 @@ Campos a observar:
 | `GET /publicacoes/api/busca?...&ata=NN` dá 400 "termo inválido" mas a busca sem `ata` funciona | `catalog.db` local antigo, sem a coluna `ata_codigo` (adicionada no M3) | Reindexar — `python -m scripts.publicacoes.indexar` |
 | Link de documento de uma pane/inspeção não abre nada | Documento removido do acervo entre edições (RN-09) — o link tinha o `document_id` da edição antiga | Esperado quando a edição mudou; a UI do viewer mostra "REVISÃO ANTERIOR" com link para o equivalente vigente quando existir |
 | `publicar.py` falha no upload R2 | Variáveis `R2_*` incompletas ou bucket sem permissão | O script já loga isso como aviso e segue sem abortar o restante (indexação/relatório continuam válidos) |
+| Não há botão de upload `.zip` em `/configuracoes` | Decisão de arquitetura e segurança (evita OOM, timeouts e Zip-Slip via HTTP) | O acervo é publicado via CLI (`publicar.py`) e transferido via `rsync`/SSH. Ver guia [envio_publicacoes_zip.md](file:///c:/Users/brgar/Projetos/SAA29/docs/guides/envio_publicacoes_zip.md) |
+
+---
+
+## 7. Informações Complementares
+
+Para entender em detalhes a arquitetura de envio de publicações, as alternativas para usuários com a role `INSPETOR` e o fluxo entre CLI, R2 e a tela de configurações, consulte os guias dedicados:
+- 📖 [Guia — Opções de Upload Autônomo de Publicações (Role INSPETOR)](file:///c:/Users/brgar/Projetos/SAA29/docs/guides/opcoes_upload_inspetor.md)
+- 📖 [Guia — Envio de Publicações (.zip) e Processamento do Acervo](file:///c:/Users/brgar/Projetos/SAA29/docs/guides/envio_publicacoes_zip.md)
+
+

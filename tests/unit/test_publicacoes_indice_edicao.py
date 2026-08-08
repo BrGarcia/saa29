@@ -74,6 +74,16 @@ def test_rotulo_perigoso_ou_fora_do_formato_e_recusado(base: Path, rotulo: str):
         service.caminho_indice_da_edicao(rotulo)
 
 
+def test_rotulo_com_newline_final_e_recusado(base: Path):
+    r"""
+    BUG-01: `$` casa antes de um `\n` final — `"2026\n"` passava no regex
+    antigo apesar de compor um nome de arquivo diferente do esperado. `\Z`
+    fecha a string de fato.
+    """
+    with pytest.raises(service.RotuloInvalidoError):
+        service.caminho_indice_da_edicao("2026\n")
+
+
 # --------------------------------------------------------------------------
 # Resolução com queda para o índice legado
 # --------------------------------------------------------------------------
@@ -110,3 +120,15 @@ def test_sem_nenhum_arquivo_devolve_o_caminho_por_edicao(base: Path):
 def test_sem_edicao_vigente_usa_o_caminho_legado(base: Path):
     """Acervo nunca indexado: não há rótulo para compor nome nenhum."""
     assert service.resolver_caminho_indice(None) == base / "catalog.db"
+
+
+def test_rotulo_invalido_cai_para_o_legado_em_vez_de_derrubar_a_busca(base: Path):
+    """
+    BUG-01: uma edição VIGENTE com rótulo inválido (gravada antes desta
+    validação existir) não pode derrubar `/api/busca`/`/api/status` com 500 —
+    mesma queda de compatibilidade do índice por edição ausente.
+    """
+    legado = base / "catalog.db"
+    legado.write_bytes(b"")
+
+    assert service.resolver_caminho_indice("2024/R1") == legado
