@@ -81,6 +81,13 @@ def format_event_for_user(event: CalendarEvent, current_user: Usuario) -> schema
     )
 
 
+def _normalize_datetime_for_sort(dt: datetime) -> datetime:
+    """Garante comparação segura entre datetimes aware e naive em sorted()."""
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
+
 async def get_events(
     db: AsyncSession,
     start_date: datetime,
@@ -89,7 +96,7 @@ async def get_events(
 ) -> list[schemas.CalendarEventPayload]:
     events = await _get_calendar_events(db, start_date, end_date, current_user)
     events.extend(await _get_inspection_events(db, start_date, end_date))
-    return sorted(events, key=lambda event: event.start)
+    return sorted(events, key=lambda event: _normalize_datetime_for_sort(event.start))
 
 
 async def _get_calendar_events(
@@ -175,6 +182,8 @@ async def _get_inspection_events(
         dpe = inspecao.data_fim_prevista
         if dpe is None:
             continue
+        if dpe.tzinfo is None:
+            dpe = dpe.replace(tzinfo=timezone.utc)
         matricula = getattr(inspecao.aeronave, "matricula", None) or "ANV"
         tipos = ", ".join(tipo.codigo for tipo in inspecao.tipos_aplicados) or "Inspecao"
         payloads.append(
