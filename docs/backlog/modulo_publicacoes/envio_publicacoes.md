@@ -45,38 +45,38 @@ Antes de abrir o endpoint de upload web, os seguintes achados prioritários de [
 ## 4. Fases de Execução
 
 ### Fase 1: Pré-requisitos & Extensão do `StorageService`
-- [ ] Corrigir `_resolver_pdf` em `app/modules/publicacoes/router.py`.
-- [ ] Ajustar `obter_ou_criar_edicao` em `app/modules/publicacoes/service.py`.
-- [ ] Estender `StorageService` (`app/shared/core/storage.py`) com métodos de multipart (`iniciar_multipart`, `presign_parte`, `concluir_multipart`, `abortar_multipart`).
-- [ ] Implementar suporte local no `LocalStorageService` com staging em `var/publicacoes/staging/chunks/<job_id>/`.
+- [x] Corrigir `_resolver_pdf` em `app/modules/publicacoes/router.py`.
+- [x] Ajustar `obter_ou_criar_edicao` em `app/modules/publicacoes/service.py`.
+- [x] Estender `StorageService` (`app/shared/core/storage.py`) com métodos de multipart (`iniciar_multipart`, `presign_parte`, `concluir_multipart`, `abortar_multipart`).
+- [x] Implementar suporte local no `LocalStorageService` com staging em `var/publicacoes/staging/chunks/<job_id>/`.
 
 ### Fase 2: Modelo de Dados & Migração Alembic
-- [ ] Criar model `PublicacoesUploadJob` em `app/modules/publicacoes/models.py`.
-- [ ] Adicionar enum de status de upload (`ENVIANDO`, `PROCESSANDO`, `CONCLUIDO`, `FALHOU`, `CANCELADO`).
-- [ ] Adicionar índice único parcial `uq_publicacoes_upload_jobs_ativo_unico`.
-- [ ] Gerar e aplicar migração Alembic.
+- [x] Criar model `PublicacoesUploadJob` em `app/modules/publicacoes/models.py`.
+- [x] Adicionar enum de status de upload (`ENVIANDO`, `PROCESSANDO`, `CONCLUIDO`, `FALHOU`, `CANCELADO`).
+- [x] Adicionar índice único parcial `uq_publicacoes_upload_jobs_ativo_unico`.
+- [x] Gerar e aplicar migração Alembic.
 
 ### Fase 3: Endpoints da API (Router)
-- [ ] `POST /publicacoes/api/edicoes/uploads` (iniciar upload).
-- [ ] `POST /publicacoes/api/edicoes/uploads/{id}/partes` (obter presigned URL por parte).
-- [ ] `POST /publicacoes/api/edicoes/uploads/{id}/concluir` (concluir multipart e disparar worker).
-- [ ] `POST /publicacoes/api/edicoes/uploads/{id}/cancelar` (abortar upload).
-- [ ] `GET /publicacoes/api/edicoes/uploads/{id}` e `GET /publicacoes/api/edicoes/uploads` (polling de progresso).
+- [x] `POST /publicacoes/api/edicoes/uploads` (iniciar upload).
+- [x] `POST /publicacoes/api/edicoes/uploads/{id}/partes` (obter presigned URL por parte).
+- [x] `POST /publicacoes/api/edicoes/uploads/{id}/concluir` (concluir multipart e disparar worker).
+- [x] `POST /publicacoes/api/edicoes/uploads/{id}/cancelar` (abortar upload).
+- [x] `GET /publicacoes/api/edicoes/uploads/{id}` e `GET /publicacoes/api/edicoes/uploads` (polling de progresso).
 
 ### Fase 4: Adaptação do Script `publicar.py` & Validador ZIP
-- [ ] Implementar pipeline de validação de ZIP em `scripts/publicacoes/publicar.py` (Zip-Slip, Zip Bomb, Allowlist de extensões).
-- [ ] Adicionar suporte ao parâmetro `--de-upload <file_key>` para download via streaming para staging.
-- [ ] Adicionar atualização de progresso (`progresso_pct`, `etapa`) no banco principal via `get_session_factory()`.
-- [ ] Garantir exclusão da chave temporária de upload no R2 (`publicacoes/uploads/<job_id>/edicao.zip`) ao finalizar.
+- [x] Implementar pipeline de validação de ZIP em `scripts/publicacoes/publicar.py` (Zip-Slip, Zip Bomb, Allowlist de extensões).
+- [x] Adicionar suporte ao parâmetro `--de-upload <file_key>` para download via streaming para staging.
+- [x] Adicionar atualização de progresso (`progresso_pct`, `etapa`) no banco principal via `get_session_factory()`.
+- [x] Garantir exclusão da chave temporária de upload no R2 (`publicacoes/uploads/<job_id>/edicao.zip`) ao finalizar.
 
 ### Fase 5: Interface Web (Front-end Vanilla JS)
-- [ ] Criar `static/js/publicacoes_upload.js` (drag and drop, faturamento do arquivo em partes, envio paralelo, retry e polling).
-- [ ] Atualizar o Card de Publicações na página `/configuracoes` com a área de envio e barra de progresso.
+- [x] Criar `configuracoes_publicacoes.js` (drag and drop, faturamento do arquivo em partes, envio paralelo, retry e polling).
+- [x] Atualizar o Card de Publicações na página `/configuracoes` com a área de envio e barra de progresso.
 
 ### Fase 6: Testes & Documentação
-- [ ] Testes unitários para o validador de ZIP (Zip-Slip, Zip Bomb, allowlist).
-- [ ] Testes de integração dos endpoints de upload e máquina de estados do job.
-- [ ] Atualizar o runbook operacional em `docs/guides/operacao_publicacoes.md` e `docs/guides/envio_publicacoes_zip.md`.
+- [x] Testes unitários para o validador de ZIP (Zip-Slip, Zip Bomb, allowlist).
+- [x] Testes de integração dos endpoints de upload e máquina de estados do job.
+- [x] Atualizar a documentação operacional e os apontamentos em `docs/guides/sugestao_envio.md`.
 
 ---
 

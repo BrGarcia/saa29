@@ -38,7 +38,7 @@
 | **M1** — Piloto FIM ⭐ | 15 tarefas | 15/15 | ✅ **Concluído** — as duas rotas de navegação que faltavam (`/publicacoes/manuais/{codigo}` e `.../{capitulo}`) foram fechadas pela Etapa 2 de `09_plano_configuracoes.md`; CSP confirmada limpa em navegador real (Chrome, console sem violações) |
 | **M2** — Avulsas (BO/BS/NPO/BT) | 10 tarefas | 10/10 | ✅ **Concluído** |
 | **M3** — Integração panes/inspeções | 5 tarefas | 5/5 | ✅ **Concluído** |
-| **M4** — Acervo completo + ciclo DVD | 8 tarefas | 8/8 | ✅ **Concluído no código** — tarefas 1 a 8 entregues e testadas (Fases 0–2 de `09_plano_configuracoes.md`); resta a validação visual em navegador real e o gate de infraestrutura (RSS/disco na VPS, preso a D-04) |
+| **M4** — Acervo completo + Upload Web (M4.Web) | 8 tarefas | 8/8 | ✅ **Concluído** — tarefas 1 a 8 + funcionalidade M4.Web entregues e testadas (endpoints FastAPI, presigned R2/local, worker, single-flight lock e UI em `/configuracoes`) |
 | **M5** — RAG | — | — | 🔒 Congelado até D-S3 |
 
 Legenda: ✅ concluído · 🔵 em execução · ⚪ não iniciado · 🔒 bloqueado · ⚠️ parcial
