@@ -40,6 +40,6 @@ jobs:
             echo "🚀 Iniciando deploy automático na VPS..."
             cd ~/saa29
             git pull origin main
-            docker-compose up -d --build
+            docker-compose down && docker-compose up -d --build
             docker-compose exec -T web python -m alembic upgrade head
             echo "✅ Deploy concluído com sucesso!"
