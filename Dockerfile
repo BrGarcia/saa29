@@ -2,6 +2,8 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+ENV PYTHONPATH=/app
+
 # Dependências do sistema para python-magic
 RUN apt-get update && apt-get install -y \
     gcc \
