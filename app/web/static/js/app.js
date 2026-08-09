@@ -164,8 +164,10 @@ async function apiFetch(endpoint, options = {}) {
     }
 
     // Auto-inject JSON se aplicável
-    if (options.body && !(options.body instanceof FormData) && typeof options.body === 'object') {
-        options.body = JSON.stringify(options.body);
+    if (options.body && !(options.body instanceof FormData)) {
+        if (typeof options.body === 'object') {
+            options.body = JSON.stringify(options.body);
+        }
         if (!headers["Content-Type"]) headers["Content-Type"] = "application/json";
     }
 
