@@ -22,7 +22,7 @@ except (ImportError, ModuleNotFoundError):
     # Fallback para execução direta via python -m scripts.db.init_db
     from scripts.seed import seed_equipamentos, seed_aeronaves, seed_sistemas_ata, seed_vencimentos, seed_inspecoes, seed_calendario
 
-from app.bootstrap.database import get_session_factory, engine, Base
+from app.bootstrap.database import get_session_factory, get_engine, Base
 
 # Importar TODOS os modelos para o SQLAlchemy Registry (SEC-02/COR-01)
 import app.modules.auth.models         # noqa: F401
@@ -38,6 +38,7 @@ import app.modules.publicacoes.models  # noqa: F401
 
 async def init_db():
     # Garantir que todas as tabelas fisicas existam no banco
+    engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
