@@ -21,6 +21,8 @@ ENV/
 # Arquivos que continham credenciais reais e tokens JWT rastreados no Git.
 cookies.txt
 fim.json
+scratch/
+id_deploy*
 
 # === Testes ===
 .pytest_cache/
