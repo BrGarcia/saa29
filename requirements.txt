@@ -27,6 +27,12 @@ python-multipart==0.0.20  # form data (login)
 python-magic==0.4.27      # validação de MIME type
 jinja2==3.1.5             # templates frontend
 
+# --- Módulo Publicações ---
+# Extração de texto PDF página a página, para o índice de busca dos manuais.
+# Escolhido em vez do PyMuPDF por licença: pypdfium2 é Apache-2.0/BSD-3, e o
+# PyMuPDF é AGPL — inviável aqui (ADR-004). Só é usado offline, pelo indexador.
+pypdfium2==5.12.1
+
 # --- Utilitários ---
 python-dotenv==1.0.1
 python-dateutil>=2.9.0     # relativedelta para cálculo de vencimentos
@@ -46,3 +52,4 @@ Pillow==11.0.0
 pillow-heif==0.21.0
 imgdiet==1.0.6
 openpyxl>=3.1.0
+reportlab>=4.0.0

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block page_title %}Visualizar documento{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="/static/css/publicacoes.css">
+
+<div id="pub-viewer-context"
+     data-doc-id="{{ doc_id }}"
+     data-pdf-url="/publicacoes/doc/{{ doc_id }}/pdf"
+     data-worker-src="/static/js/pdfjs/pdf.worker.min.mjs"
+     style="display: none;"></div>
+
+<div class="pub-viewer-shell" id="pub-viewer-shell">
+    <div class="pub-viewer-toolbar">
+        <div class="pub-viewer-toolbar-grupo">
+            <a href="/publicacoes" class="btn-icon" title="Voltar ao acervo" aria-label="Voltar ao acervo">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M19 12H5m0 0 6-6m-6 6 6 6"/></svg>
+            </a>
+            <div>
+                <div id="pub-viewer-titulo" style="font-weight: 600;">Carregando…</div>
+                <div id="pub-viewer-subtitulo" style="font-size: 0.8rem; color: var(--text-secondary);"></div>
+            </div>
+        </div>
+
+        <div class="pub-viewer-toolbar-grupo">
+            <button type="button" class="btn-icon" id="pub-viewer-zoom-menos" title="Reduzir zoom" aria-label="Reduzir zoom">−</button>
+            <span class="pub-viewer-zoom-nivel" id="pub-viewer-zoom-nivel">—</span>
+            <button type="button" class="btn-icon" id="pub-viewer-zoom-mais" title="Aumentar zoom" aria-label="Aumentar zoom">+</button>
+            <button type="button" class="btn-icon" id="pub-viewer-ajustar-largura" title="Ajustar à largura" aria-label="Ajustar à largura">↔</button>
+            <button type="button" class="btn-icon" id="pub-viewer-ajustar-pagina" title="Ajustar à página" aria-label="Ajustar à página">⛶</button>
+            <button type="button" class="btn-icon" id="pub-viewer-rotacionar" title="Girar 90°" aria-label="Girar 90 graus">⟳</button>
+        </div>
+
+        <div class="pub-viewer-toolbar-grupo">
+            <button type="button" class="btn-icon" id="pub-viewer-prev" title="Página anterior" aria-label="Página anterior">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <input type="text" inputmode="numeric" class="pub-viewer-pagina-input" id="pub-viewer-pagina-input" value="—" aria-label="Página atual">
+            <span style="color: var(--text-secondary); font-size: 0.85rem;">/ <span id="pub-viewer-total-paginas">—</span></span>
+            <button type="button" class="btn-icon" id="pub-viewer-next" title="Próxima página" aria-label="Próxima página">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6"/></svg>
+            </button>
+        </div>
+
+        <div class="pub-viewer-toolbar-grupo pub-viewer-busca-doc">
+            <div class="pub-viewer-busca-doc-resultados">
+                <input type="text" class="form-input" id="pub-viewer-busca-input"
+                       placeholder="Buscar no documento…" autocomplete="off" aria-label="Buscar texto neste documento">
+                <div class="pub-viewer-busca-doc-lista" id="pub-viewer-busca-lista"></div>
+            </div>
+        </div>
+
+        <div class="pub-viewer-toolbar-grupo">
+            <button type="button" class="btn-icon" id="pub-viewer-favorito" title="Favoritar" aria-label="Favoritar">
+                <svg id="pub-viewer-favorito-icone" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.539 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.784.57-1.838-.196-1.539-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                </svg>
+            </button>
+            <button type="button" class="btn-icon" id="pub-viewer-tela-cheia" title="Tela cheia" aria-label="Tela cheia">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m11-5v3a2 2 0 0 1-2 2h-3"/></svg>
+            </button>
+            <a id="pub-viewer-download" class="btn btn-outline" download>Baixar</a>
+        </div>
+    </div>
+
+    <div id="pub-viewer-revisao-anterior" class="card" style="display: none; margin: 0; border-color: var(--warning-color, #d97706); color: var(--warning-color, #d97706);">
+        Esta é uma REVISÃO ANTERIOR do documento — a edição vigente pode conter mudanças.
+    </div>
+
+    <div id="pub-viewer-erro" class="card" style="display: none; text-align: center; color: var(--text-secondary); padding: 2rem;"></div>
+
+    <div class="pub-viewer-corpo">
+        <aside class="pub-viewer-miniaturas" id="pub-viewer-miniaturas" aria-label="Miniaturas das páginas"></aside>
+        <!--
+            Canvas, nunca iframe/embed/object: X-Frame-Options: DENY é global (decisão
+            D-F, docs/backlog/modulo_publicacoes/03_especificacao_tecnica.md §4.4) e
+            bloqueia qualquer elemento que crie um browsing context, mesmo same-origin
+            — confirmado como bug real em app/web/static/js/panes_detalhe.js
+            (docs/backlog/revisor/achados_panes_iframe_pdf.md).
+        -->
+        <div class="pub-viewer-palco" id="pub-viewer-palco">
+            <canvas id="pub-viewer-canvas"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="/static/js/publicacoes_viewer.js"></script>
+{% endblock %}

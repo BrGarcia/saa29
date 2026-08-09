@@ -118,7 +118,9 @@ class TestCriarPane:
             },
             headers=headers,
         )
-        assert response.status_code == 404
+        # BUG-03 (achados_panes.md): aeronave inativa é um conflito de
+        # estado, não ausência de recurso — 409, não 404.
+        assert response.status_code == 409
 
     @pytest.mark.asyncio
     async def test_criar_pane_aeronave_indisponivel_permitida(
@@ -621,6 +623,46 @@ class TestUploadAnexo:
         body = response.json()
         assert "id" in body
         assert "caminho_arquivo" in body
+
+    @pytest.mark.asyncio
+    async def test_upload_imagem_valida_fallback_magic(
+        self,
+        client: AsyncClient,
+        dados_aeronave_valida: dict,
+        usuario_e_token: dict,
+    ):
+        """
+        DADO que magic/libmagic não estão disponíveis
+        QUANDO fazer upload de imagem JPEG válida
+        ENTÃO retornar 201 com dados do anexo (fallback funciona).
+        """
+        if usuario_e_token["token"] == "TOKEN_NAO_IMPLEMENTADO":
+            pytest.skip("Auth ainda não implementada (Dia 4)")
+
+        headers = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
+        pane = await criar_pane(client, headers, aeronave["id"])
+
+        jpeg_minimal = (
+            b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
+            b"\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t"
+            b"\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a"
+            b"\x1f\x1e\x1d\x1a\x1c\x1c $.' \",#\x1c\x1c(7),01444\x1f'9=82<.342\x1e"
+            b"\xff\xd9"
+        )
+        
+        from unittest.mock import patch
+        with patch("app.shared.core.file_validators._MAGIC_AVAILABLE", False), \
+             patch("app.modules.panes.service._MAGIC_AVAILABLE", False):
+            response = await client.post(
+                f"{PANES_URL}{pane['id']}/anexos",
+                headers=headers,
+                files={"arquivo": ("foto.jpg", jpeg_minimal, "image/jpeg")},
+            )
+            assert response.status_code == 201
+            body = response.json()
+            assert "id" in body
+            assert "caminho_arquivo" in body
 
     @pytest.mark.asyncio
     async def test_baixar_anexo_requer_autenticacao(

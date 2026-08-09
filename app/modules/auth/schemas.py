@@ -15,12 +15,6 @@ from app.shared.core.enums import TipoPapel
 # Schemas de Entrada (Requests)
 # ============================================================
 
-class LoginRequest(BaseModel):
-    """Payload da tela de login (RF-01)."""
-    username: str = Field(..., min_length=3, max_length=50, examples=["joao.silva"])
-    password: str = Field(..., min_length=6, examples=["senha123"])
-
-
 class UsuarioCreate(BaseModel):
     """Payload para criação de novo usuário (efetivo)."""
     nome: str = Field(..., min_length=3, max_length=150)
@@ -54,11 +48,6 @@ class AdminSenhaUpdate(BaseModel):
     nova_senha: str = Field(..., min_length=6)
 
 
-class RefreshTokenRequest(BaseModel):
-    """Payload para requisição de novo access token via refresh token."""
-    refresh_token: str = Field(..., description="Refresh token recebido no login")
-
-
 # ============================================================
 # Schemas de Saída (Responses)
 # ============================================================
@@ -83,12 +72,6 @@ class Token(BaseModel):
     """Resposta do endpoint de login."""
     access_token: str
     refresh_token: str | None = None  # Novo: refresh token retornado no login
-    token_type: str = "bearer"
+    # noqa S105: "bearer" e o tipo de token definido pelo OAuth2, nao um segredo.
+    token_type: str = "bearer"  # noqa: S105
     usuario: UsuarioOut
-
-
-class TokenPayload(BaseModel):
-    """Payload decodificado do JWT."""
-    sub: str           # username
-    exp: int           # timestamp de expiração
-    iat: int           # timestamp de criação

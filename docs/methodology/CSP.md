@@ -123,3 +123,55 @@ Abaixo está o resultado da auditoria de CSP em 100% das páginas do sistema:
 
 ### Conclusão Final da Auditoria
 Com a correção aplicada na página `panes/detalhe.html`, **o SAA29 alcançou 100% de conformidade com a CSP**. Não há mais nenhum `<script>` inline injetando código no sistema em lugar algum do projeto. O sistema está estruturalmente blindado e pronto para produção com a regra de "Zero Inline Scripts" devidamente implementada.
+
+---
+
+## 5. Delta do viewer de PDF (módulo `publicacoes`, M1)
+
+O viewer de manuais (`app/web/templates/publicacoes/viewer.html`,
+`app/web/static/js/publicacoes_viewer.js`) usa PDF.js vendorizado
+(`app/web/static/js/pdfjs/`, ver `README.md` daquela pasta) para renderizar o
+PDF em `<canvas>` — nunca `<iframe>`/`<embed>`/`<object>` (decisão **D-F**,
+`docs/backlog/modulo_publicacoes/03_especificacao_tecnica.md` §4.4): o
+`X-Frame-Options: DENY` global bloqueia qualquer elemento que crie um
+*browsing context*, mesmo same-origin — confirmado como bug real e já
+presente no sistema em `panes_detalhe.js` (anexo tipo `DOCUMENTO`), registrado
+em `docs/backlog/revisor/achados_panes_iframe_pdf.md`.
+
+**Delta aplicado:** `worker-src 'self'` em `app/shared/middleware/security.py`.
+
+**Por que só isso.** O PDF.js instancia o worker com
+`new Worker(GlobalWorkerOptions.workerSrc, {type: "module"})`, apontando para
+um arquivo same-origin (`/static/js/pdfjs/pdf.worker.min.mjs`) — não para uma
+Blob URL. Isso significa que **nem seria estritamente necessário** declarar
+`worker-src`, porque `default-src 'self'` já cobre o caso por fallback; a
+diretiva foi tornada explícita mesmo assim, para o comportamento não depender
+desse fallback se `default-src` for restringido no futuro. **Não foi preciso
+`blob:`** — esse componente só entraria se o carregamento do worker caísse no
+modo de compatibilidade do PDF.js (worker via Blob), o que não acontece aqui
+porque o arquivo é servido pela mesma origem.
+
+**Como isto foi verificado:** por leitura do código-fonte do PDF.js
+vendorizado (`pdf.min.mjs`, versão `6.2.108`) e por análise estática da
+requisição que o módulo dispara — **não** por inspeção do console de um
+navegador real rodando a aplicação, que não estava disponível nesta sessão de
+implementação. Antes de considerar o item fechado, alguém com acesso a um
+navegador deve:
+
+1. Abrir `/publicacoes/viewer/{id}` de um documento real;
+2. Checar o console por qualquer linha `Refused to ... because it violates
+   the following Content Security Policy directive`;
+3. Se aparecer alguma violação de `worker-src` ou `connect-src`, ampliar a
+   diretiva correspondente **nesta mesma seção**, documentando o delta.
+
+Registrado como pendência em
+`docs/backlog/modulo_publicacoes/08_status_de_implementacao.md`.
+
+**Outros dois pontos já cobertos sem mudança de CSP:**
+- `connect-src 'self'` já existia e cobre o `fetch()` que o PDF.js faz para
+  baixar o PDF (`/publicacoes/doc/{id}/pdf`) e o `fetch()` do próprio
+  `apiFetch` para os metadados (`/publicacoes/api/documentos/{id}`) — ambos
+  same-origin.
+- `script-src 'self'` já cobre o `<script type="module">` que importa o
+  build do PDF.js — módulos ES seguem a mesma diretiva de scripts clássicos,
+  sem exceção própria de CSP.

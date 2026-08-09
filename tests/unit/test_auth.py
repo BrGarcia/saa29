@@ -302,7 +302,7 @@ class TestGestaoUsuarios:
             "senha_atual": dados_usuario_valido["password"],
             "nova_senha": "nova_senha_678"
         }
-        response = await client.put(f"/auth/usuarios/senha", json=payload, headers=usuario_e_token["headers"])
+        response = await client.put("/auth/usuarios/senha", json=payload, headers=usuario_e_token["headers"])
         assert response.status_code == 204
 
     @pytest.mark.asyncio

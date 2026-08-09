@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block page_title %}Publicações avulsas{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 0.75rem;">
+    <a href="/publicacoes" class="btn btn-outline" style="text-decoration: none;">← Busca no acervo de manuais</a>
+</div>
+
+<div class="card" style="margin-bottom: 1rem;">
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end;">
+        <div style="flex: 1; min-width: 160px;">
+            <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Número</label>
+            <input type="text" id="av-filtro-numero" class="form-input" placeholder="Ex: 314-24-0021">
+        </div>
+        <div style="flex: 1; min-width: 100px;">
+            <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Ano</label>
+            <input type="number" id="av-filtro-ano" class="form-input" placeholder="2026">
+        </div>
+        <div style="flex: 1; min-width: 100px;">
+            <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Tipo</label>
+            <select id="av-filtro-tipo" class="form-input">
+                <option value="">Todos</option>
+                <option value="BO">BO</option>
+                <option value="BS">BS</option>
+                <option value="NPO">NPO</option>
+                <option value="BT">BT</option>
+                <option value="OUTRO">Outro</option>
+            </select>
+        </div>
+        <div style="flex: 1; min-width: 100px;">
+            <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">ATA</label>
+            <input type="text" id="av-filtro-ata" class="form-input" placeholder="Ex: 34" maxlength="4">
+        </div>
+        <div style="flex: 2; min-width: 200px;">
+            <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Palavra na ementa/título</label>
+            <input type="text" id="av-filtro-texto" class="form-input" placeholder="Ex: sangria do compressor">
+        </div>
+        <button type="button" class="btn btn-primary" id="av-busca-btn">Buscar</button>
+        <button type="button" class="btn btn-aeronave" id="av-novo-btn" data-role="ENCARREGADO,INSPETOR">Cadastrar</button>
+    </div>
+</div>
+
+<div id="av-resultados-meta" style="margin: 0.5rem 0; color: var(--text-secondary); font-size: 0.9rem;"></div>
+<div id="av-resultados-lista"></div>
+
+<!-- Modal de cadastro/edição -->
+<div id="modal-avulsa" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+    <div class="card" style="max-width: 640px; width: 90%; max-height: 85vh; overflow-y: auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h3 id="modal-avulsa-titulo" style="margin:0;">Cadastrar publicação avulsa</h3>
+            <button type="button" class="btn-icon" id="btn-close-modal-avulsa" aria-label="Fechar">✕</button>
+        </div>
+        <form id="form-avulsa">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                <div>
+                    <label style="display:block; font-size:0.85rem; margin-bottom:0.25rem;">Tipo</label>
+                    <select id="av-tipo" class="form-input" required>
+                        <option value="BO">BO</option>
+                        <option value="BS">BS</option>
+                        <option value="NPO">NPO</option>
+                        <option value="BT">BT</option>
+                        <option value="OUTRO">Outro</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block; font-size:0.85rem; margin-bottom:0.25rem;">Número</label>
+                    <input type="text" id="av-numero" class="form-input" required maxlength="60">
+                </div>
+                <div>
+                    <label style="display:block; font-size:0.85rem; margin-bottom:0.25rem;">Ano</label>
+                    <input type="number" id="av-ano" class="form-input" required min="1990" max="2100">
+                </div>
+                <div>
+                    <label style="display:block; font-size:0.85rem; margin-bottom:0.25rem;">Emissor</label>
+                    <input type="text" id="av-emissor" class="form-input" required maxlength="100">
+                </div>
+                <div>
+                    <label style="display:block; font-size:0.85rem; margin-bottom:0.25rem;">Data de emissão</label>
+                    <input type="date" id="av-data-emissao" class="form-input" required>
+                </div>
+                <div>
+                    <label style="display:block; font-size:0.85rem; margin-bottom:0.25rem;">Data de recebimento</label>
+                    <input type="date" id="av-data-recebimento" class="form-input" required>
+                </div>
+            </div>
+            <div style="margin-top:0.75rem;">
+                <label style="display:block; font-size:0.85rem; margin-bottom:0.25rem;">Título</label>
+                <input type="text" id="av-titulo" class="form-input" required maxlength="300">
+            </div>
+            <div style="margin-top:0.75rem;">
+                <label style="display:block; font-size:0.85rem; margin-bottom:0.25rem;">Ementa (mínimo 20 caracteres — é o principal insumo de busca)</label>
+                <textarea id="av-ementa" class="form-input" rows="4" required minlength="20"></textarea>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1rem;">
+                <button type="button" class="btn btn-outline" id="btn-cancel-modal-avulsa">Cancelar</button>
+                <button type="submit" class="btn btn-primary" id="btn-salvar-avulsa">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal de detalhe / anexos -->
+<div id="modal-avulsa-detalhe" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+    <div class="card" style="max-width: 640px; width: 90%; max-height: 85vh; overflow-y: auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h3 id="detalhe-avulsa-titulo" style="margin:0;">Publicação</h3>
+            <div style="display:flex; gap:0.25rem;">
+                <button type="button" class="btn-icon" id="btn-favoritar-avulsa" title="Favoritar" aria-label="Favoritar">
+                    <svg id="icone-favoritar-avulsa" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.539 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.784.57-1.838-.196-1.539-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                    </svg>
+                </button>
+                <button type="button" class="btn-icon" id="btn-close-modal-detalhe" aria-label="Fechar">✕</button>
+            </div>
+        </div>
+        <div id="detalhe-avulsa-corpo"></div>
+        <div style="margin-top:1rem; border-top:1px solid var(--border-color); padding-top:1rem;">
+            <h4 style="margin:0 0 0.5rem 0;">Anexos</h4>
+            <div id="detalhe-avulsa-anexos"></div>
+            <div data-role="ENCARREGADO,INSPETOR" style="margin-top:0.5rem;">
+                <input type="file" id="input-novo-anexo" accept=".pdf,.jpg,.jpeg,.png,.heic,.heif">
+                <button type="button" class="btn btn-outline" id="btn-upload-anexo">Enviar anexo</button>
+            </div>
+        </div>
+        <div data-role="ADMINISTRADOR" style="margin-top:1rem; text-align:right;">
+            <button type="button" class="btn btn-outline" id="btn-excluir-avulsa" style="color: var(--danger-color, #dc2626); border-color: var(--danger-color, #dc2626);">
+                Excluir (soft delete)
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/publicacoes_avulsas.js"></script>
+{% endblock %}

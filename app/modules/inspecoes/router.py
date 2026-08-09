@@ -12,9 +12,11 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
 
-from app.bootstrap.dependencies import CurrentUser, DBSession, EncarregadoOuAdmin, AdminRequired, ExecucaoPermitida, EncarregadoInspetorOuAdmin
-from app.modules.inspecoes import schemas, service
+from app.bootstrap.dependencies import CurrentUser, DBSession, EncarregadoOuAdmin, EncarregadoInspetorOuAdmin
+from app.modules.inspecoes import schemas, service, pdf_service
+from app.shared.core import exceptions as domain_exc
 from app.shared.core.enums import StatusInspecao
+from app.shared.exporter import gerar_csv, gerar_xlsx
 
 router = APIRouter()
 
@@ -44,11 +46,8 @@ async def criar_tipo_inspecao(
     db: DBSession,
     _: EncarregadoOuAdmin,
 ) -> schemas.TipoInspecaoOut:
-    try:
-        tipo = await service.criar_tipo_inspecao(db, dados)
-        return schemas.TipoInspecaoOut.model_validate(tipo)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    tipo = await service.criar_tipo_inspecao(db, dados)
+    return schemas.TipoInspecaoOut.model_validate(tipo)
 
 
 @router.put(
@@ -67,11 +66,8 @@ async def atualizar_tipo_inspecao(
     db: DBSession,
     _: EncarregadoOuAdmin,
 ) -> schemas.TipoInspecaoOut:
-    try:
-        tipo = await service.atualizar_tipo_inspecao(db, tipo_id, dados)
-        return schemas.TipoInspecaoOut.model_validate(tipo)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    tipo = await service.atualizar_tipo_inspecao(db, tipo_id, dados)
+    return schemas.TipoInspecaoOut.model_validate(tipo)
 
 
 @router.delete(
@@ -86,10 +82,7 @@ async def desativar_tipo_inspecao(
     db: DBSession,
     _: EncarregadoOuAdmin,
 ) -> None:
-    try:
-        await service.desativar_tipo_inspecao(db, tipo_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    await service.desativar_tipo_inspecao(db, tipo_id)
 
 
 @router.get(
@@ -117,11 +110,8 @@ async def criar_tarefa_catalogo(
     db: DBSession,
     _: EncarregadoOuAdmin,
 ) -> schemas.TarefaCatalogoOut:
-    try:
-        tarefa = await service.criar_tarefa_catalogo(db, dados)
-        return schemas.TarefaCatalogoOut.model_validate(tarefa)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    tarefa = await service.criar_tarefa_catalogo(db, dados)
+    return schemas.TarefaCatalogoOut.model_validate(tarefa)
 
 
 @router.put(
@@ -135,11 +125,8 @@ async def atualizar_tarefa_catalogo(
     db: DBSession,
     _: EncarregadoOuAdmin,
 ) -> schemas.TarefaCatalogoOut:
-    try:
-        tarefa = await service.atualizar_tarefa_catalogo(db, tarefa_id, dados)
-        return schemas.TarefaCatalogoOut.model_validate(tarefa)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    tarefa = await service.atualizar_tarefa_catalogo(db, tarefa_id, dados)
+    return schemas.TarefaCatalogoOut.model_validate(tarefa)
 
 
 @router.delete(
@@ -154,10 +141,7 @@ async def desativar_tarefa_catalogo(
     db: DBSession,
     _: EncarregadoOuAdmin,
 ) -> None:
-    try:
-        await service.desativar_tarefa_catalogo(db, tarefa_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    await service.desativar_tarefa_catalogo(db, tarefa_id)
 
 
 @router.get(
@@ -186,11 +170,8 @@ async def criar_tarefa_template(
     db: DBSession,
     _: EncarregadoOuAdmin,
 ) -> schemas.TarefaTemplateOut:
-    try:
-        tarefa = await service.criar_tarefa_template(db, tipo_id, dados)
-        return schemas.TarefaTemplateOut.model_validate(tarefa)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    tarefa = await service.criar_tarefa_template(db, tipo_id, dados)
+    return schemas.TarefaTemplateOut.model_validate(tarefa)
 
 
 @router.put(
@@ -204,11 +185,8 @@ async def atualizar_tarefa_template(
     db: DBSession,
     _: EncarregadoOuAdmin,
 ) -> schemas.TarefaTemplateOut:
-    try:
-        tarefa = await service.atualizar_tarefa_template(db, tarefa_id, dados)
-        return schemas.TarefaTemplateOut.model_validate(tarefa)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    tarefa = await service.atualizar_tarefa_template(db, tarefa_id, dados)
+    return schemas.TarefaTemplateOut.model_validate(tarefa)
 
 
 @router.delete(
@@ -223,10 +201,7 @@ async def remover_tarefa_template(
     db: DBSession,
     _: EncarregadoOuAdmin,
 ) -> None:
-    try:
-        await service.remover_tarefa_template(db, tarefa_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    await service.remover_tarefa_template(db, tarefa_id)
 
 
 @router.patch(
@@ -240,11 +215,8 @@ async def reordenar_tarefas_template(
     db: DBSession,
     _: EncarregadoOuAdmin,
 ) -> list[schemas.TarefaTemplateOut]:
-    try:
-        tarefas = await service.reordenar_tarefas_template(db, tipo_id, dados)
-        return [schemas.TarefaTemplateOut.model_validate(tarefa) for tarefa in tarefas]
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    tarefas = await service.reordenar_tarefas_template(db, tipo_id, dados)
+    return [schemas.TarefaTemplateOut.model_validate(tarefa) for tarefa in tarefas]
 
 
 # ---------------------------------------------------------------------------
@@ -263,16 +235,13 @@ async def atualizar_tarefa_inspecao(
     db: DBSession,
     usuario_atual: CurrentUser,
 ) -> schemas.InspecaoTarefaOut:
-    try:
-        tarefa = await service.atualizar_tarefa_inspecao(
-            db,
-            tarefa_id,
-            dados,
-            usuario_padrao_id=usuario_atual.id,
-        )
-        return schemas.InspecaoTarefaOut.model_validate(tarefa)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    tarefa = await service.atualizar_tarefa_inspecao(
+        db,
+        tarefa_id,
+        dados,
+        usuario_padrao_id=usuario_atual.id,
+    )
+    return schemas.InspecaoTarefaOut.model_validate(tarefa)
 
 
 @router.get(
@@ -297,15 +266,113 @@ async def listar_inspecoes(
         limit=limit,
     )
     inspecoes = await service.listar_inspecoes(db, filtros)
+    contagens = await service.contar_tarefas_por_inspecao(db, [i.id for i in inspecoes])
     resposta: list[schemas.InspecaoListItem] = []
     for inspecao in inspecoes:
-        total, concluidas, percentual = service.calcular_progresso(inspecao)
+        total, concluidas = contagens.get(inspecao.id, (0, 0))
+        percentual = round((concluidas / total) * 100) if total else 0
         item = schemas.InspecaoListItem.model_validate(inspecao).model_dump()
         item["total_tarefas"] = total
         item["tarefas_concluidas"] = concluidas
         item["progresso_percentual"] = percentual
         resposta.append(schemas.InspecaoListItem(**item))
     return resposta
+
+
+@router.get(
+    "/export",
+    summary="Exportar relatorio de inspecoes (CSV/XLSX)",
+)
+async def exportar_inspecoes(
+    db: DBSession,
+    _: CurrentUser,
+    fmt: str = Query("csv", alias="format", pattern="^(csv|xlsx)$"),
+    aeronave_id: uuid.UUID | None = Query(default=None),
+    status_inspecao: StatusInspecao | None = Query(default=None, alias="status"),
+):
+    """Exporta lista de inspecoes em CSV ou XLSX."""
+    filtros = schemas.FiltroInspecao(
+        aeronave_id=aeronave_id,
+        status=status_inspecao,
+        skip=0,
+        limit=1000,
+    )
+    inspecoes = await service.listar_inspecoes(db, filtros)
+    contagens = await service.contar_tarefas_por_inspecao(db, [i.id for i in inspecoes])
+    headers = ["Aeronave", "Tipo Inspeção", "Status", "Data Início", "Data Prevista (DPE)", "Progresso %"]
+    rows = []
+    for insp in inspecoes:
+        total, concluidas = contagens.get(insp.id, (0, 0))
+        percentual = (concluidas / total) * 100 if total else 0
+        anv = insp.aeronave.matricula if insp.aeronave else ""
+        # BUG-01: `insp.tipo_inspecao` (singular) nunca existiu no modelo — o
+        # relacionamento real é `tipos_aplicados` (lista); toda chamada a
+        # este endpoint levantava AttributeError -> 500.
+        tipo = ", ".join(t.nome for t in insp.tipos_aplicados) if insp.tipos_aplicados else ""
+        dt_ini = insp.data_inicio.strftime("%d/%m/%Y") if insp.data_inicio else ""
+        # BUG-01: `insp.dpe` também nunca existiu — o campo se chama
+        # `data_fim_prevista`.
+        dt_dpe = insp.data_fim_prevista.strftime("%d/%m/%Y") if insp.data_fim_prevista else ""
+        rows.append([anv, tipo, insp.status.value if hasattr(insp.status, "value") else str(insp.status), dt_ini, dt_dpe, f"{percentual:.1f}%"])
+
+    if fmt == "xlsx":
+        content = gerar_xlsx("Inspecoes", headers, rows)
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": 'attachment; filename="relatorio_inspecoes.xlsx"'}
+        )
+    else:
+        content_str = gerar_csv(headers, rows)
+        return Response(
+            content=content_str.encode("utf-8-sig"),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="relatorio_inspecoes.csv"'}
+        )
+
+
+@router.get(
+    "/{inspecao_id}/pdf",
+    summary="Gerar PDF da Ordem de Inspeção (OS)",
+)
+async def gerar_pdf_inspecao(
+    inspecao_id: uuid.UUID,
+    db: DBSession,
+    _: CurrentUser,
+):
+    """Gera o arquivo PDF formatado da Ordem de Inspeção com Checklist e Inventário Controlado."""
+    try:
+        pdf_bytes = await pdf_service.gerar_pdf_ordem_inspecao(db, inspecao_id)
+        filename = f"OS_Inspecao_{str(inspecao_id)[:8]}.pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+    except (ValueError, domain_exc.EntidadeNaoEncontradaError) as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get(
+    "/{inspecao_id}/checklist",
+    summary="Gerar PDF do Checklist da Inspeção",
+)
+async def gerar_checklist_inspecao(
+    inspecao_id: uuid.UUID,
+    db: DBSession,
+    _: CurrentUser,
+):
+    """Gera o arquivo PDF formatado do Checklist de Delineamento da Inspeção."""
+    try:
+        pdf_bytes = await pdf_service.gerar_pdf_checklist_inspecao(db, inspecao_id)
+        filename = f"Checklist_Inspecao_{str(inspecao_id)[:8]}.pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+    except (ValueError, domain_exc.EntidadeNaoEncontradaError) as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.get(
@@ -335,11 +402,8 @@ async def abrir_inspecao(
     db: DBSession,
     usuario_atual: EncarregadoInspetorOuAdmin,
 ) -> schemas.InspecaoOut:
-    try:
-        inspecao = await service.abrir_inspecao(db, dados, usuario_atual.id)
-        return schemas.InspecaoOut.model_validate(inspecao)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    inspecao = await service.abrir_inspecao(db, dados, usuario_atual.id)
+    return schemas.InspecaoOut.model_validate(inspecao)
 
 
 @router.put(
@@ -353,11 +417,8 @@ async def atualizar_inspecao(
     db: DBSession,
     _: EncarregadoInspetorOuAdmin,
 ) -> schemas.InspecaoOut:
-    try:
-        inspecao = await service.atualizar_inspecao(db, inspecao_id, dados)
-        return schemas.InspecaoOut.model_validate(inspecao)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    inspecao = await service.atualizar_inspecao(db, inspecao_id, dados)
+    return schemas.InspecaoOut.model_validate(inspecao)
 
 
 @router.post(
@@ -370,11 +431,8 @@ async def concluir_inspecao(
     db: DBSession,
     usuario_atual: EncarregadoInspetorOuAdmin,
 ) -> schemas.InspecaoOut:
-    try:
-        inspecao = await service.concluir_inspecao(db, inspecao_id, usuario_atual.id)
-        return schemas.InspecaoOut.model_validate(inspecao)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    inspecao = await service.concluir_inspecao(db, inspecao_id, usuario_atual.id)
+    return schemas.InspecaoOut.model_validate(inspecao)
 
 
 @router.post(
@@ -387,11 +445,8 @@ async def cancelar_inspecao(
     db: DBSession,
     _: EncarregadoInspetorOuAdmin,
 ) -> schemas.InspecaoOut:
-    try:
-        inspecao = await service.cancelar_inspecao(db, inspecao_id)
-        return schemas.InspecaoOut.model_validate(inspecao)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    inspecao = await service.cancelar_inspecao(db, inspecao_id)
+    return schemas.InspecaoOut.model_validate(inspecao)
 
 
 @router.get(
@@ -422,8 +477,5 @@ async def adicionar_tarefa_avulsa(
     db: DBSession,
     _: CurrentUser,
 ) -> schemas.InspecaoTarefaOut:
-    try:
-        tarefa = await service.adicionar_tarefa_avulsa(db, inspecao_id, dados)
-        return schemas.InspecaoTarefaOut.model_validate(tarefa)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    tarefa = await service.adicionar_tarefa_avulsa(db, inspecao_id, dados)
+    return schemas.InspecaoTarefaOut.model_validate(tarefa)

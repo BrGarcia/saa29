@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0F172A">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>{% block title %}SAA29 Mobile{% endblock %}</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/static/manifest.json">
+    
+    <!-- Design System Base & Mobile Overrides -->
+    <link rel="stylesheet" href="/static/css/index.css">
+    <link rel="stylesheet" href="/static/css/mobile.css">
+</head>
+<body class="mobile-body">
+
+    <!-- Top Bar da Linha de Voo -->
+    <header class="mobile-header">
+        <div class="mobile-header-title">
+            <span class="mobile-app-badge">SAA29</span>
+            <h1>Linha de Voo</h1>
+        </div>
+        <div class="mobile-header-actions">
+            <div class="mobile-user-badge" id="mobile-user-badge">
+                <span class="user-trigrama">{{ user.trigrama if user and user.trigrama else 'MIL' }}</span>
+            </div>
+            <button id="btn-mobile-menu" class="mobile-menu-btn" aria-label="Abrir Menu">
+                <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Overlay de Fundo (Backdrop) -->
+    <div id="mobile-menu-overlay" class="mobile-menu-overlay"></div>
+
+    <!-- Menu Sanduíche Lateral (Off-Canvas Drawer) -->
+    <aside id="mobile-menu-drawer" class="mobile-menu-drawer" aria-hidden="true">
+        <div class="mobile-drawer-header">
+            <h3>Menu SAA29</h3>
+            <button id="btn-close-mobile-menu" class="btn-close-drawer" aria-label="Fechar Menu">✕</button>
+        </div>
+        <nav class="mobile-drawer-nav">
+            <a href="/m/" class="mobile-drawer-item active">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 00-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                Linha de Voo (Início)
+            </a>
+            <a href="/dashboard" class="mobile-drawer-item">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                Modo Desktop / Dashboard
+            </a>
+            <a href="/m/publicacoes" class="mobile-drawer-item">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"></path></svg>
+                Publicações
+            </a>
+            <div class="mobile-drawer-divider"></div>
+            <div class="mobile-drawer-placeholder">
+                <span class="placeholder-label">Módulos Futuros:</span>
+                <div class="mobile-drawer-item disabled">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Relato Rápido de Pane
+                </div>
+                <div class="mobile-drawer-item disabled">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    Sincronização Offline
+                </div>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Conteúdo Principal -->
+    <main class="mobile-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Contexto Oculto para JavaScript (Conformidade CSP) -->
+    <div id="mobile-global-context"
+         data-user-trigrama="{{ user.trigrama if user and user.trigrama else '' }}"
+         style="display: none;">
+    </div>
+
+    <!-- Scripts Globais (CSP Compliant) -->
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/mobile/app_mobile.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -10,6 +10,8 @@ Estratégia (Método Akita – Dia 3):
 """
 
 import os
+import sys
+import threading
 import uuid
 import pytest
 import pytest_asyncio
@@ -20,12 +22,21 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 # Forçar storage local durante os testes
 os.environ["STORAGE_BACKEND"] = "local"
 os.environ["APP_ENV"] = "testing"
+# Chave de assinatura da suíte. O validador de Settings exige no mínimo 32
+# caracteres (app/bootstrap/config/__init__.py:144) e não abre exceção para
+# APP_ENV=testing; como o CI não tem .env, sem esta linha a importação de
+# `app.bootstrap.main` logo abaixo falha antes de qualquer teste rodar.
+# Atribuição direta (e não `setdefault`) de propósito: este arquivo é o dono
+# único de APP_SECRET_KEY durante os testes, para que o resultado não dependa
+# do .env da máquina nem de variável definida no workflow.
+os.environ["APP_SECRET_KEY"] = "saa29-suite-de-testes-chave-fixa-sem-valor-de-producao"
 
 from app.bootstrap.main import app
 from app.bootstrap.database import Base
 from app.bootstrap.dependencies import get_db, get_current_user
 from app.modules.auth.models import Usuario
 from app.modules.auth.security import hash_senha, criar_token
+from app.shared.middleware.csrf import TESTING_CSRF_BYPASS_SECRET
 
 # --- Engine de testes (SQLite in-memory) ---
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -42,6 +53,27 @@ def _enable_sqlite_pragmas(dbapi_connection, connection_record):
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.execute("PRAGMA synchronous=NORMAL")
     cursor.close()
+    # Desliga o begin/commit implícito do driver pysqlite/aiosqlite: sem isto,
+    # SAVEPOINT (`Session.begin_nested()`, usado por
+    # `calendario.service.create_event_type` e — a partir da correção do
+    # RISCO-01 — por `publicacoes.service._favoritar`/`obter_ou_criar_edicao`)
+    # é "liberado" (RELEASE SAVEPOINT) de um jeito que o driver confunde com
+    # commit implícito da transação inteira: um `session.rollback()` LOGO
+    # DEPOIS não desfaz nada, e a linha sobrevive para o próximo teste que
+    # reusa a mesma conexão do pool — poluição silenciosa entre testes,
+    # medida e reproduzida isolando `begin_nested()` num teste mínimo antes
+    # desta correção. É o workaround padrão do próprio SQLAlchemy para
+    # pysqlite (aplica-se também ao aiosqlite, que envolve o mesmo sqlite3):
+    # https://docs.sqlalchemy.org/en/20/dialects/sqlite.html#serializable-isolation-savepoints-transactional-ddl
+    dbapi_connection.isolation_level = None
+
+
+@event.listens_for(test_engine.sync_engine, "begin")
+def _sqlite_begin_explicito(conn):
+    # Par do listener acima: com `isolation_level = None`, o driver não abre
+    # transação nenhuma sozinho — o SQLAlchemy precisa pedir o `BEGIN`
+    # explicitamente aqui, ou toda escrita roda em autocommit.
+    conn.exec_driver_sql("BEGIN")
 
 TestSessionLocal = async_sessionmaker(
     bind=test_engine,
@@ -60,9 +92,30 @@ async def criar_tabelas():
     yield
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    
+
     # Fundamental para evitar que o pytest "trave" após rodar todos os testes
     await test_engine.dispose()
+
+    # Diagnóstico de processo pendurado (visto no CI: os testes terminam e
+    # imprimem "N passed", mas o processo do pytest fica vivo até o job
+    # estourar o teto de 6h do Actions e ser morto à força). O suspeito
+    # nº 1 é uma thread não-daemon que sobrevive ao dispose acima — cada
+    # conexão do aiosqlite abre a sua própria e só a fecha quando alguém
+    # chama `.close()` explicitamente. Isto não corrige o vazamento; só
+    # aponta o nome da thread no log **antes** do processo travar, para que
+    # a próxima ocorrência diga qual é a culpada em vez de só "expirou".
+    sobreviventes = [
+        t for t in threading.enumerate()
+        if t is not threading.main_thread() and not t.daemon
+    ]
+    if sobreviventes:
+        print(
+            f"\n⚠️  {len(sobreviventes)} thread(s) não-daemon sobrevive(m) ao fim "
+            "da suíte — candidata(s) a travar a saída do processo:",
+            file=sys.stderr,
+        )
+        for t in sobreviventes:
+            print(f"    - {t.name!r} (ident={t.ident}, alive={t.is_alive()})", file=sys.stderr)
 
 
 @pytest_asyncio.fixture
@@ -93,7 +146,7 @@ async def client(db: AsyncSession) -> AsyncClient:
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://testserver",
-        headers={"X-Skip-CSRF": "true"}
+        headers={"X-Skip-CSRF": TESTING_CSRF_BYPASS_SECRET}
     ) as ac:
         yield ac
 

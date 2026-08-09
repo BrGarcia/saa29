@@ -1,15 +1,35 @@
+import logging
+import secrets
+
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi_csrf_protect import CsrfProtect
 from fastapi_csrf_protect.exceptions import CsrfProtectError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.bootstrap.config import get_settings
 
+logger = logging.getLogger(__name__)
+
+# Segredo gerado uma única vez por processo, só relevante quando
+# APP_ENV=testing. Antes, o bypass dependia só do valor fixo "true" no
+# header X-Skip-CSRF — se APP_ENV=testing vazasse para produção (ambiente
+# mal configurado, típico de staging), qualquer cliente externo derrubaria
+# a proteção CSRF inteira com um header previsível. Agora o valor precisa
+# coincidir com este segredo aleatório, conhecido apenas pelo processo da
+# aplicação em memória — tests/conftest.py o importa diretamente daqui.
+TESTING_CSRF_BYPASS_SECRET = secrets.token_urlsafe(32)
+
+
 class CsrfSettings(BaseModel):
-    secret_key: str = get_settings().app_secret_key
+    # default_factory (não um valor fixo) para que secret_key/cookie_secure
+    # sejam resolvidos a cada instanciação de CsrfSettings, não uma única
+    # vez em tempo de definição da classe (import do módulo) — do jeito
+    # anterior, trocar `get_settings()` em runtime (ex.: monkeypatch em
+    # teste) não tinha efeito algum sobre esta configuração.
+    secret_key: str = Field(default_factory=lambda: get_settings().app_secret_key)
     cookie_samesite: str = "lax"
-    cookie_secure: bool = get_settings().app_env == "production"
+    cookie_secure: bool = Field(default_factory=lambda: get_settings().app_env == "production")
     # O contrato exige que o token assinado fique no cookie
     # e o token bruto seja enviado pelo Header.
     cookie_name: str = "fastapi-csrf-token"
@@ -25,50 +45,45 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         csrf_protect = CsrfProtect()
         
         # 1. Validação CSRF (Somente mutações)
-        # Bypassa validação apenas se o header de bypass estiver presente (injetado no conftest.py)
-        # Isso permite que a suite de testes de lógica funcione enquanto test_csrf.py testa a trava real.
+        # Bypassa validação apenas se o header de bypass estiver presente com o
+        # segredo correto (injetado no conftest.py). Isso permite que a suite de
+        # testes de lógica funcione enquanto test_csrf.py testa a trava real.
         settings = get_settings()
         skip_csrf = (
-            settings.app_env == "testing" 
-            and request.headers.get("X-Skip-CSRF") == "true"
+            settings.app_env == "testing"
+            and request.headers.get("X-Skip-CSRF") == TESTING_CSRF_BYPASS_SECRET
         )
 
         if request.method in ["POST", "PUT", "PATCH", "DELETE"] and not skip_csrf:
-            # Excessão para rotas de entrada de sessão
-            if request.url.path not in ["/auth/login", "/auth/logout"]:
-                try:
-                    await csrf_protect.validate_csrf(request)
-                except Exception as exc:
-                    # Retornamos 403 Forbidden para não deslogar o usuário via app.js
-                    return JSONResponse(
-                        status_code=403, 
-                        content={"detail": f"Erro de Segurança (CSRF): {str(exc)}. Recarregue a página."}
-                    )
+            # A isenção que existia aqui para /auth/login e /auth/logout foi
+            # removida: verificado que login.js já lê o token da meta tag
+            # <meta name="csrf-token"> (renderizada em base.html a partir de
+            # request.state.csrf_token, disponível na página de login antes
+            # do POST) e o envia via X-CSRF-Token; e app.js:clearAuth() já
+            # faz o mesmo para /auth/logout. A isenção não protegia nenhum
+            # fluxo real — apenas abria login CSRF (atacante força a vítima
+            # a autenticar numa conta do atacante) e logout CSRF sem
+            # necessidade.
+            try:
+                await csrf_protect.validate_csrf(request)
+            except CsrfProtectError as exc:
+                # Mensagem genérica ao cliente; detalhe fica só no log do
+                # servidor (item #6 — evita vazar informação técnica interna).
+                logger.warning("Falha de validação CSRF em %s: %s", request.url.path, exc)
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "Erro de segurança (CSRF). Recarregue a página."}
+                )
         
-        # 2. Obtenção/Geração de Tokens
-        # Reemitimos o par CSRF apenas quando:
-        # - ainda não existe cookie;
-        # - a resposta precisa renderizar HTML completo (meta tag);
-        # - o frontend já enviou um token e espera sincronização de volta.
-        # Isso evita invalidar a meta tag atual ao abrir anexos/imagens/PDFs direto no navegador.
-        csrf_cookie = request.cookies.get("fastapi-csrf-token")
-        accept = request.headers.get("accept", "").lower()
-        sec_fetch_dest = request.headers.get("sec-fetch-dest", "").lower()
-        csrf_header = request.headers.get("X-CSRF-Token")
-        is_html_navigation = "text/html" in accept or sec_fetch_dest == "document"
-        should_issue_token = (
-            request.method != "GET"
-            or not csrf_cookie
-            or is_html_navigation
-            or bool(csrf_header)
-        )
-
-        raw_token = None
-        signed_token = None
-        if should_issue_token:
-            # De acordo com a documentação, generate_csrf() retorna (csrf_token, signed_token)
-            # csrf_token -> Plain text (para o Header/Meta)
-            # signed_token -> Signed (para o Cookie)
+        # 2. Geração Inicial de Token no Request State
+        # Necessário ANTES de call_next só para o caso de a rota renderizar um
+        # template HTML que embuta o token (só acontece em GET). Para
+        # arquivos estáticos (`/static/...`) isso nunca acontece — pular a
+        # geração aqui evita trabalho desperdiçado em toda requisição de
+        # imagem/JS/CSS, que antes gerava um par de tokens só para descartar
+        # depois (should_issue_token normalmente é False para esses casos).
+        raw_token = signed_token = None
+        if not request.url.path.startswith("/static/"):
             token_pair = csrf_protect.generate_csrf()
             raw_token, signed_token = (
                 token_pair if isinstance(token_pair, tuple) else (token_pair, token_pair)
@@ -78,11 +93,31 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         # 3. Processa a requisição
         response = await call_next(request)
 
+        # 4. Obtenção/Decisão de Emissão de Tokens na Resposta
+        # Reemitimos o par CSRF no cookie e no header apenas quando:
+        # - Requisição de mutação (POST, PUT, PATCH, DELETE);
+        # - Ainda não existe cookie na sessão do usuário (primeira requisição);
+        # - O frontend enviou explicitamente o header X-CSRF-Token (sincronização via AJAX/apiFetch);
+        # - A resposta é um documento HTML completo (Content-Type text/html), onde a meta tag CSRF é renderizada.
+        # Evitamos reemitir o cookie em requisições GET para recursos não-HTML (PDF, CSV, XLSX, imagens, etc.),
+        # pois o navegador não recarrega o DOM e a meta tag ficaria dessincronizada com o cookie.
+        csrf_cookie = request.cookies.get("fastapi-csrf-token")
+        csrf_header = request.headers.get("X-CSRF-Token")
+        response_content_type = response.headers.get("content-type", "").lower()
+        is_html_response = "text/html" in response_content_type
+
+        should_issue_token = (
+            request.method != "GET"
+            or not csrf_cookie
+            or bool(csrf_header)
+            or is_html_response
+        )
+
         if should_issue_token and signed_token and raw_token:
-            # 4. Seta o cookie com o token ASSINADO (contrato correto)
+            # Seta o cookie com o token ASSINADO (contrato correto)
             csrf_protect.set_csrf_cookie(signed_token, response)
 
-            # 5. Sincroniza o token BRUTO no header para chamadas AJAX subsequentes
+            # Sincroniza o token BRUTO no header para chamadas AJAX subsequentes
             response.headers["X-CSRF-Token"] = raw_token
         
         return response

@@ -5,7 +5,6 @@ from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.equipamentos.models import ModeloEquipamento, SlotInventario, ItemEquipamento, Instalacao
 from app.modules.aeronaves.models import Aeronave
-from app.modules.auth.models import Usuario
 
 @pytest.mark.asyncio
 async def test_n_plus_one_inventario(client: AsyncClient, db: AsyncSession, usuario_e_token: dict):

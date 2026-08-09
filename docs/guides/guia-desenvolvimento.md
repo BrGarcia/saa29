@@ -147,18 +147,31 @@ Observacoes:
 - `DEFAULT_ADMIN_PASSWORD` e obrigatoria para bootstrap e seed.
 - `STORAGE_BACKEND` aceita `local` ou `r2`.
 
-## 7. Deploy Local e Railway
+## 7. Deploy Local e Producao
+
+> **Status da hospedagem (04/08/2026):** o projeto **nao tem provedor contratado**. O Railway
+> encerrou o plano gratuito e deixou de ser o alvo. O cenario de destino e uma **VPS de entrada**
+> (~1 vCPU, 4 GB RAM, ~50 GB de disco persistente); a decisao esta em aberto. Ver
+> `docs/backlog/modulo_publicacoes/opus_plano_de_incorporacao.md` §5.1 para o dimensionamento.
 
 ### Local
 
 - Use SQLite com `DATABASE_URL=sqlite+aiosqlite:///./saa29_local.db`.
 - Para arquivos, deixe `STORAGE_BACKEND=local`.
 
-### Railway
+### Producao (VPS)
 
-- Se usar SQLite em volume, a base precisa ficar em um caminho persistente.
-- Se usar R2, configure `STORAGE_BACKEND=r2` e as credenciais do bucket.
+- A base SQLite fica no **disco persistente** da VPS, no caminho montado em `/app/data`
+  (ver `docker-compose.yml`). Em VPS o disco nao e efemero: o arquivo sobrevive a reinicio e
+  a redeploy.
+- O ciclo de backup/restore no R2 (`scripts/start.sh`, `app/bootstrap/tasks.py`) continua
+  valendo, mas como **backup off-site** — nao como mecanismo de persistencia.
+- Para arquivos e anexos, `STORAGE_BACKEND=r2` com as credenciais do bucket.
 - Para PostgreSQL, use banco externo e instale `asyncpg` no ambiente.
+- **TLS e responsabilidade nossa**: sem plataforma gerenciada, e preciso um proxy na frente do
+  Gunicorn (Caddy resolve certificado Let's Encrypt automaticamente).
+- `GUNICORN_WORKERS` ajusta o numero de workers (default 2). Com 1 vCPU, **manter em 2** — a
+  carga e I/O-bound e aumentar so cria disputa pelo unico nucleo.
 
 ## 8. Gerar Chave Segura
 

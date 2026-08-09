@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi import FastAPI
@@ -15,6 +15,7 @@ from app.modules.calendario import schemas, service
 from app.modules.calendario.models import CalendarEvent, EventType
 from app.modules.calendario.router import router as calendario_router
 from app.modules.inspecoes.models import Inspecao, InspecaoEventoTipo, TipoInspecao
+from app.shared.core import exceptions as domain_exc
 from app.shared.core.enums import StatusAeronave, StatusInspecao
 
 
@@ -163,6 +164,27 @@ def test_schema_calendar_event_bloqueia_periodo_invertido():
             end_date=datetime(2026, 5, 10, 9, 0, tzinfo=timezone.utc),
             notes="Periodo invalido",
         )
+
+
+def test_schema_calendar_event_bloqueia_notes_excedente():
+    owner_id = uuid.uuid4()
+    event_type_id = uuid.uuid4()
+
+    with pytest.raises(ValidationError) as exc_info:
+        schemas.CalendarEventCreate(
+            owner_user_id=owner_id,
+            event_type_id=event_type_id,
+            start_date=datetime(2026, 5, 10, 9, 0, tzinfo=timezone.utc),
+            end_date=datetime(2026, 5, 10, 10, 0, tzinfo=timezone.utc),
+            notes="a" * 2001,
+        )
+    assert "at most 2000 characters" in str(exc_info.value)
+
+    with pytest.raises(ValidationError) as exc_info:
+        schemas.CalendarEventUpdate(
+            notes="a" * 2001,
+        )
+    assert "at most 2000 characters" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -364,3 +386,163 @@ async def test_get_eventos_agrega_dpe_de_inspecoes(db: AsyncSession):
     assert evento_dpe["source"] == "inspecao"
     assert evento_dpe["title"].startswith("DPE")
     assert evento_dpe["can_edit"] is False
+
+
+# ------------------------------------------------------------------ #
+#  BUG-02 — round-trip de timezone no SQLite
+# ------------------------------------------------------------------ #
+
+@pytest.mark.asyncio
+async def test_datas_evento_mantem_timezone_ao_reler_do_banco(db: AsyncSession):
+    """Antes, DateTime(timezone=True) no SQLite perdia o offset na leitura:
+    o valor voltava do banco como datetime naive, mesmo gravado com tzinfo.
+    Usa offset não-UTC (-03:00) para não passar "por acaso" só porque o
+    valor já nasceria em UTC."""
+    usuario = await criar_usuario_teste(db)
+    tipo = await criar_tipo_evento(db)
+    fuso = timezone(timedelta(hours=-3))
+    start = datetime(2026, 6, 1, 9, 0, tzinfo=fuso)
+    end = datetime(2026, 6, 1, 10, 0, tzinfo=fuso)
+    evento = CalendarEvent(
+        owner_user_id=usuario.id,
+        created_by_user_id=usuario.id,
+        event_type_id=tipo.id,
+        start_date=start,
+        end_date=end,
+    )
+    db.add(evento)
+    await db.flush()
+
+    # Força a releitura real das colunas a partir do banco — não do objeto
+    # Python ainda "quente" na sessão, que nunca passaria pelo result
+    # processor e mascararia o bug.
+    await db.refresh(evento, ["start_date", "end_date"])
+
+    assert evento.start_date.tzinfo is not None
+    assert evento.end_date.tzinfo is not None
+    assert evento.start_date == start  # mesmo instante absoluto
+    assert evento.end_date == end
+
+
+# ------------------------------------------------------------------ #
+#  BUG-01 — comparação aware x naive em update parcial
+# ------------------------------------------------------------------ #
+
+@pytest.mark.asyncio
+async def test_atualizar_evento_com_apenas_end_date_nao_derruba_com_typeerror(db: AsyncSession):
+    """Editar só end_date usa o start_date recarregado do banco para a
+    comparação de período — antes do BUG-02 corrigido, isso comparava um
+    datetime aware (payload) contra um naive (banco) e levantava TypeError
+    não tratado (500) em vez de aplicar a atualização."""
+    owner = await criar_usuario_teste(db, funcao="ADMINISTRADOR", trigrama="ADM")
+    tipo = await criar_tipo_evento(db)
+    evento = await criar_evento_teste(db, owner, tipo)
+
+    # Simula uma request posterior num objeto já persistido: força a
+    # releitura real das colunas de data a partir do banco.
+    db.expire(evento, ["start_date", "end_date"])
+
+    atualizado = await service.update_event(
+        db, evento.id,
+        schemas.CalendarEventUpdate(end_date=datetime(2026, 5, 10, 11, 0, tzinfo=timezone.utc)),
+        owner,
+    )
+
+    assert atualizado.end_date == datetime(2026, 5, 10, 11, 0, tzinfo=timezone.utc)
+
+
+# ------------------------------------------------------------------ #
+#  RISCO-03 — corrida de UNIQUE em EventType.name
+# ------------------------------------------------------------------ #
+
+@pytest.mark.asyncio
+async def test_criar_tipo_evento_com_nome_duplicado_levanta_valueerror_via_savepoint(db: AsyncSession):
+    """RISCO-03: sem pre-check separado, a checagem de duplicidade agora
+    acontece só no SAVEPOINT/UNIQUE — mesmo assim continua devolvendo o
+    ValueError/400 já usado pelo resto do módulo (não um novo status)."""
+    nome_alvo = f"Conflito {uuid.uuid4().hex[:6]}"
+    conflitante = EventType(name=nome_alvo, color="#000000", icon="X")
+    db.add(conflitante)
+    await db.flush()
+
+    with pytest.raises(ValueError, match="Ja existe um tipo de evento"):
+        await service.create_event_type(
+            db, schemas.EventTypeCreate(name=nome_alvo, color="#111111", icon="Y")
+        )
+
+    # Sessão segue viva: o SAVEPOINT isolou a falha, não derrubou a transação.
+    outro = await service.create_event_type(
+        db, schemas.EventTypeCreate(name=f"Outro {uuid.uuid4().hex[:6]}", color="#222222", icon="Z")
+    )
+    assert outro.id is not None
+
+
+@pytest.mark.asyncio
+async def test_atualizar_tipo_evento_com_nome_duplicado_levanta_valueerror_via_savepoint(db: AsyncSession):
+    """RISCO-03 (update): sem o SAVEPOINT/except, essa colisão vazava como
+    IntegrityError cru (500); agora vira o mesmo ValueError/400 do resto do
+    módulo. (Diferente do caso de create, reutilizar a MESMA sessão para uma
+    operação seguinte após esta falha específica de UPDATE não é coberto —
+    fora do escopo do achado, que pede só a tradução de erro.)"""
+    nome_alvo = f"Conflito {uuid.uuid4().hex[:6]}"
+    tipo_a = await criar_tipo_evento(db, name="Original")
+    tipo_b = EventType(name=nome_alvo, color="#000000", icon="X")
+    db.add(tipo_b)
+    await db.flush()
+
+    with pytest.raises(ValueError, match="Ja existe um tipo de evento"):
+        await service.update_event_type(db, tipo_a.id, schemas.EventTypeUpdate(name=nome_alvo))
+
+
+# ------------------------------------------------------------------ #
+#  MELHORIA-05 — exceções de domínio tipadas (fim de LookupError/PermissionError)
+# ------------------------------------------------------------------ #
+
+@pytest.mark.asyncio
+async def test_update_event_type_inexistente_levanta_domain_exc_tipado(db: AsyncSession):
+    with pytest.raises(domain_exc.EntidadeNaoEncontradaError):
+        await service.update_event_type(db, uuid.uuid4(), schemas.EventTypeUpdate(name="X"))
+
+
+@pytest.mark.asyncio
+async def test_create_event_para_terceiro_sem_privilegio_levanta_domain_exc_tipado(db: AsyncSession):
+    owner = await criar_usuario_teste(db, funcao="MANTENEDOR", trigrama="OWN")
+    viewer = await criar_usuario_teste(db, funcao="MANTENEDOR", trigrama="VIS")
+    tipo = await criar_tipo_evento(db)
+
+    with pytest.raises(domain_exc.PermissaoNegadaError):
+        await service.create_event(
+            db,
+            schemas.CalendarEventCreate(
+                owner_user_id=owner.id,
+                event_type_id=tipo.id,
+                start_date=datetime(2026, 5, 1, 8, 0, tzinfo=timezone.utc),
+                end_date=datetime(2026, 5, 1, 9, 0, tzinfo=timezone.utc),
+            ),
+            viewer,
+        )
+
+
+def test_get_task_events_foi_removida():
+    assert not hasattr(service, "_get_task_events")
+
+
+@pytest.mark.asyncio
+async def test_get_events_ordena_datetimes_mistas_sem_typeerror(db: AsyncSession):
+    """
+    Garante que get_events não lança TypeError quando eventos possuem datetimes
+    com misturas de timezone-aware e timezone-naive.
+    """
+    usuario = await criar_usuario_teste(db, funcao="ENCARREGADO", trigrama="ENC")
+    tipo = await criar_tipo_evento(db)
+    await criar_evento_teste(db, usuario, tipo)
+    await criar_inspecao_com_dpe(db, usuario)
+
+    eventos = await service.get_events(
+        db,
+        start_date=datetime(2026, 5, 1, 0, 0, tzinfo=timezone.utc),
+        end_date=datetime(2026, 5, 31, 23, 59, tzinfo=timezone.utc),
+        current_user=usuario,
+    )
+    assert len(eventos) >= 2
+

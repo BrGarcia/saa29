@@ -3,13 +3,13 @@ app/bootstrap/tasks.py
 Gerenciamento de tarefas em segundo plano e backups (R2).
 """
 
-import os
 import sys
 import logging
 import asyncio
 from typing import Optional
 
-from app.bootstrap.config import get_settings
+logger = logging.getLogger(__name__)
+
 
 # --- Estado Global para Backups ---
 _db_dirty: bool = False          # True quando há escrita não salva no R2
@@ -73,15 +73,15 @@ async def run_r2_backup() -> None:
         try:
             stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=60.0)
             if process.returncode == 0:
-                logging.info("[R2 Backup] %s", stdout.decode().strip())
+                logger.info("[R2 Backup] %s", stdout.decode().strip())
             else:
-                logging.warning("[R2 Backup] Falha: %s", stderr.decode().strip())
+                logger.warning("[R2 Backup] Falha: %s", stderr.decode().strip())
         except asyncio.TimeoutError:
             process.kill()
             await process.communicate()
-            logging.error("[R2 Backup] Timeout após 60 segundos.")
+            logger.error("[R2 Backup] Timeout após 60 segundos.")
     except Exception as exc:
-        logging.error("[R2 Backup] Erro inesperado: %s", exc)
+        logger.error("[R2 Backup] Erro inesperado: %s", exc)
 
 
 async def token_cleanup_task() -> None:
@@ -94,12 +94,90 @@ async def token_cleanup_task() -> None:
             async with get_session_factory()() as session:
                 await limpar_tokens_expirados(session)
                 await session.commit()
-            logging.info("[Token Cleanup] Limpeza de tokens executada com sucesso.")
+            logger.info("[Token Cleanup] Limpeza de tokens executada com sucesso.")
         except asyncio.CancelledError:
             break
         except Exception as exc:
-            logging.error("[Token Cleanup] Erro na limpeza: %s", exc)
+            logger.error("[Token Cleanup] Erro na limpeza: %s", exc)
         await asyncio.sleep(3600)  # Roda a cada 1 hora
+
+
+async def anexos_travados_cleanup_task() -> None:
+    """Marca anexos presos em 'processando' há mais de 30min como ERRO.
+
+    Mitigação mínima para a falta de durabilidade do BackgroundTasks do
+    FastAPI (relatorio_panes_service.md, item #5): sem isso, um anexo cuja
+    task de processamento não rodou (reinício/crash do processo) fica
+    eternamente como "processando" e trava a UI.
+    """
+    from app.bootstrap.database import get_session_factory
+    from app.modules.panes.service import limpar_anexos_processando_antigos
+
+    while True:
+        try:
+            async with get_session_factory()() as session:
+                quantidade = await limpar_anexos_processando_antigos(session)
+                await session.commit()
+            if quantidade:
+                logger.warning(
+                    "[Anexos Travados] %d anexo(s) preso(s) em 'processando' marcado(s) como ERRO.",
+                    quantidade,
+                )
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:
+            logger.error("[Anexos Travados] Erro na limpeza: %s", exc)
+        await asyncio.sleep(900)  # Roda a cada 15 minutos
+
+
+async def recuperar_jobs_upload_interrompidos() -> int:
+    """
+    Verifica se há jobs de upload em status PROCESSANDO cujos processos morreram (crash/restart).
+    Marca o status como FALHOU para permitir que o usuário tente novamente.
+    """
+    import os
+    from sqlalchemy import select
+    from app.bootstrap.database import get_session_factory
+    from app.modules.publicacoes.models import PublicacoesUploadJob
+    from app.shared.core.enums import StatusUploadJob
+
+    recuperados = 0
+    try:
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            jobs = (
+                await session.execute(
+                    select(PublicacoesUploadJob).where(
+                        PublicacoesUploadJob.status == StatusUploadJob.PROCESSANDO
+                    )
+                )
+            ).scalars().all()
+
+            for job in jobs:
+                processo_ativo = False
+                if job.processo_pid:
+                    try:
+                        os.kill(job.processo_pid, 0)
+                        processo_ativo = True
+                    except OSError:
+                        processo_ativo = False
+
+                if not processo_ativo:
+                    job.status = StatusUploadJob.FALHOU
+                    job.etapa = "Processo interrompido"
+                    job.erro = "Processo de tratamento interrompido pelo servidor (crash/restart). Reenvie a edição."
+                    recuperados += 1
+
+            if recuperados:
+                await session.commit()
+                logger.warning(
+                    "[Uploads] %d job(s) de upload interrompido(s) recuperado(s) e marcado(s) como FALHOU.",
+                    recuperados,
+                )
+    except Exception as exc:
+        logger.error("[Uploads] Erro na verificação de jobs interrompidos: %s", exc)
+
+    return recuperados
 
 
 def is_db_dirty() -> bool:
@@ -109,3 +187,4 @@ def is_db_dirty() -> bool:
 def get_backup_debounce_seconds() -> int:
     """Retorna o tempo de debounce configurado."""
     return _BACKUP_DEBOUNCE_SECONDS
+

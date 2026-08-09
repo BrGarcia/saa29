@@ -13,4 +13,6 @@ if __name__ == "__main__":
         cmd.append("restore")
     else:
         cmd.append("backup")
-    sys.exit(subprocess.call(cmd))
+    # noqa S603: argv totalmente controlado (sys.executable + caminho derivado
+    # de __file__ + literal "backup"/"restore"), sem shell e sem entrada externa.
+    sys.exit(subprocess.call(cmd))  # noqa: S603

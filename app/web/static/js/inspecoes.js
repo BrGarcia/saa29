@@ -1,5 +1,21 @@
+// @ts-check
+
 /**
  * Scripts para Listagem de Inspeções
+ */
+
+/**
+ * @typedef {Object} InspecaoListDTO
+ * @property {string} id
+ * @property {string} status
+ * @property {number} [progresso_percentual]
+ * @property {number} [total_tarefas]
+ * @property {number} [tarefas_concluidas]
+ * @property {string} data_abertura
+ * @property {string} [data_fim_prevista]
+ * @property {string} [aberto_por_trigrama]
+ * @property {{ matricula: string }} [aeronave]
+ * @property {{ codigo: string }[]} tipos_aplicados
  */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -19,16 +35,26 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('novaInspecaoDataInicio')?.addEventListener('change', recalcularDPE);
 });
 
+/**
+ * @returns {Promise<void>}
+ */
 async function carregarFiltros() {
-    const selectAeronave = document.getElementById('filtroAeronave');
-    const selectNovaAeronave = document.getElementById('novaInspecaoAeronave');
+    /** @type {HTMLSelectElement | null} */
+    const selectAeronave = document.querySelector('#filtroAeronave');
+    /** @type {HTMLSelectElement | null} */
+    const selectNovaAeronave = document.querySelector('#novaInspecaoAeronave');
     
+    if (!selectAeronave || !selectNovaAeronave) return;
+
     try {
         const [aeronaves, tipos] = await Promise.all([
+            // @ts-ignore
             apiFetch('/aeronaves/'),
+            // @ts-ignore
             apiFetch('/inspecoes/tipos')
         ]);
         
+        // @ts-ignore
         aeronaves.sort((a,b) => a.matricula.localeCompare(b.matricula)).forEach(a => {
             const opt = document.createElement('option');
             opt.value = a.id;
@@ -40,33 +66,50 @@ async function carregarFiltros() {
             }
         });
 
-        const selectTipos = document.getElementById('novaInspecaoTipos');
-        selectTipos.innerHTML = '';
-        tipos.filter(t => t.ativo).forEach(t => {
-            const opt = document.createElement('option');
-            opt.value = t.id;
-            opt.text = `${t.codigo} - ${t.nome}${t.duracao_dias > 0 ? ` (${t.duracao_dias}d)` : ''}`;
-            opt.dataset.duracao = t.duracao_dias || 0;
-            selectTipos.appendChild(opt);
-        });
+        /** @type {HTMLSelectElement | null} */
+        const selectTipos = document.querySelector('#novaInspecaoTipos');
+        if (selectTipos) {
+            selectTipos.innerHTML = '';
+            // @ts-ignore
+            tipos.filter(t => t.ativo).forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.text = `${t.codigo} - ${t.nome}${t.duracao_dias > 0 ? ` (${t.duracao_dias}d)` : ''}`;
+                opt.dataset.duracao = String(t.duracao_dias || 0);
+                selectTipos.appendChild(opt);
+            });
+        }
         
     } catch(e) {
+        // @ts-ignore
         showToast("Erro ao carregar filtros.", "error");
     }
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function carregarInspecoes() {
     const container = document.getElementById('lista-inspecoes');
+    if (!container) return;
+    
     container.innerHTML = '<p style="color: var(--text-secondary); text-align: center; grid-column: 1 / -1;">Carregando inspeções...</p>';
     
-    const aeronaveId = document.getElementById('filtroAeronave').value;
-    const status = document.getElementById('filtroStatus').value;
+    /** @type {HTMLSelectElement | null} */
+    const filtroAeronaveEl = document.querySelector('#filtroAeronave');
+    const aeronaveId = filtroAeronaveEl ? filtroAeronaveEl.value : "";
+    
+    /** @type {HTMLSelectElement | null} */
+    const filtroStatusEl = document.querySelector('#filtroStatus');
+    const status = filtroStatusEl ? filtroStatusEl.value : "";
     
     let url = '/inspecoes/?limit=50';
     if(aeronaveId) url += `&aeronave_id=${aeronaveId}`;
     if(status) url += `&status=${status}`;
 
     try {
+        /** @type {InspecaoListDTO[]} */
+        // @ts-ignore
         const inspecoes = await apiFetch(url);
         container.innerHTML = '';
         
@@ -89,8 +132,9 @@ async function carregarInspecoes() {
             card.style.textDecoration = 'none';
             card.style.color = 'inherit';
             
-            const pacotes = i.tipos_aplicados.map(t => t.codigo).join(' + ');
+            const pacotes = (i.tipos_aplicados || []).map(t => t.codigo).join(' + ');
 
+            // @ts-ignore
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h3 style="margin: 0; font-size: 1.25rem;">A-29 ${i.aeronave?.matricula || '---'}</h3>
@@ -111,7 +155,7 @@ async function carregarInspecoes() {
                 <div style="margin-top: auto;">
                     <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.25rem; font-weight: 500;">
                         <span>Progresso</span>
-                        <span>${i.tarefas_concluidas}/${i.total_tarefas} (${pct}%)</span>
+                        <span>${i.tarefas_concluidas || 0}/${i.total_tarefas || 0} (${pct}%)</span>
                     </div>
                     <div style="width: 100%; height: 6px; background: var(--border-color); border-radius: 3px; overflow: hidden;">
                         <div style="width: ${pct}%; height: 100%; background: ${pct === 100 ? 'var(--status-ok)' : 'var(--primary-color)'}; transition: width 0.3s ease;"></div>
@@ -126,7 +170,12 @@ async function carregarInspecoes() {
     }
 }
 
+/**
+ * @param {string} status
+ * @returns {string}
+ */
 function getStatusColor(status) {
+    /** @type {Record<string, string>} */
     const map = {
         'ABERTA': '#f39c12',
         'EM_ANDAMENTO': '#3498db',
@@ -136,37 +185,74 @@ function getStatusColor(status) {
     return map[status] || 'var(--text-secondary)';
 }
 
+/**
+ * @param {InspecaoListDTO} inspecao
+ * @returns {string}
+ */
 function _dpeCardColor(inspecao) {
     if (!inspecao.data_fim_prevista || inspecao.status === 'CONCLUIDA' || inspecao.status === 'CANCELADA') {
         return 'var(--text-secondary)';
     }
-    const diff = Math.ceil((new Date(inspecao.data_fim_prevista) - new Date()) / (1000 * 60 * 60 * 24));
+    const diff = Math.ceil((new Date(inspecao.data_fim_prevista).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
     if (diff < 0)  return 'var(--status-danger, #e74c3c)';
     if (diff <= 7) return '#f39c12';
     return 'var(--text-secondary)';
 }
 
+/**
+ * @returns {void}
+ */
 function openModalNovaInspecao() {
-    document.getElementById('modal-nova-inspecao').style.display = 'flex';
-    document.getElementById('novaInspecaoAeronave').value = '';
-    document.getElementById('novaInspecaoTipos').selectedIndex = -1;
-    document.getElementById('novaInspecaoObs').value = '';
+    const modal = document.getElementById('modal-nova-inspecao');
+    if (modal) modal.style.display = 'flex';
+    
+    /** @type {HTMLSelectElement | null} */
+    const anvSelect = document.querySelector('#novaInspecaoAeronave');
+    if (anvSelect) anvSelect.value = '';
+    
+    /** @type {HTMLSelectElement | null} */
+    const tiposSelect = document.querySelector('#novaInspecaoTipos');
+    if (tiposSelect) tiposSelect.selectedIndex = -1;
+    
+    /** @type {HTMLInputElement | null} */
+    const obsInput = document.querySelector('#novaInspecaoObs');
+    if (obsInput) obsInput.value = '';
 
     // Preencher data de início com hoje
     const hoje = new Date().toISOString().split('T')[0];
-    document.getElementById('novaInspecaoDataInicio').value = hoje;
-    document.getElementById('novaInspecaoDPE').value = '';
-    document.getElementById('novaInspecaoDPE').style.color = 'var(--text-color)';
+    
+    /** @type {HTMLInputElement | null} */
+    const startInput = document.querySelector('#novaInspecaoDataInicio');
+    if (startInput) startInput.value = hoje;
+    
+    /** @type {HTMLInputElement | null} */
+    const dpeInput = document.querySelector('#novaInspecaoDPE');
+    if (dpeInput) {
+        dpeInput.value = '';
+        dpeInput.style.color = 'var(--text-color)';
+    }
 }
 
+/**
+ * @returns {void}
+ */
 function closeModalNovaInspecao() {
-    document.getElementById('modal-nova-inspecao').style.display = 'none';
+    const modal = document.getElementById('modal-nova-inspecao');
+    if (modal) modal.style.display = 'none';
 }
 
+/**
+ * @returns {void}
+ */
 function recalcularDPE() {
-    const selectTipos = document.getElementById('novaInspecaoTipos');
-    const dataInicioInput = document.getElementById('novaInspecaoDataInicio');
-    const dpeInput = document.getElementById('novaInspecaoDPE');
+    /** @type {HTMLSelectElement | null} */
+    const selectTipos = document.querySelector('#novaInspecaoTipos');
+    /** @type {HTMLInputElement | null} */
+    const dataInicioInput = document.querySelector('#novaInspecaoDataInicio');
+    /** @type {HTMLInputElement | null} */
+    const dpeInput = document.querySelector('#novaInspecaoDPE');
+
+    if (!selectTipos || !dataInicioInput || !dpeInput) return;
 
     const selectedOptions = Array.from(selectTipos.selectedOptions);
     if (selectedOptions.length === 0 || !dataInicioInput.value) {
@@ -174,7 +260,7 @@ function recalcularDPE() {
         return;
     }
 
-    const maxDuracao = Math.max(...selectedOptions.map(o => parseInt(o.dataset.duracao, 10) || 0));
+    const maxDuracao = Math.max(...selectedOptions.map(o => parseInt(o.dataset.duracao || '0', 10) || 0));
     if (maxDuracao === 0) {
         dpeInput.value = 'Sem duração cadastrada';
         dpeInput.style.color = 'var(--status-danger)';
@@ -190,33 +276,54 @@ function recalcularDPE() {
     dpeInput.style.color = 'var(--text-color)';
 }
 
+/**
+ * @param {Event} e
+ * @returns {Promise<void>}
+ */
 async function salvarNovaInspecao(e) {
     e.preventDefault();
-    const btn = document.getElementById('btnSalvarInspecao');
-    btn.disabled = true;
+    /** @type {HTMLButtonElement | null} */
+    const btn = document.querySelector('#btnSalvarInspecao');
+    if (btn) btn.disabled = true;
 
-    const aeronave_id = document.getElementById('novaInspecaoAeronave').value;
-    const tiposSelect = document.getElementById('novaInspecaoTipos');
-    const tipos_inspecao_ids = Array.from(tiposSelect.selectedOptions).map(o => o.value);
-    const observacoes = document.getElementById('novaInspecaoObs').value.trim() || null;
-    const dataInicioRaw = document.getElementById('novaInspecaoDataInicio').value;
-    const dataDPERaw = document.getElementById('novaInspecaoDPE').value;
+    /** @type {HTMLSelectElement | null} */
+    const anvSelect = document.querySelector('#novaInspecaoAeronave');
+    const aeronave_id = anvSelect ? anvSelect.value : "";
+    
+    /** @type {HTMLSelectElement | null} */
+    const tiposSelect = document.querySelector('#novaInspecaoTipos');
+    const tipos_inspecao_ids = tiposSelect ? Array.from(tiposSelect.selectedOptions).map(o => o.value) : [];
+    
+    /** @type {HTMLInputElement | null} */
+    const obsInput = document.querySelector('#novaInspecaoObs');
+    const observacoes = obsInput ? (obsInput.value.trim() || null) : null;
+    
+    /** @type {HTMLInputElement | null} */
+    const dataInicioInput = document.querySelector('#novaInspecaoDataInicio');
+    const dataInicioRaw = dataInicioInput ? dataInicioInput.value : "";
+    
+    /** @type {HTMLInputElement | null} */
+    const dpeInput = document.querySelector('#novaInspecaoDPE');
+    const dataDPERaw = dpeInput ? dpeInput.value : "";
 
     // Converter yyyy-MM-dd -> ISO 8601 com horário local em UTC (meio-dia para evitar drift de fuso)
     const data_inicio = dataInicioRaw ? new Date(dataInicioRaw + 'T12:00:00').toISOString() : null;
     const data_fim_prevista = dataDPERaw ? new Date(dataDPERaw + 'T12:00:00').toISOString() : null;
 
     if (!aeronave_id || tipos_inspecao_ids.length === 0) {
+        // @ts-ignore
         showToast("Selecione a aeronave e pelo menos 1 tipo de inspeção.", "error");
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
         return;
     }
 
     try {
+        // @ts-ignore
         const resp = await apiFetch('/inspecoes/', {
             method: 'POST',
             body: { aeronave_id, tipos_inspecao_ids, observacoes, data_inicio, data_fim_prevista }
         });
+        // @ts-ignore
         showToast("Inspeção aberta com sucesso!", "success");
         closeModalNovaInspecao();
         
@@ -226,7 +333,8 @@ async function salvarNovaInspecao(e) {
         }, 1000);
         
     } catch(err) {
+        // @ts-ignore
         showToast(err.message || "Erro ao abrir inspeção.", "error");
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }

@@ -3,12 +3,19 @@ app/pages/router.py
 Rotas do Frontend (Jinja2 Templates). Servindo o MVP de Interface.
 """
 
-from fastapi import APIRouter, Request, Depends, status
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from app.bootstrap.dependencies import get_current_user, require_role, AdminRequired
+from app.bootstrap.dependencies import get_current_user, AdminRequired, DBSession
+from app.modules.publicacoes import service as publicacoes_service
 
 router = APIRouter(tags=["Frontend"])
+
+# Sentinela de URL para `capitulo == ""` (PDFs soltos na raiz do manual, caso
+# medido na edição `piloto-fim`) — um segmento de path vazio não roteia, e
+# nenhum capítulo real do acervo usa este nome (Etapa 2 de
+# docs/backlog/modulo_publicacoes/09_plano_configuracoes.md).
+CAPITULO_RAIZ_SLUG = "_raiz_"
 
 # Diretório base dos templates (raiz do repositório)
 templates = Jinja2Templates(directory="app/web/templates")
@@ -86,8 +93,132 @@ async def calendario_page(request: Request, _=Depends(get_current_user)):
     return templates.TemplateResponse("calendario.html", {"request": request})
 
 
+@router.get("/publicacoes", response_class=HTMLResponse, include_in_schema=False)
+async def publicacoes_lista_page(request: Request, _=Depends(get_current_user)):
+    """
+    Explorador do acervo: árvore Categoria → Manual → Capítulo, busca por
+    nome/conteúdo, resolução de mensagem do FIM. Client-fetch puro em
+    `publicacoes_explorador.js` sobre `GET /api/manuais` e os demais
+    endpoints de `app/modules/publicacoes` — esta rota não toca o banco.
+    """
+    return templates.TemplateResponse("publicacoes/lista.html", {"request": request})
+
+
+@router.get("/publicacoes/viewer/{doc_id}", response_class=HTMLResponse, include_in_schema=False)
+async def publicacoes_viewer_page(request: Request, doc_id: str, _=Depends(get_current_user)):
+    """
+    Viewer de PDF em canvas (PDF.js) — nunca iframe (D-F). Zoom, ajuste à
+    largura/página, rotação, tela cheia, miniaturas sob demanda e busca de
+    texto dentro do documento (`publicacoes_viewer.js`).
+
+    `doc_id: str`, não `uuid.UUID`: um id malformado só falha quando o JS
+    chama a API (`/api/documentos/{doc_id}`, que aí sim valida), não aqui —
+    a página trata o erro no cliente em vez de devolver 422 de path.
+    """
+    return templates.TemplateResponse(
+        "publicacoes/viewer.html", {"request": request, "doc_id": doc_id}
+    )
+
+
+@router.get("/publicacoes/avulsas", response_class=HTMLResponse, include_in_schema=False)
+async def publicacoes_avulsas_page(request: Request, _=Depends(get_current_user)):
+    """Lista/filtros/cadastro de BO/BS/NPO/BT (acervo B, M2)."""
+    return templates.TemplateResponse("publicacoes/avulsas.html", {"request": request})
+
+
+# Declaradas depois de /publicacoes/avulsas e /publicacoes/viewer/{doc_id}, seguindo
+# a convenção de rotas estáticas antes das paramétricas no mesmo nível
+# (equipamentos/router.py:194-195) — não há colisão real (segmentos literais
+# distintos), mas mantém o padrão do projeto.
+@router.get("/publicacoes/manuais/{codigo}", response_class=HTMLResponse, include_in_schema=False)
+async def publicacoes_manual_page(
+    request: Request, codigo: str, db: DBSession, _=Depends(get_current_user)
+):
+    """Capítulos de um manual da edição vigente (Etapa 2 — lacuna do M1)."""
+    dados = await publicacoes_service.obter_manual_com_capitulos(db, codigo)
+    return templates.TemplateResponse(
+        "publicacoes/manual.html",
+        {
+            "request": request,
+            "manual": dados["manual"],
+            "capitulos": dados["capitulos"],
+            "capitulo_raiz_slug": CAPITULO_RAIZ_SLUG,
+        },
+    )
+
+
+@router.get(
+    "/publicacoes/manuais/{codigo}/{capitulo}",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+async def publicacoes_capitulo_page(
+    request: Request,
+    codigo: str,
+    capitulo: str,
+    db: DBSession,
+    _=Depends(get_current_user),
+    offset: int = 0,
+    limit: int = 50,
+):
+    """
+    Documentos de um capítulo, paginados por query string — `?offset=`/`?limit=`
+    na própria URL, para não perder a propriedade de URL compartilhável.
+    """
+    offset = max(0, offset)
+    limit = max(1, min(limit, 100))
+    capitulo_real = "" if capitulo == CAPITULO_RAIZ_SLUG else capitulo
+
+    manual = await publicacoes_service.obter_cabecalho_manual(db, codigo)
+    total, documentos = await publicacoes_service.listar_documentos_do_manual(
+        db, codigo, capitulo=capitulo_real, limit=limit, offset=offset
+    )
+    return templates.TemplateResponse(
+        "publicacoes/capitulo.html",
+        {
+            "request": request,
+            "manual": manual,
+            "capitulo": capitulo_real,
+            "capitulo_slug": capitulo,
+            "documentos": [
+                {
+                    "id": doc.id,
+                    "titulo": doc.titulo,
+                    "paginas": doc.paginas,
+                    "has_text": doc.has_text,
+                    "viewer_url": f"/publicacoes/viewer/{doc.id}",
+                }
+                for doc in documentos
+            ],
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+        },
+    )
+
+
 @router.get("/configuracoes", response_class=HTMLResponse, include_in_schema=False)
 async def configuracoes_page(request: Request, _: AdminRequired):
     """Página de Configurações do Sistema - Admin"""
     return templates.TemplateResponse("configuracoes.html", {"request": request})
+
+
+# --- ROTAS MOBILE (/m/) ---
+
+@router.get("/m/", response_class=HTMLResponse, include_in_schema=False)
+@router.get("/m", response_class=HTMLResponse, include_in_schema=False)
+async def mobile_frota_page(request: Request, user=Depends(get_current_user)):
+    """Dashboard Cockpit Mobile — Lista de Frota para Linha de Voo."""
+    return templates.TemplateResponse("mobile/frota.html", {"request": request, "user": user})
+
+
+@router.get("/m/aeronave/{aeronave_id}", response_class=HTMLResponse, include_in_schema=False)
+async def mobile_tarefas_aeronave_page(request: Request, aeronave_id: str, user=Depends(get_current_user)):
+    """Lista de Tarefas e Panes da Aeronave para Mantenedor em 1 Toque."""
+    return templates.TemplateResponse("mobile/tarefas_aeronave.html", {
+        "request": request,
+        "aeronave_id": aeronave_id,
+        "user": user
+    })
+
 

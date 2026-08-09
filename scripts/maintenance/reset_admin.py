@@ -10,10 +10,6 @@ from sqlalchemy import select
 load_dotenv()
 
 # Importar TODOS os modelos para o SQLAlchemy resolver relacionamentos
-import app.modules.auth.models
-import app.modules.aeronaves.models
-import app.modules.equipamentos.models
-import app.modules.panes.models
 
 from app.modules.auth.models import Usuario
 
@@ -50,7 +46,7 @@ async def reset_admin():
         admin.senha_hash = hash_senha(admin_pass)
         
         await session.commit()
-        print(f"✅ Senha resetada com sucesso para o valor do .env!")
+        print("✅ Senha resetada com sucesso para o valor do .env!")
 
 if __name__ == "__main__":
     asyncio.run(reset_admin())

@@ -2,7 +2,6 @@ import pytest
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.aeronaves.models import Aeronave
-from app.modules.auth.models import Usuario
 
 # --- Módulos que serão criados/refatorados ---
 # from app.shared.core import helpers # Planejado

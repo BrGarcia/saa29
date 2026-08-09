@@ -10,9 +10,12 @@ try:
     import pillow_heif
 
     pillow_heif.register_heif_opener()
-except Exception:
+except Exception:  # noqa: S110
     # Se pillow-heif não estiver instalado, o validador ainda funciona
     # para formatos que o Pillow abre nativamente.
+    # noqa S110: o silêncio é proposital — é detecção de dependência opcional
+    # em tempo de import, antes de o logging estar configurado. Logar aqui
+    # geraria ruído em toda inicialização de ambiente sem HEIC.
     pass
 
 

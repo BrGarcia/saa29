@@ -1,0 +1,211 @@
+## ============================================================
+## SAA29 — Módulo `publicacoes`
+## Mapa estático de categoria e descrição por manual do acervo A.
+## ============================================================
+##
+## POR QUE ESTE ARQUIVO EXISTE
+## O sistema legado categorizava os manuais por um `manual_type.xml` que o
+## acervo real NÃO possui (01_achados_do_acervo.md §2 — não há sidecar de
+## nenhum tipo). Sem ele, a categorização vira um mapa mantido no repositório.
+## É o que a RN-04 reformulada prevê (03_especificacao_tecnica.md §2.3).
+##
+## DE ONDE VÊM AS DESCRIÇÕES
+## Não foram inventadas: cada `descricao_pt` foi conferida contra o título dos
+## próprios documentos, lido do índice Lucene legado (`index_2.0/`) de cada
+## manual. Ex.: CPM_1740 traz um documento intitulado "cpm-1740 - manual de
+## prevenção de corrosão"; CPC_1739 traz "catálogo de produtos consumíveis".
+## Onde o índice não nomeia a publicação (os OTFN cujo título é o placeholder
+## "ase, do not delete this file..."), a descrição foi derivada da designação
+## da própria ordem técnica.
+##
+## CHAVE = nome do diretório em PUBLICACOES_ACERVO_DIR/Manuais/, exato.
+##
+## FALLBACK: manual sem entrada aqui cai em [_default] e é indexado
+## normalmente — este arquivo NUNCA quebra a indexação (E-04). É por isso que
+## ele pode ser preenchido de forma incremental quando chegarem manuais novos.
+##
+## STATUS DOS RÓTULOS DE `categoria`: provisórios. A decisão D-01 (rótulos
+## definitivos, validados com a seção) segue em aberto e não bloqueia nenhum
+## marco até o M4 — ver 05_rastreabilidade_externa.md. Trocar um rótulo aqui
+## é uma edição de texto seguida de reindexação; não há migration envolvida.
+
+# ------------------------------------------------------------
+# Manutenção — 7 manuais
+# ------------------------------------------------------------
+
+[AMM_PART1_1651]
+categoria = "Manutenção"
+descricao_pt = "AMM Parte I — Manual de Manutenção da Aeronave (descrição de sistemas)"
+
+[AMM_PART2_1651]
+categoria = "Manutenção"
+descricao_pt = "AMM Parte II — Manual de Manutenção da Aeronave (práticas de manutenção)"
+
+[FIM_1741]
+categoria = "Manutenção"
+descricao_pt = "FIM — Manual de Pesquisa de Panes (isolamento de falhas)"
+
+[CPM_1740]
+categoria = "Manutenção"
+descricao_pt = "CPM — Manual de Prevenção de Corrosão"
+
+[MPD_1746]
+categoria = "Manutenção"
+descricao_pt = "MPD — Plano de Manutenção (programada, estrutural e zonal)"
+
+[CMM_EMBRAERALX]
+categoria = "Manutenção"
+descricao_pt = "ACMM — Manuais Simplificados de Manutenção de Componentes (Embraer)"
+
+[CMM_VALX]
+categoria = "Manutenção"
+descricao_pt = "CMM/IPL — Manuais de Manutenção de Componentes de Fornecedores"
+
+# ------------------------------------------------------------
+# Estruturas — 3 manuais
+# ------------------------------------------------------------
+
+[SRM_PART1_1747]
+categoria = "Estruturas"
+descricao_pt = "SRM Parte I — Manual de Reparos Estruturais"
+
+[SRM_PART2_1747]
+categoria = "Estruturas"
+descricao_pt = "SRM Parte II — Manual de Reparos Estruturais"
+
+[NDT_1745]
+categoria = "Estruturas"
+descricao_pt = "NDT — Manual de Inspeções Não-Destrutivas"
+
+# ------------------------------------------------------------
+# Elétrica — 3 manuais
+# ------------------------------------------------------------
+
+[WM_1647]
+categoria = "Elétrica"
+descricao_pt = "WM — Manual de Fiação (diagramas elétricos por sistema)"
+
+[SSM_1748]
+categoria = "Elétrica"
+descricao_pt = "SSM — Manual de Diagramas Esquemáticos dos Sistemas"
+
+[SWPM_1749]
+categoria = "Elétrica"
+descricao_pt = "SWPM — Manual de Práticas-Padrão de Reparos em Cablagem"
+
+# ------------------------------------------------------------
+# Peças — 1 manual
+# ------------------------------------------------------------
+
+[AIPC_1742]
+categoria = "Peças"
+descricao_pt = "AIPC — Catálogo Ilustrado de Peças da Aeronave"
+
+# ------------------------------------------------------------
+# Ferramental e Consumíveis — 2 manuais
+# ------------------------------------------------------------
+
+[ITEM_1743]
+categoria = "Ferramental e Consumíveis"
+descricao_pt = "ITEM — Manual de Ferramentas e Equipamentos de Apoio no Solo"
+
+[CPC_1739]
+categoria = "Ferramental e Consumíveis"
+descricao_pt = "CPC — Catálogo de Produtos Consumíveis"
+
+# ------------------------------------------------------------
+# Referência — 1 manual
+# ------------------------------------------------------------
+
+[LOAP_1744]
+categoria = "Referência"
+descricao_pt = "LOAP — Lista de Publicações Aplicáveis"
+
+# ------------------------------------------------------------
+# Ordens Técnicas — 17 publicações
+#
+# Não são "manuais" no sentido do acervo TechPubs: são boletins de modificação
+# numerados. Ficam no mesmo acervo A porque compartilham origem, estrutura de
+# diretório e ausência de sidecar (01_achados_do_acervo.md §1.1), mas a
+# categoria própria existe para que possam ser filtrados à parte na busca.
+# ------------------------------------------------------------
+
+[OTFN1A29A21_0001]
+categoria = "Ordens Técnicas"
+descricao_pt = "OTFN 1A-29A-21"
+
+[OTFN1A29B21_0002]
+categoria = "Ordens Técnicas"
+descricao_pt = "OTFN 1A-29B-21"
+
+[OTFN1A29AB5_0001]
+categoria = "Ordens Técnicas"
+descricao_pt = "OTFN 1A-29A/B-5 — Verificações de Peso Básico e Dados de Carregamento"
+
+[OTFN1A29AB6LC_0001]
+categoria = "Ordens Técnicas"
+descricao_pt = "OTFN 1A-29A/B-6LC — Lista de Cartões"
+
+[OTFN1A29AB39_0001]
+categoria = "Ordens Técnicas"
+descricao_pt = "OTFN 1A-29A/B-39"
+
+[OTFN1A29AB3311_0001]
+categoria = "Ordens Técnicas"
+descricao_pt = "OTFN 1A-29A/B-33-1-1"
+
+[OTFN1A29AB3312_0002]
+categoria = "Ordens Técnicas"
+descricao_pt = "OTFN 1A-29A/B-33-1-2"
+
+[OTFN1A29AB3312CL1_0001]
+categoria = "Ordens Técnicas"
+descricao_pt = "OTFN 1A-29A/B-33-1-2CL-1 — Cartão de Trabalho 1"
+
+[OTFN1A29AB3312CL2_0002]
+categoria = "Ordens Técnicas"
+descricao_pt = "OTFN 1A-29A/B-33-1-2CL-2 — Cartão de Trabalho 2"
+
+[OTFN1A29AB3312CL3_0003]
+categoria = "Ordens Técnicas"
+descricao_pt = "OTFN 1A-29A/B-33-1-2CL-3 — Cartão de Trabalho 3"
+
+[OTFN1A29AB3312CL4_0004]
+categoria = "Ordens Técnicas"
+descricao_pt = "OTFN 1A-29A/B-33-1-2CL-4 — Cartão de Trabalho 4"
+
+[OTFN1A29AB3312CL5_0005]
+categoria = "Ordens Técnicas"
+descricao_pt = "OTFN 1A-29A/B-33-1-2CL-5 — Cartão de Trabalho 5"
+
+[OTFN1A29AB3312CL6_0006]
+categoria = "Ordens Técnicas"
+descricao_pt = "OTFN 1A-29A/B-33-1-2CL-6 — Cartão de Trabalho 6"
+
+[OTFN1A29AB3312CL7_0007]
+categoria = "Ordens Técnicas"
+descricao_pt = "OTFN 1A-29A/B-33-1-2CL-7 — Cartão de Trabalho 7"
+
+[OTFN1A29AB3312CL8_0008]
+categoria = "Ordens Técnicas"
+descricao_pt = "OTFN 1A-29A/B-33-1-2CL-8 — Cartão de Trabalho 8"
+
+[OTFN1A29AB3312CL9_0009]
+categoria = "Ordens Técnicas"
+descricao_pt = "OTFN 1A-29A/B-33-1-2CL-9 — Cartão de Trabalho 9"
+
+[OTFN3200A29AB4_0001]
+categoria = "Ordens Técnicas"
+descricao_pt = "OTFN 32-00A-29A/B-4 — Manuseio e Serviços de Solo"
+
+# ------------------------------------------------------------
+# Fallback (E-04)
+#
+# O indexador substitui "{codigo}" pelo nome do diretório do manual. Não
+# remover esta seção: é ela que garante que um manual desconhecido seja
+# indexado em vez de derrubar o lote.
+# ------------------------------------------------------------
+
+[_default]
+categoria = "Outros"
+descricao_pt = "{codigo}"

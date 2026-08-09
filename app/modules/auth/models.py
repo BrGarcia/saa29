@@ -6,7 +6,7 @@ Modelo ORM para Usuários (Efetivo) do sistema SAA29.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, DateTime, func
+from sqlalchemy import ForeignKey, String, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.bootstrap.database import Base
@@ -108,6 +108,12 @@ class Usuario(Base):
     )
 
     # --- Relacionamentos (definidos nos módulos dependentes) ---
+    # RISCO-21: lazy="select" é carregamento lazy SÍNCRONO — sob AsyncSession,
+    # acessar qualquer um destes atributos fora de um contexto já resolvido
+    # (ex: por um `selectinload` explícito no service, ou implicitamente via
+    # `Schema.model_validate()`) levanta `MissingGreenlet`. Nenhum código
+    # atual de `auth` os acessa; se um novo endpoint precisar deles, use
+    # `selectinload(Usuario.<relacionamento>)` explicitamente na query.
     panes_criadas: Mapped[list] = relationship(
         "Pane",
         foreign_keys="Pane.criado_por_id",
@@ -195,6 +201,7 @@ class TokenRefresh(Base):
         comment="ID único do refresh token"
     )
     usuario_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"),
         index=True,
         nullable=False,
         comment="Referência ao usuário"

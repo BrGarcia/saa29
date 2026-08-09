@@ -11,7 +11,9 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 
 from app.bootstrap.config import get_settings
-from app.bootstrap import tasks, seed
+from app.bootstrap import tasks
+
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -28,29 +30,38 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 2. Startup: Criar diretórios de infraestrutura
     os.makedirs(current_settings.upload_dir, exist_ok=True)
     
-    # 4. Configurar Event-Driven Backup (R2)
+    # 3. Configurar Event-Driven Backup (R2)
     if current_settings.storage_backend.lower() == "r2" and current_settings.r2_bucket_name:
         from sqlalchemy import event as sa_event
         from sqlalchemy.orm import Session
         sa_event.listen(Session, "after_commit", tasks.mark_db_dirty)
-        logging.info(
+        logger.info(
             "[R2 Backup] Backup orientado a eventos ativo (debounce: %ds).", 
             tasks.get_backup_debounce_seconds()
         )
 
-    # 5. Iniciar Tarefas em Segundo Plano
+    # 4. Iniciar Tarefas em Segundo Plano
     cleanup_task = asyncio.create_task(tasks.token_cleanup_task())
+    anexos_cleanup_task = asyncio.create_task(tasks.anexos_travados_cleanup_task())
+    await tasks.recuperar_jobs_upload_interrompidos()
 
     yield
 
-    # 6. Shutdown: Cancelar tasks de background
+    # 5. Shutdown: Cancelar tasks de background e aguardar o cancelamento
+    # efetivo antes de seguir — `.cancel()` sozinho só sinaliza; sem o
+    # `await`, dispose_engine() (passo 8) podia rodar enquanto uma task
+    # ainda estava no meio de uma query, gerando erros ruidosos no shutdown
+    # e, no pior caso, uma transação interrompida. As tasks já tratam
+    # `CancelledError` internamente, então aguardá-las aqui é seguro.
     cleanup_task.cancel()
+    anexos_cleanup_task.cancel()
+    await asyncio.gather(cleanup_task, anexos_cleanup_task, return_exceptions=True)
 
-    # 7. Shutdown: Backup final se houver dados não persistidos no R2
+    # 6. Shutdown: Backup final se houver dados não persistidos no R2
     if tasks.is_db_dirty() and current_settings.storage_backend.lower() == "r2" and current_settings.r2_bucket_name:
-        logging.info("[R2 Backup] Shutdown com dados não salvos — executando backup final...")
+        logger.info("[R2 Backup] Shutdown com dados não salvos — executando backup final...")
         await tasks.run_r2_backup()
 
-    # 8. Shutdown: Fechar engine de banco de dados
+    # 7. Shutdown: Fechar engine de banco de dados
     from app.bootstrap.database import dispose_engine
     await dispose_engine()

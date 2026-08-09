@@ -16,8 +16,7 @@ from app.bootstrap.database import Base
 from app.shared.core.enums import StatusAeronave
 
 if TYPE_CHECKING:
-    from app.modules.equipamentos.models import Instalacao
-    from app.modules.panes.models import Pane
+    pass
 
 
 class Aeronave(Base):
@@ -70,6 +69,13 @@ class Aeronave(Base):
         nullable=False,
         default=StatusAeronave.DISPONIVEL,
         comment="Status operacional: DISPONIVEL | INDISPONIVEL | INSPEÇÃO | ESTOCADA | INATIVA",
+    )
+    status_anterior_inativacao: Mapped[StatusAeronave | None] = mapped_column(
+        Enum(StatusAeronave, native_enum=False, length=20),
+        nullable=True,
+        comment="Status imediatamente anterior à inativação (RISCO-05, "
+        "achados_aeronaves.md) — restaurado ao reativar via toggle-status, "
+        "em vez de sempre voltar para DISPONIVEL.",
     )
 
     # --- Controle de Horas e Tempo ---

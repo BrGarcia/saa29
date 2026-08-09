@@ -8,7 +8,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import model_validator, Field
 from functools import lru_cache
 import warnings
-import os
 
 
 class Settings(BaseSettings):
@@ -30,10 +29,26 @@ class Settings(BaseSettings):
         default="",
         description="Secret key for JWT encoding. MUST be set securely."
     )
+    force_secure_cookies: bool = Field(
+        default=False,
+        description=(
+            "Força o atributo Secure nos cookies de sessão mesmo quando "
+            "app_env != 'production' — para ambientes intermediários "
+            "(staging/homolog) servidos via HTTPS."
+        ),
+    )
 
     # --- Usuário Inicial ---
     default_admin_user: str = "admin"
     default_admin_password: str | None = None
+    admin_password_reset: bool = Field(
+        default=False,
+        description=(
+            "Flag temporária para o cenário de restore de banco: quando "
+            "True, garantir_usuarios_essenciais redefine a senha do admin "
+            "para o valor de default_admin_password no próximo boot/seed."
+        ),
+    )
 
     # --- Banco de Dados ---
     # Padrão: SQLite para instalação local ou produção básica (monolito).
@@ -48,6 +63,15 @@ class Settings(BaseSettings):
         default=15,
         description="JWT token expiry in minutes (AUD-18: reduced from 480 to 15)"
     )
+    refresh_token_expire_days: int = Field(
+        default=7,
+        description=(
+            "Validade do refresh token, usada para expirar o JWT, o registro "
+            "TokenRefresh.expira_em e o max_age do cookie saa29_refresh_token "
+            "— fonte única para os três, que antes tinham o valor 7 hardcoded "
+            "em separado em security.py e router.py e podiam divergir."
+        ),
+    )
 
     # --- Upload e Storage ---
     upload_dir: str = "var/uploads"
@@ -61,6 +85,47 @@ class Settings(BaseSettings):
     r2_endpoint: str | None = None
     r2_bucket_name: str | None = None
 
+    # --- Módulo Publicações ---
+    publicacoes_acervo_dir: str = Field(
+        default="var/publicacoes/acervo",
+        description="Diretório dos PDFs do acervo — dev e produção (VPS com disco persistente)."
+    )
+    publicacoes_index_path: str = Field(
+        default="var/publicacoes/catalog.db",
+        description=(
+            "SQLite dedicado do índice de busca full-text — deliberadamente FORA do "
+            "database_url: é aberto com sqlite3 puro em modo somente-leitura, nunca "
+            "por SQLAlchemy, para não disparar o listener de backup R2 (ADR-004). "
+            "Cumpre DOIS papéis: (a) seu DIRETÓRIO é onde ficam os índices por "
+            "edição, `catalog.<rotulo>.db`, que é o que a busca abre de fato; "
+            "(b) o arquivo em si é o índice legado, usado só como fallback por "
+            "instalações indexadas antes da resolução por edição."
+        )
+    )
+    publicacoes_categorias_path: str = Field(
+        default="config/categorias_manuais.toml",
+        description=(
+            "Mapa estático de categoria/descrição por manual — substitui o "
+            "manual_type.xml que o acervo real não possui."
+        )
+    )
+    publicacoes_avulsas_max_upload_mb: float = Field(
+        default=50.0,
+        description=(
+            "Limite de anexo das publicações avulsas. Separado de max_upload_size_mb "
+            "(0.5 MB), que vale para foto de pane e não muda: BS escaneado é PDF "
+            "grande e não passa pelo pipeline de imagem."
+        )
+    )
+    publicacoes_edicoes_retidas: int = Field(
+        default=2,
+        description="M4 — quantas edições ficam online simultaneamente (vigente + anterior)."
+    )
+    publicacoes_snapshots_retidos: int = Field(
+        default=3,
+        description="M4 — quantos snapshots ZIP de edição são mantidos no R2."
+    )
+
     # --- CORS / SEGURANÇA ---
     # Aceita lista via JSON ou string separada por vírgula
     allowed_origins: list[str] | str = ["*"]
@@ -70,6 +135,14 @@ class Settings(BaseSettings):
     enable_dev_seeds: bool = Field(
         default=False,
         description="Permite carregar dados de teste (panes, inspeções, etc) durante o seed."
+    )
+    enable_test_users: bool = Field(
+        default=False,
+        description=(
+            "Segundo gatilho explícito (além de APP_ENV=development) exigido para criar as contas de "
+            "teste (encarregado/inspetor/mantenedor) em garantir_usuarios_essenciais. Documentado em "
+            ".env.example, mas não existia como campo de Settings até esta correção."
+        ),
     )
 
     @model_validator(mode="after")
@@ -97,9 +170,11 @@ class Settings(BaseSettings):
         3. Warn if debug=True in production
         """
         # CRITICAL: Secret key validation (AUD-08)
+        # noqa S105: a literal abaixo e justamente o valor inseguro que este
+        # bloco existe para REJEITAR — nao e uma credencial embutida.
         if not self.app_secret_key or \
            self.app_secret_key == "INSECURE_DEFAULT_SECRET_KEY_CHANGE_ME_IN_PRODUCTION" or \
-           "INSECURE" in self.app_secret_key:
+           "INSECURE" in self.app_secret_key:  # noqa: S105
             raise ValueError(
                 "CRITICAL SECURITY ERROR: APP_SECRET_KEY is not set or uses insecure default.\n"
                 "  - This allows attackers to forge JWT tokens.\n"
@@ -128,7 +203,10 @@ class Settings(BaseSettings):
             if self.app_debug:
                 warnings.warn(
                     "Running in development mode with debug=True (allowed but not for production)",
-                    UserWarning
+                    UserWarning,
+                    # stacklevel=2 aponta o aviso para quem instanciou Settings,
+                    # nao para esta linha do validador.
+                    stacklevel=2,
                 )
         
         return self

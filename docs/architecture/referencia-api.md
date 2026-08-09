@@ -697,18 +697,47 @@ Response `200`: `AjusteInventarioResponse`
 
 ---
 
-## 7. Enums Principais
+---
+
+## 8. Inspeções
+
+Base: `/inspecoes`
+
+### `GET /inspecoes`
+Lista todas as inspeções cadastradas com suporte a filtros (`aeronave_id`, `status`).
+
+### `POST /inspecoes`
+Abre uma nova inspeção para uma aeronave com um ou mais tipos de inspeção aplicados.
+Permissão: `ENCARREGADO` ou `ADMINISTRADOR`.
+
+### `GET /inspecoes/{id}`
+Detalha uma inspeção específica, retornando tarefas, aeronave e auditoria.
+
+### `GET /inspecoes/{id}/pdf`
+Gera o PDF formatado da **Ordem de Serviço (OS)** da inspeção (A4 Retrato) contendo cabeçalho, checklist com tarefas, vencimentos controlados e matriz de inventário completo.
+Retorna: `application/pdf` (Header `Content-Disposition: attachment`).
+
+### `GET /inspecoes/{id}/checklist`
+Gera o PDF formatado do **Checklist de Delineamento** da inspeção (A4 Retrato) alinhado ao padrão `docs/CHECKLIST Delineamento A-29.pdf`, pré-preenchendo cabeçalho da aeronave/inspeção, checklist de tarefas, tabela de Vencimentos e Calibrações Controladas da Aeronave, inspeção visual, checks dos sistemas (1P/2P) e bloco de visto do inspetor.
+Retorna: `application/pdf` (Header `Content-Disposition: attachment`).
+
+### `GET /inspecoes/export`
+Exporta o relatório consolidado de inspeções nos formatos CSV ou XLSX (`?formato=csv` ou `?formato=xlsx`).
+
+---
+
+## 9. Enums Principais
 
 - `StatusPane`: `ABERTA`, `RESOLVIDA`
 - `StatusAeronave`: `OPERACIONAL`, `INDISPONIVEL`, `INATIVA`
 - `StatusItem`: `ATIVO`, `ESTOQUE`, `REMOVIDO`
 - `StatusVencimento`: `OK`, `VENCENDO`, `VENCIDO`
 - `OrigemControle`: `PADRAO`, `ESPECIFICO`
-- `TipoPapel`: `MANTENEDOR`, `ENCARREGADO`, `ADMINISTRADOR`
+- `TipoPapel`: `MANTENEDOR`, `INSPETOR`, `ENCARREGADO`, `ADMINISTRADOR`
 - `TipoAnexo`: `IMAGEM`, `DOCUMENTO`
+- `StatusInspecao`: `ABERTA`, `EM_ANDAMENTO`, `CONCLUIDA`, `CANCELADA`
 
-## 8. Observacao Final
+## 10. Observacao Final
 
-Esta pagina documenta a API real do projeto atual. Se houver mudanca em rotas, schemas ou permissao por papel, a referencia deve ser atualizada junto do codigo de `app/modules/*`.
+Esta página documenta a API ativa e sincronizada do projeto SAA29. Todos os módulos (`auth`, `aeronaves`, `panes`, `equipamentos`, `vencimentos`, `inspecoes`, `calendario`, `dashboard`) estão totalmente registrados e integrados.
 
-Nota: o modulo `app/modules/inspecoes` possui router isolado em desenvolvimento, mas ainda nao esta registrado no bootstrap principal. Seus endpoints nao fazem parte da API ativa ate que a ativacao seja feita explicitamente.

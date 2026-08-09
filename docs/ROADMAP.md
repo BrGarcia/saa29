@@ -7,8 +7,8 @@
 ## 📊 Visão Geral do Ciclo de Vida
 
 ```
-v1.x: Estabilização e UX   ██ Concluído/Refinando
-v2.0: Mobilidade e Campo   ░░ Planejado (Hangar Floor)
+v1.x: Estabilização e UX   ██ Concluído/Refinando (v1.5.0)
+v2.0: Pedidos e Hangar     ░░ Em Execução / Próxima Entrega
 v3.0: Inteligência e Dados ░░ Planejado (Analytics)
 v4.0: Conformidade Legal   ░░ Planejado (Oficialização)
 v5.0: Ecossistema Total    ░░ Visão Final (IA & Supply)
@@ -16,52 +16,46 @@ v5.0: Ecossistema Total    ░░ Visão Final (IA & Supply)
 
 ---
 
-## 🛠️ Correções e Implementações Imediatas (Backlog Codex)
-*Foco: Resolução de débitos técnicos e falhas de segurança identificados na auditoria Codex (14/04/26).*
+## 🚀 Próxima Etapa Imediata: Refatoração FABLE 5
 
-- [ ] **Segurança (Logout - Critical):** Fazer `clearAuth()` chamar `POST /auth/logout` no backend antes de limpar o storage no client; resolver dependência de blacklist em memória para ambientes multi-workers.
-- [ ] **Infraestrutura (DB - High):** Remover o rewrite silencioso da configuração de `DATABASE_URL` para SQLite em ambiente de desenvolvimento. O sistema deve validar e respeitar a URL informada.
-- [ ] **Confiabilidade (Uploads - High):** Interromper o fluxo de criação da pane quando ocorrer falha no envio do anexo, checando corretamente o status da resposta HTTP no frontend ou criando um fluxo transacional único.
-- [ ] **Segurança (Token - Medium):** Migrar a autenticação do frontend que hoje usa `localStorage` explícito para Cookies com `HttpOnly` e `SameSite`, bloqueando o acesso direto às proteções de rotas via navegador.
-- [x] **Documentação (Docs - Medium):** Atualizar documentação principal e a documentação da API, removendo defasagens de papéis descontinuados, ajustando referências históricas para `archives` e limpando artefatos mortos.
-- [ ] **Manutenção (Code Cleanup - Low):** Excluir esquemas (`LoginRequest`), imports mortos (`IntegrityError`) e código/métodos que não estão conectados à API ou à interface.
+*Foco: Qualidade de código, eliminação de débitos técnicos e otimização de performance.*
 
----
-
-## 🛠️ Melhorias Técnicas e Refatoração (Pós-Auditoria)
-*Foco: Performance, Escalabilidade e Aplicação de Princípios SOLID.*
-
-### Fase 1: Performance e Consultas (N+1)
-- [x] **Otimização de Queries:** Implementar `selectinload` em todos os services de Equipamentos e Panes para evitar consultas N+1.
-- [x] **Paginação de Dados:** Adicionar suporte a `limit` e `offset` reais em todos os endpoints de listagem do inventário e histórico.
-- [x] **Resiliência SQLite:** Configurar PRAGMAs de performance (`WAL mode`) de forma persistente no engine do banco.
-
-### Fase 2: Arquitetura e Domínio
-- [x] **Exceções de Domínio:** Substituir erros genéricos por exceções tipadas e implementar um Global Exception Handler no FastAPI.
-- [x] **Desacoplamento de Services:** Refatorar "God Functions" (como `ajustar_inventario_item`) em componentes menores e testáveis.
-- [ ] **Redução de Acoplamento:** Isolar as dependências entre os módulos de Equipamentos e Aeronaves através de interfaces ou repositórios.
+- [ ] **1. Correção de Bug Crítico (`NameError: Aeronave`):** Tratar a ausência de import no topo do `app/modules/equipamentos/service.py` em `_validar_e_resolver_conflitos`.
+- [ ] **2. Otimização N+1 Query no Inventário:** Substituir as chamadas SQL repetidas dentro do loop de slots em `listar_inventario_aeronave` por subqueries agrupadas com `row_number()`.
+- [ ] **3. Eliminação de Anti-Padrões (`print`/`traceback`):** Migrar tratamento de erros em `service.py` para `logging.getLogger(__name__)`.
+- [ ] **4. Deduplicação e Padronização:** Unificar a herança de controles de vencimento (`_herdar_controles_do_modelo`) e padronizar exceções de domínio (`domain_exc`).
+- [ ] **5. Proteção de Concorrência (TOCTOU):** Garantir atocimidade em `criar_modelo` e `_obter_ou_criar_item_por_pn` tratando `IntegrityError`.
+- [ ] **6. Auditoria Estendida:** Expandir a revisão FABLE 5 para os módulos `app/modules/panes/service.py` e `app/modules/vencimentos/service.py`.
 
 ---
 
-## ✅ v1.x – Estabilização e Refinamento (Atual)
-*Foco: Usabilidade Web, Performance e Segurança.*
+## ✅ Histórico de Versões Concluídas (v1.x)
+
 - [x] **v1.0.0**: Lançamento estável com CRUD de Panes, Frota e Efetivo.
 - [x] **v1.1.0**: Implementação de Soft Delete de usuários e Interface de Intervenção Direta.
-- [ ] **v1.2.0**: Exportação de dados (CSV/Excel) e melhoria nos filtros de busca global.
+- [x] **v1.2.0**: Exportação universal de relatórios (CSV/XLSX), desacoplamento de contratos DDD (`AeronaveLookupProtocol`), matriz CI/CD no GitHub Actions e 179 testes automatizados com 100% de sucesso.
+- [x] **v1.3.0**: Emissão de PDF da Ordem de Inspeção e Checklist de Manutenção (`/inspecoes/{id}/pdf` e `/inspecoes/{id}/checklist` no formato A4 oficial FAB).
+- [x] **v1.4.0**: Módulo Mobile da Linha de Voo (`/m/`), menu hambúrguer off-canvas drawer, baixa de tarefas em 1 toque, sincronização automatizada e atômica da hierarquia de status de aeronaves (DISPONÍVEL ➔ INDISPONÍVEL), conformidade estrita com CSP e 205 testes automatizados com 100% de sucesso.
+- [x] **v1.5.0 (Atual)**: 
+  - Especificação Técnica (`docs/backlog/feature_controle_pedidos.md`) e Mockup Visual Interativo Aprovado (`docs/backlog/mockup_pedidos.html`) do módulo **Central de Pedidos**.
+  - Reorganização estrutural e saneamento da pasta de documentação `docs/` em camadas limpas e legíveis.
 
 ---
 
-## 📱 v2.0 – Mobilidade e Hangar (The Hangar Version)
-*Objetivo: Levar o sistema para debaixo da asa da aeronave.*
+## 📦 v2.0 – Central de Pedidos e Mobilidade Hangar
 
-- **PWA (Progressive Web App)**: Interface instalável em tablets e celulares com suporte a **Modo Offline** para hangares sem Wi-Fi estável.
-- **Scanner de QR Code**: Identificação instantânea de aeronaves e caixas pretas via câmera do dispositivo.
-- **Gestão de Evidências Pro**: Upload múltiplo de fotos com ferramentas de anotação (desenhar círculos em falhas físicas) diretamente na imagem.
-- **Geolocalização de Panes**: Registro automático da posição da aeronave no pátio ou hangar no momento da abertura.
+*Objetivo: Levar a gestão de reposição e operações de campo para debaixo da asa da aeronave.*
+
+- [ ] **Módulo Central de Pedidos (Fase 1 - Backend)**: Implementação dos modelos, rotas REST e integrações entre `equipamentos` (slots vazios), `vencimentos` (substituições) e `pedidos`.
+- [ ] **Módulo Central de Pedidos (Fase 2 - Frontend)**: Interface web integrada no SAA29 baseada no mockup aprovado (Cards, Filtros, Modal e Badges).
+- [ ] **PWA (Progressive Web App)**: Interface instalável em tablets e celulares com suporte a **Modo Offline** para hangares sem Wi-Fi estável.
+- [ ] **Scanner de QR Code**: Identificação instantânea de aeronaves e caixas pretas via câmera do dispositivo.
+- [ ] **Gestão de Evidências Pro**: Upload múltiplo de fotos com ferramentas de anotação (desenhar círculos em falhas físicas) diretamente na imagem.
 
 ---
 
 ## 🧠 v3.0 – Inteligência e Performance (The Analytical Version)
+
 *Objetivo: Transformar registros em dados estratégicos para o Comando.*
 
 - **Dashboard de MTTR / MTBF**: Cálculos automáticos de Tempo Médio de Reparo e Tempo Médio Entre Falhas por sistema (ATA).
@@ -72,22 +66,22 @@ v5.0: Ecossistema Total    ░░ Visão Final (IA & Supply)
 ---
 
 ## 📝 v4.0 – Conformidade e Formalismo (The Formal Version)
+
 *Objetivo: Eliminar o papel e oficializar o sistema como fonte única de verdade.*
 
 - **Gerador de Documentos Oficiais**: Exportação automática de Folhas de Alteração e registros de caderneta no padrão oficial da FAB em PDF.
 - **Assinatura Digital (ICP-Brasil)**: Integração com certificados digitais (Token/Nuvem) para assinatura eletrônica de ordens de serviço.
 - **Advanced TBO Tracking**: Controle rigoroso de vida útil de componentes por horas de voo e ciclos, com cronômetro visual de vencimento.
-- **Módulo de Inspeção**: Checklist digital de inspeções programadas integrado ao histórico de panes não-programadas.
 
 ---
 
 ## 🌐 v5.0 – Ecossistema e Autonomia (The Enterprise Version)
+
 *Objetivo: Manutenção preditiva e integração total da cadeia logística.*
 
 - **IA Preditiva**: Algoritmo que prevê a probabilidade de falha de um componente baseando-se no histórico de telemetria e voo.
 - **Pedigree Total do Componente**: Histórico completo de cada S/N, rastreando por quais aeronaves passou e quais intervenções sofreu desde a incorporação.
 - **Supply Chain Integration**: Comunicação automática com sistemas logísticos superiores para solicitação de compra/suprimento ao atingir estoque mínimo.
-- **Real-Time Readiness**: Painel de prontidão tática em tempo real para o comando, exibindo a capacidade de geração de esforço aéreo baseada na saúde da frota.
 
 ---
 
@@ -95,10 +89,12 @@ v5.0: Ecossistema Total    ░░ Visão Final (IA & Supply)
 
 | Versão | Meta Principal |
 |--------|----------------|
-| **v2.0** | Redução do tempo de digitação no hangar em 50%. |
+| **v1.5 / Refatoração** | 0 bugs críticos em `service.py`, eliminando N+1 e garantindo 100% de testes limpos. |
+| **v2.0** | Gestão de pedidos integrada ao inventário e redução do tempo de digitação no hangar em 50%. |
 | **v3.0** | Identificação de 100% das falhas repetitivas via sistema. |
 | **v4.0** | Redução de 90% no uso de papel para registros técnicos. |
 | **v5.0** | Aumento da disponibilidade média da frota em 15% via predição. |
 
 ---
+
 *Uso interno – Força Aérea Brasileira.*

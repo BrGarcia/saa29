@@ -193,3 +193,48 @@ class TestSincronizacaoCSRF:
 
         assert response.status_code == 201
         assert response.headers.get(CSRF_HEADER)
+
+    @pytest.mark.asyncio
+    async def test_download_recurso_nao_html_nao_dessincroniza_csrf(
+        self,
+        client: AsyncClient,
+        usuario_e_token: dict,
+    ):
+        """
+        DADO um cliente autenticado com token CSRF válido
+        QUANDO realizar download de arquivo não-HTML (CSV, PDF, etc.) via navegação (sem X-CSRF-Token)
+        ENTÃO o cookie CSRF da sessão NÃO deve ser alterado,
+        E requisições de escrita subsequentes usando o token original devem continuar válidas.
+        """
+        token_atual = await _bootstrap_csrf(client, headers=usuario_e_token["headers"])
+        cookie_original = client.cookies.get(CSRF_COOKIE)
+
+        # Simula a navegação do navegador ao baixar CSV/PDF (window.location.href)
+        # O navegador envia Accept: text/html e Sec-Fetch-Dest: document
+        response_export = await client.get(
+            "/inspecoes/export?format=csv",
+            headers={
+                **usuario_e_token["headers"],
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Sec-Fetch-Dest": "document",
+            },
+        )
+        assert response_export.status_code == 200
+        assert "text/csv" in response_export.headers.get("content-type", "")
+        
+        cookie_apos_export = client.cookies.get(CSRF_COOKIE)
+        assert cookie_apos_export == cookie_original, "O cookie CSRF foi alterado indevidamente em download não-HTML."
+
+        # Garante que requisição POST usando o token original continua válida e não retorna 403 CSRF
+        response_post = await client.post(
+            "/aeronaves/",
+            json=_nova_aeronave_payload(),
+            headers={
+                **usuario_e_token["headers"],
+                CSRF_HEADER: token_atual,
+                "X-Skip-CSRF": "false",
+            },
+        )
+        assert response_post.status_code == 201
+
+

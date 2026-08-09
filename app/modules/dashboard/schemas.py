@@ -40,8 +40,11 @@ class InspecaoAtiva(BaseModel):
 
 
 class MovimentacaoRecente(BaseModel):
-    """Registro de uma instalação recente de equipamento."""
-    descricao: str              # ex: "VUHF-1 (slot VUHF1)"
+    """Evento recente de instalação ou remoção de equipamento — cada um
+    exibido como evento distinto, mesmo quando originados da mesma linha
+    de `Instalacao` (instalação seguida de remoção)."""
+    tipo: str                   # "INSTALACAO" | "REMOCAO"
+    descricao: str              # ex: "VUHF-1 instalado (slot VUHF1)"
     aeronave_matricula: str | None = None
     data: str                   # ISO date string
 

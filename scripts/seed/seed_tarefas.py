@@ -59,9 +59,12 @@ TEMPLATES_CONFIG = {
 }
 
 # Expandindo para os ciclos acumulados (mesmas tarefas por enquanto)
-for i in range(2, 5): TEMPLATES_CONFIG[f"{i}Y"] = TEMPLATES_CONFIG["Y"]
-for i in range(2, 6): TEMPLATES_CONFIG[f"{i}A"] = TEMPLATES_CONFIG["A"]
-for i in range(2, 4): TEMPLATES_CONFIG[f"{i}C"] = TEMPLATES_CONFIG["C"]
+for i in range(2, 5):
+    TEMPLATES_CONFIG[f"{i}Y"] = TEMPLATES_CONFIG["Y"]
+for i in range(2, 6):
+    TEMPLATES_CONFIG[f"{i}A"] = TEMPLATES_CONFIG["A"]
+for i in range(2, 4):
+    TEMPLATES_CONFIG[f"{i}C"] = TEMPLATES_CONFIG["C"]
 
 async def run(session: AsyncSession):
     """Popula o Catálogo Global e vincula templates se os tipos existirem."""

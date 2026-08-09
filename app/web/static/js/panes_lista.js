@@ -1,10 +1,30 @@
+// @ts-check
+
+/**
+ * @typedef {Object} PaneListDTO
+ * @property {string} id
+ * @property {string} codigo
+ * @property {string} descricao
+ * @property {string} status
+ * @property {boolean} ativo
+ * @property {string} data_abertura
+ * @property {string} [observacao_conclusao]
+ * @property {{matricula: string}} [aeronave]
+ * @property {{papel: string, trigrama?: string}[]} responsaveis
+ */
+
 // Carregamento de Panes
+/**
+ * @returns {Promise<void>}
+ */
 async function loadPanes() {
     const body = document.getElementById('panes-table-body');
     if (!body) return;
     
-    const filterText = document.getElementById('filter-text');
-    const filterStatus = document.getElementById('filter-status');
+    /** @type {HTMLInputElement | null} */
+    const filterText = document.querySelector('#filter-text');
+    /** @type {HTMLSelectElement | null} */
+    const filterStatus = document.querySelector('#filter-status');
     const txt = filterText ? filterText.value : '';
     const sts = filterStatus ? filterStatus.value : '';
     const aeronaveId = new URLSearchParams(window.location.search).get('aeronave_id');
@@ -20,10 +40,13 @@ async function loadPanes() {
     }
 
     try {
+        /** @type {PaneListDTO[]} */
+        // @ts-ignore
         const panes = await apiFetch(query);
         body.innerHTML = '';
         
-        const user = JSON.parse(localStorage.getItem("saa29_user") || '{}');
+        const userJson = localStorage.getItem("saa29_user");
+        const user = userJson ? JSON.parse(userJson) : {};
         const funcao = user.funcao || '';
 
         if (panes.length === 0) {
@@ -41,7 +64,7 @@ async function loadPanes() {
             const shortDate = dObj.toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
             
             const obsConclusao = pane.observacao_conclusao || "Sem ação corretiva registrada.";
-            const statusName = pane.ativo ? pane.status.replace("_", " ") : "EXCLUIDA";
+            const statusName = pane.ativo ? (pane.status || "").replace("_", " ") : "EXCLUIDA";
             const matriculaAeronave = pane.aeronave?.matricula || "59XX";
             const responsavelMantenedor = (pane.responsaveis || []).find(r => r.papel === "MANTENEDOR");
             const responsavelFallback = (pane.responsaveis || []).find(r => r.trigrama);
@@ -51,12 +74,14 @@ async function loadPanes() {
                 ? "--"
                 : `<span class="badge" style="background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color); font-family: monospace; font-size: 0.75rem;">${escapeHtml(responsavelTrigrama)}</span>`;
             
-            const showAdminActions = window.hasPermission('ENCARREGADO');
+            // @ts-ignore
+            const showAdminActions = window.hasPermission ? window.hasPermission('ENCARREGADO') : false;
 
             const tr = document.createElement("tr");
             tr.style.borderBottom = "1px solid var(--border-color)";
             tr.dataset.id = pane.id;
             
+            // @ts-ignore
             tr.innerHTML = `
                 <td style="padding: 1rem; font-weight: 500;">${escapeHtml(matriculaAeronave)}</td>
                 <td style="padding: 1rem; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(pane.descricao)}</td>
@@ -88,16 +113,24 @@ async function loadPanes() {
         });
     } catch (e) {
         console.error("Erro na busca de panes:", e);
+        // @ts-ignore
         body.innerHTML = `<tr><td colspan="5" style="padding: 2rem; text-align: center; color: var(--status-danger);">Falha na comunicação com a API: ${e.message}</td></tr>`;
     }
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function openSelecaoAeronaveModal() {
     const modalSelecao = document.getElementById('modal-selecao-aeronave');
     const gridAeronaves = document.getElementById('grid-aeronaves');
+    if(!modalSelecao || !gridAeronaves) return;
+    
     modalSelecao.style.display = 'flex';
     gridAeronaves.innerHTML = '<p style="grid-column: span 5; text-align: center; color: var(--text-secondary);">Carregando frota...</p>';
     try {
+        /** @type {Aeronave[]} */
+        // @ts-ignore
         const frota = await apiFetch("/aeronaves/?limit=100");
         const frotaAtiva = frota.filter(f => f.status !== 'INATIVA'); 
         
@@ -123,6 +156,7 @@ async function openSelecaoAeronaveModal() {
 
             const btn = document.createElement("button");
             btn.className = "btn-icon";
+            // @ts-ignore
             btn.style = `
                 display: flex; flex-direction: column; align-items: center; justify-content: center;
                 background: ${bgVar}; border: 2px solid ${colorVar};
@@ -155,18 +189,34 @@ async function openSelecaoAeronaveModal() {
     }
 }
 
+/**
+ * @returns {void}
+ */
 function closeSelecaoAeronaveModal() {
-    document.getElementById('modal-selecao-aeronave').style.display = 'none';
+    const modal = document.getElementById('modal-selecao-aeronave');
+    if(modal) modal.style.display = 'none';
 }
 
+/**
+ * @param {string} aeronaveId
+ * @param {string} matricula
+ * @returns {Promise<void>}
+ */
 async function openNuevaPaneModal(aeronaveId, matricula) {
     closeSelecaoAeronaveModal();
-    document.getElementById('modal-nova-pane').style.display = 'flex';
-    const aeronaveSelect = document.getElementById('aeronaveSelect');
-    const mantenedorResponsavelSelect = document.getElementById('mantenedorResponsavelSelect');
+    const modal = document.getElementById('modal-nova-pane');
+    if(modal) modal.style.display = 'flex';
+    
+    /** @type {HTMLSelectElement | null} */
+    const aeronaveSelect = document.querySelector('#aeronaveSelect');
+    /** @type {HTMLSelectElement | null} */
+    const mantenedorResponsavelSelect = document.querySelector('#mantenedorResponsavelSelect');
+    if(!aeronaveSelect || !mantenedorResponsavelSelect) return;
     
     // Hydrate aeronaves combo box (pre-select)
     try {
+        /** @type {Aeronave[]} */
+        // @ts-ignore
         const frota = await apiFetch("/aeronaves/?limit=100");
         aeronaveSelect.innerHTML = `<option value="">-- Selecionar Aeronave --</option>`;
         frota.forEach(f => {
@@ -180,19 +230,24 @@ async function openNuevaPaneModal(aeronaveId, matricula) {
 
     // Hydrate Sistemas ATA
     try {
-        const sistemasInput = document.getElementById('sistemaInput');
-        const sistemas = await apiFetch("/panes/sistemas");
-        sistemasInput.innerHTML = `<option value="">-- Selecione o Sistema --</option>`;
-        sistemas.forEach(s => {
-            const opt = document.createElement("option");
-            opt.value = s.id;
-            opt.innerText = `${s.codigo} - ${s.descricao}`;
-            sistemasInput.appendChild(opt);
-        });
+        /** @type {HTMLSelectElement | null} */
+        const sistemasInput = document.querySelector('#sistemaInput');
+        if(sistemasInput) {
+            // @ts-ignore
+            const sistemas = await apiFetch("/panes/sistemas");
+            sistemasInput.innerHTML = `<option value="">-- Selecione o Sistema --</option>`;
+            sistemas.forEach(s => {
+                const opt = document.createElement("option");
+                opt.value = s.id;
+                opt.innerText = `${s.codigo} - ${s.descricao}`;
+                sistemasInput.appendChild(opt);
+            });
+        }
     } catch(e) { console.error("Falha ao carregar sistemas", e) }
 
     // Hydrate Mantenedores
     try {
+        // @ts-ignore
         const usuarios = await apiFetch("/auth/usuarios");
         const responsaveisPermitidos = usuarios.filter(u => ["MANTENEDOR", "ENCARREGADO"].includes(u.funcao));
         mantenedorResponsavelSelect.innerHTML = `<option value="">-- Não atribuir responsável --</option>`;
@@ -207,19 +262,33 @@ async function openNuevaPaneModal(aeronaveId, matricula) {
     } catch(e) { console.error(e) }
 }
 
+/**
+ * @returns {void}
+ */
 function closeNovaPaneModal() {
-    document.getElementById('modal-nova-pane').style.display = 'none';
-    document.getElementById('formNovaPane').reset();
+    const modal = document.getElementById('modal-nova-pane');
+    if(modal) modal.style.display = 'none';
+    const form = document.getElementById('formNovaPane');
+    // @ts-ignore
+    if(form) form.reset();
 }
 
+/**
+ * @param {string} paneId
+ * @returns {Promise<void>}
+ */
 async function openEditPaneModal(paneId) {
     try {
         // Primeiro carregamos os dados da pane (específico)
+        // @ts-ignore
         const pane = await apiFetch(`/panes/${paneId}`);
         
-        const editSelect = document.getElementById('editSistemaInput');
+        /** @type {HTMLSelectElement | null} */
+        const editSelect = document.querySelector('#editSistemaInput');
+        if(!editSelect) return;
         
         // Depois carregamos a lista de Sistemas (geral)
+        // @ts-ignore
         const sistemas = await apiFetch("/panes/sistemas");
         editSelect.innerHTML = `<option value="">-- Selecione o Sistema --</option>`;
         sistemas.forEach(s => {
@@ -232,90 +301,144 @@ async function openEditPaneModal(paneId) {
         const val = pane.sistema_ata_id || "";
         editSelect.value = val;
         
-        document.getElementById('editPaneId').value = pane.id;
-        document.getElementById('editDescricaoInput').value = pane.descricao || "";
-        document.getElementById('modal-editar-pane').style.display = 'flex';
+        /** @type {HTMLInputElement | null} */
+        const editPaneId = document.querySelector('#editPaneId');
+        if(editPaneId) editPaneId.value = pane.id;
+        
+        /** @type {HTMLTextAreaElement | null} */
+        const editDescricaoInput = document.querySelector('#editDescricaoInput');
+        if(editDescricaoInput) editDescricaoInput.value = pane.descricao || "";
+        
+        const modal = document.getElementById('modal-editar-pane');
+        if(modal) modal.style.display = 'flex';
     } catch(e) {
         console.error("Erro ao abrir modal de edição:", e);
+        // @ts-ignore
         showToast("Falha ao buscar dados da pane.", "error");
     }
 }
 
+/**
+ * @returns {void}
+ */
 function closeEditPaneModal() {
-    document.getElementById('modal-editar-pane').style.display = 'none';
-    document.getElementById('formEditarPane').reset();
+    const modal = document.getElementById('modal-editar-pane');
+    if(modal) modal.style.display = 'none';
+    const form = document.getElementById('formEditarPane');
+    // @ts-ignore
+    if(form) form.reset();
 }
 
+/**
+ * @param {Event} e
+ * @returns {Promise<void>}
+ */
 async function handleSalvarEdicao(e) {
     e.preventDefault();
-    const paneId = document.getElementById('editPaneId').value;
-    const btn = document.getElementById('btnAtualizarPane');
+    /** @type {HTMLInputElement | null} */
+    const editPaneId = document.querySelector('#editPaneId');
+    const paneId = editPaneId ? editPaneId.value : "";
+    
+    /** @type {HTMLButtonElement | null} */
+    const btn = document.querySelector('#btnAtualizarPane');
+    
+    /** @type {HTMLSelectElement | null} */
+    const editSistemaInput = document.querySelector('#editSistemaInput');
+    
+    /** @type {HTMLTextAreaElement | null} */
+    const editDescricaoInput = document.querySelector('#editDescricaoInput');
     
     const payload = {
-        sistema_ata_id: document.getElementById('editSistemaInput').value || null,
-        descricao: document.getElementById('editDescricaoInput').value.trim()
+        sistema_ata_id: (editSistemaInput && editSistemaInput.value) || null,
+        descricao: editDescricaoInput ? editDescricaoInput.value.trim() : ""
     };
 
-    btn.disabled = true;
-    btn.innerText = "Salvando...";
+    if(btn) {
+        btn.disabled = true;
+        btn.innerText = "Salvando...";
+    }
 
     try {
+        // @ts-ignore
         await apiFetch(`/panes/${paneId}`, {
             method: "PUT",
             body: payload
         });
+        // @ts-ignore
         showToast("Ocorrência atualizada!", "success");
         closeEditPaneModal();
         loadPanes();
     } catch(err) {
         // Erro já tratado no apiFetch
     } finally {
-        btn.disabled = false;
-        btn.innerText = "Salvar Alterações";
+        if(btn) {
+            btn.disabled = false;
+            btn.innerText = "Salvar Alterações";
+        }
     }
 }
 
+/**
+ * @param {Event} e
+ * @returns {Promise<void>}
+ */
 async function handleCriarPane(e) {
     e.preventDefault();
-    const btn = document.getElementById('btnSalvarPane');
-    const aeronaveSelect = document.getElementById('aeronaveSelect');
-    const mantenedorResponsavelSelect = document.getElementById('mantenedorResponsavelSelect');
+    /** @type {HTMLButtonElement | null} */
+    const btn = document.querySelector('#btnSalvarPane');
+    /** @type {HTMLSelectElement | null} */
+    const aeronaveSelect = document.querySelector('#aeronaveSelect');
+    /** @type {HTMLSelectElement | null} */
+    const mantenedorResponsavelSelect = document.querySelector('#mantenedorResponsavelSelect');
 
-    btn.disabled = true;
-    btn.innerText = "Registrando...";
+    if(!aeronaveSelect || !mantenedorResponsavelSelect) return;
 
-    let sistema = document.getElementById('sistemaInput').value;
-    let descricao = document.getElementById('descricaoInput').value.trim();
+    if(btn) {
+        btn.disabled = true;
+        btn.innerText = "Registrando...";
+    }
+
+    /** @type {HTMLSelectElement | null} */
+    const sistemaInput = document.querySelector('#sistemaInput');
+    let sistema = sistemaInput ? sistemaInput.value : "";
+    
+    /** @type {HTMLTextAreaElement | null} */
+    const descricaoInput = document.querySelector('#descricaoInput');
+    let descricao = descricaoInput ? descricaoInput.value.trim() : "";
+    
     if(!descricao) descricao = "Aguardando relato.";
 
     const payload = {
         aeronave_id: aeronaveSelect.value,
         sistema_ata_id: sistema || null,
-        descricao: descricao
+        descricao: descricao,
+        mantenedor_responsavel_id: mantenedorResponsavelSelect.value || undefined
     };
-    if (mantenedorResponsavelSelect.value) {
-        payload.mantenedor_responsavel_id = mantenedorResponsavelSelect.value;
-    }
 
     try {
+        // @ts-ignore
         const pane = await apiFetch("/panes/", {
             method: "POST",
             body: payload
         });
         
         // Upload Foto se existir
-        const fileInput = document.getElementById('fotoInput');
-        if(fileInput && fileInput.files.length > 0) {
+        /** @type {HTMLInputElement | null} */
+        const fileInput = document.querySelector('#fotoInput');
+        if(fileInput && fileInput.files && fileInput.files.length > 0) {
             const formData = new FormData();
             formData.append("arquivo", fileInput.files[0]);
 
             try {
+                // @ts-ignore
                 await apiFetch(`/panes/${pane.id}/anexos`, {
                 method: "POST",
                 body: formData
                 });
             } catch (err) {
+                // @ts-ignore
                 const errMsg = err?.message || "Erro no envio";
+                // @ts-ignore
                 showToast(`Pane criada, mas o anexo falhou: ${errMsg}`, "warning");
                 closeNovaPaneModal();
                 loadPanes();
@@ -323,30 +446,45 @@ async function handleCriarPane(e) {
             }
         }
 
+        // @ts-ignore
         showToast("Relato de Pane Registrado!", "success");
         closeNovaPaneModal();
         loadPanes();
     } catch(err) {
         // Toast já mostrado via apiFetch
     } finally {
-        btn.disabled = false;
-        btn.innerText = "Cadastrar Pane";
+        if(btn) {
+            btn.disabled = false;
+            btn.innerText = "Cadastrar Pane";
+        }
     }
 }
 
+/**
+ * @param {string} id
+ * @returns {Promise<void>}
+ */
 async function softDeletePane(id) {
     if(!confirm("Atenção: A pane será inativada e constará na lixeira de Excluídas. Deseja prosseguir?")) return;
     try {
+        // @ts-ignore
         await apiFetch(`/panes/${id}`, { method: 'DELETE' });
+        // @ts-ignore
         showToast("Pane removida com sucesso.", "success");
         loadPanes();
     } catch(e) {}
 }
 
+/**
+ * @param {string} id
+ * @returns {Promise<void>}
+ */
 async function restorePane(id) {
     if(!confirm("Deseja restaurar esta pane para o estado ativo?")) return;
     try {
+        // @ts-ignore
         await apiFetch(`/panes/${id}/restaurar`, { method: 'POST' });
+        // @ts-ignore
         showToast("Pane restaurada com sucesso.", "success");
         loadPanes();
     } catch(e) {}
@@ -354,8 +492,10 @@ async function restorePane(id) {
 
 // Initialization and Event Listeners
 document.addEventListener("DOMContentLoaded", () => {
-    const filterText = document.getElementById('filter-text');
-    const filterStatus = document.getElementById('filter-status');
+    /** @type {HTMLInputElement | null} */
+    const filterText = document.querySelector('#filter-text');
+    /** @type {HTMLSelectElement | null} */
+    const filterStatus = document.querySelector('#filter-status');
     const btnRegistrar = document.querySelector('button.btn-primary');
     const formNovaPane = document.getElementById('formNovaPane');
     const formEditarPane = document.getElementById('formEditarPane');
@@ -387,11 +527,17 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('btn-close-modal-editar-pane')?.addEventListener('click', closeEditPaneModal);
     document.getElementById('btn-cancelar-editar-pane')?.addEventListener('click', closeEditPaneModal);
 
+    // @ts-ignore
     window.closeSelecaoAeronaveModal = closeSelecaoAeronaveModal;
+    // @ts-ignore
     window.closeNovaPaneModal = closeNovaPaneModal;
+    // @ts-ignore
     window.closeEditPaneModal = closeEditPaneModal;
+    // @ts-ignore
     window.openEditPaneModal = openEditPaneModal;
+    // @ts-ignore
     window.softDeletePane = softDeletePane;
+    // @ts-ignore
     window.restorePane = restorePane;
 
     loadPanes();

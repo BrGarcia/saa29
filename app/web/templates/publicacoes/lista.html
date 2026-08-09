@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block page_title %}Publicações{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="/static/css/publicacoes.css">
+
+<div id="pub-acervo-app" class="pub-acervo-layout">
+    <aside class="pub-acervo-sidebar">
+        <div class="pub-acervo-busca">
+            <div class="pub-acervo-busca-modos" role="tablist" aria-label="Modo de busca">
+                <button type="button" class="is-ativo" data-modo="nome">Por nome</button>
+                <button type="button" data-modo="conteudo">No conteúdo</button>
+            </div>
+            <input type="text" id="pub-acervo-busca-input" class="form-input"
+                   placeholder="Buscar no acervo…" autocomplete="off">
+            <div id="pub-acervo-busca-resultados" class="pub-acervo-busca-resultados"></div>
+        </div>
+
+        <a href="/publicacoes/avulsas" class="btn btn-outline pub-acervo-avulsas-link">
+            Publicações avulsas (BO/BS/NPO/BT) →
+        </a>
+
+        <details class="pub-acervo-fim">
+            <summary>Mensagem do CAS/EICAS (FIM)</summary>
+            <div class="pub-acervo-fim-corpo">
+                <input type="text" id="pub-acervo-fim-input" class="form-input" placeholder="Ex: ADC 001">
+                <button type="button" class="btn btn-outline" id="pub-acervo-fim-btn">Resolver procedimento</button>
+                <div id="pub-acervo-fim-resultados"></div>
+            </div>
+        </details>
+
+        <div id="pub-acervo-arvore" class="pub-acervo-arvore" role="tree" aria-label="Árvore do acervo">
+            <div class="pub-acervo-estado-vazio">Carregando acervo…</div>
+        </div>
+    </aside>
+
+    <main class="pub-acervo-main">
+        <div class="pub-acervo-toolbar">
+            <nav id="pub-acervo-breadcrumb" class="pub-acervo-breadcrumb" aria-label="Caminho atual"></nav>
+            <div class="pub-acervo-acoes">
+                <button type="button" class="btn-icon" id="pub-acervo-voltar" title="Voltar" aria-label="Voltar" disabled>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <button type="button" class="btn-icon" id="pub-acervo-avancar" title="Avançar" aria-label="Avançar" disabled>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6"/></svg>
+                </button>
+                <button type="button" class="btn-icon" id="pub-acervo-raiz" title="Início do acervo" aria-label="Início do acervo">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m3 9 9-7 9 7"/><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 10v10a1 1 0 0 0 1 1h3v-6h6v6h3a1 1 0 0 0 1-1V10"/></svg>
+                </button>
+                <button type="button" class="btn-icon is-ativo" id="pub-acervo-view-lista" title="Visualização em lista" aria-label="Visualização em lista">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                </button>
+                <button type="button" class="btn-icon" id="pub-acervo-view-icones" title="Visualização em ícones" aria-label="Visualização em ícones">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1" stroke-width="2"/></svg>
+                </button>
+                <button type="button" class="btn-icon" id="pub-acervo-ordenar" title="Alternar ordenação (padrão do acervo / nome A-Z)" aria-label="Alternar ordenação">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m3 8 4-4 4 4M7 4v16m10-4-4 4-4-4m4 4V4"/></svg>
+                </button>
+            </div>
+        </div>
+        <div id="pub-acervo-painel" class="pub-acervo-painel">
+            <div class="pub-acervo-estado-vazio">Carregando acervo…</div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/publicacoes_explorador.js"></script>
+{% endblock %}

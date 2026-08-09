@@ -1,0 +1,338 @@
+/* ==========================================================================
+   SAA29 Mobile - Design System para Linha de Voo (Fricção Zero)
+   ========================================================================== */
+
+:root {
+    --mobile-bg: #0F172A;
+    --mobile-card-bg: #1E293B;
+    --mobile-card-border: #334155;
+    --mobile-text: #F8FAFC;
+    --mobile-text-muted: #94A3B8;
+    --mobile-primary: #1F497D;
+    --mobile-accent: #2563EB;
+    --mobile-success: #166534;
+    --mobile-success-bright: #22C55E;
+    --mobile-danger: #991B1B;
+    --mobile-warning: #D97706;
+    --mobile-touch-target: 56px;
+}
+
+body.mobile-body {
+    background-color: var(--mobile-bg);
+    color: var(--mobile-text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Header Fixo Mobile */
+.mobile-header {
+    background-color: #020617;
+    border-bottom: 1px solid var(--mobile-card-border);
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.mobile-header-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mobile-app-badge {
+    background: var(--mobile-primary);
+    color: #FFFFFF;
+    font-weight: 800;
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    letter-spacing: 0.05rem;
+}
+
+.mobile-header h1 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--mobile-text);
+}
+
+.mobile-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mobile-user-badge {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.25rem 0.6rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.mobile-menu-btn {
+    background: transparent;
+    border: none;
+    color: var(--mobile-text);
+    padding: 0.4rem;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    min-height: 40px;
+    touch-action: manipulation;
+}
+
+.mobile-menu-btn:active {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Overlay do Menu Sanduíche */
+.mobile-menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(2, 6, 23, 0.7);
+    backdrop-filter: blur(2px);
+    z-index: 200;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.mobile-menu-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Off-Canvas Drawer (Menu Lateral) */
+.mobile-menu-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 280px;
+    max-width: 85vw;
+    height: 100vh;
+    background: #020617;
+    border-left: 1px solid var(--mobile-card-border);
+    z-index: 210;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.5);
+}
+
+.mobile-menu-drawer.active {
+    transform: translateX(0);
+}
+
+.mobile-drawer-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--mobile-card-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mobile-drawer-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--mobile-text);
+}
+
+.btn-close-drawer {
+    background: transparent;
+    border: none;
+    color: var(--mobile-text-muted);
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+}
+
+.btn-close-drawer:active {
+    color: #FFFFFF;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.mobile-drawer-nav {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow-y: auto;
+}
+
+.mobile-drawer-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.8rem 1rem;
+    color: var(--mobile-text);
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: background 0.15s ease;
+}
+
+.mobile-drawer-item:active, .mobile-drawer-item.active {
+    background: var(--mobile-card-bg);
+    color: var(--mobile-accent);
+}
+
+.mobile-drawer-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.mobile-drawer-divider {
+    height: 1px;
+    background: var(--mobile-card-border);
+    margin: 0.75rem 0;
+}
+
+.mobile-drawer-placeholder {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.placeholder-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05rem;
+    color: var(--mobile-text-muted);
+    padding-left: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+/* Conteúdo Principal */
+.mobile-content {
+    padding: 1rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.mobile-section-title {
+    font-size: 1.25rem;
+    margin: 0 0 0.25rem 0;
+}
+
+.mobile-section-sub {
+    font-size: 0.85rem;
+    color: var(--mobile-text-muted);
+    margin: 0 0 1rem 0;
+}
+
+/* Cards da Frota */
+.mobile-card-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.mobile-anv-card {
+    background: var(--mobile-card-bg);
+    border: 1px solid var(--mobile-card-border);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-decoration: none;
+    color: inherit;
+    min-height: var(--mobile-touch-target);
+    transition: transform 0.1s ease, border-color 0.2s ease;
+}
+
+.mobile-anv-card:active {
+    transform: scale(0.98);
+    border-color: var(--mobile-accent);
+}
+
+.mobile-anv-info h3 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.2rem;
+    color: #FFFFFF;
+}
+
+.mobile-anv-info p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--mobile-text-muted);
+}
+
+.mobile-anv-badge-count {
+    background: var(--mobile-danger);
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+
+.mobile-anv-badge-count.inspecao {
+    background: var(--mobile-warning, #D97706);
+    color: #FFFFFF;
+}
+
+.mobile-anv-badge-count.zero {
+    background: var(--mobile-success);
+}
+
+/* Botões de Ação de 1 Toque */
+.btn-mobile-action {
+    min-height: var(--mobile-touch-target);
+    width: 100%;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    touch-action: manipulation;
+}
+
+.btn-mobile-success {
+    background-color: var(--mobile-success-bright);
+    color: #020617;
+}
+
+.btn-mobile-success:active {
+    background-color: #16a34a;
+}
+
+.btn-back-mobile {
+    color: var(--mobile-accent);
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-block;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.mobile-loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--mobile-text-muted);
+}

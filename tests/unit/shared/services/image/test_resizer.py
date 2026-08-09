@@ -1,5 +1,4 @@
 import pytest
-from pathlib import Path
 from PIL import Image
 from app.shared.services.image.resizer import resize_image
 

@@ -17,7 +17,9 @@ if TYPE_CHECKING:
     from app.modules.auth.models import Usuario
 
 class Indisponibilidade(Base):
-    """Registro de período onde um usuário não pode ser alocado para panes."""
+    """Registro de período de indisponibilidade de um usuário (férias, dispensa,
+    folga, serviço ou motivo particular). Apenas informativo — não bloqueia
+    atribuição de responsável por pane."""
     __tablename__ = "indisponibilidades"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)

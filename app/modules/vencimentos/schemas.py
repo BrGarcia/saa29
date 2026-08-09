@@ -5,7 +5,7 @@ Schemas Pydantic v2 para Inteligência Temporal e Vencimentos.
 
 import uuid
 from datetime import datetime, date
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.shared.core.enums import StatusVencimento, OrigemControle
 
 
@@ -46,7 +46,10 @@ class EquipamentoControleOut(BaseModel):
     modelo_id: uuid.UUID
     tipo_controle_id: uuid.UUID
     periodicidade_meses: int
-    
+    created_at: datetime
+    updated_at: datetime | None = None
+    alterado_por_id: uuid.UUID | None = None
+
     # Campos auxiliares para o frontend
     pn: str | None = None
     tipo_nome: str | None = None
@@ -60,6 +63,13 @@ class ControleVencimentoUpdate(BaseModel):
     data_ultima_exec: date
     observacao: str | None = None
 
+    @field_validator("data_ultima_exec")
+    @classmethod
+    def data_nao_pode_ser_futura(cls, v: date) -> date:
+        if v > date.today():
+            raise ValueError("Data de execução não pode estar no futuro.")
+        return v
+
 class ControleVencimentoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -71,6 +81,19 @@ class ControleVencimentoOut(BaseModel):
     origem: OrigemControle
     executado_por_id: uuid.UUID | None = None
     created_at: datetime
+
+
+class ExecucaoVencimentoHistoricoOut(BaseModel):
+    """Um registro imutável de execução passada (auditoria)."""
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    controle_id: uuid.UUID
+    data_execucao: date
+    data_vencimento_calculada: date
+    periodicidade_meses: int
+    executado_por_id: uuid.UUID | None
+    observacao: str | None
+    registrado_em: datetime
 
 
 # ============================================================

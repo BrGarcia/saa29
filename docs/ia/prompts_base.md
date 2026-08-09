@@ -24,11 +24,8 @@ prompt_docs_sync:
 prompt_db_safety:
 > Before any database change, assume the current database is in active use, preserve all existing pane records, create a backup of the original database first, and never reset or reseed the active database.
 
-prompt_inspecoes_isolation:
-> When working on app/modules/inspecoes, keep it isolated unless activation is explicitly requested. Do not register its router, import its models in bootstrap, add migrations, alter shared enums, or modify active frontend navigation without explicit approval.
-
-prompt_inspecoes_activation:
-> To activate inspections, plan the sequence explicitly: backup active DB, create migration, import models in bootstrap, include router under a chosen prefix, bind frontend routes/templates, add tests, then update docs/architecture and docs/ia.
+prompt_publicacoes_web_upload:
+> When working on publicacoes web upload, ensure single-flight lock on PublicacoesUploadJob, Zip-Slip path containment, Zip Bomb limits, R2/local presigned upload, worker subprocess isolation, and CSP compliance without inline scripts.
 
 prompt_frontend_csp:
 > CRITICAL: This project uses a strict Content-Security-Policy (script-src 'self'). NEVER use inline scripts (`<script>...</script>`) or inline event handlers (e.g., `onclick="..."`) in HTML templates. ALWAYS use `addEventListener` in external `.js` files. To pass data from Jinja to JS, use `<meta name="...">` or `data-*` attributes on HTML elements, then read them in JS.

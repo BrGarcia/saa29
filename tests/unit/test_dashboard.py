@@ -11,8 +11,7 @@ Metodologia:
 
 import uuid
 import pytest
-import pytest_asyncio
-from datetime import date, datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from httpx import AsyncClient
 
@@ -57,21 +56,64 @@ async def _criar_usuario(db: AsyncSession, username: str = None):
 
 
 async def _criar_pane(db: AsyncSession, aeronave_id, criado_por_id,
-                      status: str = "ABERTA", dias_atras: int = 0):
+                      status: str = "ABERTA", dias_atras: int = 0,
+                      sistema_ata_id=None, descricao: str = "Falha de teste"):
     from app.modules.panes.models import Pane
     data = datetime.now(timezone.utc) - timedelta(days=dias_atras)
     pane = Pane(
         aeronave_id=aeronave_id,
         status=status,
-        descricao="Falha de teste",
+        descricao=descricao,
         criado_por_id=criado_por_id,
         data_abertura=data,
+        sistema_ata_id=sistema_ata_id,
     )
     if status == "RESOLVIDA":
         pane.data_conclusao = data + timedelta(hours=2)
     db.add(pane)
     await db.flush()
     return pane
+
+
+async def _criar_sistema_ata(db: AsyncSession, descricao: str = "Ar Condicionado"):
+    from app.modules.panes.models import SistemaAta
+    sistema = SistemaAta(codigo=f"AT{uuid.uuid4().hex[:6]}", descricao=descricao)
+    db.add(sistema)
+    await db.flush()
+    return sistema
+
+
+async def _criar_instalacao(db: AsyncSession, aeronave_id,
+                            criado_em: datetime | None = None,
+                            removido_em: datetime | None = None):
+    from app.modules.equipamentos.models import (
+        ModeloEquipamento, SlotInventario, ItemEquipamento, Instalacao,
+    )
+    suffix = uuid.uuid4().hex[:8]
+    modelo = ModeloEquipamento(part_number=f"PN-{suffix}", nome_generico=f"Equip-{suffix}")
+    db.add(modelo)
+    await db.flush()
+    slot = SlotInventario(nome_posicao=f"SLOT-{suffix}", modelo_id=modelo.id)
+    db.add(slot)
+    await db.flush()
+    item = ItemEquipamento(modelo_id=modelo.id, numero_serie=f"SN-{suffix}")
+    db.add(item)
+    await db.flush()
+
+    criado_em = criado_em or datetime.now(timezone.utc)
+    instalacao = Instalacao(
+        item_id=item.id,
+        aeronave_id=aeronave_id,
+        slot_id=slot.id,
+        data_instalacao=criado_em.date(),
+        created_at=criado_em,
+    )
+    if removido_em is not None:
+        instalacao.data_remocao = removido_em.date()
+        instalacao.removido_em = removido_em
+    db.add(instalacao)
+    await db.flush()
+    return instalacao
 
 
 async def _criar_controle_vencimento(db: AsyncSession, status: str):
@@ -208,6 +250,37 @@ async def test_panes_criticas_contem_matricula_da_aeronave(db: AsyncSession):
     assert any(p.matricula == matricula for p in resultado.panes_criticas)
 
 
+@pytest.mark.asyncio
+async def test_pane_critica_sistema_usa_sistema_ata_quando_presente(db: AsyncSession):
+    """MELHORIA-03: `sistema` deve refletir o sistema ATA real da pane, não
+    um trecho arbitrário da descrição, quando `sistema_ata_id` está setado."""
+    aeronave = await _criar_aeronave(db, f"TEST{uuid.uuid4().hex[:3]}")
+    usuario = await _criar_usuario(db)
+    sistema = await _criar_sistema_ata(db, descricao="Trem de Pouso")
+    await _criar_pane(
+        db, aeronave.id, usuario.id, status="ABERTA",
+        sistema_ata_id=sistema.id, descricao="Descrição livre qualquer, não deveria aparecer aqui",
+    )
+
+    resultado = await service.get_panes_summary(db)
+
+    assert any(p.sistema == "Trem de Pouso" for p in resultado.panes_criticas)
+
+
+@pytest.mark.asyncio
+async def test_pane_critica_sistema_usa_descricao_truncada_sem_sistema_ata(db: AsyncSession):
+    """Sem `sistema_ata_id`, mantém o fallback de descrição truncada (comportamento pré-existente)."""
+    aeronave = await _criar_aeronave(db, f"TEST{uuid.uuid4().hex[:3]}")
+    usuario = await _criar_usuario(db)
+    descricao_longa = "D" * 60
+    await _criar_pane(db, aeronave.id, usuario.id, status="ABERTA", descricao=descricao_longa)
+
+    resultado = await service.get_panes_summary(db)
+
+    pane_res = next(p for p in resultado.panes_criticas if p.matricula == aeronave.matricula)
+    assert pane_res.sistema == descricao_longa[:40] + "..."
+
+
 # ===========================================================================
 # BLOCO 2: Vencimentos Summary
 # ===========================================================================
@@ -295,6 +368,20 @@ async def test_inspecoes_ativas_retorna_instancias_corretas(db: AsyncSession):
         assert isinstance(item, InspecaoAtiva)
 
 
+@pytest.mark.asyncio
+async def test_inspecoes_ativas_limitadas_a_5_itens(db: AsyncSession):
+    """MELHORIA-07: diferente de panes/movimentações, get_inspecoes_ativas
+    não tinha .limit(...) — o card podia crescer sem teto."""
+    aeronave = await _criar_aeronave(db, f"TEST{uuid.uuid4().hex[:3]}")
+    usuario = await _criar_usuario(db)
+    for _ in range(8):
+        await _criar_inspecao(db, aeronave.id, usuario.id, status="ABERTA")
+
+    resultado = await service.get_inspecoes_ativas(db)
+
+    assert len(resultado) <= 5
+
+
 # ===========================================================================
 # BLOCO 4: Frota Summary
 # ===========================================================================
@@ -351,8 +438,102 @@ async def test_frota_summary_override_status_inspecao_ativa(db: AsyncSession):
     assert a_res.status == "INSPEÇÃO"
 
 
+@pytest.mark.asyncio
+async def test_frota_summary_override_status_pane_aberta(db: AsyncSession):
+    """BUG-01: antes, panes_ativas era um set[UUID] comparado contra uma str
+    (ac_id_str) — nunca batia, e uma aeronave com pane ABERTA continuava
+    aparecendo com o status base do banco em vez de INDISPONIVEL."""
+    aeronave = await _criar_aeronave(db, "T-PANE", "DISPONIVEL")
+    usuario = await _criar_usuario(db)
+    await _criar_pane(db, aeronave.id, usuario.id, status="ABERTA")
+
+    resultado = await service.get_frota_summary(db)
+
+    a_res = next(a for a in resultado.aeronaves if a.matricula == "T-PANE")
+    assert a_res.status == "INDISPONIVEL"
+
+
 # ===========================================================================
-# BLOCO 5: Orquestrador e Endpoint REST
+# BLOCO 5: Movimentações Recentes
+# ===========================================================================
+
+# Nota de isolamento (mesma observação de test_panes_alta_prioridade.py): o
+# banco de testes é SQLite in-memory compartilhado pela sessão inteira do
+# pytest, e tests/architecture/test_performance_audit.py usa `db.commit()`
+# explícito (fora do padrão flush+rollback), deixando linhas de Instalacao
+# "TEST-PERF"/"TEST-HIST" persistidas para o resto da suíte. Por isso, os
+# testes abaixo nunca assumem banco vazio nem contam o total de eventos —
+# sempre filtram pela matrícula (única via uuid) da própria aeronave do teste.
+
+@pytest.mark.asyncio
+async def test_movimentacoes_recentes_instalacao_ativa_aparece_como_instalacao(db: AsyncSession):
+    aeronave = await _criar_aeronave(db, f"TEST{uuid.uuid4().hex[:6]}")
+    await _criar_instalacao(db, aeronave.id)
+
+    resultado = await service.get_movimentacoes_recentes(db)
+
+    evento = next((r for r in resultado if r.aeronave_matricula == aeronave.matricula), None)
+    assert evento is not None
+    assert evento.tipo == "INSTALACAO"
+    assert "instalado" in evento.descricao
+
+
+@pytest.mark.asyncio
+async def test_movimentacoes_recentes_remocao_aparece_como_evento_distinto(db: AsyncSession):
+    """MELHORIA-04: a instalação removida deve gerar DOIS eventos no feed
+    (instalação + remoção), não um só como se ainda estivesse ativa — decisão
+    do desenvolvedor (achados_dashboard.md, MELHORIA-04, opção b)."""
+    aeronave = await _criar_aeronave(db, f"TEST{uuid.uuid4().hex[:6]}")
+    # Timestamps o mais "agora" possível: precisam vencer a recência de
+    # qualquer linha já commitada por outros testes na mesma sessão de banco
+    # compartilhada (ver nota de isolamento acima).
+    await _criar_instalacao(db, aeronave.id, removido_em=datetime.now(timezone.utc))
+
+    resultado = await service.get_movimentacoes_recentes(db)
+
+    eventos_desta_aeronave = [r for r in resultado if r.aeronave_matricula == aeronave.matricula]
+    tipos = {r.tipo for r in eventos_desta_aeronave}
+    assert tipos == {"INSTALACAO", "REMOCAO"}
+    evento_remocao = next(r for r in eventos_desta_aeronave if r.tipo == "REMOCAO")
+    assert "removido" in evento_remocao.descricao
+
+
+@pytest.mark.asyncio
+async def test_movimentacoes_recentes_remocao_de_instalacao_antiga_ainda_aparece_no_feed(db: AsyncSession):
+    """Antes, a ordenação era só por created_at (data da instalação original)
+    — uma instalação de 1 ano atrás nunca entraria no top-5 mais recente, e
+    sua remoção de agora ficaria invisível no feed. Com o evento de remoção
+    ordenado pelo próprio `removido_em`, ele aparece mesmo que a instalação
+    original seja antiga."""
+    aeronave = await _criar_aeronave(db, f"TEST{uuid.uuid4().hex[:6]}")
+    await _criar_instalacao(
+        db, aeronave.id,
+        criado_em=datetime.now(timezone.utc) - timedelta(days=365),
+        removido_em=datetime.now(timezone.utc),
+    )
+
+    resultado = await service.get_movimentacoes_recentes(db)
+
+    evento = next((r for r in resultado if r.aeronave_matricula == aeronave.matricula), None)
+    assert evento is not None
+    assert evento.tipo == "REMOCAO"
+
+
+@pytest.mark.asyncio
+async def test_movimentacoes_recentes_limitadas_a_5_itens(db: AsyncSession):
+    aeronave = await _criar_aeronave(db, f"TEST{uuid.uuid4().hex[:6]}")
+    for i in range(8):
+        await _criar_instalacao(
+            db, aeronave.id, criado_em=datetime.now(timezone.utc) - timedelta(days=i)
+        )
+
+    resultado = await service.get_movimentacoes_recentes(db)
+
+    assert len(resultado) <= 5
+
+
+# ===========================================================================
+# BLOCO 6: Orquestrador e Endpoint REST
 # ===========================================================================
 
 @pytest.mark.asyncio

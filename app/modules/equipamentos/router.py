@@ -5,19 +5,31 @@ Endpoints de gestão de equipamentos, itens e inventário.
 
 import uuid
 
-from fastapi import APIRouter, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, HTTPException, status, UploadFile, File, Query
+from fastapi.responses import Response
 
 from app.modules.equipamentos import schemas, service
 from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin, AdminRequired, ExecucaoPermitida
+from app.shared.exporter import gerar_csv, gerar_xlsx
 
 router = APIRouter()
+
+# Os services levantam exceções de domínio (app.shared.core.exceptions), que já
+# carregam o status HTTP e são convertidas pelo handler global — por isso os
+# endpoints abaixo não têm try/except de tradução de erro.
 
 
 # ---- Equipamentos (Tipos / Part Numbers) ----
 
 @router.get("/", response_model=list[schemas.ModeloEquipamentoOut], summary="Listar equipamentos")
-async def listar_equipamentos(db: DBSession, _: CurrentUser):
-    equipamentos = await service.listar_modelos(db)
+async def listar_equipamentos(
+    db: DBSession,
+    _: CurrentUser,
+    limit: int | None = Query(None, ge=1, le=service.LIMITE_MAXIMO_LISTAGEM),
+    offset: int = Query(0, ge=0),
+):
+    """Lista o catálogo de PNs. Sem `limit`, retorna o catálogo completo."""
+    equipamentos = await service.listar_modelos(db, limit=limit, offset=offset)
     return [schemas.ModeloEquipamentoOut.model_validate(e) for e in equipamentos]
 
 
@@ -32,11 +44,8 @@ async def criar_equipamento(
     db: DBSession,
     _: AdminRequired,
 ):
-    try:
-        equipamento = await service.criar_modelo(db, dados)
-        return schemas.ModeloEquipamentoOut.model_validate(equipamento)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    equipamento = await service.criar_modelo(db, dados)
+    return schemas.ModeloEquipamentoOut.model_validate(equipamento)
 
 
 @router.get("/{equipamento_id}", response_model=schemas.ModeloEquipamentoOut)
@@ -45,16 +54,7 @@ async def buscar_equipamento(
     db: DBSession,
     _: CurrentUser,
 ):
-    from app.modules.equipamentos.models import ModeloEquipamento
-    from sqlalchemy import select
-    result = await db.execute(select(ModeloEquipamento).where(ModeloEquipamento.id == equipamento_id))
-    equipamento = result.scalar_one_or_none()
-    
-    if not equipamento:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Equipamento não encontrado.",
-        )
+    equipamento = await service.buscar_modelo(db, equipamento_id)
     return schemas.ModeloEquipamentoOut.model_validate(equipamento)
 
 
@@ -65,14 +65,8 @@ async def atualizar_equipamento(
     db: DBSession,
     _: AdminRequired,
 ):
-    try:
-        from app.shared.core import exceptions as domain_exc
-        equipamento = await service.atualizar_modelo(db, equipamento_id, dados)
-        return schemas.ModeloEquipamentoOut.model_validate(equipamento)
-    except domain_exc.EntidadeNaoEncontradaError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    equipamento = await service.atualizar_modelo(db, equipamento_id, dados)
+    return schemas.ModeloEquipamentoOut.model_validate(equipamento)
 
 
 @router.delete("/{equipamento_id}", summary="Excluir equipamento")
@@ -81,14 +75,8 @@ async def remover_equipamento(
     db: DBSession,
     _: AdminRequired,
 ):
-    try:
-        from app.shared.core import exceptions as domain_exc
-        await service.remover_modelo(db, equipamento_id)
-        return {"success": True, "message": "Equipamento removido com sucesso."}
-    except domain_exc.EntidadeNaoEncontradaError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    await service.remover_modelo(db, equipamento_id)
+    return {"success": True, "message": "Equipamento removido com sucesso."}
 
 
 # ---- Slots de Inventário (Posições na ANV) ----
@@ -99,10 +87,8 @@ async def remover_equipamento(
     summary="Listar todos os slots configurados",
 )
 async def listar_slots(db: DBSession, _: CurrentUser):
-    from app.modules.equipamentos.models import SlotInventario
-    from sqlalchemy import select
-    result = await db.execute(select(SlotInventario))
-    return [schemas.SlotInventarioOut.model_validate(s) for s in result.scalars().all()]
+    slots = await service.listar_slots(db)
+    return [schemas.SlotInventarioOut.model_validate(s) for s in slots]
 
 
 @router.post(
@@ -116,12 +102,9 @@ async def criar_slot(
     db: DBSession,
     _: AdminRequired,
 ):
-    try:
-        slot = await service.criar_slot(db, dados)
-        # O commit é feito automaticamente pela dependência get_db ao final do request
-        return schemas.SlotInventarioOut.model_validate(slot)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    slot = await service.criar_slot(db, dados)
+    # O commit é feito automaticamente pela dependência get_db ao final do request
+    return schemas.SlotInventarioOut.model_validate(slot)
 
 
 # ---- Itens (Serial Number) ----
@@ -131,8 +114,11 @@ async def listar_itens(
     db: DBSession,
     _: CurrentUser,
     equipamento_id: uuid.UUID | None = None,
+    limit: int | None = Query(None, ge=1, le=service.LIMITE_MAXIMO_LISTAGEM),
+    offset: int = Query(0, ge=0),
 ):
-    itens = await service.listar_itens(db, equipamento_id)
+    """Lista itens físicos (S/N). Sem `limit`, retorna todos os itens do filtro."""
+    itens = await service.listar_itens(db, equipamento_id, limit=limit, offset=offset)
     return [schemas.ItemEquipamentoOut.model_validate(i) for i in itens]
 
 
@@ -147,11 +133,8 @@ async def criar_item(
     db: DBSession,
     _: AdminRequired,
 ):
-    try:
-        item = await service.criar_item_com_heranca(db, dados)
-        return schemas.ItemEquipamentoOut.model_validate(item)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    item = await service.criar_item_com_heranca(db, dados)
+    return schemas.ItemEquipamentoOut.model_validate(item)
 
 
 # ---- Instalações ----
@@ -208,6 +191,48 @@ async def listar_historico_inventario(
     return await service.listar_historico_recente(db, limit=limit, offset=offset)
 
 
+# IMPORTANTE: rotas literais devem vir ANTES de /inventario/{aeronave_id},
+# senão "export" é interpretado como aeronave_id e a requisição falha com 422.
+@router.get(
+    "/inventario/export",
+    summary="Exportar relatório de inventário de aeronave (CSV/XLSX)",
+)
+async def exportar_inventario(
+    db: DBSession,
+    _: CurrentUser,
+    aeronave_id: uuid.UUID,
+    fmt: str = Query("csv", alias="format", pattern="^(csv|xlsx)$"),
+):
+    """Exporta o inventário da aeronave especificada em CSV ou XLSX."""
+    inventario = await service.listar_inventario_aeronave(db, aeronave_id)
+    headers = ["Slot", "Part Number (PN)", "Nome Equipamento", "Número de Série (SN)", "Status Slot"]
+    rows = [
+        [
+            item.nome_posicao,
+            item.part_number,
+            item.nome_generico,
+            item.numero_serie or "",
+            item.status_item.value if item.status_item else "VAZIO",
+        ]
+        for item in inventario
+    ]
+
+    if fmt == "xlsx":
+        content = gerar_xlsx("Inventario", headers, rows)
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": 'attachment; filename="inventario_aeronave.xlsx"'}
+        )
+    else:
+        content_str = gerar_csv(headers, rows)
+        return Response(
+            content=content_str.encode("utf-8-sig"),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="inventario_aeronave.csv"'}
+        )
+
+
 @router.get(
     "/inventario/{aeronave_id}",
     response_model=list[schemas.InventarioItemOut],
@@ -233,7 +258,7 @@ async def listar_inventario(
 async def ajustar_inventario(
     dados: schemas.AjusteInventarioCreate,
     db: DBSession,
-    _: EncarregadoOuAdmin,
+    current_user: EncarregadoOuAdmin,
 ):
     """
     Ajusta o número de série físico de um equipamento.
@@ -241,7 +266,7 @@ async def ajustar_inventario(
     """
     from sqlalchemy.exc import IntegrityError
     try:
-        return await service.ajustar_inventario_item(db, dados)
+        return await service.ajustar_inventario_item(db, dados, current_user.id)
     except IntegrityError as e:
         if "FOREIGN KEY constraint failed" in str(e):
             return schemas.AjusteInventarioResponse(
@@ -262,7 +287,7 @@ async def upload_inventario_xlsx_preview(
     file: UploadFile = File(...),
 ):
     """
-    Recebe um arquivo XLSX, cruza os PNs com o catálogo e retorna 
+    Recebe um arquivo XLSX, cruza os PNs com o catálogo e retorna
     uma prévia das alterações sem persistir.
     """
     if not file.filename or not file.filename.lower().endswith(".xlsx"):
@@ -271,7 +296,9 @@ async def upload_inventario_xlsx_preview(
             detail="O arquivo deve ser do tipo .xlsx"
         )
 
-    content = await file.read()
+    from app.shared.core.file_validators import ler_upload_com_limite
+    content = await ler_upload_com_limite(file, max_bytes=5 * 1024 * 1024)
+
     from app.modules.equipamentos.xlsx_service import obter_previa_xlsx_inventario
     return await obter_previa_xlsx_inventario(db, content, file.filename)
 
@@ -290,57 +317,12 @@ async def upload_inventario_xlsx_process(
     """
     from app.modules.equipamentos.xlsx_service import processar_confirmacao_xlsx
     resultado = await processar_confirmacao_xlsx(
-        db, dados.aeronave_id, dados.itens, current_user.id
+        db, dados.aeronave_id, dados.itens, current_user.id, dados.preview_token
     )
 
     return {
         "sucesso": len(resultado.erros) == 0,
         "total_linhas": resultado.total_linhas,
-        "itens_atualizados": resultado.itens_atualizados,
-        "erros": resultado.erros,
-        "detalhes": resultado.detalhes,
-    }
-
-
-@router.post(
-    "/inventario/upload-xlsx",
-    summary="Carregar inventário via XLSX (Legado/Direto)",
-)
-async def upload_inventario_xlsx(
-    db: DBSession,
-    current_user: EncarregadoOuAdmin,
-    file: UploadFile = File(...),
-):
-    """
-    Recebe um arquivo XLSX nomeado como MATRICULA.xlsx,
-    cruza os PNs com o catálogo e atualiza os seriais da aeronave.
-    """
-    # Validar extensão
-    if not file.filename or not file.filename.lower().endswith(".xlsx"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="O arquivo deve ser do tipo .xlsx"
-        )
-
-    # Validar tamanho (máximo 5MB)
-    content = await file.read()
-    if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Arquivo excede o tamanho máximo de 5MB."
-        )
-
-    from app.modules.equipamentos.xlsx_service import processar_xlsx_inventario
-    resultado = await processar_xlsx_inventario(
-        db, content, file.filename, current_user.id
-    )
-
-    return {
-        "sucesso": len(resultado.erros) == 0,
-        "matricula": resultado.matricula,
-        "total_linhas": resultado.total_linhas,
-        "pns_encontrados": resultado.pns_encontrados,
-        "pns_ignorados": resultado.pns_ignorados,
         "itens_atualizados": resultado.itens_atualizados,
         "erros": resultado.erros,
         "detalhes": resultado.detalhes,

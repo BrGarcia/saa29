@@ -1,0 +1,18 @@
+{% extends "mobile/base_mobile.html" %}
+
+{% block title %}Frota SAA29 — Linha de Voo{% endblock %}
+
+{% block content %}
+<div class="mobile-section">
+    <h2 class="mobile-section-title">Aeronaves na Linha de Voo</h2>
+    <p class="mobile-section-sub">Selecione uma aeronave para visualizar e concluir tarefas pendentes em 1 toque.</p>
+    
+    <div id="container-frota-mobile" class="mobile-card-grid">
+        <div class="mobile-loading">Carregando aeronaves...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/mobile/frota_mobile.js"></script>
+{% endblock %}

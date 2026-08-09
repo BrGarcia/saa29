@@ -5,10 +5,21 @@
 - Endpoints:
   - /auth: login, refresh, logout, me, usuarios (CRUD + pwd + admin-reset-pwd)
   - /aeronaves: list, create, detail, update, toggle-status
-  - /panes: create, list, detail, update, concluir, anexos (CRUD), responsaveis (Add/Rem), restore, sistemas (Lookup List)
-  - /equipamentos: tipos-controle, modelos (CRUD), slots (CRUD), itens (CRUD), instalacao, remocao, exec-vencimento, inventario-historico, inventario-aeronave, ajuste-sinc
-  - /inspecoes: integrated (endpoints available in inspections router)
+  - /panes: create, list, detail, update, concluir, anexos (CRUD), responsaveis (Add/Rem), restore, sistemas (Lookup List), export (GET CSV/XLSX)
+  - /equipamentos: tipos-controle, modelos (CRUD), slots (CRUD), itens (CRUD), instalacao, remocao, exec-vencimento, inventario-historico, inventario-aeronave, ajuste-sinc, inventario/export (GET CSV/XLSX)
+  - /inspecoes: integrated (endpoints available in inspections router), export (GET CSV/XLSX), pdf (GET /{id}/pdf), checklist (GET /{id}/checklist)
   - /dashboard/resumo: GET consolidated metrics for dashboard UI
   - /calendario/eventos: GET range query with backend privacy censorship and DPE aggregation; POST/PUT/DELETE calendar_events CRUD
   - /calendario/tipos: GET list active types; POST create, PUT update, DELETE delete types (Restricted to ADMINISTRADOR)
-- HTTP Status: 200/201 (OK/Created), 401 (Unauth), 403 (Forbidden), 404 (NotFound), 409 (Conflict), 422 (Pydantic Error)
+  - /publicacoes/api/busca: GET FTS5 full-text search over catalog.<rotulo>.db with manual/chapter/ATA filters
+  - /publicacoes/api/catalogo/busca: GET tree search by manual name/path
+  - /publicacoes/api/documentos/{id}: GET document metadata and revision warning banner
+  - /publicacoes/api/fim: GET CAS/EICAS message resolution to FIM manual procedures
+  - /publicacoes/api/fim/por-ata/{ata}: GET FIM procedures for specific ATA chapter
+  - /publicacoes/api/status: GET catalog and index metrics summary
+  - /publicacoes/api/edicoes: GET list editions; POST /{id}/ativar (ADMIN), POST /{id}/arquivar, GET /{id}/relatorio, GET /duplicacao
+  - /publicacoes/api/edicoes/uploads: POST /uploads (start job), POST /uploads/{id}/partes (presigned URL), PUT /uploads/local-parte (dev local PUT), POST /uploads/{id}/concluir (trigger worker), POST /uploads/{id}/cancelar, GET /uploads/{id} (polling)
+  - /publicacoes/avulsas: CRUD for avulsa publications (BS, BO, NPO, BT) with file upload and full-text ementa search
+  - /publicacoes/api/favoritos: GET list favorites; POST toggle favorite
+  - /publicacoes/doc/{id}/pdf: GET authenticated PDF file stream with access audit logging
+- HTTP Status: 200/201 (OK/Created), 400 (Bad Request), 401 (Unauth), 403 (Forbidden), 404 (NotFound), 409 (Conflict), 422 (Pydantic Error)

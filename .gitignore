@@ -49,5 +49,31 @@ railway_local_variables.txt
 *.tar
 var/logs/
 var/db
+# WAL/SHM do SQLite — criados enquanto a aplicação roda; `var/db` sozinho não os pega.
+var/db-*
 var/uploads/
 var/tmp/
+
+# Backups locais de banco (ex: saa29_local.db.bak_20260804_163106_pre_upgrade).
+# *.db acima não os pega: o sufixo _pre_upgrade vem DEPOIS da extensão.
+*.bak_*
+
+# === Acervo de Manuais e Documentos de Referência (Não Versionados) ===
+# O acervo (~1 GB) e o índice de busca derivado são regeneráveis e NUNCA entram
+# no repositório (ADR-004). Sem acento e sem maiúscula de propósito em
+# "var/publicacoes/": a entrada anterior era "var/publicações/", que só casava
+# no Windows (case-insensitive) e falharia no Linux do CI/VPS — ver
+# docs/backlog/modulo_publicacoes/04_plano_de_execucao.md M0.
+var/manuais/
+var/Publicações/
+var/publicacoes/
+data/
+*.pdf
+*.PDF
+*.zip
+
+# Exceção deliberada: a amostra mínima que o CI precisa para exercitar a busca
+# full-text com PDF de verdade (4 arquivos, 168 KB, copiados do acervo). Sem
+# ela, todo o módulo publicacoes deixaria de ser testado em pipeline.
+!tests/fixtures/fim/
+!tests/fixtures/fim/*.PDF

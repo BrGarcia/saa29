@@ -1,7 +1,7 @@
 # ctx
 
 meta:
-- sync_date: 2026-05-23
+- sync_date: 2026-08-08
 - docs_structure: reorganized and cleaned (core/, guides/, backlog/, summaries/, ia/*.ctx)
 - mode: machine
 - format: kv_short
@@ -10,9 +10,10 @@ meta:
 project:
 - name: SAA29
 - type: web_monolith_modular_ddd
-- domain: panes_aeronaves_inventario_a29
+- domain: panes_aeronaves_inventario_a29_publicacoes
 - status: architecture_stabilized_ddd_active
-- test_status: calendario targeted passing (tests/test_calendario.py: 11 passed)
+- version: 1.5.0
+- test_status: all tests passing (650+ tests passed, 100% green test suite)
 - db_state: active_db_preserve_no_schema_change_for_inspecoes
 
 operational_constraints:
@@ -34,24 +35,30 @@ stack:
 - db_optional: postgresql_asyncpg
 - frontend: jinja2_vanilla_js_css
 - storage: local_or_r2
+- export: openpyxl_csv_utf8_bom
 
 entrypoints:
 - app: app/bootstrap/main.py
 - run_local: scripts/run_app.py
 - db_init: scripts/db/init_db.py
 - db_seed: scripts/seed/seed.py (Single Entry Point - Conditional Dev Seeds)
+- indexar_acervo: scripts/publicacoes/indexar.py
+- publicar_edicao: scripts/publicacoes/publicar.py
 
 domains:
 - auth: usuarios, token_blacklist, token_refresh
-- efetivo: indisponibilidades, ferias, ausencias (Modulo Ativo)
+- efetivo: indisponividades, ferias, ausencias (Modulo Ativo)
 - aeronaves: cadastro, status (DISPONIVEL, INDISPONIVEL, ESTOCADA, INATIVA, INSPEÇÃO), toggle_status
-- panes: pane (FK sistema_ata_id), sistemas_ata (Lookup), anexo, responsavel, soft_delete, restore
-- equipamentos: modelo (PN), slot, item (SN), instalacao, inventario
+- panes: pane (FK sistema_ata_id), sistemas_ata (Lookup), anexo, responsavel, soft_delete, restore, export_csv_xlsx
+- equipamentos: modelo (PN), slot, item (SN), instalacao, inventario, export_csv_xlsx
 - vencimentos: tipo_controle, periodicidade_pn, matriz_vencimentos, prorrogacoes (OK, VENCENDO, VENCIDO, PRORROGADO)
-- configuracoes: admin_dashboard, gerenciamento_frota, administracao_efetivo, regras_vencimento
-- inspecoes: integrated_fully_active (tipos_inspecao,tarefas_catalogo,tarefas_template,inspecoes,inspecao_tarefas)
-- calendario: p0_p5_active (event_types,calendar_events,rbac_censorship,frontend_ui,write_modal,inspecoes_dpe_aggregation)
+- configuracoes: admin_dashboard, gerenciamento_frota, administracao_efetivo, regras_vencimento, gestao_publicacoes
+- inspecoes: integrated_fully_active (tipos_inspecao,tarefas_catalogo,tarefas_template,inspecoes,inspecao_tarefas,export_csv_xlsx)
+- calendario: p0_p5_active (event_types,calendar_events,rbac_censorship,frontend_ui,write_modal,inspecoes_dpe_aggregation,safe_tz_sorting)
+- publicacoes: m0_m4_web_active (manuais_edicoes,manuais_documentos,manuais_fim_map,publicacoes_avulsas,publicacoes_favoritos,publicacoes_upload_jobs,fts5_search,explorador_tree,pdf_viewer_canvas)
 - shared/image_pipeline: service_layer_for_image_processing (validator,converter,resizer,optimizer,pipeline)
+- shared/contracts: ddd_domain_lookup_protocols (AeronaveLookupProtocol)
+- shared/exporter: generic_csv_xlsx_report_generator (gerar_csv, gerar_xlsx)
 
 auth_state:
 - access_token: jwt_hs256
@@ -82,60 +89,36 @@ core_rules:
 - RN-I10: desacoplamento_tarefas_catalogo_global_completed
 - RN-I11: DPE_calculada_pela_maior_duracao_dos_tipos (DPE = inicio + max_duracao_tipos, permite override manual)
 - RN-I12: captura_auditoria_trigrama_persistente_na_inspecao (aberto_por_trigrama, concluido_por_trigrama)
+- RN-P01: fts5_search_isolated_by_edition_catalog (catalog.<rotulo>.db resolved by VIGENTE status)
+- RN-P02: upload_job_single_flight_lock (max 1 active job in ENVIANDO or PROCESSANDO state)
+- RN-P03: zip_security_validation (zip_slip_containment_check, zip_bomb_ratio_entry_limits, extension_allowlist)
+- RN-P04: edition_activation_restricted_to_admin (Inspetor and Admin can upload; only Admin can activate)
 - RN-D01: dashboard_tactical_override (Active Inspection status overrides persisted aircraft status)
 - RN-A02: admin_password_reset_authorized (Admins can reset passwords for other users)
 
 current_focus:
-- docs_synced: true (IA updated for isolated inspections scaffold)
-- security_controls_active: 100_percent (CSP hardening completed)
-- inventory_module_active: true
+- docs_synced: true (IA updated for v1.5.0 Publicações M0-M4.Web, Calendário Bugfix, and Development branch merge)
+- security_controls_active: 100_percent (CSP hardening, Zip security, and Path Traversal fixes completed)
+- publicacoes_m0_m4_web_completed: true (M0-M4 + M4.Web web upload fully implemented and tested)
+- publicacoes_explorador_promoted: true (Default view at /publicacoes and /publicacoes/viewer/{id})
+- publicacoes_single_flight_lock_active: true (uq_publicacoes_upload_jobs_ativo_unico)
+- calendario_timezone_bug_resolved: true (safe sorting of aware and naive datetimes)
+- merged_to_development: true (feature/modulo-publicacoes merged into development)
 - configuracoes_module_active: true
-- configuracoes_inspecoes_module_completed: true (Do not alter this logic unless explicitly requested)
-- matriz_vencimentos_active: true
 - inspecoes_module_active: true
-- inspecoes_backend_scaffold_isolated: false (integrated and tests passing)
-- inspecoes_router_registered_in_bootstrap: true
-- inspecoes_models_imported_in_bootstrap: true
-- inspecoes_migration_created: true
-- inspecoes_frontend_integrated: completed
-- inspecoes_full_module_completed: true
-- calendario_p0_p5_completed: true
-- calendario_frontend_integrated: true
-- calendario_inspecoes_dpe_aggregation: true
-- calendario_router_registered_api_v1: true
-- inspecoes_dpe_and_audit_trigrama_completed: true
-- ddd_modularization_completed: true
-- frontend_csp_refactoring_completed: true (removed all inline scripts)
+- calendario_module_active: true
 - alembic_migrations_up_to_date: true
-- lookup_table_sistemas_ata_completed: true
-- r2_persistence_startup_sync_active: true
-
-backlog_inspecoes:
-- feature_tarefas_extras: completed
-- feature_auditoria_checklist: completed
-- feature_desacoplamento_tarefas_catalogo: completed
-- feature_duracao_tipos_e_dpe: completed
-- feature_auditoria_trigrama_persistente: completed
-- csp_compliance: mandatory_for_all_new_UI (no_inline_scripts_no_onclick_attrs)
 
 known_gaps_from_roadmap:
-- audit_2026-05-07_resolved: true (storage masking, aeronave inativa, token reuse, rbac inventario, singleton storage, pane role validation, inventory traceability, bcrypt limit)
-- feature_modo_calendario_p0_p5: completed (tests, data layer, service/router censorship, frontend, write modal, DPE aggregation)
-- bug_fix_inativar_anv_config_verified: true
-- logout_frontend_backend_alignment_verified: true
-- database_url_consistency_verified: true
-- inspecoes_requires_activation_plan: migration, bootstrap_model_import, router_registration, frontend_integration, tests (Module now fully active)
-- bug_422_routing_conflict_resolved: true (static routes defined before dynamic)
-- bug_missing_greenlet_refresh_resolved: true (await db.refresh after flush on onupdate fields)
-- rule_async_orm_refresh: mandatory_await_db_refresh_after_flush_for_serialized_objects_with_onupdate_fields
-- bug_fix_concluir_inspecao_missing_greenlet_resolved: true (refetch after flush in state transitions)
-- bug_fix_badge_man_trigrama_resolved: true (distinguish template vs manual via tarefa_catalogo_id)
-- feature_remove_req_column_from_inspections: completed
-- rbac_documentation_active: true (docs/architecture/RBAC.md)
-- image_pipeline_module_active: partial (shared/services/image pipeline + tests ready; integration in panes/service.py pending)
-- image_pipeline_integration_rule: all_image_uploads_must_call_process_image_before_storage
-- image_pipeline_config: app/bootstrap/config/image.py (MAX_WIDTH,MAX_HEIGHT,TARGET_PSNR,MIN_SIZE_SKIP)
-- image_pipeline_backlog: docs/backlog/implamentacao_image_editor.md
-- feature_delete_event_category_completed: true (add-btn-delete-event branch merged to development)
-- documentation_reorganization_completed: true (folder cleanups, lowercase backlog, sensitive key masks)
-
+- publicacoes_m0_m4_web_completed: true
+- calendario_tz_sorting_bug_resolved: true
+- audit_2026-05-07_resolved: true
+- audit_2026-05-27_resolved: true
+- ddd_decoupling_equipamentos_aeronaves_resolved: true
+- data_export_csv_xlsx_v1_2_0_resolved: true
+- ci_matrix_testing_workflow_resolved: true
+- feature_modo_calendario_p0_p5: completed
+- mobile_linha_de_voo_module_completed: true
+- aircraft_status_hierarchy_sync_completed: true
+- rbac_documentation_active: true
+- image_pipeline_module_active: true

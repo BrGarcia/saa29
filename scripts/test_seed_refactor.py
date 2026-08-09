@@ -11,13 +11,6 @@ from sqlalchemy import text
 # Add root to sys.path
 sys.path.append(os.getcwd())
 
-import app.modules.auth.models
-import app.modules.aeronaves.models
-import app.modules.equipamentos.models
-import app.modules.panes.models
-import app.modules.inspecoes.models
-import app.modules.vencimentos.models
-import app.modules.efetivo.models
 
 from app.bootstrap.database import get_session_factory
 from scripts.seed import seed_modelos, seed_slots

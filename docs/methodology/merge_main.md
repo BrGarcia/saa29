@@ -35,11 +35,18 @@ steps:
 - git push origin main
 
 post_deploy:
-- monitor_railway_logs: scripts/start.sh (R2 restore check)
+- monitor_deploy_logs: scripts/start.sh (R2 restore check)
 - check_alembic: alembic upgrade head success
 - verify_data_persistence: UI check
 
 rules:
 - NO_R2_NO_MERGE: Fail if R2 connection is suspect.
-- PERSISTENCE: sqlite is ephemeral; R2 is the only truth.
+- PERSISTENCE: R2 is the off-site backup and must be healthy before merging.
 - GLOBAL: Always git push after git commit.
+
+# Nota (04/08/2026): nao ha provedor de hospedagem contratado. O Railway encerrou o plano
+# gratuito; o alvo passou a ser uma VPS de entrada, com disco persistente. Por isso a regra
+# PERSISTENCE foi corrigida: a antiga dizia "sqlite is ephemeral; R2 is the only truth", o que
+# so valia em plataforma de filesystem efemero. Numa VPS o banco em disco e a fonte de verdade
+# e o R2 e backup — mas o backup continua sendo pre-requisito de merge, agora com mais razao:
+# em no unico, sem redundancia, ele e a unica copia fora do servidor.

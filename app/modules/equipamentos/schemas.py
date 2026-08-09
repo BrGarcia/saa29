@@ -5,20 +5,32 @@ Schemas Pydantic v2 para Modelos, Slots, Itens e Inventário.
 
 import uuid
 from datetime import datetime, date
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Annotated
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 from app.shared.core.enums import StatusItem
+
+
+def _normalizar_identificador(valor: str) -> str:
+    """Normaliza PN/SN para a forma canônica (sem espaços nas pontas, maiúsculas)."""
+    return valor.strip().upper()
+
+
+# Fonte única de verdade da normalização de PN/SN: evita duplicatas lógicas
+# ("abc123" vs "ABC123") sem espalhar `.strip().upper()` pelos services.
+Identificador = Annotated[str, AfterValidator(_normalizar_identificador)]
+
 
 # ============================================================
 # ModeloEquipamento (Part Number)
 # ============================================================
 
 class ModeloEquipamentoCreate(BaseModel):
-    part_number: str = Field(..., max_length=50)
+    part_number: Identificador = Field(..., max_length=50)
     nome_generico: str = Field(..., max_length=100)
     descricao: str | None = None
 
 class ModeloEquipamentoUpdate(BaseModel):
-    part_number: str | None = Field(None, max_length=50)
+    part_number: Identificador | None = Field(None, max_length=50)
     nome_generico: str | None = Field(None, max_length=100)
     descricao: str | None = None
 
@@ -52,7 +64,7 @@ class SlotInventarioOut(BaseModel):
 
 class ItemEquipamentoCreate(BaseModel):
     modelo_id: uuid.UUID
-    numero_serie: str = Field(..., max_length=100)
+    numero_serie: Identificador = Field(..., max_length=100)
     status: StatusItem = StatusItem.ATIVO
 
 class ItemEquipamentoOut(BaseModel):
@@ -114,10 +126,25 @@ class InventarioItemOut(BaseModel):
 class AjusteInventarioCreate(BaseModel):
     aeronave_id: uuid.UUID
     slot_id: uuid.UUID | None = None
-    equipamento_id: uuid.UUID | None = None  # Compatibilidade Frontend (V1)
-    numero_serie_real: str = Field(..., min_length=0)
+    equipamento_id: uuid.UUID | None = None  # DEPRECATED: compatibilidade Frontend (V1)
+    numero_serie_real: Identificador = Field(..., min_length=0)
     forcar_transferencia: bool = False
-    usuario_id: uuid.UUID | None = None
+
+    @model_validator(mode="after")
+    def _resolver_slot_id(self) -> "AjusteInventarioCreate":
+        """Garante `slot_id` preenchido, aceitando o alias legado `equipamento_id`.
+
+        Resolver aqui (e não no service) elimina a repetição de
+        `slot_id or equipamento_id` e dá ao service a garantia de valor.
+
+        Raises:
+            ValueError: nenhum dos dois identificadores foi informado (→ HTTP 422).
+        """
+        if self.slot_id is None:
+            if self.equipamento_id is None:
+                raise ValueError("Informe 'slot_id' (ou o campo legado 'equipamento_id').")
+            self.slot_id = self.equipamento_id
+        return self
 
 class InventarioHistoricoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -156,6 +183,9 @@ class XlsxPreviewOut(BaseModel):
     pns_ignorados: int
     itens: list[XlsxPreviewItemOut]
     erros: list[str]
+    # RISCO-02 (achados_equipamentos.md): vincula esta prévia à confirmação —
+    # o cliente deve reenviar este valor em XlsxProcessRequest.preview_token.
+    preview_token: str | None = None
 
 class XlsxProcessConfirmItem(BaseModel):
     slot_id: uuid.UUID
@@ -164,3 +194,4 @@ class XlsxProcessConfirmItem(BaseModel):
 class XlsxProcessRequest(BaseModel):
     aeronave_id: uuid.UUID
     itens: list[XlsxProcessConfirmItem]
+    preview_token: str

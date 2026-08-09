@@ -4,6 +4,8 @@ Factory da aplicação FastAPI para o SAA29.
 Orquestrador central seguindo o Princípio da Responsabilidade Única (SRP).
 """
 
+import logging
+import mimetypes
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +21,7 @@ import app.modules.aeronaves.models
 import app.modules.panes.models
 import app.modules.efetivo.models
 import app.modules.calendario.models
+import app.modules.publicacoes.models
 
 # --- Configurações e Ciclo de Vida ---
 from app.bootstrap.config import get_settings
@@ -35,7 +38,31 @@ from app.modules.panes.router import router as panes_router
 from app.modules.inspecoes.router import router as inspecoes_router
 from app.modules.calendario.router import router as calendario_router
 from app.modules.dashboard.router import router as dashboard_router
+from app.modules.publicacoes.router import router as publicacoes_router
 from app.web.pages.router import router as pages_router
+from app.web.pages.mobile_router import router as mobile_router
+
+logger = logging.getLogger(__name__)
+
+# Fonte única de verdade dos prefixos de API (JSON) — usada tanto para
+# registrar os routers quanto pelo exception handler global (item #8/Etapa
+# 5) para decidir se um 401/403 deve redirecionar para /login (rota de
+# página) ou devolver JSON (chamada de API). Manter isso como uma lista
+# duplicada e mantida manualmente em dois lugares foi o que causou o bug
+# original: o calendário usa /api/v1/calendario, prefixo fora do padrão
+# /<modulo> dos demais, e ficou de fora da cópia que existia em
+# exceptions.py.
+API_PREFIXES = [
+    "/auth/", "/efetivo/", "/aeronaves/", "/equipamentos/", "/vencimentos/",
+    "/panes/", "/inspecoes/", "/api/v1/calendario/", "/dashboard/",
+    # ATENÇÃO: "/publicacoes/api/", NUNCA "/publicacoes/". O módulo serve
+    # páginas HTML no mesmo prefixo (/publicacoes, /publicacoes/viewer/...);
+    # registrar o prefixo curto aqui faria o handler global devolver JSON 401
+    # para elas em vez de redirecionar para /login — o mesmo bug que o
+    # calendário já causou, e por isso todo endpoint JSON do módulo vive sob
+    # o sub-prefixo /api/ (03_especificacao_tecnica.md §3, risco R20).
+    "/publicacoes/api/",
+]
 
 
 def create_app() -> FastAPI:
@@ -62,7 +89,7 @@ def create_app() -> FastAPI:
 
     # 2. Exception Handlers (Redirects UI e Rate Limits)
     from app.shared.core.exceptions import setup_exception_handlers
-    setup_exception_handlers(app)
+    setup_exception_handlers(app, api_prefixes=API_PREFIXES)
 
     # 3. Middlewares e Rotas
     _register_middlewares(app)
@@ -94,6 +121,18 @@ def _register_middlewares(app: FastAPI) -> None:
     # CORS Configuration
     cors_origins = settings.allowed_origins
     if "*" in cors_origins:
+        # allow_credentials=True proíbe usar "*" como origem (regra do
+        # CORS): sem este fallback, o middleware simplesmente rejeitaria
+        # toda origem em runtime. Silenciosamente trocado por um conjunto
+        # fixo de origens de desenvolvimento — se ALLOWED_ORIGINS="*" for
+        # deixado assim em produção por engano, o CORS quebra sem que
+        # ninguém saiba o motivo. Logado como warning para não passar
+        # despercebido num deploy real.
+        logger.warning(
+            "ALLOWED_ORIGINS=\"*\" não é compatível com allow_credentials=True — "
+            "usando origens de desenvolvimento (localhost) como fallback. "
+            "Configure ALLOWED_ORIGINS explicitamente em produção."
+        )
         cors_origins = ["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:3000"]
 
     app.add_middleware(
@@ -116,14 +155,27 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(inspecoes_router,    prefix="/inspecoes",    tags=["Inspeções"])
     app.include_router(calendario_router,   prefix="/api/v1/calendario", tags=["Calendario"])
     app.include_router(dashboard_router,    prefix="/dashboard",    tags=["Dashboard"])
-    
+    app.include_router(publicacoes_router,  prefix="/publicacoes",  tags=["Publicações"])
+
     # Frontend Pages (Root / UI)
+    app.include_router(mobile_router)
     app.include_router(pages_router)
 
 
 def _mount_static(app: FastAPI) -> None:
     """Monta os arquivos estáticos públicos da aplicação."""
     os.makedirs("app/web/static", exist_ok=True)
+
+    # `.mjs` (módulos ES do PDF.js vendorizado, `app/web/static/js/pdfjs/`)
+    # precisa resolver para um MIME de JavaScript — navegadores rejeitam a
+    # execução de `<script type="module">` cujo Content-Type não seja um dos
+    # tipos JS reconhecidos (MIME sniffing estrito para módulos). O mapeamento
+    # de `mimetypes` vem do SO (`/etc/mime.types` no Linux, registro no
+    # Windows) e `.mjs` é recente o bastante para não estar em toda
+    # distribuição — registrar aqui torna o resultado igual em qualquer
+    # ambiente, em vez de depender do que a máquina tem instalado.
+    mimetypes.add_type("text/javascript", ".mjs")
+
     app.mount("/static", StaticFiles(directory="app/web/static"), name="static")
 
 

@@ -1,0 +1,23 @@
+# ============================================================
+# SAA29 – Dependências de desenvolvimento e CI
+# ============================================================
+# Instale com:  pip install -r requirements-dev.txt
+#
+# Este arquivo é a fonte única das ferramentas de qualidade, usada tanto
+# pelo desenvolvedor quanto pelo GitHub Actions. Todas as versões são
+# fixadas com "==" de propósito: o CI antes fazia `pip install ruff ...`
+# sem pino e recebia a versão mais recente a cada execução, de modo que o
+# resultado do lint mudava sem ninguém tocar em código. Ao subir do ruff
+# 0.15 para o 0.16, por exemplo, o conjunto de regras padrão mudou por
+# completo (de ~214 para ~649 achados, em famílias diferentes).
+#
+# Ao atualizar um pino aqui, rode o lint antes de commitar: a mudança de
+# versão é uma mudança de gate e precisa ser revisada como tal.
+
+-r requirements.txt
+
+# --- Lint ---
+ruff==0.16.1
+
+# --- Cobertura de testes (usada pelo passo "Run Tests" do CI) ---
+pytest-cov==7.1.0

@@ -6,10 +6,9 @@ Alinhado com a arquitetura PN vs Slot e novas siglas (CEI, CES, 1P, 2P).
 
 import uuid
 import pytest
-import asyncio
-from datetime import date, timedelta, datetime
+from datetime import timedelta, datetime
 from httpx import AsyncClient
-from sqlalchemy import select, update
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.equipamentos.models import SlotInventario, Instalacao
 
@@ -177,13 +176,12 @@ class TestInventarioFull:
         mod = await _criar_modelo(client, headers, f"PN-H-{prefix}", "RADIO H")
         slot = await _criar_slot(db, f"RAD-H-{prefix}", "CEI", mod["id"])
 
-        # 2. Realizar ajuste (Passando o usuario_id)
+        # 2. Realizar ajuste — usuario_id vem do usuário autenticado, não do payload (BUG-01)
         sn = f"SN-H-{prefix}"
         payload = {
             "aeronave_id": anv["id"],
             "slot_id": slot["id"],
             "numero_serie_real": sn,
-            "usuario_id": str(user.id)
         }
         await client.post(f"{INVENTARIO_URL}/ajuste", json=payload, headers=headers)
 
@@ -193,8 +191,62 @@ class TestInventarioFull:
         logs = response.json()
 
         # Buscar o log específico deste teste na lista (pode haver sujeira de outros testes)
-        nosso_log = next((l for l in logs if l["item_sn"] == sn.upper()), None)
-        
+        nosso_log = next((log for log in logs if log["item_sn"] == sn.upper()), None)
+
         assert nosso_log is not None, f"Log para o item {sn} não encontrado no histórico"
         assert nosso_log["usuario_trigrama"] == "ABC"
         assert nosso_log["aeronave_matricula"] == f"H-{prefix}"
+
+    @pytest.mark.asyncio
+    async def test_ajuste_ignora_usuario_id_forjado_no_payload(
+        self, client: AsyncClient, db: AsyncSession, usuario_e_token: dict, dados_usuario_secundario: dict,
+    ):
+        """BUG-01 (achados_equipamentos.md): antes, `usuario_id` era um campo
+        comum do payload — qualquer ENCARREGADO/ADMIN podia atribuir a
+        alteração a outro usuário do sistema. Agora o service ignora
+        qualquer `usuario_id` enviado e usa sempre o usuário autenticado."""
+        from sqlalchemy import update
+        from app.modules.auth.models import Usuario
+        from app.modules.auth.security import hash_senha
+
+        headers = usuario_e_token["headers"]
+        atacante = usuario_e_token["usuario"]
+        await db.execute(update(Usuario).where(Usuario.id == atacante.id).values(trigrama="ATK"))
+
+        vitima = Usuario(
+            nome=dados_usuario_secundario["nome"],
+            posto=dados_usuario_secundario["posto"],
+            especialidade=dados_usuario_secundario["especialidade"],
+            funcao=dados_usuario_secundario["funcao"],
+            ramal=dados_usuario_secundario["ramal"],
+            username=f"{dados_usuario_secundario['username']}_{uuid.uuid4().hex[:6]}",
+            senha_hash=hash_senha(dados_usuario_secundario["password"]),
+            trigrama="VIT",
+        )
+        db.add(vitima)
+        await db.flush()
+        await db.commit()
+
+        prefix = uuid.uuid4().hex[:4]
+        anv = await _criar_aeronave(client, headers, f"FJ-{prefix}", f"SNFJ-{prefix}")
+        mod = await _criar_modelo(client, headers, f"PN-FJ-{prefix}", "RADIO FJ")
+        slot = await _criar_slot(db, f"RAD-FJ-{prefix}", "CEI", mod["id"])
+
+        sn = f"SN-FJ-{prefix}"
+        payload = {
+            "aeronave_id": anv["id"],
+            "slot_id": slot["id"],
+            "numero_serie_real": sn,
+            "usuario_id": str(vitima.id),  # tentativa de forjar a autoria
+        }
+        response = await client.post(f"{INVENTARIO_URL}/ajuste", json=payload, headers=headers)
+        assert response.status_code == 200
+
+        historico = await client.get(f"{INVENTARIO_URL}/historico", headers=headers)
+        logs = historico.json()
+        nosso_log = next((log for log in logs if log["item_sn"] == sn.upper()), None)
+
+        assert nosso_log is not None
+        # O autor registrado é sempre quem autenticou a requisição, nunca o
+        # usuario_id forjado no payload.
+        assert nosso_log["usuario_trigrama"] == "ATK"

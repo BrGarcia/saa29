@@ -65,7 +65,11 @@ class PaneUpdate(BaseModel):
     comentarios: str | None = None
     status: StatusPane | None = Field(
         default=None,
-        description="Transições: ABERTA→RESOLVIDA",
+        description=(
+            "Reservado para uso futuro. Não use para resolver a pane: "
+            "PUT com status=RESOLVIDA é rejeitado com 409 (BUG-02/RISCO-05) "
+            "— use POST /{pane_id}/concluir."
+        ),
     )
 
 

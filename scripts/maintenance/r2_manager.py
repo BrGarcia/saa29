@@ -82,10 +82,10 @@ def backup_db():
         # Envia o snapshot consistente
         s3.upload_file(backup_tmp, R2_BUCKET_NAME, key)
         print("Backup efetuado com sucesso!")
-    except ClientError as e:
+    except ClientError:
         print("Erro ao fazer backup para R2: Acesso negado ou credenciais inválidas.")
         sys.exit(1)
-    except Exception as e:
+    except Exception:
         print("Erro inesperado ao realizar backup para o R2.")
         sys.exit(1)
     finally:
@@ -147,7 +147,7 @@ def restore_db():
         else:
             print("Erro crítico ao acessar o R2: Acesso não autorizado ou rede inoperante.")
             sys.exit(1)
-    except Exception as e:
+    except Exception:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
         print("Erro de comunicação inesperado com o serviço de armazenamento R2.")
