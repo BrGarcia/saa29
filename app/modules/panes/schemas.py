@@ -62,6 +62,8 @@ class PaneUpdate(BaseModel):
     """Payload para edição de pane aberta (RF-10). RN-03: apenas panes abertas.
     Status não pode ser alterado via PUT — use POST /{pane_id}/concluir para finalizar a pane.
     """
+    model_config = ConfigDict(extra="forbid")
+
     sistema_ata_id: uuid.UUID | None = Field(default=None)
     descricao: str | None = None
     comentarios: str | None = None

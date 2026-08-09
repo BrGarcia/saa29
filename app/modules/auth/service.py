@@ -5,6 +5,7 @@ Camada de serviço (regras de negócio) para autenticação e usuários.
 
 import asyncio
 import logging
+import os
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
