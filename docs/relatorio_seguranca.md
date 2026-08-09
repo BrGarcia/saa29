@@ -494,8 +494,12 @@ Exceções não tratadas retornam apenas `{"detail": "Erro interno do servidor."
 - [x] **RBAC-04:** Centralizada validação de permissões de edição de campos em `service.editar_pane` ✅ *2026-08-09*
 - [x] **EXTRA-02:** Adicionada trava de segurança estrita em `garantir_usuarios_essenciais` impedindo a criação de usuários de teste em produção ✅ *2026-08-09*
 - [x] **EXTRA-01:** Remover `fim.json` do repositório ✅ *2026-08-09*
-- [ ] Limpar histórico do Git (BFG Repo-Cleaner) para remover credenciais do passado
-- [ ] Configurar HSTS preload após confirmar que HTTPS está funcional
+### Ações de Baixa Severidade / Melhorias de Endurecimento (Hardening)
+
+- [x] **HEADERS-01:** Adicionados headers `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` e `X-Permitted-Cross-Domain-Policies: none` em `SecurityHeadersMiddleware` ✅ *2026-08-09*
+- [x] **HSTS-01:** Adicionado o atributo `preload` na diretiva `Strict-Transport-Security` para HTTPS em produção ✅ *2026-08-09*
+- [x] **FORM-01:** Verificados atributos de `autocomplete` no formulário de login para alinhamento com padrões de segurança em estações operacionais ✅ *2026-08-09*
+- [ ] Limpar histórico do Git (BFG Repo-Cleaner) para remover credenciais do passado ⚠️ *Requer procedimento manual no repositório*
 
 ---
 
