@@ -10,6 +10,15 @@ from sqlalchemy import select
 load_dotenv()
 
 # Importar TODOS os modelos para o SQLAlchemy resolver relacionamentos
+import app.modules.auth.models         # noqa: F401
+import app.modules.efetivo.models      # noqa: F401
+import app.modules.aeronaves.models    # noqa: F401
+import app.modules.equipamentos.models # noqa: F401
+import app.modules.vencimentos.models  # noqa: F401
+import app.modules.panes.models        # noqa: F401
+import app.modules.inspecoes.models    # noqa: F401
+import app.modules.calendario.models   # noqa: F401
+import app.modules.publicacoes.models  # noqa: F401
 
 from app.modules.auth.models import Usuario
 
