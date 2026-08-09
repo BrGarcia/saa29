@@ -60,9 +60,16 @@ async function handleLogin(e) {
 
         const data = await response.json();
 
-        // Grava APENAS metadados do usuário para renderização UI condicional
+        // Grava APENAS metadados mínimos necessários para renderização UI condicional
         if (data.usuario) {
-            localStorage.setItem("saa29_user", JSON.stringify(data.usuario));
+            const minUser = {
+                id: data.usuario.id,
+                nome: data.usuario.nome,
+                funcao: data.usuario.funcao,
+                username: data.usuario.username,
+                posto: data.usuario.posto
+            };
+            localStorage.setItem("saa29_user", JSON.stringify(minUser));
         }
         if (typeof showToast === "function") showToast("Acesso autorizado. Carregando Painel...", "success");
         else alert("Acesso autorizado");

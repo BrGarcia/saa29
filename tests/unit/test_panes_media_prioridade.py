@@ -305,7 +305,7 @@ class TestExcecoesDeDominio:
         await service.concluir_pane(db, pane.id, usuario.id, "Resolvido")
 
         with pytest.raises(domain_exc.ConflitoNegocioError) as exc_info:
-            await service.editar_pane(db, pane.id, PaneUpdate(status=StatusPane.ABERTA), usuario.id)
+            await service.editar_pane(db, pane.id, PaneUpdate(descricao="Tentativa em concluída"), usuario.id)
         assert exc_info.value.status_code == 409
 
     @pytest.mark.asyncio

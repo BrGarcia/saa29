@@ -50,9 +50,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "worker-src 'self';"
         )
         
+        # Referrer Policy & Permissions Policy (Melhorias de segurança adicionais)
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
+        response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+        
         # HSTS em produção (se usando HTTPS)
         settings = get_settings()
-        if settings.app_env == "production":
-            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        if settings.app_env == "production" or settings.force_secure_cookies:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
         
         return response

@@ -145,7 +145,7 @@ async def client(db: AsyncSession) -> AsyncClient:
 
     async with AsyncClient(
         transport=ASGITransport(app=app),
-        base_url="http://testserver",
+        base_url="https://testserver",
         headers={"X-Skip-CSRF": TESTING_CSRF_BYPASS_SECRET}
     ) as ac:
         yield ac
