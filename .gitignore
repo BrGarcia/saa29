@@ -15,6 +15,12 @@ ENV/
 # === Variáveis de ambiente ===
 .env
 *.env.local
+.env.backup
+
+# === Segurança (SEC-01/SEC-02 — Auditoria 2026-08-09) ===
+# Arquivos que continham credenciais reais e tokens JWT rastreados no Git.
+cookies.txt
+fim.json
 
 # === Testes ===
 .pytest_cache/
