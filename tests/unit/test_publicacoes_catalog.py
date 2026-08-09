@@ -29,6 +29,7 @@ from app.shared.core.enums import RevisionStatus
 
 # Caminho do acervo real; ausente no CI.
 ACERVO = Path("var/publicacoes/acervo/Manuais")
+FIM_JSON = Path("docs/fim.json") if Path("docs/fim.json").is_file() else Path("fim.json")
 sem_acervo = pytest.mark.skipif(
     not ACERVO.is_dir(),
     reason="acervo real ausente (esperado no CI — 1 GB fora do repositório)",
@@ -462,7 +463,8 @@ def test_regressao_fim_json_e_cobertura_do_piloto():
     revisões dos PDFs eram diferentes das do acervo. Ao medir contra o acervo
     real — que é o que a aplicação indexa — a cobertura fecha em 100%.
     """
-    pares = catalog.carregar_fim_json(Path("fim.json"))
+    caminho = FIM_JSON if FIM_JSON.is_file() else Path("fim.json")
+    pares = catalog.carregar_fim_json(caminho)
     assert len(pares) == 1377
     assert len({m for m, _ in pares}) == 1377
 

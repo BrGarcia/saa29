@@ -441,11 +441,11 @@ async function tratarSubmitUpload(event) {
         // 1. Iniciar upload job no servidor
         const initResp = await apiFetch("/publicacoes/api/edicoes/uploads", {
             method: "POST",
-            body: JSON.stringify({
+            body: {
                 rotulo: rotulo,
                 tamanho_bytes: file.size,
                 nome_arquivo: file.name,
-            }),
+            },
         });
 
         currentUploadJobId = initResp.job_id;
@@ -492,7 +492,7 @@ async function tratarSubmitUpload(event) {
         atualizarBarraUpload("Consolidando partes no storage...", 45);
         await apiFetch(`/publicacoes/api/edicoes/uploads/${currentUploadJobId}/concluir`, {
             method: "POST",
-            body: JSON.stringify({ partes: partesEtags }),
+            body: { partes: partesEtags },
         });
 
         // 4. Iniciar Polling de progresso
