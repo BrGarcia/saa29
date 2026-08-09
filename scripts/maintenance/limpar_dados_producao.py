@@ -18,7 +18,7 @@ if str(ROOT_DIR) not in sys.path:
 
 load_dotenv()
 
-from sqlalchemy import delete
+from sqlalchemy import delete, update
 from app.bootstrap.database import get_session_factory
 
 # Importar TODOS os modelos para resolução do SQLAlchemy
@@ -34,6 +34,8 @@ import app.modules.publicacoes.models  # noqa: F401
 
 from app.modules.inspecoes.models import Inspecao, InspecaoTarefa, InspecaoEventoTipo
 from app.modules.panes.models import Pane, Anexo, PaneResponsavel
+from app.modules.aeronaves.models import Aeronave
+from app.shared.core.enums import StatusAeronave
 
 async def limpar_dados():
     print("🧹 [Produção] Iniciando limpeza de Panes e Inspeções...")
@@ -50,6 +52,13 @@ async def limpar_dados():
         res_pr = await session.execute(delete(PaneResponsavel))
         res_p = await session.execute(delete(Pane))
 
+        # 3. Resetar o status de todas as aeronaves ativas para DISPONIVEL
+        res_acft = await session.execute(
+            update(Aeronave)
+            .where(Aeronave.status != StatusAeronave.INATIVA)
+            .values(status=StatusAeronave.DISPONIVEL)
+        )
+
         await session.commit()
 
         print("✅ Clean-up concluído com sucesso:")
@@ -59,6 +68,7 @@ async def limpar_dados():
         print(f"   - Panes removidas: {res_p.rowcount}")
         print(f"   - Anexos de panes removidos: {res_an.rowcount}")
         print(f"   - Responsáveis de panes removidos: {res_pr.rowcount}")
+        print(f"   - Aeronaves atualizadas para DISPONIVEL: {res_acft.rowcount}")
         print("🛡️ Frota (Aeronaves) e Equipamentos (PN, SN, Slot, Loc) foram mantidos INTACTOS.")
 
 if __name__ == "__main__":
