@@ -471,26 +471,26 @@ Exceções não tratadas retornam apenas `{"detail": "Erro interno do servidor."
 
 ### Ações Bloqueantes (CRÍTICAS)
 
-- [ ] **SEC-01:** Remover `.env.backup` do Git (`git rm --cached .env.backup`) e adicionar ao `.gitignore`
-- [ ] **SEC-01:** **Revogar e rotacionar TODAS as credenciais Cloudflare R2** (account ID, access key, secret key)
-- [ ] **SEC-02:** Remover `cookies.txt` do Git (`git rm --cached cookies.txt`) e adicionar ao `.gitignore`
-- [ ] **SEC-03:** Substituir senha real em `.env.example` por placeholder
-- [ ] **SEC-04:** Configurar `ALLOWED_HOSTS` e `ALLOWED_ORIGINS` com domínios reais
+- [x] **SEC-01:** Remover `.env.backup` do Git (`git rm --cached .env.backup`) e adicionar ao `.gitignore` ✅ *2026-08-09*
+- [ ] **SEC-01:** **Revogar e rotacionar TODAS as credenciais Cloudflare R2** (account ID, access key, secret key) ⚠️ *Requer ação manual no painel Cloudflare*
+- [x] **SEC-02:** Remover `cookies.txt` do Git (`git rm --cached cookies.txt`) e adicionar ao `.gitignore` ✅ *2026-08-09*
+- [x] **SEC-03:** Substituir senha real em `.env.example` por placeholder ✅ *2026-08-09*
+- [x] **SEC-04:** Configurar `ALLOWED_HOSTS` e `ALLOWED_ORIGINS` com IP real da VPS ✅ *2026-08-09*
 
 ### Ações de Alta Prioridade
 
-- [ ] **SEC-05:** Garantir `APP_ENV=production` no `.env` do servidor
-- [ ] **SEC-05:** Garantir `APP_DEBUG=False` no `.env` do servidor
-- [ ] **SEC-06:** Garantir `ENABLE_DEV_SEEDS=false` e `ENABLE_TEST_USERS=false` no servidor
-- [ ] Rotacionar `APP_SECRET_KEY` (gerar nova com `openssl rand -hex 32`)
-- [ ] Rotacionar `DEFAULT_ADMIN_PASSWORD` (gerar nova com 20+ caracteres)
-- [ ] Verificar se `FORCE_SECURE_COOKIES=true` está definido (ou APP_ENV=production)
+- [x] **SEC-05:** Garantir `APP_ENV=production` no `.env` do servidor ✅ *2026-08-09*
+- [x] **SEC-05:** Garantir `APP_DEBUG=False` no `.env` do servidor ✅ *2026-08-09*
+- [x] **SEC-06:** Garantir `ENABLE_DEV_SEEDS=false` e `ENABLE_TEST_USERS=false` no servidor ✅ *2026-08-09*
+- [x] Rotacionar `APP_SECRET_KEY` (gerada nova chave segura de 64 hex chars) ✅ *2026-08-09*
+- [x] Rotacionar `DEFAULT_ADMIN_PASSWORD` (gerada nova senha de 32 chars) ✅ *2026-08-09*
+- [x] Configurar `FORCE_SECURE_COOKIES=true` no `.env` ✅ *2026-08-09*
 
 ### Ações Recomendadas (Primeiro Sprint)
 
 - [ ] **PAYLOAD-03:** Remover campo `status` do schema `PaneUpdate`
 - [ ] **RBAC-03:** Migrar dados de permissão do localStorage para template server-side
-- [ ] **EXTRA-01:** Avaliar remoção de `fim.json` do repositório
+- [x] **EXTRA-01:** Remover `fim.json` do repositório ✅ *2026-08-09*
 - [ ] Limpar histórico do Git (BFG Repo-Cleaner) para remover credenciais do passado
 - [ ] Configurar HSTS preload após confirmar que HTTPS está funcional
 
