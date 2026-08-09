@@ -10,7 +10,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
             const data = await res.json();
-            localStorage.setItem("saa29_user", JSON.stringify(data));
+            const minUser = {
+                id: data.id,
+                nome: data.nome,
+                funcao: data.funcao,
+                username: data.username,
+                posto: data.posto
+            };
+            localStorage.setItem("saa29_user", JSON.stringify(minUser));
         } catch (e) {
             localStorage.removeItem("saa29_user");
             window.location.href = "/login";

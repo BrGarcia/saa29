@@ -59,18 +59,12 @@ class PaneCreate(BaseModel):
 
 
 class PaneUpdate(BaseModel):
-    """Payload para edição de pane aberta (RF-10). RN-03: apenas panes abertas."""
+    """Payload para edição de pane aberta (RF-10). RN-03: apenas panes abertas.
+    Status não pode ser alterado via PUT — use POST /{pane_id}/concluir para finalizar a pane.
+    """
     sistema_ata_id: uuid.UUID | None = Field(default=None)
     descricao: str | None = None
     comentarios: str | None = None
-    status: StatusPane | None = Field(
-        default=None,
-        description=(
-            "Reservado para uso futuro. Não use para resolver a pane: "
-            "PUT com status=RESOLVIDA é rejeitado com 409 (BUG-02/RISCO-05) "
-            "— use POST /{pane_id}/concluir."
-        ),
-    )
 
 
 class PaneConcluir(BaseModel):

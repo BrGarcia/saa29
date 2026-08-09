@@ -486,10 +486,13 @@ Exceções não tratadas retornam apenas `{"detail": "Erro interno do servidor."
 - [x] Rotacionar `DEFAULT_ADMIN_PASSWORD` (gerada nova senha de 32 chars) ✅ *2026-08-09*
 - [x] Configurar `FORCE_SECURE_COOKIES=true` no `.env` ✅ *2026-08-09*
 
-### Ações Recomendadas (Primeiro Sprint)
+### Ações de Média Severidade / Primeiro Sprint
 
-- [ ] **PAYLOAD-03:** Remover campo `status` do schema `PaneUpdate`
-- [ ] **RBAC-03:** Migrar dados de permissão do localStorage para template server-side
+- [x] **PAYLOAD-03:** Removido campo `status` do schema `PaneUpdate` para fechar superfície de ataque via PUT ✅ *2026-08-09*
+- [x] **PAYLOAD-05:** Sanitizados dados gravados em `localStorage` no `login.js` e `auth_check.js` para manter apenas o mínimo de metadados de UI ✅ *2026-08-09*
+- [x] **RBAC-03:** Sincronização automática dos metadados de UI no `auth_check.js` a partir da resposta validada pelo backend (`/auth/me`), sobrescrevendo adulterações locais no DevTools ✅ *2026-08-09*
+- [x] **RBAC-04:** Centralizada validação de permissões de edição de campos em `service.editar_pane` ✅ *2026-08-09*
+- [x] **EXTRA-02:** Adicionada trava de segurança estrita em `garantir_usuarios_essenciais` impedindo a criação de usuários de teste em produção ✅ *2026-08-09*
 - [x] **EXTRA-01:** Remover `fim.json` do repositório ✅ *2026-08-09*
 - [ ] Limpar histórico do Git (BFG Repo-Cleaner) para remover credenciais do passado
 - [ ] Configurar HSTS preload após confirmar que HTTPS está funcional

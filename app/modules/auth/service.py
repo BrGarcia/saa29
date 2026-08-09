@@ -369,10 +369,13 @@ async def garantir_usuarios_essenciais(db: AsyncSession) -> None:
                     )
 
     # 2. Garantir Usuários de Teste — exige DOIS gatilhos explícitos (defesa
-    # em profundidade): app_env=="development" E enable_test_users=True. Um
-    # único gatilho (só APP_ENV) é frágil — um deploy com a variável
-    # ausente/errada instalaria 3 contas privilegiadas com senha trivial.
+    # em profundidade): app_env=="development" E enable_test_users=True.
+    if settings.app_env != "development" and settings.enable_test_users:
+        logger.warning("REJEITADO: enable_test_users=True ignorado porque app_env!=development.")
+
     if settings.app_env == "development" and settings.enable_test_users:
+        # Senha padrão de dev pode ser sobrescrita via env TEST_USER_PASSWORD se necessário
+        dev_pass = os.getenv("TEST_USER_PASSWORD", "123456")
         usuarios_teste = [
             ("encarregado", roles.ENCARREGADO, "Chefe de Linha", "Cap"),
             ("inspetor", roles.INSPETOR, "Inspetor de Qualidade", "SO"),
@@ -391,7 +394,7 @@ async def garantir_usuarios_essenciais(db: AsyncSession) -> None:
                     funcao=role,
                     ramal="0000",
                     username=user,
-                    senha_hash=await asyncio.to_thread(hash_senha, "123456"),
+                    senha_hash=await asyncio.to_thread(hash_senha, dev_pass),
                 )
                 db.add(u)
                 await db.flush()

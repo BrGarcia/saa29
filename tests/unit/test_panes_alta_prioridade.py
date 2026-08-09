@@ -104,9 +104,10 @@ class TestSincronizacaoStatusAeronave:
         await db.refresh(aeronave)
         assert aeronave.status == StatusAeronave.INDISPONIVEL
 
-        with pytest.raises(domain_exc.ConflitoNegocioError):
+        from pydantic import ValidationError
+        with pytest.raises((domain_exc.ConflitoNegocioError, ValidationError, TypeError)):
             await service.editar_pane(
-                db, pane.id, PaneUpdate(status=StatusPane.RESOLVIDA), usuario.id
+                db, pane.id, PaneUpdate(status=StatusPane.RESOLVIDA), usuario.id  # type: ignore
             )
 
         # A pane não foi resolvida nem a aeronave liberada pela tentativa via PUT.

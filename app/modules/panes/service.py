@@ -442,14 +442,8 @@ async def editar_pane(
         pane.comentarios = dados.comentarios
 
     # RN-03: apenas panes abertas podem ser editadas (exceto comentários)
-    if status_atual != StatusPane.ABERTA and (dados.descricao is not None or dados.sistema_ata_id is not None or dados.status is not None):
-        raise domain_exc.ConflitoNegocioError("Apenas panes abertas podem ter descrição ou status alterados.")
-
-    if dados.status is not None:
-        raise domain_exc.ConflitoNegocioError(
-            "Não é possível resolver uma pane por este endpoint. "
-            "Use POST /{pane_id}/concluir."
-        )
+    if status_atual != StatusPane.ABERTA and (dados.descricao is not None or dados.sistema_ata_id is not None):
+        raise domain_exc.ConflitoNegocioError("Apenas panes abertas podem ter descrição ou sistema ATA alterados.")
 
     # Atualizar campos
     if dados.descricao is not None:
