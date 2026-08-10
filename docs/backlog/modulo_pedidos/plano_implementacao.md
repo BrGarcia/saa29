@@ -355,7 +355,11 @@ class PedidoResumo(BaseModel):
 
 Assinaturas e algoritmo de cada função (nomes e regras alinhados à spec §4):
 
-### `_gerar_numero_pedido(db, ano: int) -> str`
+### `_gerar_numero_pedido(db, ano: int) -> str` — **superada** (enhancement Nº Pedido manual)
+> A geração automática descrita abaixo foi removida: o número oficial do pedido é emitido no
+> sistema interno da FAB e informado manualmente pelo usuário no formulário. `criar_pedido`
+> passou a receber `dados.numero_pedido` e apenas checar unicidade (pre-check + SAVEPOINT),
+> sem gerar nada. Ver RN-02 atualizada em `feature_controle_pedidos.md`.
 ```
 SELECT numero_pedido FROM pedidos
 WHERE numero_pedido LIKE 'P-{ano}-%'
@@ -368,7 +372,7 @@ Parseia o sufixo numérico do resultado (ou usa `0` se não houver nenhum), soma
 1. Busca a aeronave via `aeronaves.service.buscar_aeronave(db, dados.aeronave_id)` → se `None`, `EntidadeNaoEncontradaError` (404).
 2. Reforça no servidor: `EMERGENCIA` sem `numero_emergencia` → `ConflitoNegocioError`; `NORMAL` força `numero_emergencia = None` (RN-03/RN-04 — já validado no schema, mas repetido aqui como defesa em profundidade, já que o service pode ser chamado fora do router no futuro).
 3. `status = StatusPedido.PENDENTE.value` (RN-05), `data_pedido = date.today()` (RN-08, nunca aceito do payload).
-4. Gera `numero_pedido` e insere dentro de `async with db.begin_nested():`. Em caso de `IntegrityError` (colisão de `numero_pedido` por corrida entre duas criações concorrentes), tenta novamente até 3 vezes; se ainda assim colidir, `ConflitoNegocioError` (409, RN-02). Padrão idêntico ao SAVEPOINT já usado em `panes.service.adicionar_responsavel`/`concluir_pane`.
+4. **(Atualizado)** `dados.numero_pedido` é informado manualmente pelo usuário. Pre-check de unicidade (`_numero_pedido_em_uso`) e insere dentro de `async with db.begin_nested():`. Em caso de `IntegrityError` (corrida entre duas criações concorrentes com o mesmo número), `ConflitoNegocioError` (409, RN-02). Padrão idêntico ao SAVEPOINT já usado em `panes.service.adicionar_responsavel`/`concluir_pane`.
 5. `await db.flush()`, depois `await db.refresh(pedido, ["aeronave", "solicitante"])` para deixar pronta a montagem do `PedidoOut`.
 
 ### `listar_pedidos(db, filtros: FiltroPedido) -> tuple[list[Pedido], int]`
@@ -544,7 +548,7 @@ IIFE `(function () { "use strict"; ... })();`, seguindo o molde de `publicacoes_
 - Ações visíveis por status: `PENDENTE` → Alterar / Cancelar / ✓ Atendido / 🗑 Excluir; `ATENDIDO`/`CANCELADO` → nenhuma ação (somente leitura, RN-09); item excluído (quando `?excluidos=true`) → ↺ Restaurar.
 - Botões de escrita marcados com `data-role="ENCARREGADO,INSPETOR,ADMINISTRADOR"` para ocultação client-side — a garantia real de segurança é o 403 do backend, isto é só UX.
 - `change` nos radios de tipo alterna a visibilidade/obrigatoriedade do campo Nº Emergência.
-- Ao submeter o modal de criação/edição, montar o payload sem enviar `numero_pedido` (o servidor decide).
+- Ao submeter o modal de criação/edição, montar o payload **incluindo** `numero_pedido` (informado manualmente pelo usuário — enhancement Nº Pedido manual).
 
 ---
 
@@ -603,7 +607,7 @@ python scripts/run_app.py                # sobe a aplicação para smoke manual
 | R1 | `"/pedidos"` sem barra final em `API_PREFIXES` faz a própria página HTML devolver JSON 401 em vez de redirecionar para `/login` | usar `"/pedidos/"` (com barra) — ver `main.py:58-64` para o precedente documentado com `/publicacoes` |
 | R2 | 3 FKs para `usuarios.id` sem `foreign_keys=` explícito nas relations | declarar `foreign_keys=[...]` nas 3 relações de auditoria (§3) |
 | R3 | Serializar uma relação não carregada sob `AsyncSession` dispara `MissingGreenlet` | `selectinload` de `aeronave`/`solicitante`/`atendido_por`/`cancelado_por` antes de montar `PedidoOut` |
-| R4 | Corrida entre duas criações simultâneas gerando o mesmo `numero_pedido` | SAVEPOINT (`db.begin_nested()`) + captura de `IntegrityError` + retry (até 3×), depois 409 |
+| R4 | Corrida entre duas criações/edições simultâneas informando o mesmo `numero_pedido` | pre-check de unicidade + SAVEPOINT (`db.begin_nested()`) + captura de `IntegrityError`, depois 409 |
 | R5 | Este plano toca arquivos compartilhados (`enums.py`, `main.py`, `migrations/env.py`, `base.html`, `pages/router.py`) que outra equipe pode estar editando em paralelo | commits pequenos por etapa; reconferir `alembic heads` e fazer rebase antes de abrir PR |
 | R6 | Nome de parâmetro `status` sombreando `fastapi.status` importado no router | usar `status_filtro: ... = Query(alias="status")`, igual `panes/router.py` |
 | R7 | Reintroduzir por engano os campos de v1.3 (slot de inventário, vencimento) copiando o mockup literalmente | RN-11 é a linha vermelha: atender é só marcação administrativa, nenhuma escrita fora de `pedidos` |
@@ -621,7 +625,7 @@ python scripts/run_app.py                # sobe a aplicação para smoke manual
 - [ ] Cancelar exige `motivo_cancelamento` (mínimo 1 caractere) e registra `data_cancelamento` + `cancelado_por_id`.
 - [ ] Editar apenas pedidos com status `PENDENTE`. Pedidos `ATENDIDO`/`CANCELADO` são read-only.
 - [ ] Transições inválidas de status retornam HTTP 409.
-- [ ] `numero_pedido` gerado automaticamente pelo servidor no padrão `P-{ano}-{seq}`; colisão retorna HTTP 409.
+- [ ] `numero_pedido` informado manualmente pelo usuário e obrigatório na criação; colisão retorna HTTP 409.
 - [ ] Usuário sem permissão (MANTENEDOR tentando criar/atender/cancelar) recebe HTTP 403.
 - [ ] Soft delete e restauração funcionam corretamente.
 - [ ] Sem violações de CSP ou XSS no frontend.
