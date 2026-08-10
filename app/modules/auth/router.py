@@ -27,11 +27,8 @@ router = APIRouter()
 
 
 def _cookies_secure(settings) -> bool:
-    """RISCO-11: Secure não pode depender só de app_env=='production' — um
-    ambiente intermediário (staging/homolog) servido via HTTPS também
-    precisa marcar os cookies como HTTPS-only, senão um downgrade/MITM pode
-    fazer o browser enviá-los por HTTP."""
-    return settings.app_env == "production" or settings.force_secure_cookies
+    """Retorna True se cookies seguros forem explicitamente exigidos via HTTPS (force_secure_cookies)."""
+    return settings.force_secure_cookies
 
 
 # ------------------------------------------------------------------ #
