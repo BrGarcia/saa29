@@ -30,6 +30,7 @@ import app.modules.panes.models        # noqa: F401
 import app.modules.inspecoes.models    # noqa: F401
 import app.modules.calendario.models   # noqa: F401
 import app.modules.publicacoes.models  # noqa: F401
+import app.modules.pedidos.models      # noqa: F401
 
 # Objeto de metadata que o Alembic usará para detectar mudanças
 target_metadata = Base.metadata

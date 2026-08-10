@@ -469,9 +469,15 @@ async function tratarSubmitUpload(event) {
 
             let etag = "";
             if (parteResp.url.startsWith("/publicacoes/api/edicoes/uploads/local-parte")) {
+                const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                const csrfToken = csrfMeta ? (csrfMeta.getAttribute("content") || "") : "";
                 const localResp = await fetch(parteResp.url, {
                     method: "PUT",
                     body: chunk,
+                    headers: {
+                        "X-CSRF-Token": csrfToken,
+                    },
+                    credentials: "same-origin",
                 });
                 if (!localResp.ok) throw new Error(`Falha no upload da parte ${numeroParte} local.`);
                 const localJson = await localResp.json();

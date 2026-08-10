@@ -22,4 +22,5 @@
   - /publicacoes/avulsas: CRUD for avulsa publications (BS, BO, NPO, BT) with file upload and full-text ementa search
   - /publicacoes/api/favoritos: GET list favorites; POST toggle favorite
   - /publicacoes/doc/{id}/pdf: GET authenticated PDF file stream with access audit logging
+  - /pedidos: GET list (filters status/tipo_pedido/aeronave_id/texto/excluidos, header X-Total-Count), GET /resumo (counters for cards, same filters), POST create (Encarregado/Inspetor/Admin), GET/{id} detail, PUT/{id} update (PENDENTE only), POST /{id}/atender, POST /{id}/cancelar (requires motivo), DELETE /{id} (soft delete), POST /{id}/restaurar, GET /export (CSV/XLSX)
 - HTTP Status: 200/201 (OK/Created), 400 (Bad Request), 401 (Unauth), 403 (Forbidden), 404 (NotFound), 409 (Conflict), 422 (Pydantic Error)

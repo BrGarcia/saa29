@@ -1,7 +1,7 @@
 # ctx
 
 meta:
-- sync_date: 2026-08-08
+- sync_date: 2026-08-10
 - docs_structure: reorganized and cleaned (core/, guides/, backlog/, summaries/, ia/*.ctx)
 - mode: machine
 - format: kv_short
@@ -10,10 +10,10 @@ meta:
 project:
 - name: SAA29
 - type: web_monolith_modular_ddd
-- domain: panes_aeronaves_inventario_a29_publicacoes
+- domain: panes_aeronaves_inventario_a29_publicacoes_pedidos
 - status: architecture_stabilized_ddd_active
 - version: 1.5.0
-- test_status: all tests passing (650+ tests passed, 100% green test suite)
+- test_status: all tests passing (697+ tests passed, 100% green test suite)
 - db_state: active_db_preserve_no_schema_change_for_inspecoes
 
 operational_constraints:
@@ -56,6 +56,7 @@ domains:
 - inspecoes: integrated_fully_active (tipos_inspecao,tarefas_catalogo,tarefas_template,inspecoes,inspecao_tarefas,export_csv_xlsx)
 - calendario: p0_p5_active (event_types,calendar_events,rbac_censorship,frontend_ui,write_modal,inspecoes_dpe_aggregation,safe_tz_sorting)
 - publicacoes: m0_m4_web_active (manuais_edicoes,manuais_documentos,manuais_fim_map,publicacoes_avulsas,publicacoes_favoritos,publicacoes_upload_jobs,fts5_search,explorador_tree,pdf_viewer_canvas)
+- pedidos: standalone_active (numero_pedido server_side P-ano-seq, aeronave_id FK only, part_number/nomenclatura as free text, tipo NORMAL/EMERGENCIA, status PENDENTE/ATENDIDO/CANCELADO, soft_delete, restore, export_csv_xlsx) — decoupled from equipamentos/vencimentos by design (v2.0), atender is administrative-only (no writes to instalacoes/inventario)
 - shared/image_pipeline: service_layer_for_image_processing (validator,converter,resizer,optimizer,pipeline)
 - shared/contracts: ddd_domain_lookup_protocols (AeronaveLookupProtocol)
 - shared/exporter: generic_csv_xlsx_report_generator (gerar_csv, gerar_xlsx)
@@ -95,9 +96,16 @@ core_rules:
 - RN-P04: edition_activation_restricted_to_admin (Inspetor and Admin can upload; only Admin can activate)
 - RN-D01: dashboard_tactical_override (Active Inspection status overrides persisted aircraft status)
 - RN-A02: admin_password_reset_authorized (Admins can reset passwords for other users)
+- RN-PED01: pedido_requires_valid_aeronave_id (404 if not found)
+- RN-PED02: numero_pedido_server_generated_unique (P-{ano}-{seq:04d}, collision retries then 409)
+- RN-PED03: emergencia_requires_numero_emergencia (NORMAL forces numero_emergencia=NULL server-side)
+- RN-PED04: status_transitions_only_from_PENDENTE (ATENDIDO/CANCELADO are terminal, invalid transition -> 409)
+- RN-PED05: atender_is_administrative_only (marks status+data_atendimento+atendido_por_id, never writes instalacoes/inventario)
+- RN-PED06: cancelar_requires_motivo_cancelamento (min 1 char, mandatory)
 
 current_focus:
-- docs_synced: true (IA updated for v1.5.0 Publicações M0-M4.Web, Calendário Bugfix, and Development branch merge)
+- docs_synced: true (IA updated for v1.5.0 Publicações M0-M4.Web, Calendário Bugfix, Pedidos Module v2.0, and Development branch merge)
+- pedidos_module_v2_implemented: true (backend `app/modules/pedidos/` + frontend `/pedidos` completos, 24 testes automatizados, standalone/desacoplado de equipamentos e vencimentos — ver docs/backlog/modulo_pedidos/plano_implementacao.md)
 - security_controls_active: 100_percent (CSP hardening, Zip security, and Path Traversal fixes completed)
 - publicacoes_m0_m4_web_completed: true (M0-M4 + M4.Web web upload fully implemented and tested)
 - publicacoes_explorador_promoted: true (Default view at /publicacoes and /publicacoes/viewer/{id})
@@ -110,6 +118,7 @@ current_focus:
 - alembic_migrations_up_to_date: true
 
 known_gaps_from_roadmap:
+- pedidos_module_v2_backend_frontend_completed: true
 - publicacoes_m0_m4_web_completed: true
 - calendario_tz_sorting_bug_resolved: true
 - audit_2026-05-07_resolved: true
