@@ -30,10 +30,7 @@ class CsrfSettings(BaseModel):
     secret_key: str = Field(default_factory=lambda: get_settings().app_secret_key)
     cookie_samesite: str = "lax"
     cookie_secure: bool = Field(
-        default_factory=lambda: (
-            get_settings().app_env == "production"
-            or get_settings().force_secure_cookies
-        )
+        default_factory=lambda: get_settings().force_secure_cookies
     )
     # O contrato exige que o token assinado fique no cookie
     # e o token bruto seja enviado pelo Header.
