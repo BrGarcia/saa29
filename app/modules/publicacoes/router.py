@@ -896,8 +896,9 @@ async def obter_url_parte_upload(
     return schemas.ParteUrlOut(numero=numero, url=url)
 
 
-@router.put(
+@router.api_route(
     "/api/edicoes/uploads/local-parte",
+    methods=["PUT", "POST"],
     summary="Endpoint dev local para upload de partes (LocalStorageService)",
 )
 async def upload_parte_local_dev(

@@ -22,6 +22,7 @@ import app.modules.panes.models
 import app.modules.efetivo.models
 import app.modules.calendario.models
 import app.modules.publicacoes.models
+import app.modules.pedidos.models
 
 # --- Configurações e Ciclo de Vida ---
 from app.bootstrap.config import get_settings
@@ -39,6 +40,7 @@ from app.modules.inspecoes.router import router as inspecoes_router
 from app.modules.calendario.router import router as calendario_router
 from app.modules.dashboard.router import router as dashboard_router
 from app.modules.publicacoes.router import router as publicacoes_router
+from app.modules.pedidos.router import router as pedidos_router
 from app.web.pages.router import router as pages_router
 from app.web.pages.mobile_router import router as mobile_router
 
@@ -62,6 +64,7 @@ API_PREFIXES = [
     # calendário já causou, e por isso todo endpoint JSON do módulo vive sob
     # o sub-prefixo /api/ (03_especificacao_tecnica.md §3, risco R20).
     "/publicacoes/api/",
+    "/pedidos/",
 ]
 
 
@@ -156,6 +159,7 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(calendario_router,   prefix="/api/v1/calendario", tags=["Calendario"])
     app.include_router(dashboard_router,    prefix="/dashboard",    tags=["Dashboard"])
     app.include_router(publicacoes_router,  prefix="/publicacoes",  tags=["Publicações"])
+    app.include_router(pedidos_router,      prefix="/pedidos",      tags=["Pedidos"])
 
     # Frontend Pages (Root / UI)
     app.include_router(mobile_router)

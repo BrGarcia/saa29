@@ -1,0 +1,374 @@
+{% extends "base.html" %}
+
+{% block page_title %}Central de Pedidos{% endblock %}
+
+{% block content %}
+<style>
+    /* ---- Filtros ---- */
+    .filters-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-select {
+        min-width: 150px;
+    }
+
+    .search-input {
+        min-width: 200px;
+        flex: 1;
+        max-width: 300px;
+    }
+
+    .filter-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        white-space: nowrap;
+    }
+
+    /* ---- Tabela de Pedidos ---- */
+    .pedidos-container {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .pedido-row {
+        display: grid;
+        grid-template-columns: 110px 90px 70px 110px 120px 110px 1fr 100px 60px 1fr;
+        gap: 0.6rem;
+        padding: 0.9rem 1.25rem;
+        border-bottom: 1px solid var(--border-color);
+        align-items: center;
+        font-size: 0.825rem;
+    }
+
+    .pedido-row-header {
+        background: var(--bg-tertiary);
+        font-weight: 600;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary);
+    }
+
+    .pedido-expanded:hover .pedido-row:not(.pedido-row-header) {
+        background-color: var(--bg-tertiary);
+    }
+
+    .pedido-detail {
+        grid-column: 1 / -1;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 0 1.25rem 1rem 1.25rem;
+        flex-wrap: wrap;
+    }
+
+    .pedido-obs {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        font-style: italic;
+        flex: 1;
+        min-width: 220px;
+    }
+
+    .pedido-meta {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+    }
+
+    .pedido-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-shrink: 0;
+        flex-wrap: wrap;
+    }
+
+    .pedido-row.is-atendido,
+    .pedido-row.is-cancelado {
+        opacity: 0.65;
+    }
+
+    /* ---- Badges ---- */
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.7rem;
+        border-radius: 9999px;
+        font-size: 0.68rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        gap: 0.35rem;
+        white-space: nowrap;
+    }
+
+    .badge-pendente { background-color: var(--status-warning-bg); color: var(--status-warning); }
+    .badge-atendido { background-color: var(--status-ok-bg); color: var(--status-ok); }
+    .badge-cancelado { background-color: var(--status-incompleta-bg); color: var(--status-incompleta); }
+    .badge-emergencia { background-color: var(--status-danger-bg); color: var(--status-danger); }
+    .badge-normal { background-color: var(--bg-tertiary); color: var(--text-secondary); }
+
+    .badge-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .dot-pendente { background: var(--status-warning); }
+    .dot-atendido { background: var(--status-ok); }
+    .dot-cancelado { background: var(--status-incompleta); }
+
+    /* ---- Células ---- */
+    .cell-matricula {
+        font-weight: 700;
+        font-family: monospace;
+        color: var(--primary-color);
+    }
+    .cell-numero { font-family: monospace; font-size: 0.8rem; }
+    .cell-emergencia { font-family: monospace; font-size: 0.8rem; color: var(--status-danger); font-weight: 600; }
+    .cell-muted { color: var(--text-secondary); font-size: 0.8rem; }
+
+    /* ---- Paginação ---- */
+    .pagination-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.25rem;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .pagination-controls { display: flex; gap: 0.25rem; }
+    .page-btn {
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        background: transparent;
+        color: var(--text-secondary);
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-weight: 500;
+        transition: var(--transition);
+    }
+    .page-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+    .page-btn.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
+    .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .estado-vazio {
+        padding: 3rem;
+        text-align: center;
+        color: var(--text-secondary);
+    }
+
+    .btn-outline-danger {
+        background-color: transparent;
+        border: 1px solid var(--status-danger);
+        color: var(--status-danger);
+    }
+    .btn-outline-danger:hover {
+        background-color: var(--status-danger-bg);
+    }
+
+    .btn-sm {
+        padding: 0.35rem 0.7rem;
+        font-size: 0.75rem;
+    }
+
+    @media (max-width: 1200px) {
+        .pedido-row { grid-template-columns: 1fr; gap: 0.35rem; }
+        .pedido-row-header { display: none; }
+    }
+</style>
+
+<div style="display: flex; flex-direction: column; gap: 1.5rem;">
+
+    <!-- Cards de Resumo -->
+    <div class="grid-cards" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 0;">
+        <div class="card" style="border-left: 3px solid var(--primary-color); padding: 1rem 1.25rem;">
+            <div class="card-title">Total Pedidos</div>
+            <div class="card-value" id="card-total">--</div>
+        </div>
+        <div class="card" style="border-left: 3px solid var(--status-warning); padding: 1rem 1.25rem;">
+            <div class="card-title">Pendentes</div>
+            <div class="card-value" style="color: var(--status-warning);" id="card-pendentes">--</div>
+        </div>
+        <div class="card" style="border-left: 3px solid var(--status-ok); padding: 1rem 1.25rem;">
+            <div class="card-title">Atendidos</div>
+            <div class="card-value" style="color: var(--status-ok);" id="card-atendidos">--</div>
+        </div>
+        <div class="card" style="border-left: 3px solid var(--status-danger); padding: 1rem 1.25rem;">
+            <div class="card-title">Emergências</div>
+            <div class="card-value" style="color: var(--status-danger);" id="card-emergencias">--</div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filters-bar">
+        <select class="form-input filter-select" id="filter-aeronave">
+            <option value="">Todas as Aeronaves</option>
+        </select>
+        <select class="form-input filter-select" id="filter-status">
+            <option value="">Todos os Status</option>
+            <option value="PENDENTE">Pendente</option>
+            <option value="ATENDIDO">Atendido</option>
+            <option value="CANCELADO">Cancelado</option>
+        </select>
+        <select class="form-input filter-select" id="filter-tipo">
+            <option value="">Todos os Tipos</option>
+            <option value="NORMAL">Normal</option>
+            <option value="EMERGENCIA">Emergência</option>
+        </select>
+        <input type="text" class="form-input search-input" id="search-input"
+            placeholder="Buscar por nº pedido, P/N ou aeronave...">
+        <label class="filter-checkbox">
+            <input type="checkbox" id="filter-excluidos">
+            Ver excluídos
+        </label>
+        <button class="btn btn-primary" id="btn-novo-pedido" data-role="ENCARREGADO,INSPETOR,ADMINISTRADOR"
+            style="margin-left: auto;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14m-7-7h14" />
+            </svg>
+            Novo Pedido
+        </button>
+    </div>
+
+    <!-- Tabela de Pedidos -->
+    <div class="pedidos-container">
+        <div class="pedido-row pedido-row-header">
+            <div>Status</div>
+            <div>Data</div>
+            <div>Anv</div>
+            <div>Tipo</div>
+            <div>Nº Pedido</div>
+            <div>Nº Emerg.</div>
+            <div>Nomenclatura</div>
+            <div>P/N</div>
+            <div style="text-align: center;">Qtd</div>
+            <div style="text-align: right;">Ações</div>
+        </div>
+        <div id="pedidos-body">
+            <div class="estado-vazio">Carregando pedidos...</div>
+        </div>
+        <div class="pagination-bar">
+            <div id="pagination-info">—</div>
+            <div class="pagination-controls" id="pagination-controls"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Novo/Editar Pedido -->
+<div id="modal-pedido"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card glass-panel" style="width: 100%; max-width: 520px; margin: 1rem; max-height: 90vh; overflow-y: auto;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+            <h3 style="margin: 0; font-size: 1.15rem;" id="modal-pedido-titulo">Novo Pedido</h3>
+            <button class="btn-icon" type="button" id="btn-close-modal-pedido">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <form id="form-pedido">
+            <input type="hidden" id="pedido-id">
+            <div class="form-group">
+                <label class="form-label">Aeronave *</label>
+                <select id="input-aeronave" class="form-input" required>
+                    <option value="">Selecione...</option>
+                </select>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Part Number *</label>
+                    <input type="text" id="input-part-number" class="form-input" maxlength="50" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Quantidade *</label>
+                    <input type="number" id="input-quantidade" class="form-input" value="1" min="1" max="999" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Nomenclatura *</label>
+                <input type="text" id="input-nomenclatura" class="form-input" maxlength="100" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Tipo de Pedido</label>
+                <div style="display: flex; gap: 1.5rem; margin-top: 0.35rem;">
+                    <label style="display: flex; align-items: center; gap: 0.4rem; font-weight: 500;">
+                        <input type="radio" name="tipo_pedido" value="NORMAL" checked id="radio-normal"> Normal
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.4rem; font-weight: 500; color: var(--status-danger);">
+                        <input type="radio" name="tipo_pedido" value="EMERGENCIA" id="radio-emergencia"> Emergência
+                    </label>
+                </div>
+            </div>
+            <div class="form-group" id="field-emergencia" style="display: none;">
+                <label class="form-label">Nº Emergência *</label>
+                <input type="text" id="input-emergencia" class="form-input" maxlength="50" placeholder="EMG-____">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Observação</label>
+                <textarea id="input-observacao" class="form-input" rows="3" maxlength="1000"
+                    placeholder="Justificativa / observações do pedido..."></textarea>
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-outline" id="btn-cancel-modal">Cancelar</button>
+                <button type="submit" class="btn btn-primary" id="btn-salvar-pedido">Salvar Pedido</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Cancelar Pedido -->
+<div id="modal-cancelar"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1100; align-items: center; justify-content: center;">
+    <div class="card glass-panel" style="width: 100%; max-width: 420px; margin: 1rem;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+            <h3 style="margin: 0; font-size: 1.15rem; color: var(--status-danger);">Cancelar Pedido</h3>
+            <button class="btn-icon" type="button" id="btn-close-modal-cancelar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <form id="form-cancelar">
+            <input type="hidden" id="cancelar-pedido-id">
+            <div class="form-group">
+                <label class="form-label">Motivo do Cancelamento *</label>
+                <textarea id="input-motivo-cancelamento" class="form-input" rows="3" maxlength="500" required
+                    placeholder="Descreva o motivo do cancelamento..."></textarea>
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-outline" id="btn-cancel-modal-cancelar">Voltar</button>
+                <button type="submit" class="btn btn-outline-danger" style="font-weight: 600;">Confirmar Cancelamento</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/pedidos.js"></script>
+{% endblock %}

@@ -24,15 +24,16 @@ app:
 - modules/calendario/: calendar_events_api_and_business_logic_dpe_aggregation_safe_tz_sorting
 - modules/publicacoes/: acervo_catalog_search_fts5_avulsas_favoritos_edicoes_upload_jobs_m4_web
 - modules/dashboard/: consolidated_operational_metrics_and_summary
+- modules/pedidos/: standalone_pedido_lifecycle_manager_decoupled_from_equipamentos_vencimentos_v2
 - shared/contracts.py: ddd_domain_lookup_protocols (AeronaveLookupProtocol)
 - shared/exporter.py: generic_csv_and_xlsx_report_generator
 - shared/core/: enums,helpers,storage,validators,limiter,exceptions
 - shared/middleware/: csrf
 - shared/services/image/: image_processing_pipeline (validator,converter,resizer,optimizer,pipeline)
 - bootstrap/config/: split_config_package (__init__.py=app_settings, image.py=image_pipeline_constants)
-- web/pages/router.py: html_routes (panes,frota,inventario,vencimentos,configuracoes,efetivo,inspecoes,publicacoes,mobile /m/)
-- web/templates/: jinja_templates (base,panes,aeronaves,inventario,vencimentos,configuracoes,efetivo,inspecoes,publicacoes,mobile)
-- web/static/js/: configuracoes.js,configuracoes_publicacoes.js,vencimentos.js,inventario.js,panes.js,app.js,auth_check.js,inspecoes.js,inspecao_detalhe.js,publicacoes.js,publicacoes_explorador.js,publicacoes_viewer.js,publicacoes_avulsas.js,mobile/
+- web/pages/router.py: html_routes (panes,frota,inventario,vencimentos,configuracoes,efetivo,inspecoes,publicacoes,pedidos,mobile /m/)
+- web/templates/: jinja_templates (base,panes,aeronaves,inventario,vencimentos,configuracoes,efetivo,inspecoes,publicacoes,pedidos,mobile)
+- web/static/js/: configuracoes.js,configuracoes_publicacoes.js,vencimentos.js,inventario.js,panes.js,app.js,auth_check.js,inspecoes.js,inspecao_detalhe.js,publicacoes.js,publicacoes_explorador.js,publicacoes_viewer.js,publicacoes_avulsas.js,pedidos.js,mobile/
 - web/static/css/: index.css,publicacoes.css,mobile.css
 
 app/modules/publicacoes:
@@ -60,6 +61,13 @@ app/modules/calendario:
 - service.py: business_logic_dpe_aggregation_safe_tz_sorting
 - router.py: api_router
 
+app/modules/pedidos:
+- __init__.py: passive_package
+- models.py: Pedido (unidirectional relationships to Aeronave/Usuario, no back_populates)
+- schemas.py: pydantic_contracts (FiltroPedido,PedidoCreate,PedidoUpdate,PedidoCancelar,PedidoOut,PedidoResumo)
+- service.py: business_rules_server_side_numbering_crud_lifecycle_soft_delete
+- router.py: api_router_full_crud_plus_atender_cancelar_restaurar_export
+
 scripts:
 - db/init_db.py: bootstrap_admin_frota
 - db/seed.py: dev_seed_base
@@ -72,7 +80,7 @@ scripts:
 - maintenance/r2_manager.py: sqlite_backup_restore_r2
 
 tests:
-- unit/: feature_and_api_behavior (including test_publicacoes_*.py, test_zip_validator.py, test_mobile.py)
+- unit/: feature_and_api_behavior (including test_publicacoes_*.py, test_pedidos.py, test_zip_validator.py, test_mobile.py)
 - integration/: test_publicacoes_busca.py, test_mobile_integration.py
 - test_calendario.py: full_calendar_test_suite
 - test_exporter.py: csv_and_xlsx_export_unit_tests
@@ -83,7 +91,7 @@ docs:
 - ia/: ai_context_layer (CTX.md, *.ctx files, glossario.md, mapa_repositorio.md, prompts_base.md, prompt_codex.md)
 - summaries/: condensed_human_docs (PROJECT_SUMMARY.md, SRS_SUMMARY.md, SPECS_SUMMARY.md, MODEL_DB_SUMMARY.md)
 - guides/: operational_setup_and_governance (guia-desenvolvimento.md, guia-testes.md, cloudflare_r2.md, sugestao_envio.md, operacao_publicacoes.md)
-- backlog/: active_planning_and_bugs (modulo_publicacoes/, feature_controle_pedidos.md)
+- backlog/: active_planning_and_bugs (modulo_publicacoes/, modulo_pedidos/{feature_controle_pedidos.md,plano_implementacao.md,mockup_pedidos.html})
 
 ignore_likely:
 - .venv/

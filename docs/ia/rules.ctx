@@ -5,8 +5,8 @@
 - RN-04: Conclude Pane sets data_conclusao.
 - RN-05: RBAC:
   - MANTENEDOR: Register Panes, Add Anexo, Execute Vencimentos/Inspections, Self-Assign responsibility.
-  - ENCARREGADO: CRUD (most), Assign any responsibility, Manage Inspections, Extend Vencimentos, Create/Edit Avulsas.
-  - INSPETOR: Validate Inspections, Control Vencimentos, View Aircraft Status, Upload Publication Editions.
+  - ENCARREGADO: CRUD (most), Assign any responsibility, Manage Inspections, Extend Vencimentos, Create/Edit Avulsas, Manage Pedidos (criar/editar/atender/cancelar/excluir/restaurar).
+  - INSPETOR: Validate Inspections, Control Vencimentos, View Aircraft Status, Upload Publication Editions, Manage Pedidos (criar/editar/atender/cancelar/excluir/restaurar).
   - ADMINISTRADOR: Manage Efetivo (Users), Global Configs, Register Aircraft, Activate Publication Editions.
 - RN-06: Vencimentos: Extension requires technical justification; Execution resets counter and disables active extension.
 - RN-07: Inspecoes: Open instance generates tasks from templates; Conclusion requires mandatory tasks resolved; Persistent audit of open/close trigram.
@@ -26,3 +26,9 @@
 - RN-P04: Validacao de ZIP: Protecao obrigatoria contra Zip-Slip (is_relative_to), Zip Bomb (max entradas e ratio) e allowlist de extensoes.
 - RN-15: Hierarquia de Status de Aeronaves: Abertura de pane em aeronave DISPONIVEL transiciona status para INDISPONIVEL no banco de dados. Aeronaves em INSPECAO, INATIVA ou ESTOCADA preservam seu status. Conclusão de panes reverte para DISPONIVEL somente quando restarem zero panes e zero inspeções ativas. Sincronização garantida via service e safety net SQL direto no router.
 - RN-16: Interfaces Web e Mobile devem manter conformidade estrita com a CSP (Content Security Policy). Proibidos scripts inline e atributos de evento no HTML (ex: onclick). Eventos devem ser vinculados via JavaScript externo.
+- RN-PED01: Pedidos: standalone e desacoplado de equipamentos/vencimentos (v2.0) — part_number/nomenclatura são texto livre, sem FK para o catálogo de equipamentos; nenhuma varredura de slots vagos ou itens vencidos.
+- RN-PED02: Pedidos: numero_pedido gerado exclusivamente pelo servidor no padrão P-{ano}-{seq:04d}; colisão retorna HTTP 409.
+- RN-PED03: Pedidos: EMERGENCIA exige numero_emergencia; NORMAL força numero_emergencia=NULL no servidor.
+- RN-PED04: Pedidos: transições de status permitidas exclusivamente a partir de PENDENTE (ATENDIDO e CANCELADO são terminais); qualquer outra tentativa retorna 409.
+- RN-PED05: Pedidos: atender é uma marcação puramente administrativa (status, data_atendimento, atendido_por_id) — nunca cria registros em instalacoes nem altera o inventário.
+- RN-PED06: Pedidos: cancelar exige motivo_cancelamento (mínimo 1 caractere); exclusão é soft delete (`ativo`) com restauração disponível.

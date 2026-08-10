@@ -28,6 +28,7 @@ from scripts.seed import (
     seed_inspecoes,
     seed_sistemas_ata,
     seed_calendario,
+    seed_pedidos,
 )
 
 async def main():
@@ -80,6 +81,9 @@ async def main():
 
                 # 10. Inspeções (Instâncias de inspeção)
                 await seed_inspecoes.run(session)
+
+                # 11. Pedidos (Central de Pedidos — dados de exemplo)
+                await seed_pedidos.run(session)
             else:
                 print("🛡️ [Segurança] Modo Produção: Dados de teste bloqueados.")
             

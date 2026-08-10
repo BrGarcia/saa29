@@ -27,8 +27,7 @@ docs/
 │   └── adr/                  # Registros de Decisão de Arquitetura (ADRs)
 │
 ├── backlog/                  # 📋 Backlog, Especificações Ativas e Histórico
-│   ├── feature_controle_pedidos.md  # [ATIVO] Especificação da Central de Pedidos (v2.0)
-│   ├── mockup_pedidos.html          # [ATIVO] Mockup visual interativo
+│   ├── modulo_pedidos/              # [IMPLEMENTADO] Central de Pedidos (v2.0): spec, plano de implementação e mockup
 │   ├── Melhorias Futuras/           # Roadmap de propostas (XLSX, WhatsApp, ToDo, Manual FIM)
 │   └── resolvidos/                  # Histórico de tarefas e bugs concluídos
 │

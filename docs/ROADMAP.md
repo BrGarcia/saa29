@@ -46,8 +46,8 @@ v5.0: Ecossistema Total    ░░ Visão Final (IA & Supply)
 
 *Objetivo: Levar a gestão de reposição e operações de campo para debaixo da asa da aeronave.*
 
-- [ ] **Módulo Central de Pedidos (Fase 1 - Backend)**: Implementação dos modelos, rotas REST e integrações entre `equipamentos` (slots vazios), `vencimentos` (substituições) e `pedidos`.
-- [ ] **Módulo Central de Pedidos (Fase 2 - Frontend)**: Interface web integrada no SAA29 baseada no mockup aprovado (Cards, Filtros, Modal e Badges).
+- [x] **Módulo Central de Pedidos (Fase 1 - Backend)**: Modelo `Pedido` standalone e desacoplado de `equipamentos`/`vencimentos` (revisão v2.0 — `part_number`/`nomenclatura` como texto de referência, sem FK para o catálogo), numeração server-side `P-{ano}-{seq}`, RBAC (Encarregado/Inspetor/Admin), service e rotas REST completas (`/pedidos`) com 24 testes automatizados.
+- [x] **Módulo Central de Pedidos (Fase 2 - Frontend)**: Interface web integrada no SAA29 (`/pedidos`) com cards de resumo, filtros, tabela paginada com linha expansível, modais de criação/edição e cancelamento — layout adaptado do mockup aprovado à v2.0.
 - [ ] **PWA (Progressive Web App)**: Interface instalável em tablets e celulares com suporte a **Modo Offline** para hangares sem Wi-Fi estável.
 - [ ] **Scanner de QR Code**: Identificação instantânea de aeronaves e caixas pretas via câmera do dispositivo.
 - [ ] **Gestão de Evidências Pro**: Upload múltiplo de fotos com ferramentas de anotação (desenhar círculos em falhas físicas) diretamente na imagem.

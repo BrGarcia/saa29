@@ -164,3 +164,20 @@ class StatusUploadJob(str, enum.Enum):
     FALHOU = "FALHOU"
     CANCELADO = "CANCELADO"
 
+
+class StatusPedido(str, enum.Enum):
+    """
+    Status do ciclo de vida administrativo do pedido.
+    Transições permitidas (RN-10): PENDENTE → ATENDIDO | CANCELADO.
+    Ambos os estados finais são terminais — não há transição de volta.
+    """
+    PENDENTE = "PENDENTE"
+    ATENDIDO = "ATENDIDO"
+    CANCELADO = "CANCELADO"
+
+
+class TipoPedido(str, enum.Enum):
+    """Prioridade/urgência do pedido. EMERGENCIA exige numero_emergencia (RN-03)."""
+    NORMAL = "NORMAL"
+    EMERGENCIA = "EMERGENCIA"
+

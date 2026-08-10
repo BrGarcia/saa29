@@ -41,3 +41,41 @@ async def test_iniciar_upload_edicao_retorna_201_sucesso(client, db):
     assert "job_id" in body
     assert "file_key" in body
     assert "upload_id_r2" in body
+
+
+@pytest.mark.asyncio
+async def test_upload_parte_local_dev_put_e_post_sucesso(client, db):
+    u = Usuario(
+        nome="Admin Parte Local",
+        posto="Cap",
+        especialidade="ENG",
+        funcao=ADMINISTRADOR,
+        ramal="1234",
+        username=f"admin_parte_{uuid.uuid4().hex[:6]}",
+        senha_hash="hash",
+    )
+    db.add(u)
+    await db.commit()
+
+    token = criar_token(dados={"sub": u.username})
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_id = uuid.uuid4().hex
+
+    # Teste com PUT
+    res_put = await client.put(
+        f"/publicacoes/api/edicoes/uploads/local-parte?upload_id={upload_id}&numero=1",
+        content=b"conteudo_parte_1",
+        headers=headers,
+    )
+    assert res_put.status_code == 200, f"Esperado 200 no PUT, recebido {res_put.status_code}: {res_put.text}"
+    assert "etag" in res_put.json()
+
+    # Teste com POST
+    res_post = await client.post(
+        f"/publicacoes/api/edicoes/uploads/local-parte?upload_id={upload_id}&numero=2",
+        content=b"conteudo_parte_2",
+        headers=headers,
+    )
+    assert res_post.status_code == 200, f"Esperado 200 no POST, recebido {res_post.status_code}: {res_post.text}"
+    assert "etag" in res_post.json()
+
