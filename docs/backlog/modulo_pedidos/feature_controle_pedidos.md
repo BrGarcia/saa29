@@ -65,7 +65,7 @@ Para manter a independência entre módulos, a Central de Pedidos consome apenas
 | Campo | Tipo | Restrições | Descrição |
 |---|---|---|---|
 | `id` | UUID | PK, default `uuid4` | Identificador único |
-| `numero_pedido` | String(50) | UNIQUE, NOT NULL, INDEX | Nº do pedido (server-side: `P-{ano}-{seq}`) |
+| `numero_pedido` | String(50) | UNIQUE, NOT NULL, INDEX | Nº do pedido (informado manualmente pelo usuário — número emitido no sistema interno da FAB) |
 | `aeronave_id` | UUID | FK -> `aeronaves.id` (RESTRICT), NOT NULL, INDEX | Aeronave de destino |
 | `part_number` | String(50) | NOT NULL, INDEX | Part Number do item solicitado |
 | `nomenclatura` | String(100) | NOT NULL | Nomenclatura / Descrição do equipamento |
@@ -153,7 +153,7 @@ class Pedido(Base):
 | # | Regra |
 |---|---|
 | RN-01 | Pedido obrigatoriamente vinculado a uma **aeronave válida** (por `aeronave_id`). |
-| RN-02 | `numero_pedido` **único**; gerado automaticamente pelo servidor (`P-{ano}-{seq}`). Conflito → **HTTP 409**. |
+| RN-02 | `numero_pedido` **único**; informado manualmente pelo usuário (número emitido no sistema interno da FAB, apenas transcrito para o SAA29). Conflito → **HTTP 409**. |
 | RN-03 | `EMERGENCIA` ⇒ `numero_emergencia` **obrigatório** (validado no schema Pydantic e no service). |
 | RN-04 | `NORMAL` ⇒ `numero_emergencia` é **forçado a NULL** no servidor. |
 | RN-05 | Status inicial do pedido é sempre `PENDENTE` (imposto pelo service). |
@@ -370,7 +370,7 @@ A arquitetura desacoplada permite que no futuro o módulo de **INVENTÁRIO** (ou
 - [ ] Cancelar exige `motivo_cancelamento` (mínimo 1 caractere) e registra `data_cancelamento` + `cancelado_por_id`.
 - [ ] Editar apenas pedidos com status `PENDENTE`. Pedidos `ATENDIDO`/`CANCELADO` são read-only.
 - [ ] Transições inválidas de status retornam **HTTP 409**.
-- [ ] `numero_pedido` gerado automaticamente pelo servidor no padrão `P-{ano}-{seq}`; colisão retorna **HTTP 409**.
+- [ ] `numero_pedido` informado manualmente pelo usuário e obrigatório na criação; colisão retorna **HTTP 409**.
 - [ ] Usuário sem permissão (MANTENEDOR tentando criar/atender/cancelar) recebe **HTTP 403**.
 - [ ] Soft delete e restauração funcionam corretamente.
 - [ ] Sem violações de CSP ou XSS no frontend.
