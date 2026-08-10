@@ -38,6 +38,8 @@ post_deploy:
 - monitor_deploy_logs: scripts/start.sh (R2 restore check)
 - check_alembic: alembic upgrade head success
 - verify_data_persistence: UI check
+- vps_redeploy_instructions: "Sempre que finalizar o merge da main, forneça uma explicação rápida ao usuário e oriente a execução do comando único de redeploy na VPS:"
+- vps_redeploy_command: "cd ~/saa29 && git stash && git pull origin main && docker-compose down && docker-compose up -d --build"
 
 rules:
 - NO_R2_NO_MERGE: Fail if R2 connection is suspect.
