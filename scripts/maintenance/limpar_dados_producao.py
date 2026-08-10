@@ -32,18 +32,20 @@ import app.modules.inspecoes.models    # noqa: F401
 import app.modules.calendario.models   # noqa: F401
 import app.modules.publicacoes.models  # noqa: F401
 
-from app.modules.inspecoes.models import Inspecao, InspecaoTarefa, InspecaoEventoTipo
+from app.modules.inspecoes.models import Inspecao, InspecaoTarefa, InspecaoEventoTipo, TarefaTemplate, TarefaCatalogo
 from app.modules.panes.models import Pane, Anexo, PaneResponsavel
 from app.modules.aeronaves.models import Aeronave
 from app.shared.core.enums import StatusAeronave
 
 async def limpar_dados():
-    print("🧹 [Produção] Iniciando limpeza de Panes e Inspeções...")
+    print("🧹 [Produção] Iniciando limpeza de Panes, Inspeções e Tarefas Template...")
     
     AsyncSessionLocal = get_session_factory()
     async with AsyncSessionLocal() as session:
-        # 1. Limpar tarefas de inspeção e vínculos
+        # 1. Limpar tarefas instanciadas, templates e catálogo de tarefas
         res_t = await session.execute(delete(InspecaoTarefa))
+        res_tmpl = await session.execute(delete(TarefaTemplate))
+        res_cat = await session.execute(delete(TarefaCatalogo))
         res_et = await session.execute(delete(InspecaoEventoTipo))
         res_i = await session.execute(delete(Inspecao))
         
@@ -63,13 +65,15 @@ async def limpar_dados():
 
         print("✅ Clean-up concluído com sucesso:")
         print(f"   - Inspeções removidas: {res_i.rowcount}")
-        print(f"   - Tarefas de inspeção removidas: {res_t.rowcount}")
+        print(f"   - Tarefas instanciadas removidas: {res_t.rowcount}")
+        print(f"   - Tarefas template removidas: {res_tmpl.rowcount}")
+        print(f"   - Tarefas do catálogo removidas: {res_cat.rowcount}")
         print(f"   - Vínculos de eventos de inspeção removidos: {res_et.rowcount}")
         print(f"   - Panes removidas: {res_p.rowcount}")
         print(f"   - Anexos de panes removidos: {res_an.rowcount}")
         print(f"   - Responsáveis de panes removidos: {res_pr.rowcount}")
         print(f"   - Aeronaves atualizadas para DISPONIVEL: {res_acft.rowcount}")
-        print("🛡️ Frota (Aeronaves) e Equipamentos (PN, SN, Slot, Loc) foram mantidos INTACTOS.")
+        print("🛡️ Frota, Equipamentos (PN, SN, Slot, Loc) e Tipos de Inspeção (Y, 2A, 2C, etc.) foram mantidos INTACTOS.")
 
 if __name__ == "__main__":
     asyncio.run(limpar_dados())
