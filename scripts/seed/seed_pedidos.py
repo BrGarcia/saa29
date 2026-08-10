@@ -80,8 +80,12 @@ PEDIDOS_EXEMPLO = [
 
 
 async def _proximo_numero_pedido(session: AsyncSession, ano: int) -> str:
-    """Mesma lógica de app/modules/pedidos/service.py:_gerar_numero_pedido —
-    baseada no maior numero_pedido já emitido no ano, não em COUNT(*)."""
+    """Gera um numero_pedido plausível (P-{ano}-{seq:04d}) só para os dados de
+    demonstração deste seed. Em produção o número é digitado manualmente pelo
+    usuário (RN-02) — esta função não corresponde a nenhuma geração feita
+    pelo app/modules/pedidos/service.py; existe apenas para os dados fake
+    precisarem de menos digitação manual. Baseada no maior numero_pedido já
+    emitido no ano, não em COUNT(*)."""
     prefixo = f"P-{ano}-"
     resultado = await session.execute(
         select(Pedido.numero_pedido)

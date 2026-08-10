@@ -7,7 +7,11 @@ Cobertura (docs/backlog/modulo_pedidos/plano_implementacao.md §12):
     - test_criar_pedido_emergencia_sem_numero_falha     — 422 (RN-03)
     - test_criar_pedido_emergencia_com_numero_sucesso   — 201, numero_emergencia preservado
     - test_numero_emergencia_forcado_null_quando_normal — RN-04
-    - test_numero_pedido_sequencial                     — P-{ano}-{seq} incremental (RN-02)
+    - test_numero_pedido_manual_preservado              — número informado volta idêntico (RN-02)
+    - test_criar_pedido_sem_numero_falha                — 422, numero_pedido obrigatório (RN-02)
+    - test_numero_pedido_duplicado_conflito             — 409, unicidade (RN-02)
+    - test_editar_numero_pedido_sucesso                 — PUT troca numero_pedido (RN-02)
+    - test_editar_numero_pedido_duplicado_conflito      — 409 ao editar para nº já usado (RN-02)
     - test_atender_pedido_pendente                      — RN-11
     - test_atender_pedido_ja_atendido_conflito           — 409 (RN-10)
     - test_editar_pedido_atendido_conflito               — 409 (RN-09)
@@ -50,8 +54,14 @@ async def criar_aeronave(client: AsyncClient, headers: dict, dados: dict) -> dic
 
 
 async def criar_pedido(client: AsyncClient, headers: dict, aeronave_id: str, **kwargs) -> dict:
-    """Helper: cria um pedido NORMAL (por padrão) e retorna o body JSON."""
+    """Helper: cria um pedido NORMAL (por padrão) e retorna o body JSON.
+
+    `numero_pedido` recebe um valor único por chamada quando não informado —
+    os testes compartilham a mesma base e um valor fixo colidiria (RN-02:
+    número é informado manualmente e único).
+    """
     payload = {
+        "numero_pedido": kwargs.get("numero_pedido", f"FAB-{uuid.uuid4().hex[:8].upper()}"),
         "aeronave_id": aeronave_id,
         "part_number": kwargs.get("part_number", "PN-0001"),
         "nomenclatura": kwargs.get("nomenclatura", "Rádio VUHF"),
@@ -79,12 +89,13 @@ class TestCriarPedido:
         headers = usuario_e_token["headers"]
         aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
 
-        pedido = await criar_pedido(client, headers, aeronave["id"])
+        numero = f"FAB-{uuid.uuid4().hex[:8].upper()}"
+        pedido = await criar_pedido(client, headers, aeronave["id"], numero_pedido=numero)
 
         assert pedido["status"] == "PENDENTE"
         assert pedido["tipo_pedido"] == "NORMAL"
         assert pedido["numero_emergencia"] is None
-        assert pedido["numero_pedido"].startswith("P-")
+        assert pedido["numero_pedido"] == numero
         assert pedido["ativo"] is True
 
     @pytest.mark.asyncio
@@ -96,6 +107,7 @@ class TestCriarPedido:
         aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
 
         payload = {
+            "numero_pedido": f"FAB-{uuid.uuid4().hex[:8].upper()}",
             "aeronave_id": aeronave["id"],
             "part_number": "PN-0002",
             "nomenclatura": "GPS",
@@ -127,6 +139,7 @@ class TestCriarPedido:
         aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
 
         payload = {
+            "numero_pedido": f"FAB-{uuid.uuid4().hex[:8].upper()}",
             "aeronave_id": aeronave["id"],
             "part_number": "PN-0003",
             "nomenclatura": "Bateria",
@@ -138,23 +151,52 @@ class TestCriarPedido:
         assert resp.json()["numero_emergencia"] is None
 
     @pytest.mark.asyncio
-    async def test_numero_pedido_sequencial(
+    async def test_numero_pedido_manual_preservado(
         self, client: AsyncClient, usuario_e_token: dict, dados_aeronave_valida: dict
     ):
-        """DADO dois pedidos criados no mesmo ano QUANDO consultados ENTÃO números sequenciais (RN-02)."""
+        """DADO numero_pedido informado manualmente QUANDO criar ENTÃO volta idêntico (RN-02)."""
         headers = usuario_e_token["headers"]
         aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
 
-        p1 = await criar_pedido(client, headers, aeronave["id"], part_number="PN-A")
-        p2 = await criar_pedido(client, headers, aeronave["id"], part_number="PN-B")
+        numero = f"FAB-{uuid.uuid4().hex[:8].upper()}"
+        pedido = await criar_pedido(client, headers, aeronave["id"], numero_pedido=numero)
+        assert pedido["numero_pedido"] == numero
 
-        prefixo1 = p1["numero_pedido"].rsplit("-", 1)[0]
-        prefixo2 = p2["numero_pedido"].rsplit("-", 1)[0]
-        assert prefixo1 == prefixo2
+    @pytest.mark.asyncio
+    async def test_criar_pedido_sem_numero_falha(
+        self, client: AsyncClient, usuario_e_token: dict, dados_aeronave_valida: dict
+    ):
+        """DADO payload sem numero_pedido QUANDO criar ENTÃO 422 (RN-02)."""
+        headers = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
 
-        seq1 = int(p1["numero_pedido"].rsplit("-", 1)[1])
-        seq2 = int(p2["numero_pedido"].rsplit("-", 1)[1])
-        assert seq2 == seq1 + 1
+        payload = {
+            "aeronave_id": aeronave["id"],
+            "part_number": "PN-0004",
+            "nomenclatura": "Sem número",
+        }
+        resp = await client.post(PEDIDOS_URL, json=payload, headers=headers)
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_numero_pedido_duplicado_conflito(
+        self, client: AsyncClient, usuario_e_token: dict, dados_aeronave_valida: dict
+    ):
+        """DADO numero_pedido já usado QUANDO criar outro pedido com o mesmo número ENTÃO 409 (RN-02)."""
+        headers = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
+
+        numero = f"FAB-{uuid.uuid4().hex[:8].upper()}"
+        await criar_pedido(client, headers, aeronave["id"], numero_pedido=numero, part_number="PN-DUP1")
+
+        payload = {
+            "numero_pedido": numero,
+            "aeronave_id": aeronave["id"],
+            "part_number": "PN-DUP2",
+            "nomenclatura": "Item duplicado",
+        }
+        resp = await client.post(PEDIDOS_URL, json=payload, headers=headers)
+        assert resp.status_code == 409
 
     @pytest.mark.asyncio
     async def test_criar_pedido_aeronave_inexistente(
@@ -163,6 +205,7 @@ class TestCriarPedido:
         """DADO aeronave_id inexistente QUANDO criar ENTÃO 404 (RN-01)."""
         headers = usuario_e_token["headers"]
         payload = {
+            "numero_pedido": f"FAB-{uuid.uuid4().hex[:8].upper()}",
             "aeronave_id": str(uuid.uuid4()),
             "part_number": "PN-9999",
             "nomenclatura": "Peça Fantasma",
@@ -241,6 +284,44 @@ class TestCicloDeVida:
         assert atualizado["observacao"] == "atualizado"
 
     @pytest.mark.asyncio
+    async def test_editar_numero_pedido_sucesso(
+        self, client: AsyncClient, usuario_e_token: dict, dados_aeronave_valida: dict
+    ):
+        """DADO pedido PENDENTE QUANDO editar numero_pedido para um valor livre ENTÃO 200 (RN-02)."""
+        headers = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
+        pedido = await criar_pedido(client, headers, aeronave["id"])
+
+        novo_numero = f"FAB-{uuid.uuid4().hex[:8].upper()}"
+        resp = await client.put(
+            f"{PEDIDOS_URL}{pedido['id']}", json={"numero_pedido": novo_numero}, headers=headers
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["numero_pedido"] == novo_numero
+
+    @pytest.mark.asyncio
+    async def test_editar_numero_pedido_duplicado_conflito(
+        self, client: AsyncClient, usuario_e_token: dict, dados_aeronave_valida: dict
+    ):
+        """DADO numero_pedido de outro pedido QUANDO editar ENTÃO 409 (RN-02).
+
+        A chamada que gera o 409 é a última ação do teste — um HTTPException
+        atravessa a yield-dependency e o override_get_db de teste faz
+        rollback() na sessão compartilhada (ver nota em TestPermissoes).
+        """
+        headers = usuario_e_token["headers"]
+        aeronave = await criar_aeronave(client, headers, dados_aeronave_valida)
+        pedido_a = await criar_pedido(client, headers, aeronave["id"], part_number="PN-EDITA")
+        pedido_b = await criar_pedido(client, headers, aeronave["id"], part_number="PN-EDITB")
+
+        resp = await client.put(
+            f"{PEDIDOS_URL}{pedido_b['id']}",
+            json={"numero_pedido": pedido_a["numero_pedido"]},
+            headers=headers,
+        )
+        assert resp.status_code == 409
+
+    @pytest.mark.asyncio
     async def test_cancelar_sem_motivo_falha(
         self, client: AsyncClient, usuario_e_token: dict, dados_aeronave_valida: dict
     ):
@@ -315,7 +396,12 @@ class TestPermissoes:
         headers_admin = usuario_e_token["headers"]
         aeronave = await criar_aeronave(client, headers_admin, dados_aeronave_valida)
 
-        payload = {"aeronave_id": aeronave["id"], "part_number": "PN-M", "nomenclatura": "Item"}
+        payload = {
+            "numero_pedido": f"FAB-{uuid.uuid4().hex[:8].upper()}",
+            "aeronave_id": aeronave["id"],
+            "part_number": "PN-M",
+            "nomenclatura": "Item",
+        }
         resp = await client.post(PEDIDOS_URL, json=payload, headers=usuario_mantenedor_e_token["headers"])
         assert resp.status_code == 403
 
@@ -376,7 +462,12 @@ class TestPermissoes:
     @pytest.mark.asyncio
     async def test_criar_pedido_requer_autenticacao(self, client: AsyncClient):
         """DADO payload válido sem Authorization QUANDO criar ENTÃO 401."""
-        payload = {"aeronave_id": str(uuid.uuid4()), "part_number": "PN-X", "nomenclatura": "Item"}
+        payload = {
+            "numero_pedido": f"FAB-{uuid.uuid4().hex[:8].upper()}",
+            "aeronave_id": str(uuid.uuid4()),
+            "part_number": "PN-X",
+            "nomenclatura": "Item",
+        }
         resp = await client.post(PEDIDOS_URL, json=payload)
         assert resp.status_code == 401
 
