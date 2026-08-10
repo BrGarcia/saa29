@@ -29,7 +29,12 @@ class CsrfSettings(BaseModel):
     # teste) não tinha efeito algum sobre esta configuração.
     secret_key: str = Field(default_factory=lambda: get_settings().app_secret_key)
     cookie_samesite: str = "lax"
-    cookie_secure: bool = Field(default_factory=lambda: get_settings().app_env == "production")
+    cookie_secure: bool = Field(
+        default_factory=lambda: (
+            get_settings().app_env == "production"
+            or get_settings().force_secure_cookies
+        )
+    )
     # O contrato exige que o token assinado fique no cookie
     # e o token bruto seja enviado pelo Header.
     cookie_name: str = "fastapi-csrf-token"
@@ -105,6 +110,15 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         csrf_header = request.headers.get("X-CSRF-Token")
         response_content_type = response.headers.get("content-type", "").lower()
         is_html_response = "text/html" in response_content_type
+
+        if is_html_response:
+            # Templates HTML carregam o token bruto em <meta name="csrf-token">.
+            # Em produção, qualquer cache de navegador/proxy/CDN que reutilize
+            # esse HTML pode entregar uma meta tag que não corresponde ao cookie
+            # assinado atual, causando 403 no próximo POST válido.
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
 
         should_issue_token = (
             request.method != "GET"

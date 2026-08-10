@@ -1,7 +1,6 @@
 // SAA29 Service Worker para PWA Mobile
-const CACHE_NAME = 'saa29-mobile-v1';
+const CACHE_NAME = 'saa29-mobile-v2';
 const ASSETS_TO_CACHE = [
-  '/m/',
   '/static/css/index.css',
   '/static/css/mobile.css',
   '/static/js/app.js',
@@ -17,10 +16,29 @@ self.addEventListener('install', (event) => {
   );
 });
 
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) => Promise.all(
+      keys
+        .filter((key) => key.startsWith('saa29-mobile-') && key !== CACHE_NAME)
+        .map((key) => caches.delete(key))
+    ))
+  );
+});
+
 self.addEventListener('fetch', (event) => {
+  const request = event.request;
+  const url = new URL(request.url);
+  const isStaticAsset = request.method === 'GET' && url.origin === self.location.origin && (
+    url.pathname.startsWith('/static/') || url.pathname === '/manifest.json'
+  );
+
+  if (!isStaticAsset) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      return cachedResponse || fetch(event.request);
-    })
+    caches.match(request).then((cachedResponse) => cachedResponse || fetch(request))
   );
 });

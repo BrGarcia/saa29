@@ -36,6 +36,7 @@ entender *por que* algo é como é, desnecessários para trabalhar.
 | — | [`melhorias.md`](melhorias.md) | **Adotado.** Avaliação de viabilidade que virou a implementação real de `/publicacoes` — o porquê de cada decisão de design do explorador | Quer entender por que o explorador é como é, ou por que certas ideias óbvias não coube |
 | — | [`dividas/achados_service.md`](dividas/achados_service.md) | **Análise não corrigida.** 9 achados verificados em `service.py` (3 BUG, 3 RISCO, 3 MELHORIA, 1 dúvida), em duas passadas — o mais grave: o mapa do FIM é global e passa a apontar para a edição indexada por último, não a vigente. Traz ordem sugerida de correção | Vai fazer uma sessão de correção no módulo, ou quer saber dívidas técnicas conhecidas antes de mexer em `service.py` |
 | — | [`10_plano_preview_explorador.md`](10_plano_preview_explorador.md) | **Adotado — promovido.** `/publicacoes` e `/publicacoes/viewer/{id}` SÃO o explorador e o viewer avançado, não uma prévia paralela; §8 tem o de-para da promoção | Quer saber o que mudou de nome/lugar na promoção, ou por que a navegação de `/publicacoes` é client-fetch |
+| 11 | [`11_achados_disco_completo.md`](11_achados_disco_completo.md) | **Base factual — disco completo.** Engenharia reversa da estrutura dos DVDs de publicações (manutenção + operacional): 18.746 PDFs, 49 `index_2.0/`, metadados XML (`manual_details.xml`, `manual_type.xml`, `version/`), 4 manuais operacionais exclusivos, veredicto sobre `Program/Index/` (inútil) | Vai incorporar manuais operacionais, ou quer fonte canônica de nomes/categorias/revisões |
 | — | [`../../architecture/adr/004-modulo-publicacoes.md`](../../architecture/adr/004-modulo-publicacoes.md) | ADR formal das 4 decisões de arquitetura que sobrevivem a todas as revisões | Quer a decisão registrada no lugar canônico do projeto |
 
 ## Status de cada documento
@@ -54,6 +55,7 @@ entender *por que* algo é como é, desnecessários para trabalhar.
 | `09_plano_configuracoes.md` | **Vivo, mas sem trabalho de código pendente** — Etapas 1 e 2 concluídas; nota de vigência registra a UI de desktop da Etapa 2 como substituída pelo explorador | **Decisão** — reverte o `os.replace()` previsto em `search.py` por resolução do índice pelo banco (adendo no ADR-004); registra as 3 rotas de navegação que a §3 do contrato especificava e nunca tinham virado tarefa — essas 3 rotas seguem em uso (pelo explorador e/ou pelo mobile) |
 | `melhorias.md` | **Adotado** — implementado e promovido | **Decisão** — registro do porquê do design |
 | `10_plano_preview_explorador.md` | **Adotado — promovido** (§8.5 tem o de-para) | **Decisão** — mecanismo de avaliação, hoje histórico |
+| `11_achados_disco_completo.md` | **Datado** — registro de investigação de 10/08/2026 | Referência factual (estrutura dos DVDs, metadados XML, manuais operacionais) |
 | `004-modulo-publicacoes.md` (ADR) | Aceito, com adendo de 06/08 sobre o índice por edição | **Decisão formal** |
 
 > Atenção à assimetria: a tabela acima é o status **dos documentos**, não o da implementação. Quem

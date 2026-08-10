@@ -31,15 +31,24 @@ async function handleLogin(e) {
     loginBtn.innerHTML = 'Conectando...';
 
     try {
-        // Busca o token CSRF da meta tag
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        // Busca o token CSRF da meta tag renderizada pelo backend.
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfToken = csrfMeta ? (csrfMeta.getAttribute('content') || '') : '';
+        if (!csrfToken) {
+            const msg = "Erro de segurança (CSRF). Recarregue a página.";
+            if (typeof showToast === "function") showToast(msg, "error");
+            else alert(msg);
+            throw new Error(msg);
+        }
 
         // O endpoint do FastAPI com OAuth2PasswordRequestForm aceita FormData urlencoded
         const response = await fetch('/auth/login', {
             method: 'POST',
             headers: {
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
                 'X-CSRF-Token': csrfToken
             },
+            credentials: 'same-origin',
             body: new URLSearchParams(formData)
         });
 
