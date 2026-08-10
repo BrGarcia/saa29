@@ -27,6 +27,7 @@
     const modalPedidoTitulo = document.getElementById("modal-pedido-titulo");
     const inputPedidoId = document.getElementById("pedido-id");
     const inputAeronave = document.getElementById("input-aeronave");
+    const inputNumeroPedido = document.getElementById("input-numero-pedido");
     const inputPartNumber = document.getElementById("input-part-number");
     const inputNomenclatura = document.getElementById("input-nomenclatura");
     const inputQuantidade = document.getElementById("input-quantidade");
@@ -267,6 +268,7 @@
         modalPedidoTitulo.textContent = `Alterar Pedido ${pedido.numero_pedido}`;
         inputAeronave.value = pedido.aeronave_id;
         inputAeronave.disabled = true;
+        inputNumeroPedido.value = pedido.numero_pedido;
         inputPartNumber.value = pedido.part_number;
         inputNomenclatura.value = pedido.nomenclatura;
         inputQuantidade.value = String(pedido.quantidade);
@@ -286,6 +288,7 @@
         e.preventDefault();
         const tipoPedido = radioEmergencia.checked ? "EMERGENCIA" : "NORMAL";
         const payload = {
+            numero_pedido: inputNumeroPedido.value.trim(),
             part_number: inputPartNumber.value.trim(),
             nomenclatura: inputNomenclatura.value.trim(),
             quantidade: parseInt(inputQuantidade.value, 10) || 1,

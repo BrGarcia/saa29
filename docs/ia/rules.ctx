@@ -27,7 +27,7 @@
 - RN-15: Hierarquia de Status de Aeronaves: Abertura de pane em aeronave DISPONIVEL transiciona status para INDISPONIVEL no banco de dados. Aeronaves em INSPECAO, INATIVA ou ESTOCADA preservam seu status. Conclusão de panes reverte para DISPONIVEL somente quando restarem zero panes e zero inspeções ativas. Sincronização garantida via service e safety net SQL direto no router.
 - RN-16: Interfaces Web e Mobile devem manter conformidade estrita com a CSP (Content Security Policy). Proibidos scripts inline e atributos de evento no HTML (ex: onclick). Eventos devem ser vinculados via JavaScript externo.
 - RN-PED01: Pedidos: standalone e desacoplado de equipamentos/vencimentos (v2.0) — part_number/nomenclatura são texto livre, sem FK para o catálogo de equipamentos; nenhuma varredura de slots vagos ou itens vencidos.
-- RN-PED02: Pedidos: numero_pedido gerado exclusivamente pelo servidor no padrão P-{ano}-{seq:04d}; colisão retorna HTTP 409.
+- RN-PED02: Pedidos: numero_pedido é informado manualmente pelo usuário (número emitido no sistema interno da FAB, apenas transcrito para o SAA29); único no servidor, colisão retorna HTTP 409.
 - RN-PED03: Pedidos: EMERGENCIA exige numero_emergencia; NORMAL força numero_emergencia=NULL no servidor.
 - RN-PED04: Pedidos: transições de status permitidas exclusivamente a partir de PENDENTE (ATENDIDO e CANCELADO são terminais); qualquer outra tentativa retorna 409.
 - RN-PED05: Pedidos: atender é uma marcação puramente administrativa (status, data_atendimento, atendido_por_id) — nunca cria registros em instalacoes nem altera o inventário.

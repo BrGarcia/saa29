@@ -27,8 +27,6 @@ from app.shared.core import exceptions as domain_exc
 from app.shared.core.db_utils import escape_like
 from app.shared.core.enums import StatusPedido, TipoPedido
 
-_MAX_TENTATIVAS_NUMERO = 3
-
 _RELACOES_EAGER = (
     selectinload(Pedido.aeronave),
     selectinload(Pedido.solicitante),
@@ -68,28 +66,20 @@ def _to_out(pedido: Pedido) -> PedidoOut:
     )
 
 
-async def _gerar_numero_pedido(db: AsyncSession, ano: int) -> str:
-    """Gera o próximo número sequencial do ano no formato P-{ano}-{seq:04d}.
+async def _numero_pedido_em_uso(
+    db: AsyncSession, numero: str, excluir_id: uuid.UUID | None = None
+) -> bool:
+    """Checa se o número já está em uso.
 
-    Baseado no maior número já emitido no ano (não em COUNT(*)): soft
-    deletes e cancelamentos abrem buracos na contagem e produziriam
-    colisões se a sequência fosse recalculada por contagem de linhas.
+    NÃO filtra por `ativo`: a UNIQUE do banco cobre também os pedidos
+    soft-deleted, então um pedido na lixeira continua ocupando o número —
+    do contrário este pre-check passaria e o INSERT/UPDATE quebraria com
+    IntegrityError.
     """
-    prefixo = f"P-{ano}-"
-    result = await db.execute(
-        select(Pedido.numero_pedido)
-        .where(Pedido.numero_pedido.like(f"{prefixo}%", escape="\\"))
-        .order_by(Pedido.numero_pedido.desc())
-        .limit(1)
-    )
-    ultimo = result.scalar_one_or_none()
-    proxima_seq = 1
-    if ultimo:
-        try:
-            proxima_seq = int(ultimo[len(prefixo):]) + 1
-        except ValueError:
-            proxima_seq = 1
-    return f"{prefixo}{proxima_seq:04d}"
+    query = select(Pedido.id).where(Pedido.numero_pedido == numero)
+    if excluir_id is not None:
+        query = query.where(Pedido.id != excluir_id)
+    return (await db.execute(query.limit(1))).scalar_one_or_none() is not None
 
 
 def _query_base(filtros: FiltroPedido | None):
@@ -124,7 +114,12 @@ def _query_base(filtros: FiltroPedido | None):
 
 
 async def criar_pedido(db: AsyncSession, dados: PedidoCreate, solicitante_id: uuid.UUID) -> Pedido:
-    """Cria um novo pedido. Status inicial sempre PENDENTE (RN-05)."""
+    """Cria um novo pedido. Status inicial sempre PENDENTE (RN-05).
+
+    RN-02: `numero_pedido` é informado manualmente pelo usuário — é o número
+    emitido no sistema interno da FAB, apenas transcrito para o SAA29. O
+    servidor não gera mais número nenhum; só garante unicidade.
+    """
     aeronave = await buscar_aeronave(db, dados.aeronave_id)
     if not aeronave:
         raise domain_exc.EntidadeNaoEncontradaError("Aeronave não encontrada.")
@@ -139,38 +134,39 @@ async def criar_pedido(db: AsyncSession, dados: PedidoCreate, solicitante_id: uu
     if dados.tipo_pedido == TipoPedido.NORMAL:
         numero_emergencia = None
 
+    if await _numero_pedido_em_uso(db, dados.numero_pedido):
+        raise domain_exc.ConflitoNegocioError(
+            f"Já existe um pedido com o número '{dados.numero_pedido}'."
+        )
+
     hoje = datetime.now(timezone.utc).date()
 
-    ultimo_erro: Exception | None = None
-    for _ in range(_MAX_TENTATIVAS_NUMERO):
-        numero_pedido = await _gerar_numero_pedido(db, hoje.year)
-        pedido = Pedido(
-            numero_pedido=numero_pedido,
-            aeronave_id=dados.aeronave_id,
-            part_number=dados.part_number,
-            nomenclatura=dados.nomenclatura,
-            tipo_pedido=dados.tipo_pedido.value,
-            numero_emergencia=numero_emergencia,
-            quantidade=dados.quantidade,
-            status=StatusPedido.PENDENTE.value,
-            observacao=dados.observacao,
-            data_pedido=hoje,
-            solicitante_id=solicitante_id,
-        )
-        try:
-            async with db.begin_nested():
-                db.add(pedido)
-                await db.flush()
-        except IntegrityError as exc:
-            ultimo_erro = exc
-            continue
+    pedido = Pedido(
+        numero_pedido=dados.numero_pedido,
+        aeronave_id=dados.aeronave_id,
+        part_number=dados.part_number,
+        nomenclatura=dados.nomenclatura,
+        tipo_pedido=dados.tipo_pedido.value,
+        numero_emergencia=numero_emergencia,
+        quantidade=dados.quantidade,
+        status=StatusPedido.PENDENTE.value,
+        observacao=dados.observacao,
+        data_pedido=hoje,
+        solicitante_id=solicitante_id,
+    )
+    try:
+        # SAVEPOINT: cobre a corrida entre duas criações concorrentes com o
+        # mesmo numero_pedido (o pre-check acima não é atômico sozinho).
+        async with db.begin_nested():
+            db.add(pedido)
+            await db.flush()
+    except IntegrityError as exc:
+        raise domain_exc.ConflitoNegocioError(
+            f"Já existe um pedido com o número '{dados.numero_pedido}'."
+        ) from exc
 
-        await db.refresh(pedido, ["aeronave", "solicitante"])
-        return pedido
-
-    raise domain_exc.ConflitoNegocioError(
-        "Não foi possível gerar um número de pedido único. Tente novamente."
-    ) from ultimo_erro
+    await db.refresh(pedido, ["aeronave", "solicitante"])
+    return pedido
 
 
 async def listar_pedidos(db: AsyncSession, filtros: FiltroPedido) -> tuple[list[Pedido], int]:
@@ -244,6 +240,12 @@ async def editar_pedido(db: AsyncSession, pedido_id: uuid.UUID, dados: PedidoUpd
             "Apenas pedidos com status PENDENTE podem ser editados."
         )
 
+    if dados.numero_pedido is not None and dados.numero_pedido != pedido.numero_pedido:
+        if await _numero_pedido_em_uso(db, dados.numero_pedido, excluir_id=pedido_id):
+            raise domain_exc.ConflitoNegocioError(
+                f"Já existe um pedido com o número '{dados.numero_pedido}'."
+            )
+        pedido.numero_pedido = dados.numero_pedido
     if dados.part_number is not None:
         pedido.part_number = dados.part_number
     if dados.nomenclatura is not None:
@@ -265,7 +267,16 @@ async def editar_pedido(db: AsyncSession, pedido_id: uuid.UUID, dados: PedidoUpd
             "numero_emergencia é obrigatório para pedidos de EMERGENCIA."
         )
 
-    await db.flush()
+    try:
+        # SAVEPOINT: cobre a corrida entre duas edições concorrentes trocando
+        # para o mesmo numero_pedido (o pre-check acima não é atômico sozinho).
+        async with db.begin_nested():
+            await db.flush()
+    except IntegrityError as exc:
+        raise domain_exc.ConflitoNegocioError(
+            f"Já existe um pedido com o número '{dados.numero_pedido}'."
+        ) from exc
+
     return pedido
 
 

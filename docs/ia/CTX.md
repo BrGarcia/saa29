@@ -56,7 +56,7 @@ domains:
 - inspecoes: integrated_fully_active (tipos_inspecao,tarefas_catalogo,tarefas_template,inspecoes,inspecao_tarefas,export_csv_xlsx)
 - calendario: p0_p5_active (event_types,calendar_events,rbac_censorship,frontend_ui,write_modal,inspecoes_dpe_aggregation,safe_tz_sorting)
 - publicacoes: m0_m4_web_active (manuais_edicoes,manuais_documentos,manuais_fim_map,publicacoes_avulsas,publicacoes_favoritos,publicacoes_upload_jobs,fts5_search,explorador_tree,pdf_viewer_canvas)
-- pedidos: standalone_active (numero_pedido server_side P-ano-seq, aeronave_id FK only, part_number/nomenclatura as free text, tipo NORMAL/EMERGENCIA, status PENDENTE/ATENDIDO/CANCELADO, soft_delete, restore, export_csv_xlsx) — decoupled from equipamentos/vencimentos by design (v2.0), atender is administrative-only (no writes to instalacoes/inventario)
+- pedidos: standalone_active (numero_pedido manual_entry unique — user-typed FAB order number, aeronave_id FK only, part_number/nomenclatura as free text, tipo NORMAL/EMERGENCIA, status PENDENTE/ATENDIDO/CANCELADO, soft_delete, restore, export_csv_xlsx) — decoupled from equipamentos/vencimentos by design (v2.0), atender is administrative-only (no writes to instalacoes/inventario)
 - shared/image_pipeline: service_layer_for_image_processing (validator,converter,resizer,optimizer,pipeline)
 - shared/contracts: ddd_domain_lookup_protocols (AeronaveLookupProtocol)
 - shared/exporter: generic_csv_xlsx_report_generator (gerar_csv, gerar_xlsx)

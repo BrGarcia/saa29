@@ -6,5 +6,5 @@
 - Inspecoes: select_types -> generate_tasks_from_templates -> audit_open_trigrama -> execute_tasks -> audit_completion_trigrama -> conclude -> pdf_report
 - Calendario: range_query -> rbac_censorship -> aggregate_inspections_dpe -> safe_utc_sorting -> render_events
 - Publicacoes: acervo_tree_explorer -> fts5_bm25_search -> pdf_viewer_canvas / upload_zip -> presigned_multipart -> worker_publicar -> single_flight_lock -> activate_edition
-- Pedidos: aeronave + part_number/nomenclatura -> criar_pedido (server gera numero_pedido P-ano-seq, status=PENDENTE) -> atender (administrativo, sem escrita em inventario) | cancelar (motivo obrigatorio) -> terminal | excluir (soft_delete) -> restaurar
+- Pedidos: aeronave + part_number/nomenclatura + numero_pedido (informado manualmente, único) -> criar_pedido (status=PENDENTE) -> atender (administrativo, sem escrita em inventario) | cancelar (motivo obrigatorio) -> terminal | excluir (soft_delete) -> restaurar
 - Image_Pipeline: upload -> validate -> convert_webp -> resize -> optimize -> store_r2/local

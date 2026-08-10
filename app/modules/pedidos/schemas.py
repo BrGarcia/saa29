@@ -6,7 +6,7 @@ Schemas Pydantic v2 para o módulo Central de Pedidos.
 import uuid
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.shared.core.enums import StatusPedido, TipoPedido
 
@@ -23,6 +23,7 @@ class FiltroPedido(BaseModel):
 
 
 class PedidoCreate(BaseModel):
+    numero_pedido: str = Field(..., min_length=1, max_length=50)
     aeronave_id: uuid.UUID
     part_number: str = Field(..., min_length=1, max_length=50)
     nomenclatura: str = Field(..., min_length=1, max_length=100)
@@ -30,6 +31,14 @@ class PedidoCreate(BaseModel):
     numero_emergencia: str | None = Field(None, max_length=50)
     quantidade: int = Field(default=1, ge=1, le=999)
     observacao: str | None = Field(None, max_length=1000)
+
+    @field_validator("numero_pedido")
+    @classmethod
+    def _normalizar_numero_pedido(cls, valor: str) -> str:
+        numero = valor.strip()
+        if not numero:
+            raise ValueError("numero_pedido não pode ser vazio")
+        return numero
 
     @model_validator(mode="after")
     def _validar_regras(self):
@@ -49,12 +58,23 @@ class PedidoUpdate(BaseModel):
     """
     model_config = ConfigDict(extra="forbid")
 
+    numero_pedido: str | None = Field(None, min_length=1, max_length=50)
     part_number: str | None = Field(None, min_length=1, max_length=50)
     nomenclatura: str | None = Field(None, min_length=1, max_length=100)
     tipo_pedido: TipoPedido | None = None
     numero_emergencia: str | None = Field(None, max_length=50)
     quantidade: int | None = Field(None, ge=1, le=999)
     observacao: str | None = Field(None, max_length=1000)
+
+    @field_validator("numero_pedido")
+    @classmethod
+    def _normalizar_numero_pedido(cls, valor: str | None) -> str | None:
+        if valor is None:
+            return None
+        numero = valor.strip()
+        if not numero:
+            raise ValueError("numero_pedido não pode ser vazio")
+        return numero
 
 
 class PedidoCancelar(BaseModel):
