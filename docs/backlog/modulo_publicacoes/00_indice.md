@@ -38,6 +38,7 @@ entender *por que* algo é como é, desnecessários para trabalhar.
 | — | [`10_plano_preview_explorador.md`](10_plano_preview_explorador.md) | **Adotado — promovido.** `/publicacoes` e `/publicacoes/viewer/{id}` SÃO o explorador e o viewer avançado, não uma prévia paralela; §8 tem o de-para da promoção | Quer saber o que mudou de nome/lugar na promoção, ou por que a navegação de `/publicacoes` é client-fetch |
 | 11 | [`11_achados_disco_completo.md`](11_achados_disco_completo.md) | **Base factual — disco completo.** Engenharia reversa da estrutura dos DVDs de publicações (manutenção + operacional): 18.746 PDFs, 49 `index_2.0/`, metadados XML (`manual_details.xml`, `manual_type.xml`, `version/`), 4 manuais operacionais exclusivos, veredicto sobre `Program/Index/` (inútil) | Vai incorporar manuais operacionais, ou quer fonte canônica de nomes/categorias/revisões |
 | 12 | [`12_refinamento_gestao_e_envio.md`](12_refinamento_gestao_e_envio.md) | **Decisão.** Traduz o `11` em plano executável: envio **por remessa** (disco de manutenção e operacional enviados separadamente, acumulando na edição vigente), merge por revisão de `version/*.txt`, metadados do disco alimentando nome/categoria/revisão do manual, e 6 defeitos bloqueantes medidos no pipeline de upload atual (B-01 a B-06) | Vai implementar o envio de um novo disco, ou quer saber por que o upload web ainda não funciona ponta a ponta |
+| 13 | [`13_viabilidade_processamento_local.md`](13_viabilidade_processamento_local.md) | **Decisão.** Responde se dá para processar os discos localmente e enviar ao Cloudflare R2 manualmente: sim, reaproveitando o snapshot ZIP que `publicar.py` já sobe hoje, no lugar do `rsync` — sem código novo. Corrige a premissa de um único `publicacoes.db`: PDF sempre é servido do disco local (`router.py`), nunca do R2, hoje | Vai processar uma edição fora da VPS e quer saber que artefato enviar e o que fica pendente do `12` de qualquer forma |
 | — | [`../../architecture/adr/004-modulo-publicacoes.md`](../../architecture/adr/004-modulo-publicacoes.md) | ADR formal das 4 decisões de arquitetura que sobrevivem a todas as revisões | Quer a decisão registrada no lugar canônico do projeto |
 
 ## Status de cada documento
@@ -58,6 +59,8 @@ entender *por que* algo é como é, desnecessários para trabalhar.
 | `10_plano_preview_explorador.md` | **Adotado — promovido** (§8.5 tem o de-para) | **Decisão** — mecanismo de avaliação, hoje histórico |
 | `11_achados_disco_completo.md` | **Datado** — registro de investigação de 10/08/2026 | Referência factual (estrutura dos DVDs, metadados XML, manuais operacionais) |
 | `12_refinamento_gestao_e_envio.md` | **Vivo — decisão** | **Decisão** — envio por remessa, merge por revisão, defeitos B-01 a B-06 do pipeline de upload |
+| `13_viabilidade_processamento_local.md` | **Vivo — decisão** | **Decisão** — processamento local + snapshot R2 como canal de transferência no lugar do `rsync`; corrige o rascunho `esboco_processamento_publicacoes.md` |
+| `esboco_processamento_publicacoes.md` | Rascunho anterior, não verificado em código | Referência — ver nota de divergência no topo do `13` |
 | `004-modulo-publicacoes.md` (ADR) | Aceito, com adendo de 06/08 sobre o índice por edição | **Decisão formal** |
 
 > Atenção à assimetria: a tabela acima é o status **dos documentos**, não o da implementação. Quem
@@ -99,3 +102,8 @@ parcialmente respondida), D-S7 (backup testado).
   operacional chegam em momentos diferentes e são enviados separadamente, acumulando na mesma
   edição (mesmo depois de VIGENTE); entre os dois, a maior revisão de `version/*.txt` vence
   manual a manual — ver `12_refinamento_gestao_e_envio.md`.
+- **Processar uma edição fora da VPS já é o padrão suportado, sem código novo**: `publicar.py` já
+  sobe o snapshot ZIP do acervo ao R2 sozinho; o canal de transferência para a VPS pode trocar de
+  `rsync` para "baixar esse ZIP do R2" sem mudar nada no código. O PDF, porém, é sempre servido do
+  disco local pelo `router.py` — nunca do R2 — então os arquivos físicos continuam precisando
+  chegar à máquina que roda o SAA29 — ver `13_viabilidade_processamento_local.md`.
