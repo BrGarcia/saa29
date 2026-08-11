@@ -37,6 +37,7 @@ entender *por que* algo é como é, desnecessários para trabalhar.
 | — | [`dividas/achados_service.md`](dividas/achados_service.md) | **Análise não corrigida.** 9 achados verificados em `service.py` (3 BUG, 3 RISCO, 3 MELHORIA, 1 dúvida), em duas passadas — o mais grave: o mapa do FIM é global e passa a apontar para a edição indexada por último, não a vigente. Traz ordem sugerida de correção | Vai fazer uma sessão de correção no módulo, ou quer saber dívidas técnicas conhecidas antes de mexer em `service.py` |
 | — | [`10_plano_preview_explorador.md`](10_plano_preview_explorador.md) | **Adotado — promovido.** `/publicacoes` e `/publicacoes/viewer/{id}` SÃO o explorador e o viewer avançado, não uma prévia paralela; §8 tem o de-para da promoção | Quer saber o que mudou de nome/lugar na promoção, ou por que a navegação de `/publicacoes` é client-fetch |
 | 11 | [`11_achados_disco_completo.md`](11_achados_disco_completo.md) | **Base factual — disco completo.** Engenharia reversa da estrutura dos DVDs de publicações (manutenção + operacional): 18.746 PDFs, 49 `index_2.0/`, metadados XML (`manual_details.xml`, `manual_type.xml`, `version/`), 4 manuais operacionais exclusivos, veredicto sobre `Program/Index/` (inútil) | Vai incorporar manuais operacionais, ou quer fonte canônica de nomes/categorias/revisões |
+| 12 | [`12_refinamento_gestao_e_envio.md`](12_refinamento_gestao_e_envio.md) | **Decisão.** Traduz o `11` em plano executável: envio **por remessa** (disco de manutenção e operacional enviados separadamente, acumulando na edição vigente), merge por revisão de `version/*.txt`, metadados do disco alimentando nome/categoria/revisão do manual, e 6 defeitos bloqueantes medidos no pipeline de upload atual (B-01 a B-06) | Vai implementar o envio de um novo disco, ou quer saber por que o upload web ainda não funciona ponta a ponta |
 | — | [`../../architecture/adr/004-modulo-publicacoes.md`](../../architecture/adr/004-modulo-publicacoes.md) | ADR formal das 4 decisões de arquitetura que sobrevivem a todas as revisões | Quer a decisão registrada no lugar canônico do projeto |
 
 ## Status de cada documento
@@ -56,6 +57,7 @@ entender *por que* algo é como é, desnecessários para trabalhar.
 | `melhorias.md` | **Adotado** — implementado e promovido | **Decisão** — registro do porquê do design |
 | `10_plano_preview_explorador.md` | **Adotado — promovido** (§8.5 tem o de-para) | **Decisão** — mecanismo de avaliação, hoje histórico |
 | `11_achados_disco_completo.md` | **Datado** — registro de investigação de 10/08/2026 | Referência factual (estrutura dos DVDs, metadados XML, manuais operacionais) |
+| `12_refinamento_gestao_e_envio.md` | **Vivo — decisão** | **Decisão** — envio por remessa, merge por revisão, defeitos B-01 a B-06 do pipeline de upload |
 | `004-modulo-publicacoes.md` (ADR) | Aceito, com adendo de 06/08 sobre o índice por edição | **Decisão formal** |
 
 > Atenção à assimetria: a tabela acima é o status **dos documentos**, não o da implementação. Quem
@@ -93,3 +95,7 @@ parcialmente respondida), D-S7 (backup testado).
   Categoria → Manual → Capítulo, viewer com zoom/rotação/miniaturas/busca interna), promovido após
   avaliação manual — não mais a home de busca renderizada server-side. Mobile fica de fora por ora
   (Fase 4 não iniciada); `manual.html`/`capitulo.html` seguem vivas só para o mobile.
+- **O envio web é por remessa, não por edição completa**: o disco de manutenção e o disco
+  operacional chegam em momentos diferentes e são enviados separadamente, acumulando na mesma
+  edição (mesmo depois de VIGENTE); entre os dois, a maior revisão de `version/*.txt` vence
+  manual a manual — ver `12_refinamento_gestao_e_envio.md`.
