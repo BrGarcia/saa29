@@ -145,7 +145,7 @@ async function clearAuth() {
  * Função utilitária para chamadas à API com suporte a CSRF e tratamento de erros automático.
  * 
  * @param {string} endpoint - O endpoint da API (ex: "/aeronaves/")
- * @param {RequestInit & { body?: any }} [options] - Opções extras da requisição HTTP
+ * @param {Omit<RequestInit, "body"> & { body?: any }} [options] - Opções extras da requisição HTTP
  * @returns {Promise<any>} O payload retornado em formato JSON
  */
 async function apiFetch(endpoint, options = {}) {
