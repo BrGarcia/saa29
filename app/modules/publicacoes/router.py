@@ -817,7 +817,10 @@ async def iniciar_upload_edicao(
             detail=f"A edição {dados.rotulo!r} já está VIGENTE. Para atualizar o acervo, crie uma nova edição.",
         )
 
-    # 4. Iniciar multipart no storage
+    # 4. Auto-healing de jobs estagnados/órfãos antes de tentar iniciar novo envio
+    await service.limpar_jobs_upload_estagnados(db)
+
+    # 5. Iniciar multipart no storage
     job_id = uuid.uuid4()
     file_key = f"publicacoes/uploads/{job_id}/edicao.zip"
     storage = get_storage_service()
@@ -831,7 +834,7 @@ async def iniciar_upload_edicao(
             detail="Não foi possível iniciar a sessão de upload no storage.",
         ) from exc
 
-    # 5. Criar registro do job (com trava single-flight)
+    # 6. Criar registro do job (com trava single-flight)
     job = PublicacoesUploadJob(
         id=job_id,
         rotulo=dados.rotulo,

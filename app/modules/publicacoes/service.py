@@ -1209,3 +1209,87 @@ async def remover_favorito(db: AsyncSession, usuario_id: uuid.UUID, favorito_id:
 
     await db.delete(favorito)
     await db.flush()
+
+
+# --------------------------------------------------------------------------
+# Gestão e Auto-healing de Upload Jobs (M4.Web)
+# --------------------------------------------------------------------------
+
+
+async def limpar_jobs_upload_estagnados(db: AsyncSession, timeout_minutos: int = 60) -> int:
+    """
+    Busca jobs em ENVIANDO ou PROCESSANDO estagnados ou órfãos e marca como FALHOU,
+    desbloqueando o single-flight lock (`uq_publicacoes_upload_jobs_ativo_unico`).
+
+    - Jobs em PROCESSANDO sem processo ativo (PID inativo) são marcados como FALHOU.
+    - Jobs em ENVIANDO com inatividade superior a `timeout_minutos` são marcados como FALHOU.
+    """
+    import os
+    from datetime import datetime, timezone, timedelta
+    from app.modules.publicacoes.models import PublicacoesUploadJob
+    from app.shared.core.enums import StatusUploadJob
+    from app.shared.core.storage import get_storage_service
+
+    agora = datetime.now(timezone.utc)
+    limite_inatividade = agora - timedelta(minutes=timeout_minutos)
+
+    jobs = (
+        await db.execute(
+            select(PublicacoesUploadJob).where(
+                PublicacoesUploadJob.status.in_([StatusUploadJob.ENVIANDO, StatusUploadJob.PROCESSANDO])
+            )
+        )
+    ).scalars().all()
+
+    limpados = 0
+    storage = None
+
+    for job in jobs:
+        deve_limpar = False
+        motivo_erro = ""
+        etapa_desc = ""
+
+        if job.status == StatusUploadJob.PROCESSANDO:
+            processo_ativo = False
+            if job.processo_pid:
+                try:
+                    os.kill(job.processo_pid, 0)
+                    processo_ativo = True
+                except OSError:
+                    processo_ativo = False
+
+            if not processo_ativo:
+                deve_limpar = True
+                etapa_desc = "Processo interrompido"
+                motivo_erro = "Processo de tratamento do acervo foi interrompido (PID inativo). Reenvie a edição."
+
+        elif job.status == StatusUploadJob.ENVIANDO:
+            data_ref = job.updated_at or job.created_at
+            if data_ref:
+                if data_ref.tzinfo is None:
+                    data_ref = data_ref.replace(tzinfo=timezone.utc)
+                if data_ref < limite_inatividade:
+                    deve_limpar = True
+                    etapa_desc = "Upload expirado"
+                    motivo_erro = f"Envio de edição anterior abandonado ou expirado por inatividade (> {timeout_minutos} min). Reenvie o arquivo."
+
+        if deve_limpar:
+            job.status = StatusUploadJob.FALHOU
+            job.etapa = etapa_desc
+            job.erro = motivo_erro
+            limpados += 1
+
+            if job.upload_id_r2 and job.file_key:
+                try:
+                    if storage is None:
+                        storage = get_storage_service()
+                    await storage.abortar_multipart(job.file_key, job.upload_id_r2)
+                except Exception as exc_st:
+                    logger.warning("Falha ao abortar multipart para job estagnado %s: %s", job.id, exc_st)
+
+    if limpados > 0:
+        await db.flush()
+        logger.warning("[Uploads] Auto-healing: %d job(s) estagnado(s) marcado(s) como FALHOU.", limpados)
+
+    return limpados
+
