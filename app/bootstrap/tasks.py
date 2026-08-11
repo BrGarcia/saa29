@@ -7,6 +7,7 @@ import sys
 import logging
 import asyncio
 from typing import Optional
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -130,30 +131,33 @@ async def anexos_travados_cleanup_task() -> None:
         await asyncio.sleep(900)  # Roda a cada 15 minutos
 
 
-async def recuperar_jobs_upload_interrompidos() -> int:
+async def recuperar_jobs_upload_interrompidos(session: Optional[AsyncSession] = None) -> int:
     """
-    Verifica se há jobs de upload em status PROCESSANDO cujos processos morreram (crash/restart).
-    Marca o status como FALHOU para permitir que o usuário tente novamente.
+    Verifica se há jobs de upload em status PROCESSANDO ou ENVIANDO cujos processos ou conexões
+    foram interrompidos (crash/restart). Marca o status como FALHOU para liberar o bloqueio e permitir
+    que o usuário tente novamente.
     """
     import os
     from sqlalchemy import select
     from app.bootstrap.database import get_session_factory
     from app.modules.publicacoes.models import PublicacoesUploadJob
     from app.shared.core.enums import StatusUploadJob
+    from app.shared.core.storage import get_storage_service
 
-    recuperados = 0
-    try:
-        session_factory = get_session_factory()
-        async with session_factory() as session:
-            jobs = (
-                await session.execute(
-                    select(PublicacoesUploadJob).where(
-                        PublicacoesUploadJob.status == StatusUploadJob.PROCESSANDO
-                    )
+    async def _executar_recuperacao(sess: AsyncSession) -> int:
+        recuperados = 0
+        jobs = (
+            await sess.execute(
+                select(PublicacoesUploadJob).where(
+                    PublicacoesUploadJob.status.in_([StatusUploadJob.PROCESSANDO, StatusUploadJob.ENVIANDO])
                 )
-            ).scalars().all()
+            )
+        ).scalars().all()
 
-            for job in jobs:
+        storage = None
+
+        for job in jobs:
+            if job.status == StatusUploadJob.PROCESSANDO:
                 processo_ativo = False
                 if job.processo_pid:
                     try:
@@ -167,17 +171,39 @@ async def recuperar_jobs_upload_interrompidos() -> int:
                     job.etapa = "Processo interrompido"
                     job.erro = "Processo de tratamento interrompido pelo servidor (crash/restart). Reenvie a edição."
                     recuperados += 1
+            elif job.status == StatusUploadJob.ENVIANDO:
+                # Todo job em ENVIANDO encontrado no startup teve a conexão cortada pelo restart
+                job.status = StatusUploadJob.FALHOU
+                job.etapa = "Envio interrompido"
+                job.erro = "Sessão de upload interrompida pela reinicialização do servidor. Reenvie o arquivo."
+                recuperados += 1
 
-            if recuperados:
-                await session.commit()
-                logger.warning(
-                    "[Uploads] %d job(s) de upload interrompido(s) recuperado(s) e marcado(s) como FALHOU.",
-                    recuperados,
-                )
+                if job.upload_id_r2 and job.file_key:
+                    try:
+                        if storage is None:
+                            storage = get_storage_service()
+                        await storage.abortar_multipart(job.file_key, job.upload_id_r2)
+                    except Exception as exc_st:
+                        logger.warning("[Uploads] Falha ao abortar multipart para job órfão %s: %s", job.id, exc_st)
+
+        if recuperados:
+            await sess.commit()
+            logger.warning(
+                "[Uploads] %d job(s) de upload interrompido(s) recuperado(s) e marcado(s) como FALHOU.",
+                recuperados,
+            )
+        return recuperados
+
+    try:
+        if session is not None:
+            return await _executar_recuperacao(session)
+        else:
+            session_factory = get_session_factory()
+            async with session_factory() as sess:
+                return await _executar_recuperacao(sess)
     except Exception as exc:
         logger.error("[Uploads] Erro na verificação de jobs interrompidos: %s", exc)
-
-    return recuperados
+        return 0
 
 
 def is_db_dirty() -> bool:

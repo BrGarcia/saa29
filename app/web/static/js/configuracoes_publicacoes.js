@@ -412,8 +412,12 @@ function toggleAreaUpload() {
     }
 }
 
+let isUploading = false;
+
 async function tratarSubmitUpload(event) {
     event.preventDefault();
+    if (isUploading) return;
+
     const inputRotulo = /** @type {HTMLInputElement} */ (document.getElementById("upload-edicao-rotulo"));
     const inputArquivo = /** @type {HTMLInputElement} */ (document.getElementById("upload-edicao-arquivo"));
     const btnSubmit = /** @type {HTMLButtonElement} */ (document.getElementById("btn-iniciar-upload"));
@@ -431,7 +435,8 @@ async function tratarSubmitUpload(event) {
         return;
     }
 
-    btnSubmit.disabled = true;
+    isUploading = true;
+    if (btnSubmit) btnSubmit.disabled = true;
     const containerStatus = document.getElementById("status-upload-container");
     if (containerStatus) containerStatus.style.display = "flex";
 
@@ -506,7 +511,9 @@ async function tratarSubmitUpload(event) {
     } catch (err) {
         showToast(err.message || "Erro no envio do arquivo.", "error");
         atualizarBarraUpload(`Erro: ${err.message}`, 0);
-        btnSubmit.disabled = false;
+        if (btnSubmit) btnSubmit.disabled = false;
+    } finally {
+        isUploading = false;
     }
 }
 
