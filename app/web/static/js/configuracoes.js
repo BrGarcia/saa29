@@ -1356,7 +1356,8 @@ function openModalFormTarefaCatalogo(id = null) {
     
     const inputId = /** @type {HTMLInputElement | null} */ (document.getElementById('tarefaCatalogoId'));
     const inputTitulo = /** @type {HTMLInputElement | null} */ (document.getElementById('tituloTarefaCatalogoInput'));
-    const inputSistema = /** @type {HTMLInputElement | null} */ (document.getElementById('sistemaTarefaCatalogoInput'));
+    const inputManual = /** @type {HTMLInputElement | null} */ (document.getElementById('manualTarefaCatalogoInput'));
+    const inputCodigoTarefa = /** @type {HTMLInputElement | null} */ (document.getElementById('codigoTarefaCatalogoInput'));
     const inputDesc = /** @type {HTMLInputElement | null} */ (document.getElementById('descTarefaCatalogoInput'));
     const selectAtivo = /** @type {HTMLSelectElement | null} */ (document.getElementById('ativoTarefaCatalogoInput'));
 
@@ -1369,7 +1370,8 @@ function openModalFormTarefaCatalogo(id = null) {
             if (title) title.innerText = 'Editar Tarefa no Catálogo';
             if (inputId) inputId.value = t.id;
             if (inputTitulo) inputTitulo.value = t.titulo;
-            if (inputSistema) inputSistema.value = t.sistema || '';
+            if (inputManual) inputManual.value = t.manual || '';
+            if (inputCodigoTarefa) inputCodigoTarefa.value = t.codigo_tarefa || '';
             if (inputDesc) inputDesc.value = t.descricao || '';
             if (containerStatus) containerStatus.style.display = 'block';
             if (selectAtivo) selectAtivo.value = t.ativa ? 'true' : 'false';
@@ -1404,7 +1406,8 @@ async function salvarTarefaCatalogo(e) {
 
     const inputId = /** @type {HTMLInputElement | null} */ (document.getElementById('tarefaCatalogoId'));
     const inputTitulo = /** @type {HTMLInputElement | null} */ (document.getElementById('tituloTarefaCatalogoInput'));
-    const inputSistema = /** @type {HTMLInputElement | null} */ (document.getElementById('sistemaTarefaCatalogoInput'));
+    const inputManual = /** @type {HTMLInputElement | null} */ (document.getElementById('manualTarefaCatalogoInput'));
+    const inputCodigoTarefa = /** @type {HTMLInputElement | null} */ (document.getElementById('codigoTarefaCatalogoInput'));
     const inputDesc = /** @type {HTMLInputElement | null} */ (document.getElementById('descTarefaCatalogoInput'));
     const selectAtivo = /** @type {HTMLSelectElement | null} */ (document.getElementById('ativoTarefaCatalogoInput'));
 
@@ -1413,7 +1416,8 @@ async function salvarTarefaCatalogo(e) {
 
     const body = {
         titulo: inputTitulo ? inputTitulo.value.trim() : "",
-        sistema: inputSistema ? (inputSistema.value.trim() || null) : null,
+        manual: inputManual ? (inputManual.value.trim() || null) : null,
+        codigo_tarefa: inputCodigoTarefa ? (inputCodigoTarefa.value.trim() || null) : null,
         descricao: inputDesc ? (inputDesc.value.trim() || null) : null,
         ativa: true
     };

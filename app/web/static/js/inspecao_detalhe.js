@@ -216,7 +216,7 @@ function renderizarTarefas() {
 
         tr.innerHTML = `
             <td style="padding: 0.75rem; text-align: center; font-weight: 600; color: var(--text-secondary);">${t.ordem}</td>
-            <td style="padding: 0.75rem; color: var(--text-secondary);">${escapeHtml(t.sistema || 'Geral')}</td>
+            <td style="padding: 0.75rem; color: var(--text-secondary);">${escapeHtml(t.codigo_tarefa || t.manual || t.sistema || '—')}</td>
             <td style="padding: 0.75rem;">
                 <div style="font-weight: 500;">
                     ${!t.tarefa_catalogo_id ? `<span style="font-size: 0.65rem; background: var(--primary-color); color: white; padding: 2px 6px; border-radius: 4px; margin-right: 5px; font-weight: bold; vertical-align: middle;" title="Tarefa Adicionada Manualmente">${escapeHtml(inspecaoAtual.aberto_por?.trigrama || 'EXT')}</span>` : ''}
@@ -280,7 +280,7 @@ function openModalTarefa(tarefaId) {
 
     document.getElementById('tarefaIdInput').value = t.id;
     document.getElementById('tarefaTituloDisplay').innerText = t.titulo;
-    document.getElementById('tarefaDescDisplay').innerText = t.descricao || t.sistema || '';
+    document.getElementById('tarefaDescDisplay').innerText = t.descricao || t.codigo_tarefa || t.manual || t.sistema || '';
     
     const statusSelect = document.getElementById('tarefaStatusInput');
     statusSelect.value = t.status === 'PENDENTE' ? 'CONCLUIDA' : t.status; // Default para concluída
@@ -364,7 +364,8 @@ async function salvarAddTarefa(e) {
     btn.disabled = true;
 
     const titulo = document.getElementById('addTarefaTituloInput').value.trim();
-    const sistema = document.getElementById('addTarefaSistemaInput').value.trim() || null;
+    const manual = document.getElementById('addTarefaManualInput').value.trim() || null;
+    const codigo_tarefa = document.getElementById('addTarefaCodigoInput').value.trim() || null;
     const descricao = document.getElementById('addTarefaDescInput').value.trim() || null;
     const obrigatoria = document.getElementById('addTarefaObrigatoriaInput').checked;
 
@@ -378,7 +379,8 @@ async function salvarAddTarefa(e) {
             body: {
                 titulo,
                 descricao,
-                sistema,
+                manual,
+                codigo_tarefa,
                 obrigatoria,
                 ordem: proximaOrdem
             }
