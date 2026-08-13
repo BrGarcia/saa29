@@ -23,6 +23,7 @@ import app.modules.efetivo.models
 import app.modules.calendario.models
 import app.modules.publicacoes.models
 import app.modules.pedidos.models
+import app.modules.encarregado.models
 
 # --- Configurações e Ciclo de Vida ---
 from app.bootstrap.config import get_settings
@@ -41,6 +42,7 @@ from app.modules.calendario.router import router as calendario_router
 from app.modules.dashboard.router import router as dashboard_router
 from app.modules.publicacoes.router import router as publicacoes_router
 from app.modules.pedidos.router import router as pedidos_router
+from app.modules.encarregado.router import router as encarregado_router
 from app.web.pages.router import router as pages_router
 from app.web.pages.mobile_router import router as mobile_router
 
@@ -65,6 +67,10 @@ API_PREFIXES = [
     # o sub-prefixo /api/ (03_especificacao_tecnica.md §3, risco R20).
     "/publicacoes/api/",
     "/pedidos/",
+    # Mesmo padrão de exceção do calendário: a página HTML vive em
+    # /encarregado (curto), a API JSON em /api/v1/encarregado (longo) — ver
+    # feature_encarregado_ciencia.md §11.
+    "/api/v1/encarregado/",
 ]
 
 
@@ -160,6 +166,7 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(dashboard_router,    prefix="/dashboard",    tags=["Dashboard"])
     app.include_router(publicacoes_router,  prefix="/publicacoes",  tags=["Publicações"])
     app.include_router(pedidos_router,      prefix="/pedidos",      tags=["Pedidos"])
+    app.include_router(encarregado_router,  prefix="/api/v1/encarregado", tags=["Encarregado"])
 
     # Frontend Pages (Root / UI)
     app.include_router(mobile_router)

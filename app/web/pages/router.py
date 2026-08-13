@@ -93,6 +93,13 @@ async def pedidos_page(request: Request, _=Depends(get_current_user)):
     return templates.TemplateResponse("pedidos.html", {"request": request})
 
 
+@router.get("/encarregado", response_class=HTMLResponse, include_in_schema=False)
+async def encarregado_page(request: Request, _=Depends(get_current_user)):
+    """Ciência de Alterações — consolida panes/inspeções/inventário/vencimentos
+    pendentes de transcrição para o SILOMS (feature_encarregado_ciencia.md)."""
+    return templates.TemplateResponse("encarregado.html", {"request": request})
+
+
 @router.get("/calendario", response_class=HTMLResponse, include_in_schema=False)
 async def calendario_page(request: Request, _=Depends(get_current_user)):
     """Calendario operacional do SAA29."""

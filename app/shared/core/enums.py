@@ -181,3 +181,24 @@ class TipoPedido(str, enum.Enum):
     NORMAL = "NORMAL"
     EMERGENCIA = "EMERGENCIA"
 
+
+class CategoriaCiencia(str, enum.Enum):
+    """Categoria de origem de uma alteração pendente de ciência do Encarregado."""
+    PANES = "PANES"
+    INSPECAO = "INSPECAO"
+    INVENTARIO = "INVENTARIO"
+    VENCIMENTOS = "VENCIMENTOS"
+
+
+class EventoCiencia(str, enum.Enum):
+    """
+    Tipo de evento dentro de uma categoria — discrimina registros da mesma
+    linha de origem que geram mais de um evento (ex.: uma linha em
+    `instalacoes` produz um evento de INSTALACAO e, depois, um de REMOCAO).
+    """
+    CONCLUSAO = "CONCLUSAO"        # Pane resolvida
+    EXECUCAO = "EXECUCAO"          # Tarefa de inspeção concluída / vencimento executado
+    INSTALACAO = "INSTALACAO"      # Componente instalado
+    REMOCAO = "REMOCAO"            # Componente removido
+    PRORROGACAO = "PRORROGACAO"    # Vencimento prorrogado
+

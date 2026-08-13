@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block page_title %}Ciência de Alterações{% endblock %}
+
+{% block content %}
+<style>
+    .enc-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .enc-toolbar p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        max-width: 60ch;
+    }
+
+    .enc-total-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 9999px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        white-space: nowrap;
+    }
+
+    .enc-total-badge strong {
+        color: var(--primary-color);
+        font-size: 1rem;
+    }
+
+    .enc-categorias {
+        display: flex;
+        flex-direction: column;
+        gap: 1.75rem;
+    }
+
+    .enc-categoria-titulo {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        margin: 0 0 0.75rem 0;
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        color: var(--text-primary);
+    }
+
+    .enc-categoria-contador {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+        height: 22px;
+        padding: 0 0.4rem;
+        border-radius: 9999px;
+        background: var(--bg-tertiary);
+        color: var(--text-secondary);
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    .enc-categoria-contador.tem-pendencia {
+        background: var(--status-warning-bg);
+        color: var(--status-warning);
+    }
+
+    .enc-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+
+    .enc-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 0.85rem 1.1rem;
+        box-shadow: var(--shadow-sm);
+        transition: var(--transition);
+    }
+
+    .enc-card-main {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        min-width: 0;
+    }
+
+    .enc-card-linha1 {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .enc-card-aeronave {
+        font-weight: 700;
+        font-family: monospace;
+        color: var(--primary-color);
+        font-size: 0.85rem;
+    }
+
+    .enc-card-titulo {
+        font-weight: 600;
+        font-size: 0.9rem;
+        overflow-wrap: anywhere;
+    }
+
+    .enc-card-detalhe {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        overflow-wrap: anywhere;
+    }
+
+    .enc-card-meta {
+        font-size: 0.72rem;
+        color: var(--text-secondary);
+        opacity: 0.85;
+    }
+
+    .enc-btn-visto {
+        flex-shrink: 0;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 1px solid var(--border-color);
+        background: transparent;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .enc-btn-visto:hover {
+        background: var(--status-ok-bg);
+        color: var(--status-ok);
+        border-color: var(--status-ok);
+    }
+
+    .enc-card.enc-card-saindo {
+        opacity: 0;
+        transform: translateX(8px);
+    }
+
+    .estado-vazio {
+        padding: 1.5rem;
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        background: var(--bg-secondary);
+        border: 1px dashed var(--border-color);
+        border-radius: var(--radius-lg);
+    }
+
+    .enc-undo-bar {
+        display: none;
+        position: fixed;
+        left: 50%;
+        bottom: 1.5rem;
+        transform: translateX(-50%);
+        align-items: center;
+        gap: 1rem;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        padding: 0.75rem 1rem;
+        z-index: 1200;
+        max-width: 90vw;
+    }
+
+    .enc-undo-bar span {
+        font-size: 0.82rem;
+        color: var(--text-secondary);
+        overflow-wrap: anywhere;
+    }
+</style>
+
+<div class="enc-toolbar">
+    <p>Alterações recentes (últimos 90 dias) ainda sem ciência do Encarregado. Marcar o visto apenas registra que
+        você já transcreveu o item para o SILOMS — nenhum dado dos módulos de origem é alterado.</p>
+    <div class="enc-total-badge">
+        <span>Pendentes</span>
+        <strong id="enc-total">—</strong>
+    </div>
+</div>
+
+<div class="enc-categorias">
+    <section class="enc-categoria">
+        <h3 class="enc-categoria-titulo">
+            <span>[PANES] Panes concluídas</span>
+            <span class="enc-categoria-contador" id="contador-PANES">—</span>
+        </h3>
+        <div class="enc-cards" id="cards-PANES">
+            <div class="estado-vazio">Carregando…</div>
+        </div>
+    </section>
+
+    <section class="enc-categoria">
+        <h3 class="enc-categoria-titulo">
+            <span>[INSPEÇÃO] Tarefas realizadas</span>
+            <span class="enc-categoria-contador" id="contador-INSPECAO">—</span>
+        </h3>
+        <div class="enc-cards" id="cards-INSPECAO">
+            <div class="estado-vazio">Carregando…</div>
+        </div>
+    </section>
+
+    <section class="enc-categoria">
+        <h3 class="enc-categoria-titulo">
+            <span>[INVENTÁRIO] Últimas alterações</span>
+            <span class="enc-categoria-contador" id="contador-INVENTARIO">—</span>
+        </h3>
+        <div class="enc-cards" id="cards-INVENTARIO">
+            <div class="estado-vazio">Carregando…</div>
+        </div>
+    </section>
+
+    <section class="enc-categoria">
+        <h3 class="enc-categoria-titulo">
+            <span>[VENCIMENTOS] Últimas alterações</span>
+            <span class="enc-categoria-contador" id="contador-VENCIMENTOS">—</span>
+        </h3>
+        <div class="enc-cards" id="cards-VENCIMENTOS">
+            <div class="estado-vazio">Carregando…</div>
+        </div>
+    </section>
+</div>
+
+<div class="enc-undo-bar" id="enc-undo-bar">
+    <span id="enc-undo-texto">Ciência registrada.</span>
+    <button type="button" class="btn btn-outline btn-sm" id="enc-undo-btn">Desfazer</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/encarregado.js"></script>
+{% endblock %}
