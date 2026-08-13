@@ -58,7 +58,11 @@ _MAPA_REVISION = {
 # `CHAPTER_21` quanto `040_FISEC_CHAPTER_21` (os dois formatos convivem no
 # acervo) e também procedimentos como `21-26-00-810-801-A`.
 _RE_ATA_CAPITULO = re.compile(r"CHAPTER[_-](\d{2})", re.IGNORECASE)
-_RE_ATA_PROCEDIMENTO = re.compile(r"\b(\d{2})-\d{2}-\d{2}")
+# (?<!\d), não \b: nomes reais vêm prefixados com "FIM1741_" — "_" é caractere
+# de palavra, então "_36-21-00" não tem \b antes do "36" e o \b pulava para o
+# grupo seguinte ("21-00-81"), devolvendo a ATA errada em silêncio (ata_codigo
+# é nullable, então nada explodia — só filtrava pelo capítulo errado).
+_RE_ATA_PROCEDIMENTO = re.compile(r"(?<!\d)(\d{2})-\d{2}-\d{2}")
 
 # Prefixo numérico de ordenação: `010_FRONTMATTER`, `020-FIM1741_...`.
 _RE_PREFIXO_ORDEM = re.compile(r"^(\d{1,4})[_-]")
