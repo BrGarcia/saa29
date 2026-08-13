@@ -68,7 +68,6 @@ Três lugares do código hoje discordam sobre quem pode acessar `/configuracoes`
 
 Isso é uma decisão de produto pendente, não um bug per se: **é preciso confirmar** se a intenção é (a) liberar a página parcialmente para ENCARREGADO/INSPETOR, ou (b) manter só ADMINISTRADOR e limpar os `data-role` vestigiais.
 - **Reaproveitamento:** já existe pronto o dependency `EncarregadoOuAdmin` (`app/bootstrap/dependencies.py:151-153`, já usado em Panes/Pedidos/Equipamentos) — trocar `AdminRequired` → `EncarregadoOuAdmin` em `router.py:214` mais o ajuste equivalente em `auth_check.js:62` é a via (a), sem criar nenhum mecanismo novo (o `data-role` no HTML já está pronto para essa granularidade). A via (b) é só remover o branch de ENCARREGADO em `configuracoes.js:19-25` e os atributos `data-role="ENCARREGADO"/"INSPETOR"` que sobraram.
-- Nota: existe também uma ideia relacionada, de escopo maior e complementar a este achado — RBAC granular por checkbox por usuário, na tela de Efetivo — desenvolvida na seção **7** deste documento.
 
 ### 3.5 Card "Sistemas ATA" (catálogo do módulo Panes) — Esforço: médio
 Diferente de "Tipos de Controle" (Vencimentos), "Tipos de Inspeção" e "Tipos de Evento" (Calendário) — que têm CRUD completo com card+modal em `/configuracoes` — o catálogo de **Sistemas ATA**, usado para classificar Panes, só tem leitura: `app/modules/panes/router.py:24-35` expõe apenas `GET /sistemas`, sem POST/PUT/DELETE em nenhum router. Hoje só é editável via seed/SQL direto.
@@ -114,60 +113,3 @@ Já documentado como débito conhecido em `docs/backlog/modulo_publicacoes/12_re
 | 7 | 3.6 Reagrupamento por categoria | Baixo/Médio | Reorganização visual (fazer junto com #6 ou o card de Inventário) |
 
 Itens 1-3 são triviais e sem risco, recomendados como primeiro lote. Item 4 depende de alinhamento com o dono do produto antes de qualquer código. Itens 5-7 são de médio porte e fazem mais sentido como um lote conjunto futuro, já que todos mexem na mesma área (grid de cards).
-
-A ideia da seção 7 (permissões individuais por checkbox) fica fora desta tabela por ser um projeto de outro porte — depende do item 3.4 estar decidido antes e envolve mudanças de backend fora do escopo de `/configuracoes` (também mexe na tela de Efetivo).
-
-## 7. Ideia maior (rascunho desenvolvido): Permissões individuais por usuário via checkbox
-
-> **Origem:** rascunho do usuário em `docs/backlog/permissoes_pelo_pagina_confg.md` (5 linhas, não desenvolvido): *"desenvolver futuramente a ideia de definir as permissões RBAC de maneira individual através de checkbox em cada usuário na página de configurações / página Administração de Efetivo Militar — um botão 'definir permissões' que abre um modal e lista todas as permissões e roles em formato de checkbox."*
-
-Diferente dos itens 3.1-3.7 (ajustes pontuais dentro do padrão já existente da página), esta é uma mudança que toca o sistema de autorização — por isso ganha uma seção própria, com análise de viabilidade antes de qualquer estimativa de esforço.
-
-### 7.1 Como o RBAC funciona hoje (por que a ideia, como escrita, não é trivial)
-
-O sistema usa **RBAC por papel único e fechado, não por permissões**: 1 usuário → 1 campo `funcao` (string) → conjunto fixo de capacidades definido em código.
-
-- Papéis definidos em `app/modules/auth/roles.py:10-25` (`MANTENEDOR`, `ENCARREGADO`, `INSPETOR`, `ADMINISTRADOR`) e replicados no enum Pydantic `TipoPapel` (`app/shared/core/enums.py:43-55`) — dois lugares que precisam ficar sincronizados manualmente.
-- A coluna `funcao` no banco é `String(50)` livre, sem CHECK/FK (`app/modules/auth/models.py:50-54`; criada em `migrations/versions/20260418_2233_6ff995143283_initial_schema_consolidated.py:74-79`) — a validação do valor é só na camada Pydantic.
-- Backend checa via `ensure_role`/`require_role` (`app/bootstrap/dependencies.py:115-165`) e 7 dependencies-atalho (`AdminRequired`, `EncarregadoOuAdmin`, `InspetorOuAdmin`, etc.), usadas em **~126 pontos** espalhados por 14 módulos (`aeronaves`, `auth`, `calendario`, `efetivo`, `encarregado`, `equipamentos`, `inspecoes`, `panes`, `pedidos`, `publicacoes`, `vencimentos`, `web/pages`), mais ~5 usos diretos de `ensure_role` e 8 comparações ad-hoc de `funcao` (2 delas já fora do padrão, com listas hardcoded em vez das constantes de `roles.py` — `app/modules/panes/router.py:428`, `app/modules/panes/service.py:223`).
-- Frontend checa via `window.hasPermission` (`app/web/static/js/auth_check.js:76-107`), que **não é uma hierarquia totalmente ordenada**: um `INSPETOR` chamando `hasPermission('ENCARREGADO')` retorna `false` — ENCARREGADO e INSPETOR são paralelos, não comparáveis, apesar do comentário do arquivo sugerir "papel mínimo exigido". O dado `funcao` vem de `/auth/me` uma vez por carregamento de página e fica em `localStorage.saa29_user` (`auth_check.js:1-26`) — não é revalidado a cada checagem.
-- Visibilidade de UI é controlada pelo atributo `data-role="X"` em qualquer elemento (`auth_check.js:34-53`), já usado ~19-23 vezes em 7 templates — é o mesmo mecanismo usado nos 7 cards desta página (seção 2).
-
-**Não existe hoje o conceito de "permissão" como entidade** — nem tabela, nem enum — apenas papéis. A ideia do rascunho ("checkbox por permissão por usuário") pressupõe essa camada, que precisaria ser criada do zero.
-
-### 7.2 Duas leituras possíveis do rascunho
-
-**(A) Sistema completo de permissões granulares** — reescrever toda a autorização para checar permissões individuais em vez de papel:
-- Exigiria revisar os ~170-180 pontos de checagem listados acima (backend + frontend + templates) — não é uma feature isolada, é uma reescrita da camada de autorização inteira.
-- Precisaria decidir a semântica dos overrides: só **aditivos** (dão mais que o papel base) ou também **subtrativos** (revogam o que o papel daria)? Isso muda o modelo de dados por completo.
-- Afeta a regra de "último admin" já existente e comentada como ponto sensível no código (`app/modules/auth/service.py:189-198,286-297`, marcada como BUG-03/RISCO-07) — precisaria ser redefinida, já que "última pessoa com a permissão X" complica a regra atual de "último `ADMINISTRADOR`".
-- **Esforço: alto.** Autorização é código sensível a segurança — o próprio comentário de `roles.py:5-7` já é enfático sobre isso ("evita aliases indevidos... facilita auditoria de segurança"). **Não recomendado como próximo passo**; é um projeto à parte, não um item pontual de backlog.
-
-**(B) MVP restrito aos atalhos de `/configuracoes` (recomendado)** — em vez de um sistema genérico de permissão por feature, aplicar overrides individuais só sobre o conjunto já enumerado e fechado de `data-role` usados nos 7 cards desta página (relaciona-se diretamente com o item 3.4). É plausível porque esse conjunto já é pequeno, fechado e centralizado num único lugar (o HTML), ao contrário do RBAC de backend que está espalhado em ~126 pontos.
-
-### 7.3 Desenho do MVP (opção B) — reaproveitamento máximo do que já existe
-
-- **Botão "Definir permissões"**: reaproveita o padrão de ação por linha já usado na tabela de `efetivo.html:24-38` (ícone lápis "Editar", `efetivo.js:87-93`) — adicionar um segundo ícone ao lado, no mesmo padrão visual, sem inventar um novo layout de linha.
-- **Modal**: segue o mesmo esqueleto `glass-panel` já padronizado (header com SVG "X" de fechar + footer "Fechar") — o molde usado nos 19 modais de `/configuracoes` e nos 3 modais de `efetivo.html` (`#modal-membro`, `#modal-editar-membro`, `#modal-resetar-senha`), não é um componente novo.
-- **Lista de checkboxes dentro do modal**: não existe hoje um componente pronto para isso — o mais próximo é o filtro estático de `app/web/templates/calendario.html:10-12` (classe `.calendar-check`), que serve de referência visual, mas a lista precisaria ser gerada dinamicamente em JS a partir de um array fixo de permissões, no mesmo estilo de geração de linhas já usado em `efetivo.js:61-127` (linhas de tabela) ou nas listas dos modais de catálogo em `configuracoes.js`.
-- **Permissões candidatas ao MVP** (mapeadas 1:1 aos `data-role` já existentes nos cards de `/configuracoes`, sem inventar taxonomia nova): `EFETIVO_ADMIN`, `INSPECOES_CONFIG`, `PUBLICACOES_CONFIG`, `VENCIMENTOS_CONFIG`, `CALENDARIO_CONFIG`, `AERONAVES_STATUS`, `EQUIPAMENTOS_CONFIG`.
-
-O que precisa ser criado — e este é o ponto de atenção mais importante do MVP, porque não é "só front-end":
-1. Tabela nova pequena, ex. `usuario_permissoes_extra(usuario_id, permissao)` + migration Alembic — enum fechado de ~7 valores, **aditivo apenas** (dá acesso extra além do papel base; não revoga nada do papel base).
-2. Endpoint novo `PUT /auth/usuarios/{id}/permissoes` (`AdminRequired`), ao lado dos já existentes em `app/modules/auth/router.py:381-494`.
-3. Incluir essas permissões no payload de `/auth/me` (`UsuarioOut`, `app/modules/auth/schemas.py:55-68`) e no `localStorage.saa29_user` (hoje só guarda `id, nome, funcao, username, posto` — `auth_check.js:13-19`).
-4. `hasPermission` (`auth_check.js:76-107`) passa a checar também essa lista de overrides, além da `funcao` — mudança localizada numa única função (~30 linhas), sem tocar no restante do frontend.
-5. **Os endpoints por trás dos ~7 botões-alvo precisam aprender sobre o override**, senão o MVP vira só decoração — não os ~126 pontos todos, só os poucos que atendem os cards afetados. Caminho: uma dependency nova, ex. `EncarregadoOuAdminOuOverride`, que aceita papel OU override, sem tocar nos outros ~120 pontos do sistema que ficam fora do escopo do MVP.
-
-### 7.4 Risco a evitar
-
-Se os passos 1, 2, 3 e 5 acima não forem feitos e só a parte visual (checkbox no modal + `data-role` no client) for implementada, o resultado é **controle de acesso decorativo**: o botão aparece para o usuário por causa do override, mas a chamada de API por trás continua checando só `funcao` e retorna 403. Qualquer implementação deste item precisa cobrir o ciclo completo (front + back) — do contrário é pior que não ter a feature, porque cria uma falsa expectativa de acesso.
-
-### 7.5 Estimativa e recomendação
-
-| Abordagem | Esforço | Recomendação |
-|---|---|---|
-| (A) Sistema completo de permissões granulares | Alto (reescreve ~170-180 pontos de autorização em todo o sistema) | Não fazer agora — projeto à parte, exigiria revisão de segurança dedicada |
-| (B) MVP restrito às ~7 permissões de `/configuracoes` | Médio/Alto (nova tabela + migration + endpoint + ajuste em `hasPermission` + dependency nova nos endpoints dos botões-alvo) | Viável como próximo passo, mas só depois do item **3.4** estar decidido |
-
-O item 3.4 (quem acessa `/configuracoes` — Admin puro ou Admin+Encarregado) e esta ideia mexem na mesma pergunta de fundo de RBAC desta página; resolver 3.4 primeiro evita retrabalho ao desenhar o MVP de permissões individuais.
