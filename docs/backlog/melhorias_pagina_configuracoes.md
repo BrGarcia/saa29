@@ -1,6 +1,6 @@
 # Backlog — Melhorias na página `/configuracoes`
 
-> Status: 🟢 Levantamento concluído — **lote 1 aplicado** (3.1, 3.2, 3.3). Pendentes: 3.4, 3.5, 3.6, 3.7.
+> Status: 🟢 Levantamento concluído — **3.1, 3.2, 3.3 aplicados; 3.4 decidido e aplicado (admin-only)**. Pendentes: 3.5, 3.6, 3.7.
 > Data: 2026-08-13 — revisado contra o código em 2026-08-13 (correções em 3.2, 3.3, 3.4, 3.7)
 > Escopo: análise da página `/configuracoes` buscando melhorias que reaproveitem ao máximo o código/padrões já existentes (mínima alteração nos módulos).
 
@@ -79,8 +79,18 @@ Precisão sobre o tema escuro — a colisão **não desaparece, e não é uma di
 Também no mesmo escopo, e não coberto acima: o **ícone** do card Calendário usa `#3b83f6` e `rgba(59, 131, 246, 0.1)` (`configuracoes.html:216`) — dígitos trocados em relação ao `#3b82f6` / `rgba(59, 130, 246, ...)` usado em todo o resto. É um typo, não uma terceira cor intencional; qualquer recolorização deve absorvê-lo.
 - **Reaproveitamento:** trocar o hex fixo por um tom livre — nenhuma das 7 cores atuais usa, por exemplo, tons de vermelho/rosa. **São 4 pontos a alterar**, não 2: `.btn-calendario` (+`:hover`, `index.css:368-376`), `.btn-outline-calendario` (`:377-384`), o override dark da linha **392**, e o ícone em `configuracoes.html:216`. Esquecer a linha 392 mantém o outline colidindo com Aeronaves no tema escuro.
 
-### 3.4 Resolver divergência de acesso (Admin vs. Encarregado) na página — Esforço: baixo na via (b), **médio/alto na via (a)**
-Quatro lugares do código hoje discordam sobre quem pode acessar `/configuracoes`:
+### 3.4 ✅ Resolver divergência de acesso (Admin vs. Encarregado) na página — **RESOLVIDO pela via (b)**
+
+> **Decisão do dono do produto (2026-08-13): manter `/configuracoes` admin-only**, para simplificar o uso. Demandas específicas de ajuste e configuração são atendidas de forma controlada pelo próprio perfil admin, em vez de distribuir permissões por perfil. A via (a) foi **descartada** — não é backlog pendente.
+>
+> **Aplicado:** removidos os 8 `data-role` da página (todos decorativos, 3 deles prometendo acesso que a API nunca concedeu); `configuracoes.js` passou a checar só `ADMINISTRADOR`, com a mensagem de toast corrigida; comentário desatualizado em `auth_check.js:61` ("Admin ou Encarregado") alinhado ao código real. Um bloco de comentário no topo de `configuracoes.html` registra a decisão e avisa que recolocar `data-role` não é o caminho caso a página seja aberta no futuro — a ordem correta seria auditar o RBAC dos endpoints primeiro.
+>
+> O diagnóstico abaixo fica como registro de **por que** a via (a) foi descartada.
+
+<details>
+<summary>Diagnóstico original (histórico)</summary>
+
+Quatro lugares do código discordavam sobre quem pode acessar `/configuracoes`:
 - Backend: rota exige só `ADMINISTRADOR` puro (`router.py:214`, `AdminRequired`).
 - Nav: o link do menu só aparece para `ADMINISTRADOR` (`auth_check.js:62-65`).
 - Cliente: `configuracoes.js:19-25` checa `funcao !== 'ADMINISTRADOR' && funcao !== 'ENCARREGADO'` e mostra um toast dizendo *"Apenas administradores e encarregados podem acessar esta área"* — mas um ENCARREGADO nunca chega a executar esse JS, porque o servidor já barra com 403 antes do render.
@@ -113,6 +123,8 @@ Só **dois** controles estão genuinamente cabeados para não-admin. Os demais f
 
 - **Custo real da via (a):** decisão de produto + escolher `EncarregadoInspetorOuAdmin` em `router.py:214` + ajuste em `auth_check.js:62` + **auditoria endpoint a endpoint** nos módulos `equipamentos`, `publicacoes` (ciclo de vida de edições), `calendario` e `aeronaves`, decidindo caso a caso o que relaxar — e alinhando os `data-role` ao resultado dessa auditoria, não o contrário. É um lote de médio/alto porte que atravessa 4 módulos, não uma limpeza.
 - **Custo real da via (b):** baixo e contido, como descrito antes — remover o branch de ENCARREGADO em `configuracoes.js:19-25` (que hoje só produz uma mensagem falsa que ninguém vê) e os `data-role` não-`ADMINISTRADOR` que sobraram. **Recomendação:** fazer (b) agora e abrir (a) como item próprio se e quando o produto pedir, em vez de deixar a página no estado ambíguo atual.
+
+</details>
 
 ### 3.5 Card "Sistemas ATA" (catálogo do módulo Panes) — Esforço: médio
 Diferente de "Tipos de Controle" (Vencimentos), "Tipos de Inspeção" e "Tipos de Evento" (Calendário) — que têm CRUD completo com card+modal em `/configuracoes` — o catálogo de **Sistemas ATA**, usado para classificar Panes, só tem leitura: `app/modules/panes/router.py:24-35` expõe apenas `GET /sistemas`, sem POST/PUT/DELETE em nenhum router (confirmado por busca em todos os routers). Hoje só é editável via seed/SQL direto.
@@ -156,13 +168,13 @@ Já documentado como débito conhecido em `docs/backlog/modulo_publicacoes/12_re
 | ~~1~~ | ~~3.2 Dark mode do botão Publicações~~ | Baixo | ✅ **feito** |
 | ~~2~~ | ~~3.1 Remover handler órfão~~ | Baixo | ✅ **feito** |
 | ~~3~~ | ~~3.3 Cor exclusiva do Calendário~~ | Baixo | ✅ **feito** |
-| 1 | 3.4 **via (b)**: consolidar página como admin-only | Baixo | Limpeza (remove ambiguidade) — **próximo** |
-| 5 | 3.7 Retomada de polling do upload | Médio | Robustez |
-| 6 | 3.5 Card "Sistemas ATA" | Médio | Novo card (backend + UI) |
-| 7 | 3.6 Reagrupamento por categoria | Baixo/Médio | Reorganização visual (fazer junto com #6 ou o card de Inventário) |
-| — | 3.4 **via (a)**: abrir a página a ENCARREGADO/INSPETOR | **Médio/Alto** | Decisão de produto + auditoria de RBAC em 4 módulos — **não agendar sem decisão** |
+| ~~4~~ | ~~3.4 **via (b)**: consolidar página como admin-only~~ | Baixo | ✅ **feito** |
+| 1 | 3.7 Retomada de polling do upload | Médio | Robustez — **próximo** |
+| 2 | 3.5 Card "Sistemas ATA" | Médio | Novo card (backend + UI) |
+| 3 | 3.6 Reagrupamento por categoria | Baixo/Médio | Reorganização visual (fazer junto com o card de Inventário) |
+| ~~—~~ | ~~3.4 **via (a)**: abrir a página a ENCARREGADO/INSPETOR~~ | Médio/Alto | ❌ **descartado** — decisão de produto: página permanece admin-only |
 
-Itens 1-3 são triviais e sem risco, recomendados como primeiro lote — sendo que só o 3.2 muda algo que o usuário enxerga hoje (ver a nota sobre CSS morto). Item 4 na via (b) é limpeza contida e cabe no mesmo lote; a via (a) foi tirada da lista numerada de propósito: não é um item de "esforço baixo após decisão", é um lote próprio que atravessa `equipamentos`, `publicacoes`, `calendario` e `aeronaves`. Itens 5-7 são de médio porte e fazem mais sentido como um lote conjunto futuro, já que todos mexem na mesma área (grid de cards).
+O primeiro lote (3.1, 3.2, 3.3) era trivial e sem risco — sendo que só o 3.2 mudou algo que o usuário enxerga. O 3.4 foi resolvido pela via (b): a página é admin-only por decisão, e a via (a) saiu do backlog. Os três restantes são de médio porte; 3.5 e 3.6 fazem sentido como lote conjunto, já que mexem na mesma área (grid de cards), enquanto 3.7 é independente e vive só no card de Publicações.
 
 ---
 

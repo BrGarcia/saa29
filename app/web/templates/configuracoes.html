@@ -3,6 +3,22 @@
 {% block page_title %}Configurações do Sistema{% endblock %}
 
 {% block content %}
+{#
+   Esta página é ADMIN-ONLY, por decisão de produto: ajustes e configurações
+   específicas são feitos de forma controlada pelo perfil admin, em vez de
+   distribuir permissões por perfil.
+
+   Por isso NÃO há `data-role` em nenhum card ou botão daqui. Havia 8, e todos
+   eram decorativos: `hasPermission` retorna sempre true para ADMINISTRADOR
+   (auth_check.js), e só admin chega a renderizar esta página. Pior, três deles
+   (ENCARREGADO em Equipamentos/Inspeções, INSPETOR em Publicações) prometiam um
+   acesso que a API nunca concedeu — os endpoints por trás desses cards são
+   `AdminRequired` de forma independente.
+
+   Se um dia a página for aberta a outros perfis, o caminho NÃO é recolocar
+   `data-role` aqui: é auditar o RBAC dos endpoints primeiro e derivar a
+   visibilidade do resultado. Ver docs/backlog/melhorias_pagina_configuracoes.md §3.4.
+#}
 <div style="display: flex; flex-direction: column; gap: 2rem;">
 
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
@@ -24,15 +40,14 @@
                 Gerenciamento da frota, adição de novas matrículas e controle de status operacional.
             </p>
             <div style="display: flex; gap: 0.5rem; flex-direction: column;">
-                <button class="btn btn-aeronave" id="btn-nova-aeronave" style="width: 100%;" data-role="ADMINISTRADOR">
+                <button class="btn btn-aeronave" id="btn-nova-aeronave" style="width: 100%;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         style="vertical-align: middle; margin-right: 5px;">
                         <path d="M12 5v14m-7-7h14" />
                     </svg>
                     Cadastrar Aeronave
                 </button>
-                <button class="btn btn-aeronave" id="btn-alterar-status-aeronave" style="width: 100%;"
-                    data-role="ENCARREGADO">
+                <button class="btn btn-aeronave" id="btn-alterar-status-aeronave" style="width: 100%;">
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                         style="vertical-align: middle; margin-right: 5px;">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -44,7 +59,7 @@
         </div>
 
         <!-- Painel Equipamentos -->
-        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;" data-role="ENCARREGADO">
+        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
                 <div
                     style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(155, 89, 182, 0.1); color: #9b59b6; display: flex; align-items: center; justify-content: center;">
@@ -88,7 +103,7 @@
         </div>
 
         <!-- Painel Vencimentos -->
-        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;" data-role="ADMINISTRADOR">
+        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
                 <div
                     style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(230, 126, 34, 0.1); color: var(--status-warning); display: flex; align-items: center; justify-content: center;">
@@ -131,7 +146,7 @@
         </div>
 
         <!-- Painel Administração de Efetivo -->
-        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;" data-role="ADMINISTRADOR">
+        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
                 <div
                     style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(46, 204, 113, 0.1); color: var(--status-ok); display: flex; align-items: center; justify-content: center;">
@@ -152,7 +167,7 @@
         </div>
 
         <!-- Painel Inspeções -->
-        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;" data-role="ENCARREGADO">
+        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
                 <div
                     style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(26, 188, 156, 0.1); color: #1abc9c; display: flex; align-items: center; justify-content: center;">
@@ -180,7 +195,7 @@
         </div>
 
         <!-- Painel Publicações -->
-        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;" data-role="INSPETOR">
+        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
                 <div
                     style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(99, 102, 241, 0.1); color: #6366f1; display: flex; align-items: center; justify-content: center;">
@@ -213,7 +228,7 @@
         </div>
 
         <!-- Painel Calendário -->
-        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;" data-role="ADMINISTRADOR">
+        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
                 <div
                     style="width: 40px; height: 40px; border-radius: var(--radius-md); background: rgba(236, 72, 153, 0.1); color: #ec4899; display: flex; align-items: center; justify-content: center;">

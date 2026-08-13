@@ -58,7 +58,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (adminNav) adminNav.style.display = 'flex';
             }
             
-            // Mostrar configurações para Admin ou Encarregado (conforme RBAC)
+            // /configuracoes é admin-only (rota protegida por AdminRequired).
+            // O comentário anterior dizia "Admin ou Encarregado", mas a lista
+            // sempre teve só ADMINISTRADOR — era o código certo com a descrição
+            // errada, e essa descrição alimentava a confusão de que a página
+            // seria parcialmente aberta a encarregados.
             if (['ADMINISTRADOR'].includes(funcao)) {
                 const settingsNav = document.getElementById('settings-nav');
                 if (settingsNav) settingsNav.style.display = 'flex';

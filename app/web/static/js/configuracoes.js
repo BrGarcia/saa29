@@ -17,8 +17,14 @@ document.addEventListener("DOMContentLoaded", () => {
             /** @type {SAAUser} */
             const user = JSON.parse(userJson);
             const funcao = user.funcao ? user.funcao.toUpperCase() : '';
-            if (funcao !== 'ADMINISTRADOR' && funcao !== 'ENCARREGADO') {
-                showToast("Acesso Negado: Apenas administradores e encarregados podem acessar esta área.", "error");
+            // Admin-only, e só. A rota já barra com 403 antes do render
+            // (`AdminRequired` em app/web/pages/router.py), então este branch é
+            // defesa em profundidade — nunca deve disparar na prática. Antes ele
+            // também admitia ENCARREGADO, o que era mentira em dois níveis: o
+            // servidor nunca deixou um encarregado chegar aqui, e a mensagem
+            // prometia um acesso que não existe.
+            if (funcao !== 'ADMINISTRADOR') {
+                showToast("Acesso Negado: Apenas administradores podem acessar esta área.", "error");
                 setTimeout(() => {
                     window.location.href = "/dashboard";
                 }, 2000);
