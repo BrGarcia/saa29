@@ -1,6 +1,6 @@
 # Backlog — Melhorias na página `/configuracoes`
 
-> Status: 🟢 Levantamento concluído (nenhuma alteração de código aplicada ainda)
+> Status: 🟢 Levantamento concluído — **lote 1 aplicado** (3.1, 3.2, 3.3). Pendentes: 3.4, 3.5, 3.6, 3.7.
 > Data: 2026-08-13 — revisado contra o código em 2026-08-13 (correções em 3.2, 3.3, 3.4, 3.7)
 > Escopo: análise da página `/configuracoes` buscando melhorias que reaproveitem ao máximo o código/padrões já existentes (mínima alteração nos módulos).
 
@@ -46,12 +46,16 @@ Distribuição completa dos `data-role` na página (8 ocorrências): `ADMINISTRA
 
 ## 3. Oportunidades de melhoria (ordenadas por esforço, vitórias rápidas primeiro)
 
-### 3.1 Remover handler órfão `btn-criar-inspecao` — Esforço: baixo
+### 3.1 ✅ Remover handler órfão `btn-criar-inspecao` — Esforço: baixo — **FEITO**
+> **Resolvido:** handler removido de `configuracoes.js`. Decisão do dono do produto: **não** adicionar o botão — a abertura de inspeções já existe na própria página `/inspecoes`, e um segundo caminho para a mesma ação não se pagava. A descrição do card (`configuracoes.html:167`) foi ajustada junto, para parar de prometer "abertura de novos eventos".
+
 `configuracoes.js:111-113` registra um listener para `#btn-criar-inspecao` (navegaria para `/inspecoes`), mas **esse elemento não existe** em `configuracoes.html` (confirmado por busca no template inteiro). É inofensivo (`?.` evita erro), mas é código morto.
 - **Reaproveitamento:** nenhum código novo — decisão binária: apagar as 3 linhas, ou adicionar o botão que falta no card "Inspeções" reaproveitando o handler já pronto (ele já aponta para o lugar certo).
 - **Evidência a favor de adicionar o botão:** a descrição do próprio card (`configuracoes.html:167`) promete *"Configuração de tipos de inspeção, gerenciamento de tarefas template **e abertura de novos eventos**"* — mas os dois botões presentes cobrem só os dois primeiros. A funcionalidade está anunciada na UI e não tem porta de entrada; o handler órfão é o vestígio dela. Não é um empate: apagar as 3 linhas deixa a descrição mentindo, então nesse caso ela também precisa ser ajustada.
 
-### 3.2 Completar dark mode do botão de Publicações — Esforço: baixo
+### 3.2 ✅ Completar dark mode do botão de Publicações — Esforço: baixo — **FEITO**
+> **Resolvido:** `[data-theme="dark"] .btn-outline-publicacao` adicionada em `index.css`, na mesma lista dos outros overrides. As 6 regras mortas foram mantidas (limpeza é outro escopo, ver nota abaixo).
+
 Das 7 cores de seção, 6 têm override para tema escuro em `index.css:387-392` (`[data-theme="dark"] .btn-outline-X`). Falta apenas `.btn-outline-publicacao` (definida em `index.css:359-366`), que é o card mais recente — foi esquecida na hora de adicionar.
 
 **A proporção engana, e o achado é mais forte do que parece:** das 7 classes `.btn-outline-*` de seção, **6 não são usadas em lugar nenhum** — busca em `app/web/templates/` e `app/web/static/js/` não encontra `btn-outline-aeronave`, `-equipamento`, `-vencimento`, `-efetivo`, `-inspecao` nem `-calendario` (os `btn-outline-primary/-warning/-danger` que aparecem em `panes/detalhe.html` e `pedidos.html` são outra família, genérica). Ou seja, `index.css:387-392` é CSS morto. A **única** `.btn-outline-*` de seção efetivamente renderizada é `.btn-outline-publicacao` (`configuracoes_publicacoes.js:180`, botão de edição na lista de edições) — justamente a que não tem override.
@@ -63,7 +67,9 @@ Consequência: este é o único dos três itens visuais com impacto real na tela
 ```
 - **Oportunidade adjacente (opcional):** se as 6 regras mortas forem removidas junto, some também a razão de existir dos pares `.btn-outline-X` não usados (`index.css:266-273, 284-291, 302-309, 320-327, 338-345, 377-384`). Não fazer isso no mesmo commit do fix — são coisas de risco diferente.
 
-### 3.3 Diferenciar cor de `.btn-calendario` de `.btn-aeronave` — Esforço: baixo
+### 3.3 ✅ Diferenciar cor de `.btn-calendario` de `.btn-aeronave` — Esforço: baixo — **FEITO**
+> **Resolvido:** Calendário passou para rosa `#ec4899` (hover `#db2777`, outline dark `#f472b6`). A faixa 300-340° era a única matiz livre sem invadir a semântica de `--status-danger` (~0°); rationale registrado em comentário no próprio `index.css`. Os 4 pontos foram alterados, incluindo `index.css:392` e o typo `#3b83f6` do ícone.
+
 `.btn-aeronave` usa `var(--primary-color)` (`index.css:258`), que resolve para `#3b82f6` no tema claro. `.btn-calendario` usa `#3b82f6` **hardcoded** (`index.css:369`). No tema claro os dois cards ficam com o mesmo azul.
 
 Precisão sobre o tema escuro — a colisão **não desaparece, e não é uma divergência**:
@@ -147,10 +153,10 @@ Já documentado como débito conhecido em `docs/backlog/modulo_publicacoes/12_re
 
 | Ordem | Item | Esforço | Tipo |
 |---|---|---|---|
-| 1 | 3.2 Dark mode do botão Publicações | Baixo | Consistência visual (**único com impacto visível hoje**) |
-| 2 | 3.1 Remover handler órfão (ou adicionar o botão prometido) | Baixo | Limpeza |
-| 3 | 3.3 Cor exclusiva do Calendário (4 pontos, incl. `index.css:392`) | Baixo | Consistência visual |
-| 4 | 3.4 **via (b)**: consolidar página como admin-only | Baixo | Limpeza (remove ambiguidade) |
+| ~~1~~ | ~~3.2 Dark mode do botão Publicações~~ | Baixo | ✅ **feito** |
+| ~~2~~ | ~~3.1 Remover handler órfão~~ | Baixo | ✅ **feito** |
+| ~~3~~ | ~~3.3 Cor exclusiva do Calendário~~ | Baixo | ✅ **feito** |
+| 1 | 3.4 **via (b)**: consolidar página como admin-only | Baixo | Limpeza (remove ambiguidade) — **próximo** |
 | 5 | 3.7 Retomada de polling do upload | Médio | Robustez |
 | 6 | 3.5 Card "Sistemas ATA" | Médio | Novo card (backend + UI) |
 | 7 | 3.6 Reagrupamento por categoria | Baixo/Médio | Reorganização visual (fazer junto com #6 ou o card de Inventário) |

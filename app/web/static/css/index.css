@@ -365,22 +365,29 @@ h1, h2, h3, h4, h5 {
   background-color: rgba(99, 102, 241, 0.1) !important;
 }
 
+/* Rosa: era #3b82f6, o mesmo valor para o qual --primary-color resolve no tema
+   claro — ou seja, colidia com .btn-aeronave. Pior: por ser hex fixo, não
+   acompanhava --primary-color no tema escuro (#60a5fa), então card e botão
+   nem sequer pareavam entre os temas. As demais matizes da página já estão
+   tomadas (azul ~217°, índigo ~239°, roxo ~283°, teal ~168°, verde ~145°,
+   laranja ~28°) e o vermelho ~0° é de --status-danger; a faixa 300-340° era
+   a única livre sem invadir semântica de status. */
 .btn-calendario {
-  background-color: #3b82f6 !important;
+  background-color: #ec4899 !important;
   color: #ffffff !important;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.2);
 }
 .btn-calendario:hover {
-  background-color: #2563eb !important;
+  background-color: #db2777 !important;
   transform: translateY(-2px);
 }
 .btn-outline-calendario {
   background-color: transparent !important;
-  border: 1px solid #3b82f6 !important;
-  color: #3b82f6 !important;
+  border: 1px solid #ec4899 !important;
+  color: #ec4899 !important;
 }
 .btn-outline-calendario:hover {
-  background-color: rgba(59, 130, 246, 0.1) !important;
+  background-color: rgba(236, 72, 153, 0.1) !important;
 }
 
 /* Ajustes para Dark Mode */
@@ -389,7 +396,8 @@ h1, h2, h3, h4, h5 {
 [data-theme="dark"] .btn-outline-vencimento { color: #f8c471 !important; border-color: #f8c471 !important; }
 [data-theme="dark"] .btn-outline-efetivo { color: #82e0aa !important; border-color: #82e0aa !important; }
 [data-theme="dark"] .btn-outline-inspecao { color: #76d7c4 !important; border-color: #76d7c4 !important; }
-[data-theme="dark"] .btn-outline-calendario { color: #60a5fa !important; border-color: #60a5fa !important; }
+[data-theme="dark"] .btn-outline-publicacao { color: #818cf8 !important; border-color: #818cf8 !important; }
+[data-theme="dark"] .btn-outline-calendario { color: #f472b6 !important; border-color: #f472b6 !important; }
 
 .btn-icon {
   background: transparent;

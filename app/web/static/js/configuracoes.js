@@ -108,9 +108,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // Inspeções
     document.getElementById('btn-config-inspecoes')?.addEventListener('click', openModalTiposInspecao);
     document.getElementById('btn-gerenciar-catalogo-tarefas')?.addEventListener('click', openModalCatalogoTarefas);
-    document.getElementById('btn-criar-inspecao')?.addEventListener('click', () => {
-        window.location.href = '/inspecoes';
-    });
 
     document.getElementById('btn-close-modal-inspecoes')?.addEventListener('click', closeModalTiposInspecao);
     document.getElementById('btn-close-inspecoes')?.addEventListener('click', closeModalTiposInspecao);
