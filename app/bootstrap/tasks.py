@@ -137,11 +137,11 @@ async def recuperar_jobs_upload_interrompidos(session: Optional[AsyncSession] = 
     foram interrompidos (crash/restart). Marca o status como FALHOU para liberar o bloqueio e permitir
     que o usuário tente novamente.
     """
-    import os
     from sqlalchemy import select
     from app.bootstrap.database import get_session_factory
     from app.modules.publicacoes.models import PublicacoesUploadJob
     from app.shared.core.enums import StatusUploadJob
+    from app.shared.core.processo import processo_esta_ativo
     from app.shared.core.storage import get_storage_service
 
     async def _executar_recuperacao(sess: AsyncSession) -> int:
@@ -160,11 +160,7 @@ async def recuperar_jobs_upload_interrompidos(session: Optional[AsyncSession] = 
             if job.status == StatusUploadJob.PROCESSANDO:
                 processo_ativo = False
                 if job.processo_pid:
-                    try:
-                        os.kill(job.processo_pid, 0)
-                        processo_ativo = True
-                    except OSError:
-                        processo_ativo = False
+                    processo_ativo = processo_esta_ativo(job.processo_pid)
 
                 if not processo_ativo:
                     job.status = StatusUploadJob.FALHOU
@@ -204,6 +200,54 @@ async def recuperar_jobs_upload_interrompidos(session: Optional[AsyncSession] = 
     except Exception as exc:
         logger.error("[Uploads] Erro na verificação de jobs interrompidos: %s", exc)
         return 0
+
+
+async def processamento_noturno_task() -> None:
+    """
+    Loop que dispara o processamento de jobs de upload com
+    modo_processamento=AGENDADO no horário configurado (publicacoes_processamento_hora_utc).
+
+    Não precisa controlar "já disparei hoje": o índice único parcial
+    `uq_publicacoes_upload_jobs_ativo_unico` garante no máximo 1 job em
+    ENVIANDO/AGUARDANDO_PROCESSAMENTO/PROCESSANDO por vez, então assim que
+    este loop dispara o job encontrado, ele sai de AGUARDANDO_PROCESSAMENTO
+    e a checagem seguinte (ainda dentro da mesma hora) não encontra mais nada.
+    """
+    from datetime import datetime, timezone
+    from sqlalchemy import select
+    from app.bootstrap.config import get_settings
+    from app.bootstrap.database import get_session_factory
+    from app.modules.publicacoes import service
+    from app.modules.publicacoes.models import PublicacoesUploadJob
+    from app.shared.core.enums import StatusUploadJob
+
+    while True:
+        try:
+            hora_alvo = get_settings().publicacoes_processamento_hora_utc
+            if datetime.now(timezone.utc).hour == hora_alvo:
+                async with get_session_factory()() as session:
+                    job = (
+                        await session.execute(
+                            select(PublicacoesUploadJob).where(
+                                PublicacoesUploadJob.status == StatusUploadJob.AGUARDANDO_PROCESSAMENTO
+                            )
+                        )
+                    ).scalar_one_or_none()
+                    if job is not None:
+                        logger.info(
+                            "[Processamento Noturno] Disparando job %s (rótulo %s).", job.id, job.rotulo
+                        )
+                        try:
+                            await service.disparar_worker_processamento(session, job)
+                        except service.DisparoWorkerError as exc:
+                            logger.error(
+                                "[Processamento Noturno] Falha ao disparar job %s: %s", job.id, exc
+                            )
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:
+            logger.error("[Processamento Noturno] Erro no loop: %s", exc)
+        await asyncio.sleep(900)  # checa a cada 15 minutos
 
 
 def is_db_dirty() -> bool:

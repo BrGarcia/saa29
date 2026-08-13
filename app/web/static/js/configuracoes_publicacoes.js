@@ -14,15 +14,6 @@
  * Fase 2 de `docs/backlog/modulo_publicacoes/09_plano_configuracoes.md`.
  */
 
-/** @type {typeof import('./app.js').apiFetch} */
-var apiFetch = /** @type {any} */ (window).apiFetch;
-
-/** @type {typeof import('./app.js').showToast} */
-var showToast = /** @type {any} */ (window).showToast;
-
-/** @type {(texto: string | null | undefined) => string} */
-var escapeHtml = /** @type {any} */ (window).escapeHtml;
-
 const URL_EDICOES = "/publicacoes/api/edicoes";
 
 /**
@@ -124,6 +115,7 @@ function montarLinhaEdicao(e) {
 
     const estilo = ESTILO_STATUS[e.status] || ESTILO_STATUS.ANTERIOR;
     const data = e.data_publicacao ? new Date(e.data_publicacao).toLocaleDateString("pt-BR") : "—";
+    const numDocs = (e.documentos || 0).toLocaleString("pt-BR");
 
     const indice = e.indice_disponivel
         ? '<span title="catalog.db desta edição presente no disco" style="color: var(--status-ok);">✓</span>'
@@ -132,7 +124,7 @@ function montarLinhaEdicao(e) {
     tr.innerHTML = `
         <td style="padding: 0.75rem;"><strong>${escapeHtml(e.rotulo)}</strong></td>
         <td style="padding: 0.75rem; text-align: center; color: var(--text-secondary);">${data}</td>
-        <td style="padding: 0.75rem; text-align: center;">${e.documentos.toLocaleString("pt-BR")}</td>
+        <td style="padding: 0.75rem; text-align: center;">${numDocs}</td>
         <td style="padding: 0.75rem; text-align: center;">${indice}</td>
         <td style="padding: 0.75rem; text-align: center;">
             <span style="display: inline-block; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.78rem; font-weight: 600; background: ${estilo.fundo}; color: ${estilo.cor};">${estilo.rotulo}</span>
@@ -224,10 +216,7 @@ async function ativarEdicao(e) {
         showToast(`Edição "${e.rotulo}" está vigente.`, "success");
         await carregarEdicoes();
     } catch (err) {
-        // @ts-ignore — o 409 do servidor traz o motivo (sem índice, já vigente,
-        // arquivada) e o comando de correção quando for o caso. Repassar essa
-        // mensagem vale muito mais que um "erro ao ativar" genérico.
-        showToast(err.message || "Erro ao ativar a edição.", "error");
+        // apiFetch exibe o toast de erro automaticamente se lançado.
     }
 }
 
@@ -249,8 +238,7 @@ async function arquivarEdicao(e) {
         showToast(`Edição "${e.rotulo}" arquivada.`, "success");
         await carregarEdicoes();
     } catch (err) {
-        // @ts-ignore
-        showToast(err.message || "Erro ao arquivar a edição.", "error");
+        // apiFetch exibe o toast de erro automaticamente se lançado.
     }
 }
 
@@ -351,6 +339,8 @@ function blocoStatus(rotulo, valor, cor) {
 
 /**
  * Carrega `/api/status` e `/api/duplicacao` e monta os blocos.
+ * Resiliente a perfil de usuário: `/api/duplicacao` é exclusivo de Admin,
+ * enquanto Inspetores/Encarregados também acessam o card de status.
  * @returns {Promise<void>}
  */
 async function carregarStatusAcervo() {
@@ -359,15 +349,30 @@ async function carregarStatusAcervo() {
     grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 1rem;">Carregando...</div>';
 
     try {
-        const [status, dup] = await Promise.all([
-            apiFetch("/publicacoes/api/status"),
-            apiFetch("/publicacoes/api/duplicacao"),
-        ]);
+        let status = null;
+        let dup = null;
+
+        try {
+            status = await apiFetch("/publicacoes/api/status");
+        } catch (err) {
+            throw err;
+        }
+
+        // /api/duplicacao requer privilégio de AdminRequired (403 para Inspetor/Encarregado).
+        try {
+            dup = await apiFetch("/publicacoes/api/duplicacao");
+        } catch (err) {
+            dup = null;
+        }
 
         const numero = (/** @type {number} */ n) => Number(n || 0).toLocaleString("pt-BR");
         const atualizado = status.atualizado_em
             ? new Date(status.atualizado_em * 1000).toLocaleString("pt-BR")
             : "—";
+
+        const textoDup = dup
+            ? (dup.anterior ? `${numero(dup.duplicados_por_hash)} (vs ${escapeHtml(dup.anterior)})` : "sem edição anterior")
+            : "restrito a administradores";
 
         grid.innerHTML = [
             blocoStatus("Edição vigente", status.edicao || "nenhuma"),
@@ -388,10 +393,7 @@ async function carregarStatusAcervo() {
                 status.documentos_sem_texto > 0 ? "var(--status-warning)" : undefined
             ),
             blocoStatus("Mensagens do FIM", numero(status.mensagens_fim)),
-            blocoStatus(
-                "Duplicados por hash",
-                dup.anterior ? `${numero(dup.duplicados_por_hash)} (vs ${escapeHtml(dup.anterior)})` : "sem edição anterior"
-            ),
+            blocoStatus("Duplicados por hash", textoDup),
         ].join("");
     } catch (err) {
         grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 1rem; color: var(--status-danger);">Erro ao carregar o status do acervo.</div>';
@@ -402,8 +404,11 @@ async function carregarStatusAcervo() {
 // Upload de Edição (.zip) — M4.Web
 // ==========================================
 
+/** @type {string | null} */
 let currentUploadJobId = null;
+/** @type {ReturnType<typeof setInterval> | null} */
 let currentUploadPollingTimer = null;
+let isUploading = false;
 
 function toggleAreaUpload() {
     const painel = document.getElementById("painel-upload-edicao");
@@ -412,8 +417,9 @@ function toggleAreaUpload() {
     }
 }
 
-let isUploading = false;
-
+/**
+ * @param {Event} event
+ */
 async function tratarSubmitUpload(event) {
     event.preventDefault();
     if (isUploading) return;
@@ -435,6 +441,9 @@ async function tratarSubmitUpload(event) {
         return;
     }
 
+    const inputModo = document.querySelector('input[name="upload-modo-processamento"]:checked');
+    const modoProcessamento = inputModo ? /** @type {HTMLInputElement} */ (inputModo).value : "AGENDADO";
+
     isUploading = true;
     if (btnSubmit) btnSubmit.disabled = true;
     const containerStatus = document.getElementById("status-upload-container");
@@ -450,6 +459,7 @@ async function tratarSubmitUpload(event) {
                 rotulo: rotulo,
                 tamanho_bytes: file.size,
                 nome_arquivo: file.name,
+                modo_processamento: modoProcessamento,
             },
         });
 
@@ -460,6 +470,10 @@ async function tratarSubmitUpload(event) {
 
         // 2. Enviar partes
         for (let i = 0; i < totalPartes; i++) {
+            if (!isUploading || !currentUploadJobId) {
+                return; // Interrompe se o upload foi cancelado
+            }
+
             const numeroParte = i + 1;
             const start = i * tamanhoParte;
             const end = Math.min(start + tamanhoParte, file.size);
@@ -473,7 +487,7 @@ async function tratarSubmitUpload(event) {
             });
 
             let etag = "";
-            if (parteResp.url.startsWith("/publicacoes/api/edicoes/uploads/local-parte")) {
+            if (parteResp.url.includes("/publicacoes/api/edicoes/uploads/local-parte")) {
                 const csrfMeta = document.querySelector('meta[name="csrf-token"]');
                 const csrfToken = csrfMeta ? (csrfMeta.getAttribute("content") || "") : "";
                 const localResp = await fetch(parteResp.url, {
@@ -484,6 +498,13 @@ async function tratarSubmitUpload(event) {
                     },
                     credentials: "same-origin",
                 });
+                // O CSRFMiddleware rotaciona o cookie+token a cada requisicao
+                // mutante bem-sucedida. Este PUT usa fetch() bruto (nao apiFetch),
+                // entao precisa sincronizar manualmente o meta tag com o novo
+                // token — senao a proxima chamada apiFetch envia um token velho
+                // e recebe 403 (CSRF), interrompendo o envio na parte seguinte.
+                const novoToken = localResp.headers.get("X-CSRF-Token");
+                if (novoToken && csrfMeta) csrfMeta.setAttribute("content", novoToken);
                 if (!localResp.ok) throw new Error(`Falha no upload da parte ${numeroParte} local.`);
                 const localJson = await localResp.json();
                 etag = localJson.etag;
@@ -499,6 +520,8 @@ async function tratarSubmitUpload(event) {
             partesEtags.push({ numero: numeroParte, etag: etag });
         }
 
+        if (!isUploading || !currentUploadJobId) return;
+
         // 3. Concluir multipart
         atualizarBarraUpload("Consolidando partes no storage...", 45);
         await apiFetch(`/publicacoes/api/edicoes/uploads/${currentUploadJobId}/concluir`, {
@@ -508,37 +531,67 @@ async function tratarSubmitUpload(event) {
 
         // 4. Iniciar Polling de progresso
         iniciarPollingUpload(currentUploadJobId);
-    } catch (err) {
-        showToast(err.message || "Erro no envio do arquivo.", "error");
-        atualizarBarraUpload(`Erro: ${err.message}`, 0);
+    } catch (/** @type {any} */ err) {
+        atualizarBarraUpload(`Erro: ${err.message || err}`, 0);
         if (btnSubmit) btnSubmit.disabled = false;
-    } finally {
         isUploading = false;
     }
 }
 
 function iniciarPollingUpload(jobId) {
-    if (currentUploadPollingTimer) clearInterval(currentUploadPollingTimer);
+    if (currentUploadPollingTimer) {
+        clearInterval(currentUploadPollingTimer);
+        currentUploadPollingTimer = null;
+    }
 
     const checarStatus = async () => {
+        if (!currentUploadJobId) {
+            if (currentUploadPollingTimer) {
+                clearInterval(currentUploadPollingTimer);
+                currentUploadPollingTimer = null;
+            }
+            return;
+        }
+
         try {
             const job = await apiFetch(`/publicacoes/api/edicoes/uploads/${jobId}`);
             atualizarBarraUpload(job.etapa || "Processando...", job.progresso_pct || 50);
 
             if (job.status === "CONCLUIDO") {
-                clearInterval(currentUploadPollingTimer);
+                if (currentUploadPollingTimer) {
+                    clearInterval(currentUploadPollingTimer);
+                    currentUploadPollingTimer = null;
+                }
                 showToast(`Edição "${job.rotulo}" enviada e processada com sucesso!`, "success");
                 carregarEdicoes();
                 resetarFormUpload();
             } else if (job.status === "FALHOU") {
-                clearInterval(currentUploadPollingTimer);
+                if (currentUploadPollingTimer) {
+                    clearInterval(currentUploadPollingTimer);
+                    currentUploadPollingTimer = null;
+                }
                 showToast(`Erro no processamento: ${job.erro || 'Falha desconhecida'}`, "error");
                 atualizarBarraUpload(`Falhou: ${job.erro || 'Erro no servidor'}`, 0);
                 const btnSubmit = /** @type {HTMLButtonElement} */ (document.getElementById("btn-iniciar-upload"));
                 if (btnSubmit) btnSubmit.disabled = false;
+                isUploading = false;
             } else if (job.status === "CANCELADO") {
-                clearInterval(currentUploadPollingTimer);
+                if (currentUploadPollingTimer) {
+                    clearInterval(currentUploadPollingTimer);
+                    currentUploadPollingTimer = null;
+                }
                 showToast("Upload cancelado.", "info");
+                resetarFormUpload();
+            } else if (job.status === "AGUARDANDO_PROCESSAMENTO") {
+                // Processamento agendado para a madrugada — não faz sentido manter
+                // o navegador enviando ping a cada 3s por horas. O job já está
+                // seguro no servidor; o usuário confere o resultado mais tarde
+                // pela lista de edições.
+                if (currentUploadPollingTimer) {
+                    clearInterval(currentUploadPollingTimer);
+                    currentUploadPollingTimer = null;
+                }
+                showToast(job.etapa || "Upload concluído. Processamento agendado para a madrugada.", "success");
                 resetarFormUpload();
             }
         } catch (err) {
@@ -546,17 +599,20 @@ function iniciarPollingUpload(jobId) {
         }
     };
 
-    checarStatus();
     currentUploadPollingTimer = setInterval(checarStatus, 3000);
+    checarStatus();
 }
 
 async function cancelarUploadAtual() {
     if (!currentUploadJobId) return;
+    const jobId = currentUploadJobId;
+    resetarFormUpload();
+
     try {
-        await apiFetch(`/publicacoes/api/edicoes/uploads/${currentUploadJobId}/cancelar`, { method: "POST" });
+        await apiFetch(`/publicacoes/api/edicoes/uploads/${jobId}/cancelar`, { method: "POST" });
         showToast("Solicitação de cancelamento enviada.", "info");
     } catch (err) {
-        showToast("Erro ao cancelar o upload.", "error");
+        // apiFetch trata o erro de rede/API se ocorrer.
     }
 }
 
@@ -571,12 +627,19 @@ function atualizarBarraUpload(etapaTexto, pct) {
 }
 
 function resetarFormUpload() {
+    if (currentUploadPollingTimer) {
+        clearInterval(currentUploadPollingTimer);
+        currentUploadPollingTimer = null;
+    }
+    isUploading = false;
+    currentUploadJobId = null;
+
     const form = /** @type {HTMLFormElement} */ (document.getElementById("form-upload-edicao"));
     if (form) form.reset();
     const btnSubmit = /** @type {HTMLButtonElement} */ (document.getElementById("btn-iniciar-upload"));
     if (btnSubmit) btnSubmit.disabled = false;
     const containerStatus = document.getElementById("status-upload-container");
     if (containerStatus) containerStatus.style.display = "none";
-    currentUploadJobId = null;
 }
+
 

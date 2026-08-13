@@ -271,20 +271,30 @@ class ValidacaoZipError(ValueError):
 def validar_pacote_zip(
     caminho_zip: Path,
     *,
-    max_descomprimido_bytes: int = 8 * 1024 * 1024 * 1024,  # 8 GB
-    max_entradas: int = 10000,
+    max_descomprimido_bytes: int = 16 * 1024 * 1024 * 1024,  # 16 GB — cobre disco bruto
+    max_entradas: int = 200_000,
     max_compressao_ratio: float = 50.0,
-) -> int:
+) -> tuple[int, list[str]]:
     """
     Valida a integridade e segurança do arquivo ZIP antes da extração.
-    Retorna o número de entradas no arquivo ZIP.
-    Lança ValidacaoZipError em caso de Zip-Slip, Zip Bomb ou arquivos não permitidos.
+    Retorna (número de entradas no arquivo ZIP, lista de nomes com extensão
+    proibida — que devem ser IGNORADOS na extração, não fazem o pacote inteiro
+    ser rejeitado).
+
+    Lança ValidacaoZipError apenas para riscos reais e extensão-agnósticos:
+    Zip-Slip (contenção de caminho) e Zip Bomb (tamanho/razão de compressão).
+
+    `max_entradas`/`max_descomprimido_bytes` foram elevados (de 10 mil/8 GB
+    para 200 mil/16 GB) porque um disco bruto de manuais zipado por inteiro
+    (não apenas os PDFs de uma edição) facilmente ultrapassa os tetos
+    anteriores, pensados só para o ZIP curado de uma edição.
     """
     if not caminho_zip.is_file():
         raise ValidacaoZipError(f"Arquivo ZIP não encontrado: {caminho_zip}")
 
     total_descomprimido = 0
     total_entradas = 0
+    entradas_ignoradas: list[str] = []
 
     with zipfile.ZipFile(caminho_zip, "r") as zf:
         infolist = zf.infolist()
@@ -297,22 +307,24 @@ def validar_pacote_zip(
             total_entradas += 1
             filename = member.filename
 
-            # 1. Contenção de caminho (Zip-Slip)
+            # 1. Contenção de caminho (Zip-Slip) — sempre fatal, independe de extensão
             if filename.startswith("/") or filename.startswith("\\") or ".." in filename or ":" in filename:
                 raise ValidacaoZipError(
                     f"Caminho suspeito detectado no pacote ZIP (Zip-Slip risk): {filename!r}"
                 )
 
-            # 2. Allowlist / Denylist de extensões
+            # 2. Extensões proibidas: um disco bruto legitimamente contém
+            # instaladores/autorun (.exe, .dll, .js) do leitor de manuais.
+            # Em vez de rejeitar o pacote inteiro, marcamos para não extrair
+            # esses arquivos — eles nunca chegam a tocar o disco de staging.
             p = Path(filename)
             ext = p.suffix.lower()
             if ext in EXTENSOES_ZIP_PROIBIDAS:
-                raise ValidacaoZipError(
-                    f"Extensão de arquivo proibida encontrada no pacote ZIP: {filename!r}"
-                )
+                entradas_ignoradas.append(filename)
+                continue
 
             if not member.is_dir():
-                # 3. Zip bomb (teto total e razão por entrada)
+                # 3. Zip bomb (teto total e razão por entrada) — sempre fatal
                 uncompressed_size = member.file_size
                 compressed_size = member.compress_size
                 total_descomprimido += uncompressed_size
@@ -329,7 +341,28 @@ def validar_pacote_zip(
                             f"Razão de compressão suspeita na entrada {filename!r} (ratio: {ratio:.1f}x > {max_compressao_ratio}x)."
                         )
 
-    return total_entradas
+    return total_entradas, entradas_ignoradas
+
+
+def extrair_pacote_zip_seguro(caminho_zip: Path, destino: Path, entradas_ignoradas: list[str]) -> None:
+    """
+    Extrai o ZIP já validado por `validar_pacote_zip`, pulando as entradas
+    com extensão proibida (nunca tocam o disco de staging) e resolvendo cada
+    caminho contra `destino` para reforçar a contenção Zip-Slip em profundidade.
+    """
+    ignoradas = set(entradas_ignoradas)
+    destino_resolvido = destino.resolve()
+
+    with zipfile.ZipFile(caminho_zip, "r") as zf:
+        for member in zf.infolist():
+            if member.filename in ignoradas:
+                continue
+            caminho_final = (destino_resolvido / member.filename).resolve()
+            if destino_resolvido not in caminho_final.parents and caminho_final != destino_resolvido:
+                raise ValidacaoZipError(
+                    f"Caminho resolvido fora do destino de extração: {member.filename!r}"
+                )
+            zf.extract(member, destino_resolvido)
 
 
 async def atualizar_progresso_job(
@@ -422,7 +455,7 @@ async def main(argv: list[str] | None = None) -> int:
     settings = get_settings()
 
     staging_dir: Path | None = None
-    if args.de-upload:
+    if args.de_upload:
         await atualizar_progresso_job(args.job_id, "Iniciando download do pacote do storage...", 10)
         staging_dir = Path("var/publicacoes/staging") / (args.job_id or args.edicao)
         staging_dir.mkdir(parents=True, exist_ok=True)
@@ -432,26 +465,31 @@ async def main(argv: list[str] | None = None) -> int:
             # Baixar ou copiar arquivo do storage para staging
             if settings.storage_backend.lower() == "r2":
                 cliente_s3 = _obter_cliente_s3(settings)
-                logger.info("Baixando %s do R2 para %s...", args.de-upload, caminho_zip_staging)
-                cliente_s3.download_file(settings.r2_bucket_name, args.de-upload, str(caminho_zip_staging))
+                logger.info("Baixando %s do R2 para %s...", args.de_upload, caminho_zip_staging)
+                cliente_s3.download_file(settings.r2_bucket_name, args.de_upload, str(caminho_zip_staging))
             else:
-                caminho_origem = Path(settings.upload_dir) / args.de-upload
+                caminho_origem = Path(settings.upload_dir) / args.de_upload
                 if not caminho_origem.is_file():
-                    caminho_origem = Path(args.de-upload)
+                    caminho_origem = Path(args.de_upload)
                 if not caminho_origem.is_file():
-                    raise FileNotFoundError(f"Arquivo de upload local não encontrado: {args.de-upload}")
+                    raise FileNotFoundError(f"Arquivo de upload local não encontrado: {args.de_upload}")
                 shutil.copyfile(caminho_origem, caminho_zip_staging)
 
             await atualizar_progresso_job(args.job_id, "Validando integridade e segurança do ZIP...", 20)
-            validar_pacote_zip(caminho_zip_staging)
+            _total_entradas, entradas_ignoradas = validar_pacote_zip(caminho_zip_staging)
+            if entradas_ignoradas:
+                logger.warning(
+                    "%d entrada(s) com extensão não permitida foram ignoradas (não extraídas): %s",
+                    len(entradas_ignoradas),
+                    ", ".join(entradas_ignoradas[:10]) + ("…" if len(entradas_ignoradas) > 10 else ""),
+                )
 
             # Extração para pasta temporária de Manuais
             pasta_manuais_staging = staging_dir / "Manuais"
             pasta_manuais_staging.mkdir(parents=True, exist_ok=True)
             await atualizar_progresso_job(args.job_id, "Descompactando manuais...", 30)
 
-            with zipfile.ZipFile(caminho_zip_staging, "r") as zf:
-                zf.extractall(pasta_manuais_staging)
+            extrair_pacote_zip_seguro(caminho_zip_staging, pasta_manuais_staging, entradas_ignoradas)
 
             # Se o ZIP descompactado tiver uma subpasta "Manuais" ou com o nome da edição, ajusta
             if (pasta_manuais_staging / "Manuais").is_dir():
@@ -566,18 +604,18 @@ async def main(argv: list[str] | None = None) -> int:
                 logger.warning("Upload ao R2 pulado: %s", exc)
 
     # Limpeza explícita da key temporária de upload no R2/storage local
-    if args.de-upload:
+    if args.de_upload:
         try:
             if settings.storage_backend.lower() == "r2":
                 cliente_s3 = _obter_cliente_s3(settings)
-                cliente_s3.delete_object(Bucket=settings.r2_bucket_name, Key=args.de-upload)
-                logger.info("Key temporária de upload removida do R2: %s", args.de-upload)
+                cliente_s3.delete_object(Bucket=settings.r2_bucket_name, Key=args.de_upload)
+                logger.info("Key temporária de upload removida do R2: %s", args.de_upload)
             else:
-                caminho_temp = Path(settings.upload_dir) / args.de-upload
+                caminho_temp = Path(settings.upload_dir) / args.de_upload
                 if caminho_temp.is_file():
                     caminho_temp.unlink()
         except Exception as exc:
-            logger.warning("Falha ao apagar arquivo de upload temporário %s: %s", args.de-upload, exc)
+            logger.warning("Falha ao apagar arquivo de upload temporário %s: %s", args.de_upload, exc)
 
     # Limpar pasta local de staging se existia
     if staging_dir and staging_dir.exists():

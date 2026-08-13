@@ -159,10 +159,20 @@ class StatusUploadJob(str, enum.Enum):
     Estado do job de upload e processamento de edições do acervo.
     """
     ENVIANDO = "ENVIANDO"
+    AGUARDANDO_PROCESSAMENTO = "AGUARDANDO_PROCESSAMENTO"
     PROCESSANDO = "PROCESSANDO"
     CONCLUIDO = "CONCLUIDO"
     FALHOU = "FALHOU"
     CANCELADO = "CANCELADO"
+
+
+class ModoProcessamentoUpload(str, enum.Enum):
+    """
+    Quando o subprocesso pesado de indexação (publicar.py) roda em relação
+    ao upload das partes.
+    """
+    IMEDIATO = "IMEDIATO"      # dispara o subprocesso assim que o multipart conclui
+    AGENDADO = "AGENDADO"      # fica em AGUARDANDO_PROCESSAMENTO até o horário noturno configurado
 
 
 class StatusPedido(str, enum.Enum):
@@ -180,4 +190,25 @@ class TipoPedido(str, enum.Enum):
     """Prioridade/urgência do pedido. EMERGENCIA exige numero_emergencia (RN-03)."""
     NORMAL = "NORMAL"
     EMERGENCIA = "EMERGENCIA"
+
+
+class CategoriaCiencia(str, enum.Enum):
+    """Categoria de origem de uma alteração pendente de ciência do Encarregado."""
+    PANES = "PANES"
+    INSPECAO = "INSPECAO"
+    INVENTARIO = "INVENTARIO"
+    VENCIMENTOS = "VENCIMENTOS"
+
+
+class EventoCiencia(str, enum.Enum):
+    """
+    Tipo de evento dentro de uma categoria — discrimina registros da mesma
+    linha de origem que geram mais de um evento (ex.: uma linha em
+    `instalacoes` produz um evento de INSTALACAO e, depois, um de REMOCAO).
+    """
+    CONCLUSAO = "CONCLUSAO"        # Pane resolvida
+    EXECUCAO = "EXECUCAO"          # Tarefa de inspeção concluída / vencimento executado
+    INSTALACAO = "INSTALACAO"      # Componente instalado
+    REMOCAO = "REMOCAO"            # Componente removido
+    PRORROGACAO = "PRORROGACAO"    # Vencimento prorrogado
 

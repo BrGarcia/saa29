@@ -9,13 +9,6 @@
 /** @typedef {import('./app.js').SAAUser} SAAUser */
 /** @typedef {import('./app.js').Aeronave} Aeronave */
 
-// Declaramos funções globais importadas do app.js
-/** @type {typeof import('./app.js').apiFetch} */
-var apiFetch = /** @type {any} */ (window).apiFetch;
-
-/** @type {typeof import('./app.js').showToast} */
-var showToast = /** @type {any} */ (window).showToast;
-
 document.addEventListener("DOMContentLoaded", () => {
     // Verificação extra de segurança no frontend
     const userJson = localStorage.getItem("saa29_user");

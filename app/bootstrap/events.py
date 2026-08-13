@@ -43,6 +43,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 4. Iniciar Tarefas em Segundo Plano
     cleanup_task = asyncio.create_task(tasks.token_cleanup_task())
     anexos_cleanup_task = asyncio.create_task(tasks.anexos_travados_cleanup_task())
+    processamento_noturno_task = asyncio.create_task(tasks.processamento_noturno_task())
     await tasks.recuperar_jobs_upload_interrompidos()
 
     yield
@@ -55,7 +56,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # `CancelledError` internamente, então aguardá-las aqui é seguro.
     cleanup_task.cancel()
     anexos_cleanup_task.cancel()
-    await asyncio.gather(cleanup_task, anexos_cleanup_task, return_exceptions=True)
+    processamento_noturno_task.cancel()
+    await asyncio.gather(cleanup_task, anexos_cleanup_task, processamento_noturno_task, return_exceptions=True)
 
     # 6. Shutdown: Backup final se houver dados não persistidos no R2
     if tasks.is_db_dirty() and current_settings.storage_backend.lower() == "r2" and current_settings.r2_bucket_name:
