@@ -159,10 +159,20 @@ class StatusUploadJob(str, enum.Enum):
     Estado do job de upload e processamento de edições do acervo.
     """
     ENVIANDO = "ENVIANDO"
+    AGUARDANDO_PROCESSAMENTO = "AGUARDANDO_PROCESSAMENTO"
     PROCESSANDO = "PROCESSANDO"
     CONCLUIDO = "CONCLUIDO"
     FALHOU = "FALHOU"
     CANCELADO = "CANCELADO"
+
+
+class ModoProcessamentoUpload(str, enum.Enum):
+    """
+    Quando o subprocesso pesado de indexação (publicar.py) roda em relação
+    ao upload das partes.
+    """
+    IMEDIATO = "IMEDIATO"      # dispara o subprocesso assim que o multipart conclui
+    AGENDADO = "AGENDADO"      # fica em AGUARDANDO_PROCESSAMENTO até o horário noturno configurado
 
 
 class StatusPedido(str, enum.Enum):

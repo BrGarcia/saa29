@@ -1224,7 +1224,6 @@ async def limpar_jobs_upload_estagnados(db: AsyncSession, timeout_minutos: int =
     - Jobs em PROCESSANDO sem processo ativo (PID inativo) são marcados como FALHOU.
     - Jobs em ENVIANDO com inatividade superior a `timeout_minutos` são marcados como FALHOU.
     """
-    import os
     from datetime import datetime, timezone, timedelta
     from app.modules.publicacoes.models import PublicacoesUploadJob
     from app.shared.core.enums import StatusUploadJob
@@ -1252,11 +1251,8 @@ async def limpar_jobs_upload_estagnados(db: AsyncSession, timeout_minutos: int =
         if job.status == StatusUploadJob.PROCESSANDO:
             processo_ativo = False
             if job.processo_pid:
-                try:
-                    os.kill(job.processo_pid, 0)
-                    processo_ativo = True
-                except OSError:
-                    processo_ativo = False
+                from app.shared.core.processo import processo_esta_ativo
+                processo_ativo = processo_esta_ativo(job.processo_pid)
 
             if not processo_ativo:
                 deve_limpar = True
@@ -1292,4 +1288,53 @@ async def limpar_jobs_upload_estagnados(db: AsyncSession, timeout_minutos: int =
         logger.warning("[Uploads] Auto-healing: %d job(s) estagnado(s) marcado(s) como FALHOU.", limpados)
 
     return limpados
+
+
+class DisparoWorkerError(Exception):
+    """Falha ao iniciar o subprocesso worker de processamento (publicar.py)."""
+
+
+async def disparar_worker_processamento(db: AsyncSession, job: "PublicacoesUploadJob") -> None:
+    """
+    Transiciona o job para PROCESSANDO e dispara, isolado em subprocesso
+    (ADR-004 — nunca dentro do worker web), o `publicar.py --de-upload` que
+    faz o trabalho pesado (download, validação do ZIP, indexação FTS5).
+
+    Compartilhado pelos dois modos de envio: disparo imediato ao concluir o
+    upload (modo IMEDIATO) e o loop noturno que processa jobs AGENDADO
+    (`app/bootstrap/tasks.py:processamento_noturno_task`).
+    """
+    import sys
+    from app.shared.core.enums import StatusUploadJob
+
+    job.status = StatusUploadJob.PROCESSANDO
+    job.etapa = "Upload concluído. Disparando processamento do acervo..."
+    job.progresso_pct = 5
+    await db.commit()
+
+    cmd = [
+        sys.executable,
+        "-m",
+        "scripts.publicacoes.publicar",
+        "--edicao",
+        job.rotulo,
+        "--de-upload",
+        job.file_key,
+        "--job-id",
+        str(job.id),
+    ]
+
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        job.processo_pid = proc.pid
+        await db.commit()
+    except Exception as exc:
+        job.status = StatusUploadJob.FALHOU
+        job.erro = f"Falha ao iniciar o worker de processamento: {exc}"
+        await db.commit()
+        raise DisparoWorkerError(str(exc)) from exc
 

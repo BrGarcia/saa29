@@ -17,7 +17,13 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.shared.core.enums import StatusEdicao, StatusPublicacaoAvulsa, StatusUploadJob, TipoPublicacao
+from app.shared.core.enums import (
+    ModoProcessamentoUpload,
+    StatusEdicao,
+    StatusPublicacaoAvulsa,
+    StatusUploadJob,
+    TipoPublicacao,
+)
 
 
 class ManualRef(BaseModel):
@@ -367,6 +373,10 @@ class UploadIniciarIn(BaseModel):
     rotulo: str = Field(..., min_length=1, max_length=20, description="Rótulo da edição (ex: '2027')")
     tamanho_bytes: int = Field(..., gt=0, description="Tamanho total em bytes declarado")
     nome_arquivo: str = Field(default="edicao.zip", max_length=255)
+    modo_processamento: ModoProcessamentoUpload = Field(
+        default=ModoProcessamentoUpload.AGENDADO,
+        description="AGENDADO (padrão) espera o horário noturno configurado; IMEDIATO processa assim que o upload concluir",
+    )
 
 
 class UploadIniciarOut(BaseModel):
@@ -396,6 +406,7 @@ class UploadJobOut(BaseModel):
     id: uuid.UUID
     rotulo: str
     status: StatusUploadJob
+    modo_processamento: ModoProcessamentoUpload
     etapa: str | None
     progresso_pct: int
     erro: str | None

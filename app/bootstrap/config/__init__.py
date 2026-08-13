@@ -125,6 +125,26 @@ class Settings(BaseSettings):
         default=3,
         description="M4 — quantos snapshots ZIP de edição são mantidos no R2."
     )
+    publicacoes_upload_max_gb: float = Field(
+        default=20.0,
+        description=(
+            "Teto de tamanho (GB) para o ZIP enviado via "
+            "/publicacoes/api/edicoes/uploads. Cobre tanto o ZIP de uma edição "
+            "quanto o zip bruto de disco completo (script zipar_disco.py). "
+            "Campo ausente até esta correção — router.py já lia via getattr(...) "
+            "com fallback 4, então o teto real nunca era configurável."
+        )
+    )
+    publicacoes_processamento_hora_utc: int = Field(
+        default=6,
+        ge=0,
+        le=23,
+        description=(
+            "Hora (UTC, 0-23) em que o loop noturno processa jobs de upload "
+            "com modo_processamento=AGENDADO. Padrão 6h UTC (~3h em horário "
+            "de Brasília) — madrugada local."
+        )
+    )
 
     # --- CORS / SEGURANÇA ---
     # Aceita lista via JSON ou string separada por vírgula

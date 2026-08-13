@@ -978,6 +978,17 @@
 
             <!-- Painel expansível de Upload -->
             <div id="painel-upload-edicao" style="display: none; margin-top: 1rem; padding: 1.25rem; border-radius: var(--radius-md); background: rgba(99, 102, 241, 0.05); border: 1px dashed #6366f1;">
+
+                <!-- Passo opcional: zipar um disco/pasta inteira antes de enviar -->
+                <div style="margin-bottom: 1rem; padding: 0.75rem 1rem; border-radius: var(--radius-sm); background: rgba(0,0,0,0.04); font-size: 0.82rem;">
+                    <strong>Tem um disco/pasta inteira para enviar (não só um .zip pronto)?</strong>
+                    Baixe o script, rode com duplo-clique no seu computador e ele gera o .zip automaticamente:
+                    <div style="margin-top: 0.4rem; display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                        <a href="/publicacoes/api/ferramentas/zipar_disco.bat" download class="btn btn-outline" style="font-size: 0.78rem; padding: 0.3rem 0.6rem;">Baixar zipar_disco.bat (Windows)</a>
+                        <a href="/publicacoes/api/ferramentas/zipar_disco.py" download class="btn btn-outline" style="font-size: 0.78rem; padding: 0.3rem 0.6rem;">Baixar zipar_disco.py (script)</a>
+                    </div>
+                </div>
+
                 <form id="form-upload-edicao" style="display: flex; flex-direction: column; gap: 1rem;">
                     <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
                         <div style="flex: 1; min-width: 180px;">
@@ -991,6 +1002,16 @@
                         <div style="display: flex; align-items: flex-end;">
                             <button type="submit" class="btn btn-publicacao" id="btn-iniciar-upload" style="padding: 0.55rem 1.2rem;">Enviar e Processar</button>
                         </div>
+                    </div>
+                    <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.85rem;">
+                        <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+                            <input type="radio" name="upload-modo-processamento" value="AGENDADO" checked />
+                            Processar de madrugada (recomendado — não trava o navegador nem a VPS agora)
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+                            <input type="radio" name="upload-modo-processamento" value="IMEDIATO" />
+                            Processar agora
+                        </label>
                     </div>
                 </form>
 

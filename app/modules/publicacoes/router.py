@@ -30,7 +30,13 @@ from sqlalchemy.exc import IntegrityError
 from app.bootstrap.config import get_settings
 from app.bootstrap.dependencies import AdminRequired, CurrentUser, DBSession, EncarregadoInspetorOuAdmin, InspetorOuAdmin
 from app.modules.publicacoes import avulsas, schemas, search, service
-from app.shared.core.enums import StatusEdicao, StatusPublicacaoAvulsa, StatusUploadJob, TipoPublicacao
+from app.shared.core.enums import (
+    ModoProcessamentoUpload,
+    StatusEdicao,
+    StatusPublicacaoAvulsa,
+    StatusUploadJob,
+    TipoPublicacao,
+)
 from app.shared.core.file_validators import ler_upload_com_limite, validate_file_upload
 from app.shared.core.limiter import limiter
 from app.shared.core.storage import LocalStorageService, get_storage_service
@@ -773,6 +779,34 @@ async def remover_favorito(favorito_id: uuid.UUID, db: DBSession, usuario_atual:
 # Upload de Edições (M4.Web)
 # --------------------------------------------------------------------------
 
+_FERRAMENTAS_DOWNLOAD = {
+    "zipar_disco.py": "text/x-python",
+    "zipar_disco.bat": "application/x-bat",
+}
+
+
+@router.get(
+    "/api/ferramentas/{nome_arquivo}",
+    summary="Baixar script auxiliar (ex.: zipar disco inteiro antes do envio)",
+    response_class=FileResponse,
+)
+async def baixar_ferramenta(nome_arquivo: str, usuario_atual: InspetorOuAdmin) -> FileResponse:
+    """
+    Serve os scripts de scripts/publicacoes/ (fonte única, sem duplicar em
+    app/web/static/) para o usuário rodar localmente antes de enviar o zip
+    pela tela de configurações.
+    """
+    media_type = _FERRAMENTAS_DOWNLOAD.get(nome_arquivo)
+    if media_type is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ferramenta não encontrada.")
+
+    caminho = Path("scripts/publicacoes") / nome_arquivo
+    if not caminho.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ferramenta não encontrada.")
+
+    return FileResponse(path=caminho, filename=nome_arquivo, media_type=media_type)
+
+
 @router.post(
     "/api/edicoes/uploads",
     response_model=schemas.UploadIniciarOut,
@@ -796,8 +830,8 @@ async def iniciar_upload_edicao(
     except service.RotuloInvalidoError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
-    # 2. Teto de tamanho declarado (ex: 4 GB = 4 * 1024 * 1024 * 1024 bytes)
-    max_gb = getattr(get_settings(), "publicacoes_upload_max_gb", 4)
+    # 2. Teto de tamanho declarado, configurável via publicacoes_upload_max_gb
+    max_gb = get_settings().publicacoes_upload_max_gb
     max_bytes = max_gb * 1024 * 1024 * 1024
     if dados.tamanho_bytes > max_bytes:
         raise HTTPException(
@@ -839,6 +873,7 @@ async def iniciar_upload_edicao(
         id=job_id,
         rotulo=dados.rotulo,
         status=StatusUploadJob.ENVIANDO,
+        modo_processamento=dados.modo_processamento,
         etapa="Aguardando upload das partes...",
         progresso_pct=0,
         file_key=file_key,
@@ -961,42 +996,21 @@ async def concluir_upload_edicao(
             detail=f"Não foi possível concluir o upload das partes: {exc}",
         ) from exc
 
-    job.status = StatusUploadJob.PROCESSANDO
-    job.etapa = "Upload concluído. Disparando processamento do acervo..."
-    job.progresso_pct = 5
-    await db.commit()
-
-    # Disparar subprocesso do publicar.py em segundo plano
-    import sys
-    cmd = [
-        sys.executable,
-        "-m",
-        "scripts.publicacoes.publicar",
-        "--edicao",
-        job.rotulo,
-        "--de-upload",
-        job.file_key,
-        "--job-id",
-        str(job.id),
-    ]
-
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
-        )
-        job.processo_pid = proc.pid
+    if job.modo_processamento == ModoProcessamentoUpload.AGENDADO:
+        hora_utc = get_settings().publicacoes_processamento_hora_utc
+        job.status = StatusUploadJob.AGUARDANDO_PROCESSAMENTO
+        job.etapa = f"Upload concluído. Processamento agendado para ~{hora_utc}h UTC."
+        job.progresso_pct = 5
         await db.commit()
-    except Exception as exc:
-        logger.error("Falha ao disparar subprocesso worker para job %s: %s", job_id, exc)
-        job.status = StatusUploadJob.FALHOU
-        job.erro = f"Falha ao iniciar o worker de processamento: {exc}"
-        await db.commit()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Falha ao iniciar o processo de tratamento da publicação no servidor.",
-        ) from exc
+    else:
+        try:
+            await service.disparar_worker_processamento(db, job)
+        except service.DisparoWorkerError as exc:
+            logger.error("Falha ao disparar subprocesso worker para job %s: %s", job_id, exc)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Falha ao iniciar o processo de tratamento da publicação no servidor.",
+            ) from exc
 
     return schemas.UploadJobOut.model_validate(job)
 
@@ -1019,7 +1033,11 @@ async def cancelar_upload_edicao(
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job de upload não encontrado.")
 
-    if job.status not in (StatusUploadJob.ENVIANDO, StatusUploadJob.PROCESSANDO):
+    if job.status not in (
+        StatusUploadJob.ENVIANDO,
+        StatusUploadJob.AGUARDANDO_PROCESSAMENTO,
+        StatusUploadJob.PROCESSANDO,
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Job não pode ser cancelado no status atual ({job.status.value}).",
@@ -1031,6 +1049,14 @@ async def cancelar_upload_edicao(
             await storage.abortar_multipart(job.file_key, job.upload_id_r2 or "")
         except Exception as exc:
             logger.warning("Falha ao abortar multipart para job cancelado %s: %s", job_id, exc)
+    elif job.status == StatusUploadJob.AGUARDANDO_PROCESSAMENTO:
+        # O multipart já foi concluído (arquivo consolidado no storage) —
+        # abortar_multipart não se aplica mais aqui, é preciso apagar o
+        # objeto já fechado para não deixar lixo de 3+ GB no storage.
+        try:
+            await storage.delete(job.file_key)
+        except Exception as exc:
+            logger.warning("Falha ao apagar arquivo do job cancelado %s: %s", job_id, exc)
 
     if job.status == StatusUploadJob.PROCESSANDO and job.processo_pid:
         import os, signal

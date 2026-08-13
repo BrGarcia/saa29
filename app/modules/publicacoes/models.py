@@ -43,6 +43,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.bootstrap.database import Base
 from app.shared.core.enums import (
+    ModoProcessamentoUpload,
     RevisionStatus,
     StatusEdicao,
     StatusPublicacaoAvulsa,
@@ -552,8 +553,8 @@ class PublicacoesUploadJob(Base):
             "uq_publicacoes_upload_jobs_ativo_unico",
             text("1"),
             unique=True,
-            sqlite_where=text("status IN ('ENVIANDO', 'PROCESSANDO')"),
-            postgresql_where=text("status IN ('ENVIANDO', 'PROCESSANDO')"),
+            sqlite_where=text("status IN ('ENVIANDO', 'AGUARDANDO_PROCESSAMENTO', 'PROCESSANDO')"),
+            postgresql_where=text("status IN ('ENVIANDO', 'AGUARDANDO_PROCESSAMENTO', 'PROCESSANDO')"),
         ),
     )
 
@@ -566,6 +567,12 @@ class PublicacoesUploadJob(Base):
         nullable=False,
         default=StatusUploadJob.ENVIANDO,
         index=True,
+    )
+    modo_processamento: Mapped[ModoProcessamentoUpload] = mapped_column(
+        Enum(ModoProcessamentoUpload),
+        nullable=False,
+        default=ModoProcessamentoUpload.AGENDADO,
+        comment="IMEDIATO dispara o worker ao concluir o upload; AGENDADO espera o horário noturno configurado",
     )
     etapa: Mapped[str | None] = mapped_column(
         String(100), nullable=True, comment="Descrição da etapa atual"

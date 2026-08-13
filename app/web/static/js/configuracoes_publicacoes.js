@@ -441,6 +441,9 @@ async function tratarSubmitUpload(event) {
         return;
     }
 
+    const inputModo = document.querySelector('input[name="upload-modo-processamento"]:checked');
+    const modoProcessamento = inputModo ? /** @type {HTMLInputElement} */ (inputModo).value : "AGENDADO";
+
     isUploading = true;
     if (btnSubmit) btnSubmit.disabled = true;
     const containerStatus = document.getElementById("status-upload-container");
@@ -456,6 +459,7 @@ async function tratarSubmitUpload(event) {
                 rotulo: rotulo,
                 tamanho_bytes: file.size,
                 nome_arquivo: file.name,
+                modo_processamento: modoProcessamento,
             },
         });
 
@@ -494,6 +498,13 @@ async function tratarSubmitUpload(event) {
                     },
                     credentials: "same-origin",
                 });
+                // O CSRFMiddleware rotaciona o cookie+token a cada requisicao
+                // mutante bem-sucedida. Este PUT usa fetch() bruto (nao apiFetch),
+                // entao precisa sincronizar manualmente o meta tag com o novo
+                // token — senao a proxima chamada apiFetch envia um token velho
+                // e recebe 403 (CSRF), interrompendo o envio na parte seguinte.
+                const novoToken = localResp.headers.get("X-CSRF-Token");
+                if (novoToken && csrfMeta) csrfMeta.setAttribute("content", novoToken);
                 if (!localResp.ok) throw new Error(`Falha no upload da parte ${numeroParte} local.`);
                 const localJson = await localResp.json();
                 etag = localJson.etag;
@@ -570,6 +581,17 @@ function iniciarPollingUpload(jobId) {
                     currentUploadPollingTimer = null;
                 }
                 showToast("Upload cancelado.", "info");
+                resetarFormUpload();
+            } else if (job.status === "AGUARDANDO_PROCESSAMENTO") {
+                // Processamento agendado para a madrugada — não faz sentido manter
+                // o navegador enviando ping a cada 3s por horas. O job já está
+                // seguro no servidor; o usuário confere o resultado mais tarde
+                // pela lista de edições.
+                if (currentUploadPollingTimer) {
+                    clearInterval(currentUploadPollingTimer);
+                    currentUploadPollingTimer = null;
+                }
+                showToast(job.etapa || "Upload concluído. Processamento agendado para a madrugada.", "success");
                 resetarFormUpload();
             }
         } catch (err) {

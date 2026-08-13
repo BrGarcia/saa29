@@ -91,14 +91,21 @@ class LocalStorageService(StorageService):
 
     async def delete(self, file_path: str) -> bool:
         path = Path(file_path)
+        # Dois chamadores, duas convenções de caminho: `upload()` devolve um
+        # path que já embute upload_dir (ex.: "var/uploads/xxx.pdf"), enquanto
+        # os file_keys do fluxo multipart são relativos a upload_dir (ex.:
+        # "publicacoes/uploads/<job_id>/edicao.zip", mesma resolução de
+        # `concluir_multipart`). Tenta as duas em vez de adivinhar qual é.
+        candidatos = [path] if path.is_absolute() else [path, self.upload_dir / path]
 
         # exists()/is_file()/unlink() sao syscalls bloqueantes; com 2 workers
         # Gunicorn, executa-las na coroutine trava todas as requisicoes
         # concorrentes daquele worker pela duracao do I/O.
         def _delete() -> bool:
-            if path.exists() and path.is_file():
-                path.unlink()
-                return True
+            for candidato in candidatos:
+                if candidato.exists() and candidato.is_file():
+                    candidato.unlink()
+                    return True
             return False
 
         return await asyncio.to_thread(_delete)
