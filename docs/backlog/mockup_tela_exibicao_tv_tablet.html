@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0F172A">
+    <title>SAA29 — Mockup Painel Operacional TV/Tablet</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ==========================================================================
+           SAA29 DESIGN TOKENS (DARK THEME FORCED)
+           ========================================================================== */
+        :root {
+            --bg-primary: #0f172a;         /* Ardósia Profundo */
+            --bg-secondary: #1e293b;       /* Superfície Cards */
+            --bg-tertiary: #334155;        /* Bordas e Divisores */
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: rgba(255, 255, 255, 0.1);
+
+            --primary-color: #60a5fa;      /* Azul FAB Neon */
+            --primary-hover: #3b82f6;
+            --accent-color: #38bdf8;
+
+            /* Cores de Status Operacional */
+            --status-ok: #10b981;          /* Verde Disponível / Concluído */
+            --status-ok-bg: rgba(16, 185, 129, 0.15);
+            --status-ok-border: rgba(16, 185, 129, 0.35);
+
+            --status-warning: #f59e0b;     /* Amarelo Inspeção / Vencendo */
+            --status-warning-bg: rgba(245, 158, 11, 0.15);
+            --status-warning-border: rgba(245, 158, 11, 0.35);
+
+            --status-danger: #ef4444;      /* Vermelho Pane / Vencido / Indisponível */
+            --status-danger-bg: rgba(239, 68, 68, 0.15);
+            --status-danger-border: rgba(239, 68, 68, 0.35);
+
+            --status-prorrogado: #a855f7;  /* Roxo Prorrogado */
+            --status-prorrogado-bg: rgba(168, 85, 247, 0.15);
+            --status-prorrogado-border: rgba(168, 85, 247, 0.35);
+
+            --status-inativa: #94a3b8;     /* Cinza Estocada / Inativa */
+            --status-inativa-bg: rgba(148, 163, 184, 0.15);
+            --status-inativa-border: rgba(148, 163, 184, 0.3);
+
+            --glass-bg: rgba(30, 41, 59, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+
+            --tv-gap: 1rem;
+            --font-mono: 'JetBrains Mono', monospace;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body.tv-body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100dvh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            padding: var(--tv-gap);
+            gap: var(--tv-gap);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(96, 165, 250, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+        }
+
+        /* Glass Panel */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* ==========================================================================
+           1. CABEÇALHO OPERACIONAL
+           ========================================================================== */
+        .tv-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .brand-badge {
+            background: linear-gradient(135deg, #1e40af, #3b82f6);
+            color: #ffffff;
+            font-weight: 800;
+            font-size: 1.1rem;
+            padding: 0.4rem 0.75rem;
+            border-radius: var(--radius-md);
+            letter-spacing: 0.05em;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .brand-title {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand-title h1 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .brand-title span {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .header-center {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 0.4rem 1.25rem;
+            border-radius: 9999px;
+        }
+
+        .date-display {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #e2e8f0;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .heartbeat-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--status-ok);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .pulse-dot {
+            width: 9px;
+            height: 9px;
+            background-color: var(--status-ok);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--status-ok);
+            animation: pulseAnim 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+        }
+
+        @keyframes pulseAnim {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+
+        .header-clocks {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .clock-card {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-md);
+            padding: 0.35rem 0.85rem;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .clock-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .clock-time {
+            font-family: var(--font-mono);
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+        }
+
+        .clock-time.local {
+            color: var(--accent-color);
+        }
+
+        .clock-time.zulu {
+            color: #f59e0b;
+        }
+
+        .btn-fullscreen {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            border-radius: var(--radius-md);
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-fullscreen:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        /* ==========================================================================
+           2. DISPONIBILIDADE DA FROTA (TOP KPI CARDS)
+           ========================================================================== */
+        .tv-frota-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--tv-gap);
+            flex-shrink: 0;
+        }
+
+        .frota-kpi-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.9rem 1.25rem;
+            border-radius: var(--radius-lg);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s ease;
+        }
+
+        .frota-kpi-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 6px;
+        }
+
+        .frota-kpi-card.disponivel {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(30, 41, 59, 0.8));
+            border: 1px solid var(--status-ok-border);
+        }
+        .frota-kpi-card.disponivel::before { background: var(--status-ok); }
+
+        .frota-kpi-card.inspecao {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(30, 41, 59, 0.8));
+            border: 1px solid var(--status-warning-border);
+        }
+        .frota-kpi-card.inspecao::before { background: var(--status-warning); }
+
+        .frota-kpi-card.indisponivel {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(30, 41, 59, 0.8));
+            border: 1px solid var(--status-danger-border);
+        }
+        .frota-kpi-card.indisponivel::before { background: var(--status-danger); }
+
+        .frota-kpi-card.estocada {
+            background: linear-gradient(135deg, rgba(148, 163, 184, 0.12), rgba(30, 41, 59, 0.8));
+            border: 1px solid var(--status-inativa-border);
+        }
+        .frota-kpi-card.estocada::before { background: var(--status-inativa); }
+
+        .kpi-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        .kpi-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-secondary);
+        }
+
+        .kpi-subtitle {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .kpi-value {
+            font-family: var(--font-mono);
+            font-size: 2.2rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .kpi-value.ok { color: var(--status-ok); }
+        .kpi-value.warning { color: var(--status-warning); }
+        .kpi-value.danger { color: var(--status-danger); }
+        .kpi-value.inativa { color: var(--status-inativa); }
+
+        /* ==========================================================================
+           3. PAINEL CENTRAL (2 COLUNAS: PANES & INSPEÇÕES)
+           ========================================================================== */
+        .tv-main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--tv-gap);
+            flex: 1;
+            min-height: 0; /* Essencial para scroll interno */
+        }
+
+        .tv-card {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .tv-card-header {
+            padding: 0.75rem 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(15, 23, 42, 0.4);
+            flex-shrink: 0;
+        }
+
+        .card-heading {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            color: #ffffff;
+        }
+
+        .badge-count {
+            padding: 0.2rem 0.55rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+        }
+
+        .badge-count.danger {
+            background: var(--status-danger-bg);
+            color: var(--status-danger);
+            border: 1px solid var(--status-danger-border);
+        }
+
+        .badge-count.warning {
+            background: var(--status-warning-bg);
+            color: var(--status-warning);
+            border: 1px solid var(--status-warning-border);
+        }
+
+        .badge-count.primary {
+            background: rgba(96, 165, 250, 0.15);
+            color: var(--primary-color);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+        }
+
+        .tv-card-body {
+            flex: 1;
+            overflow-y: hidden; /* Controlado via JS Auto-Scroll */
+            position: relative;
+        }
+
+        /* Tabelas Operacionais TV */
+        .tv-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+            text-align: left;
+        }
+
+        .tv-table thead {
+            position: sticky;
+            top: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(8px);
+            z-index: 10;
+        }
+
+        .tv-table th {
+            padding: 0.6rem 0.9rem;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tv-table td {
+            padding: 0.75rem 0.9rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            vertical-align: middle;
+        }
+
+        .tv-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .matricula-tag {
+            font-family: var(--font-mono);
+            font-weight: 800;
+            font-size: 0.92rem;
+            color: #ffffff;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 0.25rem 0.5rem;
+            border-radius: var(--radius-md);
+            display: inline-block;
+        }
+
+        .sistema-tag {
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 0.82rem;
+        }
+
+        .desc-text {
+            color: #cbd5e1;
+            line-height: 1.35;
+        }
+
+        .tempo-tag {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        /* Inspeções UI */
+        .tipo-badge {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 0.78rem;
+            padding: 0.2rem 0.45rem;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .progress-box {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            min-width: 140px;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .progress-header .status-name {
+            color: var(--text-secondary);
+        }
+
+        .progress-header .status-pct {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            color: var(--status-ok);
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 7px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #10b981);
+            border-radius: 9999px;
+            transition: width 0.5s ease;
+        }
+
+        /* ==========================================================================
+           4. ALERTA DE VENCIMENTOS E VALIDADES (BOTTOM PANEL)
+           ========================================================================== */
+        .tv-bottom-panel {
+            height: 220px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .filter-btn {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.3rem 0.7rem;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .filter-btn.active {
+            background: var(--primary-color);
+            color: #0f172a;
+            font-weight: 700;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(96, 165, 250, 0.4);
+        }
+
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: 9999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+
+        .status-chip.vencido {
+            background: var(--status-danger-bg);
+            color: var(--status-danger);
+            border: 1px solid var(--status-danger-border);
+        }
+
+        .status-chip.vencendo {
+            background: var(--status-warning-bg);
+            color: var(--status-warning);
+            border: 1px solid var(--status-warning-border);
+        }
+
+        .status-chip.prorrogado {
+            background: var(--status-prorrogado-bg);
+            color: #c084fc;
+            border: 1px solid var(--status-prorrogado-border);
+        }
+
+        .status-chip.ok {
+            background: var(--status-ok-bg);
+            color: var(--status-ok);
+            border: 1px solid var(--status-ok-border);
+        }
+
+        .loc-tag {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #cbd5e1;
+        }
+
+        .loc-tag.estoque {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* Banner de Simulação no Topo */
+        .mockup-banner {
+            position: fixed;
+            bottom: 0.5rem;
+            right: 0.5rem;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            border-radius: var(--radius-md);
+            padding: 0.4rem 0.8rem;
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .mockup-banner strong {
+            color: var(--primary-color);
+        }
+
+        /* Responsividade Tablet */
+        @media (max-width: 1200px) {
+            .tv-frota-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .tv-main-grid {
+                grid-template-columns: 1fr;
+            }
+            body.tv-body {
+                overflow-y: auto;
+                height: auto;
+                min-height: 100dvh;
+            }
+            .tv-card-body {
+                max-height: 350px;
+                overflow-y: auto;
+            }
+            .tv-bottom-panel {
+                height: auto;
+                min-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body class="tv-body" id="tv-root">
+
+    <!-- ==========================================================================
+       1. CABEÇALHO OPERACIONAL (RELÓGIO DUPLO & STATUS)
+       ========================================================================== -->
+    <header class="glass-panel tv-header">
+        <div class="header-brand">
+            <div class="brand-badge">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                </svg>
+                SAA29
+            </div>
+            <div class="brand-title">
+                <h1>Painel Operacional de Manutenção <span>(A-29 Super Tucano)</span></h1>
+                <span>Esquadrão de Demonstração Aérea / Linha de Voo</span>
+            </div>
+        </div>
+
+        <div class="header-center">
+            <div class="date-display" id="tv-data-operacional">16 AGO 2026</div>
+            <div class="heartbeat-indicator">
+                <div class="pulse-dot"></div>
+                <span id="tv-status-conexao">Feed Ativo (30s)</span>
+            </div>
+        </div>
+
+        <div class="header-clocks">
+            <div class="clock-card">
+                <span class="clock-label">Hora Local (L)</span>
+                <span class="clock-time local" id="tv-hora-local">19:30:25 L</span>
+            </div>
+            <div class="clock-card">
+                <span class="clock-label">Hora Zulu (UTC)</span>
+                <span class="clock-time zulu" id="tv-hora-zulu">22:30:25 Z</span>
+            </div>
+            <button class="btn-fullscreen" id="btn-toggle-fullscreen" title="Modo Tela Cheia (F11)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- ==========================================================================
+       2. DISPONIBILIDADE DA FROTA (4 QUADRANTES CONSOLIDADOS)
+       ========================================================================== -->
+    <section class="tv-frota-grid">
+        <div class="glass-panel frota-kpi-card disponivel">
+            <div class="kpi-info">
+                <span class="kpi-title">🟢 Disponíveis / Prontas</span>
+                <span class="kpi-subtitle">Liberadas para Voo (DISP + OPER)</span>
+            </div>
+            <div class="kpi-value ok" id="kpi-disp">12</div>
+        </div>
+
+        <div class="glass-panel frota-kpi-card inspecao">
+            <div class="kpi-info">
+                <span class="kpi-title">🟡 Em Inspeção</span>
+                <span class="kpi-subtitle">Manutenção Programada Ativa</span>
+            </div>
+            <div class="kpi-value warning" id="kpi-insp">03</div>
+        </div>
+
+        <div class="glass-panel frota-kpi-card indisponivel">
+            <div class="kpi-info">
+                <span class="kpi-title">🔴 Indisponíveis</span>
+                <span class="kpi-subtitle">Retidas por Pane Corretiva</span>
+            </div>
+            <div class="kpi-value danger" id="kpi-indisp">02</div>
+        </div>
+
+        <div class="glass-panel frota-kpi-card estocada">
+            <div class="kpi-info">
+                <span class="kpi-title">⚪ Estocadas / Inativas</span>
+                <span class="kpi-subtitle">Preservação no Hangar</span>
+            </div>
+            <div class="kpi-value inativa" id="kpi-estoc">01</div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+       3. PAINEL CENTRAL: PANES ABERTAS (AUTO-SCROLL) & INSPEÇÕES ATIVAS
+       ========================================================================== -->
+    <main class="tv-main-grid">
+        <!-- QUADRANTE ESQUERDO: PANES ABERTAS -->
+        <div class="glass-panel tv-card">
+            <div class="tv-card-header">
+                <div class="card-heading">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--status-danger)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    Panes Abertas na Linha
+                </div>
+                <span class="badge-count danger" id="badge-panes-count">4 Ocorrências</span>
+            </div>
+            <div class="tv-card-body tv-scroll-container" id="scroll-panes">
+                <table class="tv-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 100px;">ANV</th>
+                            <th style="width: 170px;">Sistema ATA</th>
+                            <th>Descrição da Discrepância</th>
+                            <th style="width: 110px; text-align: right;">Aberta Há</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-panes">
+                        <tr>
+                            <td><span class="matricula-tag">5916</span></td>
+                            <td><span class="sistema-tag">34 - Aviônica</span></td>
+                            <td class="desc-text">Indicação espúria no MFD Esquerdo durante teste de giro de motor.</td>
+                            <td style="text-align: right;"><span class="tempo-tag">2h 15m</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="matricula-tag">5922</span></td>
+                            <td><span class="sistema-tag">72 - Motor / PT6</span></td>
+                            <td class="desc-text">Alarme de limalha no óleo lubrificante (CHIP DETECTOR aceso).</td>
+                            <td style="text-align: right;"><span class="tempo-tag">5h 40m</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="matricula-tag">5908</span></td>
+                            <td><span class="sistema-tag">24 - Elétrico</span></td>
+                            <td class="desc-text">Gerador principal #1 desarmando em regime de alta demanda elétrica.</td>
+                            <td style="text-align: right;"><span class="tempo-tag">1d 03h</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="matricula-tag">5914</span></td>
+                            <td><span class="sistema-tag">32 - Trem de Pouso</span></td>
+                            <td class="desc-text">Vazamento hidráulico leve no atuador da bequilha dianteira.</td>
+                            <td style="text-align: right;"><span class="tempo-tag">2d 11h</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="matricula-tag">5901</span></td>
+                            <td><span class="sistema-tag">23 - Comunicações</span></td>
+                            <td class="desc-text">Interferência e ruído estático excessivo no transceptor VHF-2.</td>
+                            <td style="text-align: right;"><span class="tempo-tag">3d 08h</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- QUADRANTE DIREITO: AERONAVES EM INSPEÇÃO -->
+        <div class="glass-panel tv-card">
+            <div class="tv-card-header">
+                <div class="card-heading">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--status-warning)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                    </svg>
+                    Destaque: Aeronaves em Inspeção
+                </div>
+                <span class="badge-count warning" id="badge-insp-count">3 Ativas</span>
+            </div>
+            <div class="tv-card-body tv-scroll-container" id="scroll-inspecoes">
+                <table class="tv-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 100px;">ANV</th>
+                            <th style="width: 140px;">Tipo(s)</th>
+                            <th>Fase / Progresso das Tarefas</th>
+                            <th style="width: 120px; text-align: right;">Previsão</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-inspecoes">
+                        <tr>
+                            <td><span class="matricula-tag">5902</span></td>
+                            <td><span class="tipo-badge">IF-100H</span> <span class="tipo-badge">PS</span></td>
+                            <td>
+                                <div class="progress-box">
+                                    <div class="progress-header">
+                                        <span class="status-name">EM ANDAMENTO (36/48)</span>
+                                        <span class="status-pct">75%</span>
+                                    </div>
+                                    <div class="progress-track">
+                                        <div class="progress-fill" style="width: 75%;"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="text-align: right;"><span class="tempo-tag">18/08/2026</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="matricula-tag">5918</span></td>
+                            <td><span class="tipo-badge">IPG</span></td>
+                            <td>
+                                <div class="progress-box">
+                                    <div class="progress-header">
+                                        <span class="status-name">ABERTA (12/60)</span>
+                                        <span class="status-pct" style="color: var(--status-warning);">20%</span>
+                                    </div>
+                                    <div class="progress-track">
+                                        <div class="progress-fill" style="width: 20%; background: var(--status-warning);"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="text-align: right;"><span class="tempo-tag">25/08/2026</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="matricula-tag">5925</span></td>
+                            <td><span class="tipo-badge">IF-50H</span></td>
+                            <td>
+                                <div class="progress-box">
+                                    <div class="progress-header">
+                                        <span class="status-name">EM ANDAMENTO (42/45)</span>
+                                        <span class="status-pct">93%</span>
+                                    </div>
+                                    <div class="progress-track">
+                                        <div class="progress-fill" style="width: 93%;"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="text-align: right;"><span class="tempo-tag">17/08/2026</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- ==========================================================================
+       4. ALERTAS DE VENCIMENTOS E VALIDADES (RODAPÉ / SELETOR HORIZONTE)
+       ========================================================================== -->
+    <footer class="glass-panel tv-card tv-bottom-panel">
+        <div class="tv-card-header">
+            <div class="card-heading">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                Alertas de Vencimentos e Validades Próximas
+            </div>
+
+            <div class="filter-group">
+                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-right: 0.25rem;">HORIZONTE:</span>
+                <button class="filter-btn" data-dias="15">15 Dias</button>
+                <button class="filter-btn active" data-dias="30">1 Mês (Padrão TV)</button>
+                <button class="filter-btn" data-dias="90">3 Meses</button>
+                <button class="filter-btn" data-dias="180">6 Meses</button>
+            </div>
+        </div>
+
+        <div class="tv-card-body tv-scroll-container" id="scroll-vencimentos">
+            <table class="tv-table">
+                <thead>
+                    <tr>
+                        <th>Item / Componente Controlado</th>
+                        <th style="width: 140px;">Part Number</th>
+                        <th style="width: 180px;">Instalado em / Local</th>
+                        <th style="width: 130px;">Vencimento</th>
+                        <th style="width: 110px;">Prazo</th>
+                        <th style="width: 130px; text-align: center;">Status Derivado</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-vencimentos">
+                    <tr>
+                        <td><strong>Cartucho de Iniciação Assento Ejetável (L1)</strong> <span style="font-size:0.75rem; color:var(--text-muted);">(S/N: CT-8841)</span></td>
+                        <td><span class="tempo-tag">CAR-29-01</span></td>
+                        <td><span class="loc-tag">A-29 (FAB 5916)</span></td>
+                        <td><span class="tempo-tag">12/08/2026</span></td>
+                        <td><span style="color: var(--status-danger); font-weight:700;">Há 4 dias</span></td>
+                        <td style="text-align: center;"><span class="status-chip vencido">🔴 VENCIDO</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Bateria Principal 24V 44Ah</strong> <span style="font-size:0.75rem; color:var(--text-muted);">(S/N: BAT-9902)</span></td>
+                        <td><span class="tempo-tag">24-BAT-44</span></td>
+                        <td><span class="loc-tag">A-29 (FAB 5922)</span></td>
+                        <td><span class="tempo-tag">28/08/2026</span></td>
+                        <td><span style="color: var(--status-warning); font-weight:700;">Em 12 dias</span></td>
+                        <td style="text-align: center;"><span class="status-chip vencendo">🟡 VENCENDO</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Transponder Mode-S IFF</strong> <span style="font-size:0.75rem; color:var(--text-muted);">(S/N: XP-4410)</span></td>
+                        <td><span class="tempo-tag">AN/APX-119</span></td>
+                        <td><span class="loc-tag estoque">Em Estoque (Sala Rádio)</span></td>
+                        <td><span class="tempo-tag">05/09/2026</span></td>
+                        <td><span style="color: var(--status-warning); font-weight:700;">Em 20 dias</span></td>
+                        <td style="text-align: center;"><span class="status-chip vencendo">🟡 VENCENDO</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Válvula Reguladora de Pressão Oxigênio</strong> <span style="font-size:0.75rem; color:var(--text-muted);">(S/N: O2-3301)</span></td>
+                        <td><span class="tempo-tag">REG-O2-29</span></td>
+                        <td><span class="loc-tag">A-29 (FAB 5902)</span></td>
+                        <td><span class="tempo-tag">15/09/2026</span></td>
+                        <td><span style="color: #c084fc; font-weight:700;">Prorrogado (+30d)</span></td>
+                        <td style="text-align: center;"><span class="status-chip prorrogado">🟣 PRORROGADO</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </footer>
+
+    <!-- Banner Informativo do Mockup -->
+    <div class="mockup-banner">
+        <span>🖥️ <strong>MOCKUP DE ALTA FIDELIDADE</strong> • SAA29 TV/Tablet Dashboard</span>
+        <span>• Resolução: <strong>1080p Full HD</strong></span>
+        <span>• Auto-Scroll: <strong>Ativo</strong></span>
+    </div>
+
+    <!-- ==========================================================================
+       JAVASCRIPT DO MOCKUP (RELÓGIO REAL, AUTO-SCROLL E FILTRO INTERATIVO)
+       ========================================================================== -->
+    <script>
+        (function() {
+            "use strict";
+
+            // 1. Relógio Duplo em Tempo Real (Local & Zulu)
+            function atualizarRelogios() {
+                const agora = new Date();
+                
+                // Hora Local (L)
+                const horaLocal = new Intl.DateTimeFormat('pt-BR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                }).format(agora);
+                document.getElementById('tv-hora-local').textContent = `${horaLocal} L`;
+
+                // Hora Zulu / UTC (Z)
+                const hhZ = String(agora.getUTCHours()).padStart(2, '0');
+                const mmZ = String(agora.getUTCMinutes()).padStart(2, '0');
+                const ssZ = String(agora.getUTCSeconds()).padStart(2, '0');
+                document.getElementById('tv-hora-zulu').textContent = `${hhZ}:${mmZ}:${ssZ} Z`;
+
+                // Data Operacional Militar
+                const meses = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+                const dia = String(agora.getDate()).padStart(2, '0');
+                const mes = meses[agora.getMonth()];
+                const ano = agora.getFullYear();
+                document.getElementById('tv-data-operacional').textContent = `${dia} ${mes} ${ano}`;
+            }
+
+            setInterval(atualizarRelogios, 1000);
+            atualizarRelogios();
+
+            // 2. Auto-Scroll Suave em Containers com Overflow
+            function iniciarAutoScroll(containerId) {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+
+                let direcao = 1;
+                let pausadoAte = 0;
+
+                function passo(timestamp) {
+                    if (timestamp > pausadoAte) {
+                        container.scrollTop += direcao * 0.4;
+                        const noFim = container.scrollTop + container.clientHeight >= container.scrollHeight - 1;
+                        const noTopo = container.scrollTop <= 0;
+
+                        if (noFim || noTopo) {
+                            direcao *= -1;
+                            pausadoAte = timestamp + 3500; // Pausa de 3.5s nas pontas
+                        }
+                    }
+                    requestAnimationFrame(passo);
+                }
+                requestAnimationFrame(passo);
+            }
+
+            iniciarAutoScroll('scroll-panes');
+            iniciarAutoScroll('scroll-vencimentos');
+
+            // 3. Simulação de Filtro de Horizonte de Vencimentos
+            const dadosVencimentos = {
+                15: [
+                    { item: "Cartucho de Iniciação Assento (L1)", sn: "CT-8841", pn: "CAR-29-01", loc: "A-29 (FAB 5916)", venc: "12/08/2026", prazo: "Há 4 dias", prazoCor: "var(--status-danger)", chip: "vencido", chipTxt: "🔴 VENCIDO" },
+                    { item: "Bateria Principal 24V 44Ah", sn: "BAT-9902", pn: "24-BAT-44", loc: "A-29 (FAB 5922)", venc: "28/08/2026", prazo: "Em 12 dias", prazoCor: "var(--status-warning)", chip: "vencendo", chipTxt: "🟡 VENCENDO" }
+                ],
+                30: [
+                    { item: "Cartucho de Iniciação Assento (L1)", sn: "CT-8841", pn: "CAR-29-01", loc: "A-29 (FAB 5916)", venc: "12/08/2026", prazo: "Há 4 dias", prazoCor: "var(--status-danger)", chip: "vencido", chipTxt: "🔴 VENCIDO" },
+                    { item: "Bateria Principal 24V 44Ah", sn: "BAT-9902", pn: "24-BAT-44", loc: "A-29 (FAB 5922)", venc: "28/08/2026", prazo: "Em 12 dias", prazoCor: "var(--status-warning)", chip: "vencendo", chipTxt: "🟡 VENCENDO" },
+                    { item: "Transponder Mode-S IFF", sn: "XP-4410", pn: "AN/APX-119", loc: "Em Estoque (Sala Rádio)", venc: "05/09/2026", prazo: "Em 20 dias", prazoCor: "var(--status-warning)", chip: "vencendo", chipTxt: "🟡 VENCENDO" },
+                    { item: "Válvula Reguladora Pressão O2", sn: "O2-3301", pn: "REG-O2-29", loc: "A-29 (FAB 5902)", venc: "15/09/2026", prazo: "Prorrogado (+30d)", prazoCor: "#c084fc", chip: "prorrogado", chipTxt: "🟣 PRORROGADO" }
+                ],
+                90: [
+                    { item: "Cartucho de Iniciação Assento (L1)", sn: "CT-8841", pn: "CAR-29-01", loc: "A-29 (FAB 5916)", venc: "12/08/2026", prazo: "Há 4 dias", prazoCor: "var(--status-danger)", chip: "vencido", chipTxt: "🔴 VENCIDO" },
+                    { item: "Bateria Principal 24V 44Ah", sn: "BAT-9902", pn: "24-BAT-44", loc: "A-29 (FAB 5922)", venc: "28/08/2026", prazo: "Em 12 dias", prazoCor: "var(--status-warning)", chip: "vencendo", chipTxt: "🟡 VENCENDO" },
+                    { item: "Transponder Mode-S IFF", sn: "XP-4410", pn: "AN/APX-119", loc: "Em Estoque (Sala Rádio)", venc: "05/09/2026", prazo: "Em 20 dias", prazoCor: "var(--status-warning)", chip: "vencendo", chipTxt: "🟡 VENCENDO" },
+                    { item: "Válvula Reguladora Pressão O2", sn: "O2-3301", pn: "REG-O2-29", loc: "A-29 (FAB 5902)", venc: "15/09/2026", prazo: "Prorrogado (+30d)", prazoCor: "#c084fc", chip: "prorrogado", chipTxt: "🟣 PRORROGADO" },
+                    { item: "Cilindro Atuador Flap Direito", sn: "FL-1092", pn: "CYL-29-FL", loc: "A-29 (FAB 5908)", venc: "20/10/2026", prazo: "Em 65 dias", prazoCor: "var(--text-secondary)", chip: "ok", chipTxt: "🟢 OK" },
+                    { item: "Indicador Standby de Atitude", sn: "ADI-7714", pn: "STBY-AI-29", loc: "A-29 (FAB 5925)", venc: "10/11/2026", prazo: "Em 86 dias", prazoCor: "var(--text-secondary)", chip: "ok", chipTxt: "🟢 OK" }
+                ],
+                180: [
+                    { item: "Cartucho de Iniciação Assento (L1)", sn: "CT-8841", pn: "CAR-29-01", loc: "A-29 (FAB 5916)", venc: "12/08/2026", prazo: "Há 4 dias", prazoCor: "var(--status-danger)", chip: "vencido", chipTxt: "🔴 VENCIDO" },
+                    { item: "Bateria Principal 24V 44Ah", sn: "BAT-9902", pn: "24-BAT-44", loc: "A-29 (FAB 5922)", venc: "28/08/2026", prazo: "Em 12 dias", prazoCor: "var(--status-warning)", chip: "vencendo", chipTxt: "🟡 VENCENDO" },
+                    { item: "Transponder Mode-S IFF", sn: "XP-4410", pn: "AN/APX-119", loc: "Em Estoque (Sala Rádio)", venc: "05/09/2026", prazo: "Em 20 dias", prazoCor: "var(--status-warning)", chip: "vencendo", chipTxt: "🟡 VENCENDO" },
+                    { item: "Válvula Reguladora Pressão O2", sn: "O2-3301", pn: "REG-O2-29", loc: "A-29 (FAB 5902)", venc: "15/09/2026", prazo: "Prorrogado (+30d)", prazoCor: "#c084fc", chip: "prorrogado", chipTxt: "🟣 PRORROGADO" },
+                    { item: "Cilindro Atuador Flap Direito", sn: "FL-1092", pn: "CYL-29-FL", loc: "A-29 (FAB 5908)", venc: "20/10/2026", prazo: "Em 65 dias", prazoCor: "var(--text-secondary)", chip: "ok", chipTxt: "🟢 OK" },
+                    { item: "Indicador Standby de Atitude", sn: "ADI-7714", pn: "STBY-AI-29", loc: "A-29 (FAB 5925)", venc: "10/11/2026", prazo: "Em 86 dias", prazoCor: "var(--text-secondary)", chip: "ok", chipTxt: "🟢 OK" },
+                    { item: "Bomba Principal de Combustível", sn: "FP-5502", pn: "PUMP-FUEL-29", loc: "Em Estoque (Almoxarifado)", venc: "14/01/2027", prazo: "Em 151 dias", prazoCor: "var(--text-secondary)", chip: "ok", chipTxt: "🟢 OK" }
+                ]
+            };
+
+            function renderVencimentos(dias) {
+                const lista = dadosVencimentos[dias] || dadosVencimentos[30];
+                const tbody = document.getElementById('tbody-vencimentos');
+                tbody.innerHTML = lista.map(item => `
+                    <tr>
+                        <td><strong>${item.item}</strong> <span style="font-size:0.75rem; color:var(--text-muted);">(S/N: ${item.sn})</span></td>
+                        <td><span class="tempo-tag">${item.pn}</span></td>
+                        <td><span class="loc-tag ${item.loc.includes('Estoque') ? 'estoque' : ''}">${item.loc}</span></td>
+                        <td><span class="tempo-tag">${item.venc}</span></td>
+                        <td><span style="color: ${item.prazoCor}; font-weight:700;">${item.prazo}</span></td>
+                        <td style="text-align: center;"><span class="status-chip ${item.chip}">${item.chipTxt}</span></td>
+                    </tr>
+                `).join('');
+            }
+
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    const dias = parseInt(this.getAttribute('data-dias'), 10);
+                    renderVencimentos(dias);
+                });
+            });
+
+            // 4. Toggle Fullscreen
+            document.getElementById('btn-toggle-fullscreen').addEventListener('click', async () => {
+                try {
+                    if (!document.fullscreenElement) {
+                        await document.documentElement.requestFullscreen();
+                    } else {
+                        await document.exitFullscreen();
+                    }
+                } catch(e) {
+                    console.log("Fullscreen recusado", e);
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
