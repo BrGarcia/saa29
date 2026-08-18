@@ -369,6 +369,117 @@ async def test_ativar_nao_arquiva_a_anterior_automaticamente(
 
 
 # --------------------------------------------------------------------------
+# Excluir (hard delete — fase de implementação: arquivar não basta para
+# tirar uma edição enviada errada do caminho, ver docstring de
+# `service.excluir_edicao`)
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_excluir_edicao_apaga_a_linha(
+    client_autenticado: AsyncClient, db: AsyncSession, duas_edicoes
+):
+    from app.modules.publicacoes.models import ManualEdicao
+
+    _, nova = duas_edicoes
+    edicao_id = nova.id
+
+    resposta = await client_autenticado.delete(f"{URL}/{edicao_id}")
+    assert resposta.status_code == 204
+    assert await db.get(ManualEdicao, edicao_id) is None
+
+
+@pytest.mark.asyncio
+async def test_excluir_edicao_vigente_nao_e_bloqueada(
+    client_autenticado: AsyncClient, duas_edicoes
+):
+    """Sem restrição de status, de propósito — cobre o caso de ativação errada."""
+    vigente, _ = duas_edicoes
+    resposta = await client_autenticado.delete(f"{URL}/{vigente.id}")
+    assert resposta.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_excluir_edicao_apaga_auditoria_de_acesso_associada(
+    client_autenticado: AsyncClient, db: AsyncSession, duas_edicoes, usuario_no_banco
+):
+    """
+    `publicacoes_acessos.edicao_id` é RESTRICT — sem apagar essas linhas
+    primeiro, o DELETE estouraria IntegrityError. A auditoria daquela edição
+    é o preço consciente desta fase (docstring de `service.excluir_edicao`).
+    """
+    from sqlalchemy import func, select
+
+    from app.modules.publicacoes.models import PublicacaoAcesso
+
+    _, nova = duas_edicoes
+    db.add(
+        PublicacaoAcesso(
+            usuario_id=usuario_no_banco.id,
+            documento_id=None,
+            documento_titulo="Doc de teste",
+            edicao_id=nova.id,
+        )
+    )
+    await db.flush()
+
+    resposta = await client_autenticado.delete(f"{URL}/{nova.id}")
+    assert resposta.status_code == 204
+
+    restantes = (
+        await db.execute(
+            select(func.count(PublicacaoAcesso.id)).where(
+                PublicacaoAcesso.edicao_id == nova.id
+            )
+        )
+    ).scalar_one()
+    assert restantes == 0
+
+
+@pytest.mark.asyncio
+async def test_excluir_edicao_remove_o_indice_de_busca_do_disco(
+    client_autenticado: AsyncClient, db: AsyncSession, indices: Path
+):
+    edicao = await service.obter_ou_criar_edicao(
+        db, "com-indice-del", status=StatusEdicao.ANTERIOR
+    )
+    caminho = criar_indice(indices, "com-indice-del")
+    await db.flush()
+    assert caminho.is_file()
+
+    resposta = await client_autenticado.delete(f"{URL}/{edicao.id}")
+    assert resposta.status_code == 204
+    assert not caminho.is_file()
+
+
+@pytest.mark.asyncio
+async def test_excluir_edicao_inexistente_retorna_404(
+    client_autenticado: AsyncClient, indices: Path
+):
+    resposta = await client_autenticado.delete(f"{URL}/{uuid.uuid4()}")
+    assert resposta.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_encarregado_nao_exclui_edicao(
+    client: AsyncClient,
+    db: AsyncSession,
+    usuario_encarregado_e_token: dict,
+    indices: Path,
+):
+    edicao = await service.obter_ou_criar_edicao(
+        db, "alvo-excluir", status=StatusEdicao.ANTERIOR
+    )
+    criar_indice(indices, "alvo-excluir")
+    await db.flush()
+
+    resposta = await client.delete(
+        f"{URL}/{edicao.id}", headers=usuario_encarregado_e_token["headers"]
+    )
+    assert resposta.status_code == 403
+
+
+# --------------------------------------------------------------------------
 # Relatório de diff
 # --------------------------------------------------------------------------
 

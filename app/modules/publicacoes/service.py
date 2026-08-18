@@ -440,6 +440,44 @@ async def ativar_edicao(
     return edicao
 
 
+async def excluir_edicao(db: AsyncSession, edicao_id: uuid.UUID) -> ManualEdicao:
+    """
+    Apaga a edição em definitivo — linha do catálogo + auditoria de acesso.
+
+    Contraria de propósito a garantia "nunca sofre hard delete" do docstring
+    de `ManualEdicao` (achado B4): decisão desta fase de implementação, em
+    que erros de exportação são frequentes e "arquivar" não tira a edição
+    errada do caminho — só descarta artefatos de disco, a linha continua na
+    lista. `publicacoes_acessos.edicao_id` é RESTRICT, então as linhas de
+    auditoria daquela edição são apagadas antes, na mesma transação: quem usa
+    esta função está trocando rastreabilidade por poder de correção rápida,
+    conscientemente. Reavaliar quando o sistema for para produção.
+
+    Sem restrição de status — VIGENTE também pode ser excluída. O acervo fica
+    sem edição em vigor até outra ser ativada; `obter_edicao_vigente` já trata
+    isso como "nenhuma edição", não erro.
+    """
+    edicao = await obter_edicao(db, edicao_id)
+    rotulo = edicao.rotulo
+
+    apagados = (
+        await db.execute(
+            delete(PublicacaoAcesso).where(PublicacaoAcesso.edicao_id == edicao_id)
+        )
+    ).rowcount
+    if apagados:
+        logger.warning(
+            "Excluindo edição %r: %d registro(s) de auditoria de acesso apagado(s) junto (RESTRICT).",
+            rotulo, apagados,
+        )
+
+    await db.delete(edicao)
+    await db.flush()
+
+    logger.warning("Edição %r excluída em definitivo.", rotulo)
+    return edicao
+
+
 async def arquivar_edicao(db: AsyncSession, edicao_id: uuid.UUID) -> ManualEdicao:
     """
     Marca a edição como ARQUIVADA.

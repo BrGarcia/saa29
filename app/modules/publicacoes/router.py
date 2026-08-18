@@ -524,6 +524,41 @@ async def arquivar_edicao(
     return await _item_da_edicao(db, edicao.id)
 
 
+@router.delete(
+    "/api/edicoes/{edicao_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Excluir edição em definitivo (linha + auditoria + snapshot + índice)",
+)
+async def excluir_edicao(edicao_id: uuid.UUID, db: DBSession, _: AdminRequired) -> None:
+    """
+    Hard delete — fase de implementação em que erros de exportação são
+    frequentes e "arquivar" não basta para tirar uma edição enviada errada do
+    caminho (ver `service.excluir_edicao`). Some com a linha do catálogo, a
+    auditoria de acesso daquela edição, o snapshot no storage e o índice de
+    busca (`catalog.<rotulo>.db`); a árvore de PDFs do acervo, compartilhada
+    entre edições, não é tocada — mesmo limite de `arquivar_edicao`.
+    """
+    edicao = await service.excluir_edicao(db, edicao_id)
+    rotulo, snapshot_key = edicao.rotulo, edicao.snapshot_key
+
+    storage = get_storage_service()
+    if snapshot_key:
+        try:
+            await storage.delete(snapshot_key)
+        except Exception as exc:
+            logger.warning("Falha ao apagar snapshot da edição excluída %r: %s", rotulo, exc)
+
+    try:
+        caminho_indice = service.caminho_indice_da_edicao(rotulo)
+    except service.RotuloInvalidoError:
+        caminho_indice = None
+    if caminho_indice is not None:
+        try:
+            await asyncio.to_thread(caminho_indice.unlink, True)
+        except Exception as exc:
+            logger.warning("Falha ao apagar índice de busca da edição excluída %r: %s", rotulo, exc)
+
+
 async def _item_da_edicao(db: DBSession, edicao_id: uuid.UUID) -> schemas.EdicaoListItem:
     """
     Relê a edição pela mesma consulta da listagem.

@@ -194,6 +194,19 @@ function montarAcoesEdicao(celula, e) {
         btn.addEventListener("click", () => arquivarEdicao(e));
         celula.appendChild(btn);
     }
+
+    // Excluir: disponível para qualquer status, de propósito. Diferente de
+    // arquivar (que só descarta artefatos de disco e mantém a linha), isto
+    // apaga o catálogo em definitivo — cobre o caso "publicação enviada
+    // errada" que arquivar não resolve.
+    const btnExcluir = document.createElement("button");
+    btnExcluir.type = "button";
+    btnExcluir.className = "btn-icon";
+    btnExcluir.style.color = "var(--status-danger)";
+    btnExcluir.title = "Excluir em definitivo (irreversível)";
+    btnExcluir.innerHTML = '<svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="pointer-events:none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0-.9 12.1a1 1 0 01-1 .9H8.9a1 1 0 01-1-.9L7 7h10zM10 11v6M14 11v6" /></svg>';
+    btnExcluir.addEventListener("click", () => excluirEdicao(e));
+    celula.appendChild(btnExcluir);
 }
 
 /**
@@ -236,6 +249,36 @@ async function arquivarEdicao(e) {
     try {
         await apiFetch(`${URL_EDICOES}/${e.id}/arquivar`, { method: "POST" });
         showToast(`Edição "${e.rotulo}" arquivada.`, "success");
+        await carregarEdicoes();
+    } catch (err) {
+        // apiFetch exibe o toast de erro automaticamente se lançado.
+    }
+}
+
+/**
+ * Exclui a edição em definitivo — linha do catálogo, auditoria de acesso,
+ * snapshot e índice de busca. Sem restrição de status: cobre o caso de uma
+ * edição enviada/ativada por engano, que "arquivar" sozinho não resolve.
+ * @param {EdicaoDTO} e
+ * @returns {Promise<void>}
+ */
+async function excluirEdicao(e) {
+    const avisoVigente = e.status === "VIGENTE"
+        ? "\n\nATENÇÃO: esta é a edição EM VIGOR — a organização inteira fica sem busca de manuais até outra ser ativada."
+        : "";
+
+    if (!confirm(
+        `Excluir a edição "${e.rotulo}" em definitivo?${avisoVigente}\n\n` +
+        "Esta ação é IRREVERSÍVEL. São apagados: a linha do catálogo, o histórico de " +
+        "acessos a documentos desta edição, o snapshot enviado e o índice de busca. " +
+        "Os PDFs extraídos no acervo em disco (compartilhados entre edições) não são apagados."
+    )) {
+        return;
+    }
+
+    try {
+        await apiFetch(`${URL_EDICOES}/${e.id}`, { method: "DELETE" });
+        showToast(`Edição "${e.rotulo}" excluída.`, "success");
         await carregarEdicoes();
     } catch (err) {
         // apiFetch exibe o toast de erro automaticamente se lançado.
