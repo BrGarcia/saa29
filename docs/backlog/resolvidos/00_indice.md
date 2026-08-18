@@ -39,6 +39,7 @@ Este diretório contém a documentação histórica, relatórios de auditoria e 
 - [adicionar_anexo_inspecao.md](file:///c:/Users/brgar/Projetos/SAA29/docs/backlog/resolvidos/modulo_inspecoes/adicionar_anexo_inspecao.md)
 - [bug_usuario_vencimentos.md](file:///c:/Users/brgar/Projetos/SAA29/docs/backlog/resolvidos/modulo_inspecoes/bug_usuario_vencimentos.md)
 - [concluir_inspecao.md](file:///c:/Users/brgar/Projetos/SAA29/docs/backlog/resolvidos/modulo_inspecoes/concluir_inspecao.md)
+- [feature_campos_catalogo_tarefas.md](file:///c:/Users/brgar/Projetos/SAA29/docs/backlog/resolvidos/modulo_inspecoes/feature_campos_catalogo_tarefas.md)
 - [fix_status_inspecao.md](file:///c:/Users/brgar/Projetos/SAA29/docs/backlog/resolvidos/modulo_inspecoes/fix_status_inspecao.md)
 - [imprimir_os_inspecao.md](file:///c:/Users/brgar/Projetos/SAA29/docs/backlog/resolvidos/modulo_inspecoes/imprimir_os_inspecao.md)
 - [remover_tarefa_inspecao.md](file:///c:/Users/brgar/Projetos/SAA29/docs/backlog/resolvidos/modulo_inspecoes/remover_tarefa_inspecao.md)
