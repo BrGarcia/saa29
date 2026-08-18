@@ -1,6 +1,6 @@
 # Melhoria — Padronização dos campos Manual e Tarefa no cadastro de tarefas
 
-> Status: ✅ Fase 1 implementada na branch `feature/catalogo-tarefas-manual-tarefa` (migração aplicada e testada localmente; ainda não commitada/mergeada). Fase 2 (seção 7) segue pendente, não implementada.
+> Status: ✅ Fase 1 e Fase 2 implementadas na branch `feature/catalogo-tarefas-manual-tarefa` (Fase 1 commitada em `8fb3791`, 2026-08-13; Fase 2 implementada e testada localmente em 2026-08-18, ainda não commitada). Branch ainda não mergeada/PR aberto.
 > Data: 2026-08-13 (revisado em 2026-08-13: escopo ampliado para incluir "Adicionar Tarefa Extra"; implementado em 2026-08-13)
 > Escopo: duas janelas de cadastro de tarefa passam a usar o mesmo vocabulário (Manual/Tarefa em vez de Sistema/Grupo):
 > 1. Modal **"Nova Tarefa no Catálogo"** — `Configurações → Gerenciar Tarefas → Catálogo Global de Tarefas → + Nova Tarefa`.
@@ -154,6 +154,16 @@ A checklist de execução da inspeção já é coberta pela Fase 1 (seção 6.3)
 
 Essas trocas são só de exibição — não envolvem migração de dado nem mudança de schema além do que a Fase 1 já introduz. Tarefas antigas do catálogo (com `sistema` preenchido e `manual`/`codigo_tarefa` nulos) simplesmente mostrariam essas colunas vazias até serem reeditadas manualmente; nenhuma mudança automática de dado é proposta.
 
+**Registro de implementação (2026-08-18):** implementado na íntegra, na mesma branch `feature/catalogo-tarefas-manual-tarefa`. Ainda não commitado.
+
+- `configuracoes.html:728` — cabeçalho "Sistema" → "Tarefa" (tabela de tarefas vinculadas a um Tipo de Inspeção).
+- `configuracoes.html:777` — cabeçalho "Sistema" → "Tarefa" (listagem do Catálogo Global de Tarefas; não estava listado explicitamente na tabela acima, mas é o cabeçalho correspondente à célula trocada em `configuracoes.js:1310`).
+- `configuracoes.js:1173` — célula passa a exibir `t.tarefa_catalogo?.codigo_tarefa || '---'` em vez de `t.tarefa_catalogo?.sistema`.
+- `configuracoes.js:1310` — célula passa a exibir `t.codigo_tarefa || '---'` em vez de `t.sistema`.
+- `configuracoes.js:1713` — rótulo do select passa a `[${t.codigo_tarefa || 'Geral'}] ${t.titulo}`.
+- Confirmado por `TarefaCatalogoOut` (`schemas.py:86`) que `codigo_tarefa` já é serializado, inclusive aninhado em `tarefa_catalogo` (usado pela linha 1173).
+- Testes: `tests/unit/test_inspecoes.py`, `test_inspecoes_refatoracao.py`, `test_inspecao_pdf.py` — 33/33 passando sem alteração (mudança é só de exibição, sem tocar em service/schema/migração).
+
 ## 8. Riscos e observações
 
 - **Nenhuma migração de dado histórico.** Tarefas e inspeções já cadastradas mantêm `sistema` preenchido e ganham `manual`/`codigo_tarefa` nulos até serem editadas (catálogo) ou reabertas (inspeção) — comportamento esperado de colunas aditivas, sem heurística automática razoável para preencher os novos campos a partir do antigo.
@@ -181,7 +191,7 @@ Essas trocas são só de exibição — não envolvem migração de dado nem mud
 
 ## 11. Registro de implementação (Fase 1, 2026-08-13)
 
-Implementado na íntegra conforme seções 6.1, 6.2 e 6.3, na branch `feature/catalogo-tarefas-manual-tarefa`. Ainda não commitado nem aberto PR — fica para o dono do produto decidir quando revisar/commitar.
+Implementado na íntegra conforme seções 6.1, 6.2 e 6.3, na branch `feature/catalogo-tarefas-manual-tarefa`. Commitado em `8fb3791` (2026-08-13); ainda não mergeado/PR aberto — fica para o dono do produto decidir quando revisar/mergear.
 
 - **Migração:** `migrations/versions/20260813_1239_b63e385e3395_manual_e_codigo_tarefa_em_tarefas_.py` (`down_revision = e1a2b3c4d5f6`), aplicada ao banco local (`saa29_local.db`) e conferida via `PRAGMA table_info` nas duas tabelas.
 - **Testes:** `tests/unit/test_inspecoes.py`, `test_inspecoes_refatoracao.py` e `test_inspecao_pdf.py` — 33/33 passando sem alteração, confirmando a previsão da seção 8. Suíte completa de `tests/unit` rodada por cima: 541 passando; as 3 falhas encontradas (`test_publicacoes_catalog.py::test_regressao_acervo_real_*`) são pré-existentes e não relacionadas — dependem de um acervo real de PDFs em disco que não está presente neste ambiente, confirmado por `git diff development` não tocar em nada daquele módulo.

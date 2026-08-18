@@ -1170,7 +1170,7 @@ async function carregarListaTarefasTemplate() {
             tr.style.borderBottom = '1px solid var(--border-color)';
             tr.innerHTML = `
                 <td style="padding: 0.75rem; text-align: center; font-weight: 600;">${t.ordem}</td>
-                <td style="padding: 0.75rem;">${escapeHtml(t.tarefa_catalogo?.sistema || '---')}</td>
+                <td style="padding: 0.75rem;">${escapeHtml(t.tarefa_catalogo?.codigo_tarefa || '---')}</td>
                 <td style="padding: 0.75rem;">
                     <div style="font-weight: 500;">${escapeHtml(t.tarefa_catalogo?.titulo || '')}</div>
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHtml(t.tarefa_catalogo?.descricao || '')}</div>
@@ -1307,7 +1307,7 @@ async function carregarListaCatalogoTarefas() {
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid var(--border-color)';
             tr.innerHTML = `
-                <td style="padding: 0.75rem;">${escapeHtml(t.sistema || '---')}</td>
+                <td style="padding: 0.75rem;">${escapeHtml(t.codigo_tarefa || '---')}</td>
                 <td style="padding: 0.75rem;">
                     <div style="font-weight: 500;">${escapeHtml(t.titulo)}</div>
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHtml(t.descricao || '')}</div>
@@ -1710,7 +1710,7 @@ async function carregarOpcoesCatalogoTarefas() {
         tarefas.forEach(t => {
             const opt = document.createElement('option');
             opt.value = t.id;
-            opt.text = `[${t.sistema || 'Geral'}] ${t.titulo}`;
+            opt.text = `[${t.codigo_tarefa || 'Geral'}] ${t.titulo}`;
             select.appendChild(opt);
         });
     } catch(e) {
