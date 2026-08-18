@@ -1170,7 +1170,7 @@ async function carregarListaTarefasTemplate() {
             tr.style.borderBottom = '1px solid var(--border-color)';
             tr.innerHTML = `
                 <td style="padding: 0.75rem; text-align: center; font-weight: 600;">${t.ordem}</td>
-                <td style="padding: 0.75rem;">${escapeHtml(t.tarefa_catalogo?.sistema || '---')}</td>
+                <td style="padding: 0.75rem;">${escapeHtml(t.tarefa_catalogo?.codigo_tarefa || '---')}</td>
                 <td style="padding: 0.75rem;">
                     <div style="font-weight: 500;">${escapeHtml(t.tarefa_catalogo?.titulo || '')}</div>
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHtml(t.tarefa_catalogo?.descricao || '')}</div>
@@ -1307,7 +1307,7 @@ async function carregarListaCatalogoTarefas() {
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid var(--border-color)';
             tr.innerHTML = `
-                <td style="padding: 0.75rem;">${escapeHtml(t.sistema || '---')}</td>
+                <td style="padding: 0.75rem;">${escapeHtml(t.codigo_tarefa || '---')}</td>
                 <td style="padding: 0.75rem;">
                     <div style="font-weight: 500;">${escapeHtml(t.titulo)}</div>
                     <div style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHtml(t.descricao || '')}</div>
@@ -1356,7 +1356,8 @@ function openModalFormTarefaCatalogo(id = null) {
     
     const inputId = /** @type {HTMLInputElement | null} */ (document.getElementById('tarefaCatalogoId'));
     const inputTitulo = /** @type {HTMLInputElement | null} */ (document.getElementById('tituloTarefaCatalogoInput'));
-    const inputSistema = /** @type {HTMLInputElement | null} */ (document.getElementById('sistemaTarefaCatalogoInput'));
+    const inputManual = /** @type {HTMLInputElement | null} */ (document.getElementById('manualTarefaCatalogoInput'));
+    const inputCodigoTarefa = /** @type {HTMLInputElement | null} */ (document.getElementById('codigoTarefaCatalogoInput'));
     const inputDesc = /** @type {HTMLInputElement | null} */ (document.getElementById('descTarefaCatalogoInput'));
     const selectAtivo = /** @type {HTMLSelectElement | null} */ (document.getElementById('ativoTarefaCatalogoInput'));
 
@@ -1369,7 +1370,8 @@ function openModalFormTarefaCatalogo(id = null) {
             if (title) title.innerText = 'Editar Tarefa no Catálogo';
             if (inputId) inputId.value = t.id;
             if (inputTitulo) inputTitulo.value = t.titulo;
-            if (inputSistema) inputSistema.value = t.sistema || '';
+            if (inputManual) inputManual.value = t.manual || '';
+            if (inputCodigoTarefa) inputCodigoTarefa.value = t.codigo_tarefa || '';
             if (inputDesc) inputDesc.value = t.descricao || '';
             if (containerStatus) containerStatus.style.display = 'block';
             if (selectAtivo) selectAtivo.value = t.ativa ? 'true' : 'false';
@@ -1404,7 +1406,8 @@ async function salvarTarefaCatalogo(e) {
 
     const inputId = /** @type {HTMLInputElement | null} */ (document.getElementById('tarefaCatalogoId'));
     const inputTitulo = /** @type {HTMLInputElement | null} */ (document.getElementById('tituloTarefaCatalogoInput'));
-    const inputSistema = /** @type {HTMLInputElement | null} */ (document.getElementById('sistemaTarefaCatalogoInput'));
+    const inputManual = /** @type {HTMLInputElement | null} */ (document.getElementById('manualTarefaCatalogoInput'));
+    const inputCodigoTarefa = /** @type {HTMLInputElement | null} */ (document.getElementById('codigoTarefaCatalogoInput'));
     const inputDesc = /** @type {HTMLInputElement | null} */ (document.getElementById('descTarefaCatalogoInput'));
     const selectAtivo = /** @type {HTMLSelectElement | null} */ (document.getElementById('ativoTarefaCatalogoInput'));
 
@@ -1413,7 +1416,8 @@ async function salvarTarefaCatalogo(e) {
 
     const body = {
         titulo: inputTitulo ? inputTitulo.value.trim() : "",
-        sistema: inputSistema ? (inputSistema.value.trim() || null) : null,
+        manual: inputManual ? (inputManual.value.trim() || null) : null,
+        codigo_tarefa: inputCodigoTarefa ? (inputCodigoTarefa.value.trim() || null) : null,
         descricao: inputDesc ? (inputDesc.value.trim() || null) : null,
         ativa: true
     };
@@ -1706,7 +1710,7 @@ async function carregarOpcoesCatalogoTarefas() {
         tarefas.forEach(t => {
             const opt = document.createElement('option');
             opt.value = t.id;
-            opt.text = `[${t.sistema || 'Geral'}] ${t.titulo}`;
+            opt.text = `[${t.codigo_tarefa || 'Geral'}] ${t.titulo}`;
             select.appendChild(opt);
         });
     } catch(e) {

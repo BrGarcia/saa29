@@ -190,6 +190,8 @@ async def criar_tarefa_catalogo(db: AsyncSession, dados: schemas.TarefaCatalogoC
         titulo=dados.titulo.strip(),
         descricao=dados.descricao,
         sistema=dados.sistema,
+        manual=dados.manual,
+        codigo_tarefa=dados.codigo_tarefa,
         ativa=dados.ativa,
     )
     db.add(tarefa)
@@ -223,7 +225,7 @@ async def atualizar_tarefa_catalogo(db: AsyncSession, tarefa_id: uuid.UUID, dado
     _aplicar_mudancas(
         tarefa, changes,
         campos={"titulo", "ativa"},
-        campos_nulaveis={"descricao", "sistema"},
+        campos_nulaveis={"descricao", "sistema", "manual", "codigo_tarefa"},
         campos_strip={"titulo"},
     )
 
@@ -563,6 +565,8 @@ async def abrir_inspecao(
                 titulo=template.tarefa_catalogo.titulo,
                 descricao=template.tarefa_catalogo.descricao,
                 sistema=template.tarefa_catalogo.sistema,
+                manual=template.tarefa_catalogo.manual,
+                codigo_tarefa=template.tarefa_catalogo.codigo_tarefa,
                 obrigatoria=item["obrigatoria"],
                 status=StatusTarefaInspecao.PENDENTE.value,
             )
@@ -626,6 +630,8 @@ async def adicionar_tarefa_avulsa(
         titulo=dados.titulo.strip(),
         descricao=dados.descricao,
         sistema=dados.sistema,
+        manual=dados.manual,
+        codigo_tarefa=dados.codigo_tarefa,
         obrigatoria=dados.obrigatoria,
         status=StatusTarefaInspecao.PENDENTE.value,
     )

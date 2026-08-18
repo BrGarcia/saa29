@@ -61,6 +61,8 @@ class TarefaCatalogoCreate(BaseModel):
     titulo: str = Field(min_length=1, max_length=200)
     descricao: str | None = None
     sistema: str | None = Field(default=None, max_length=100)
+    manual: str | None = Field(default=None, max_length=100)
+    codigo_tarefa: str | None = Field(default=None, max_length=60)
     ativa: bool = True
 
 
@@ -68,6 +70,8 @@ class TarefaCatalogoUpdate(BaseModel):
     titulo: str | None = Field(default=None, min_length=1, max_length=200)
     descricao: str | None = None
     sistema: str | None = Field(default=None, max_length=100)
+    manual: str | None = Field(default=None, max_length=100)
+    codigo_tarefa: str | None = Field(default=None, max_length=60)
     ativa: bool | None = None
 
 
@@ -78,6 +82,8 @@ class TarefaCatalogoOut(BaseModel):
     titulo: str
     descricao: str | None
     sistema: str | None
+    manual: str | None
+    codigo_tarefa: str | None
     ativa: bool
     created_at: datetime
     updated_at: datetime | None
@@ -140,6 +146,8 @@ class InspecaoTarefaCreate(BaseModel):
     titulo: str = Field(min_length=1, max_length=200)
     descricao: str | None = None
     sistema: str | None = Field(default=None, max_length=100)
+    manual: str | None = Field(default=None, max_length=100)
+    codigo_tarefa: str | None = Field(default=None, max_length=60)
     obrigatoria: bool = True
 
 
@@ -160,6 +168,8 @@ class InspecaoTarefaOut(BaseModel):
     titulo: str
     descricao: str | None
     sistema: str | None
+    manual: str | None
+    codigo_tarefa: str | None
     obrigatoria: bool
     status: StatusTarefaInspecao
     observacao_execucao: str | None
