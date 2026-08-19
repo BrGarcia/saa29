@@ -5,40 +5,44 @@
 | **ID** | SPEC-CONF-001 |
 | **Título** | Gestão administrativa de Equipamentos, Slots e Inventário via tela de Configurações |
 | **Tipo** | Feature Specification (PRD + Technical Design) |
-| **Versão** | 1.0 — Draft |
-| **Data** | 2026-08-10 |
+| **Versão** | 2.0 — Revisada contra o código |
+| **Data** | 2026-08-19 |
 | **Autor** | *(preencher)* |
-| **Status** | 🟡 Em revisão |
+| **Status** | 🟢 Revisada — pronta para virar plano de execução |
 | **Épico** | EP-INV — Manutenção de dados mestres de inventário |
 | **Stakeholders** | Seção de Manutenção, Suprimento/Almoxarifado, Controle de Configuração, TI/Sustentação |
+
+> ⚠️ **Nota de revisão (v2.0):** a v1.0 deste documento foi escrita sobre um modelo de dados hipotético (`equipamento`/`slot`/`inventario`, campos `sn_siloms`/`sn_real`, PostgreSQL, perfis "Supervisor"/"Somente Leitura") que **não corresponde ao código do SAA29**. Esta revisão substitui essas premissas pelo sistema real: 4 tabelas (`modelos_equipamento`, `slots_inventario`, `itens_equipamento`, `instalacoes`), SQLite, e os 4 papéis definidos em `app/shared/core/enums.py` (`TipoPapel`). O histórico da v1.0 permanece disponível no git.
 
 ---
 
 ## 1. Contexto e Declaração do Problema
 
-O sistema de gestão da manutenção aeronáutica possui uma tela de **Inventário** que exibe, por aeronave, os equipamentos instalados com as colunas:
+O sistema de gestão da manutenção aeronáutica possui uma tela de **Inventário** (`/inventario`) que exibe, por aeronave, os equipamentos instalados com as colunas:
 
 `Loc | Slot | P/N | S/N (SILOMS) | Atualização/Trigrama | S/N (REAL) | Anv Ant.`
 
-**Situação atual (AS-IS):**
+Essa tela é uma **projeção**, montada em tempo real cruzando os slots configurados com a instalação ativa de cada um por aeronave (`app/modules/equipamentos/service.py:295-327`) — não existe uma tabela `inventario` no banco.
 
-- Os dados mestres (`equipamentos`, `slots`, `inventario`) só são criados por scripts de *seed* executados manualmente no servidor:
-  - `scripts/seed/seed_slots.py`
-  - `scripts/seed/seed_inventario.py`
-  - `scripts/seed/seed_equipamentos.py`
-- O *seed* popula os registros **sem número de série**.
-- Na interface, o usuário **só consegue alterar o S/N**. Qualquer outra correção (P/N errado, slot inexistente, equipamento novo, item que saiu de configuração) exige intervenção de TI via script ou SQL direto no banco.
+**Situação atual (AS-IS), confirmada no código:**
+
+O catálogo de Part Numbers (`modelos_equipamento`) já tem CRUD completo pela tela de Configurações (`app/modules/equipamentos/router.py:24-79`, consumido por `configuracoes.js:690-840`). Os slots (`slots_inventario`) e os itens físicos (`itens_equipamento`) **só têm criação** (`POST /equipamentos/slots/` e `POST /equipamentos/itens/` — `router.py:94-137`); não há `PATCH`/`DELETE` para nenhum dos dois. Na prática:
+
+- Slot criado errado (nome, Loc/`sistema` ou PN esperado) não pode ser corrigido nem removido pela aplicação.
+- Item físico com S/N digitado errado não pode ser corrigido — só existe o fluxo de "Sincronizar" na tela de Inventário (`ajustar_inventario_item`, `service.py:474-546`), que cria uma nova instalação/item, mas não edita o registro já criado.
+- Não existe trilha de auditoria de dados mestres: quem criou/alterou um PN, slot ou item não fica registrado (o histórico que existe hoje, `GET /equipamentos/inventario/historico`, cobre apenas instalação/remoção física, não o cadastro).
+- Um bug real de integração: `SlotInventarioCreate` não aceita `posicao_xlsx` (`schemas.py:49-52`). Um slot cadastrado pela tela nasce com `posicao_xlsx = NULL`; o importador XLSX casa slots por `(part_number, posicao_xlsx)` (`xlsx_service.py:173-175`), então esse slot **nunca é encontrado** na carga automática e a linha recebe o serial sintético `XXXXXXX-{nome_posicao}` (`xlsx_service.py:195`), gravado como se fosse real.
 
 **Consequências / dor:**
 
 | # | Impacto |
 |---|---|
-| 1 | Dependência de TI para operações rotineiras de dados mestres (lead time alto). |
-| 2 | Alteração de dados por SQL direto **sem rastro de auditoria** — inaceitável em contexto de rastreabilidade aeronáutica. |
-| 3 | Divergências entre o inventário do sistema e a configuração física da aeronave persistem até a próxima janela de manutenção do sistema. |
-| 4 | Risco de perda de dados: um novo *seed* pode sobrescrever ajustes feitos manualmente. |
+| 1 | Correção de slot/item exige acesso direto ao banco ou aos scripts de seed — sem trilha de auditoria. |
+| 2 | Divergências entre o inventário do sistema e a configuração física da aeronave persistem até intervenção manual. |
+| 3 | Slots cadastrados pela UI (sem `posicao_xlsx`) quebram silenciosamente a importação XLSX, um fluxo já em produção. |
+| 4 | Nenhuma alteração de dado mestre (PN, slot, item) é rastreável a um usuário e a um motivo. |
 
-**Situação desejada (TO-BE):** um usuário autorizado realiza o ciclo completo de CRUD sobre Equipamentos, Slots e Inventário pela própria aplicação, com validação de integridade referencial, confirmação de operações destrutivas e trilha de auditoria completa.
+**Situação desejada (TO-BE):** um Administrador realiza o ciclo completo de CRUD sobre Slots e Itens de Equipamento pela própria aplicação (o CRUD de Equipamento/PN já existe), com validação de integridade referencial, confirmação de operações destrutivas e trilha de auditoria completa.
 
 ---
 
@@ -46,18 +50,20 @@ O sistema de gestão da manutenção aeronáutica possui uma tela de **Inventár
 
 | Termo | Definição |
 |---|---|
-| **Loc** | Localização física/zona da aeronave onde o slot está posicionado (ex.: cabine, compartimento eletrônico, pilone). |
-| **Slot** | Posição lógica de instalação prevista na configuração da aeronave. É o "endereço" que recebe um equipamento. |
-| **P/N** | *Part Number* — identificação do modelo do equipamento no catálogo. |
-| **S/N** | *Serial Number* — identificação unitária do equipamento físico. |
-| **S/N (SILOMS)** | Serial registrado no sistema logístico externo (SILOMS). Fonte de verdade contábil/logística. |
-| **S/N (REAL)** | Serial efetivamente instalado na aeronave, verificado fisicamente. |
-| **Divergência** | Estado em que `S/N (SILOMS) ≠ S/N (REAL)`. Requer conciliação. |
-| **Trigrama** | Identificação de três letras do militar/técnico responsável pelo lançamento. |
-| **Atualização** | Data do último lançamento/verificação do item de inventário. |
-| **Anv Ant.** | Aeronave anterior — última aeronave em que aquele serial estava instalado (rastreabilidade de rotação). |
-| **Equipamento** | Registro de **catálogo** (o modelo). Não representa uma peça física. |
-| **Item de Inventário** | Vínculo `Aeronave × Slot × Equipamento × Serial`. Representa a peça física instalada. |
+| **Loc** | Coluna de exibição da tela de Inventário, alimentada por `SlotInventario.sistema` (ex.: `CEI`, `1P`, `2P`, `CES`). |
+| **Slot** | Registro em `slots_inventario` — posição física prevista na aeronave (ex.: `MDP1`, `VUHF2`). É **global da frota**, não por aeronave individual (ver P4 na Seção 4.3). |
+| **P/N** | *Part Number* — `ModeloEquipamento.part_number`, único no catálogo. |
+| **S/N** | *Serial Number* — `ItemEquipamento.numero_serie`, único por `(modelo_id, numero_serie)`. |
+| **S/N (SILOMS)** | Rótulo de UI para o serial da instalação ativa no slot (`ItemEquipamento.numero_serie` via `Instalacao`). Não existe coluna própria. |
+| **S/N (REAL)** | Campo de **conferência efêmero** na tela de Inventário: o usuário digita o serial encontrado fisicamente; o botão "Sincronizar" chama `ajustar_inventario_item` para corrigir a instalação. Não é persistido como texto — vira a própria instalação corrigida. |
+| **Divergência** | Estado transitório de UI enquanto o valor digitado em S/N (REAL) ainda não bate com o S/N (SILOMS) exibido. Resolvida no ato pelo "Sincronizar"; não é um estado armazenado no banco. |
+| **Trigrama** | `Usuario.trigrama` — 3 letras do usuário autenticado, exibido no histórico de movimentações. |
+| **Atualização** | Data/hora da última movimentação da instalação (`Instalacao.created_at` ou `removido_em`). |
+| **Anv Ant.** | Aeronave anterior — última aeronave em que o mesmo `ItemEquipamento` esteve instalado, calculada em `_mapear_aeronaves_anteriores` (`service.py:371`). |
+| **Equipamento / Modelo (PN)** | `ModeloEquipamento` — registro de catálogo. Não representa uma peça física. |
+| **Item de Equipamento** | `ItemEquipamento` — instância física de um PN, identificada por S/N. |
+| **Instalação** | `Instalacao` — vínculo `Item × Slot × Aeronave`, com `data_instalacao`/`data_remocao`. É o registro que faz o papel de "linha de inventário"; instalação sem `data_remocao` é a **ativa**. |
+| **posicao_xlsx** | Código curto usado como chave de casamento na importação da planilha SILOMS (`SlotInventario.posicao_xlsx`). |
 
 ---
 
@@ -65,10 +71,10 @@ O sistema de gestão da manutenção aeronáutica possui uma tela de **Inventár
 
 | Objetivo | Métrica (KPI) | Baseline | Meta |
 |---|---|---|---|
-| Eliminar dependência de TI para dados mestres | Nº de solicitações de ajuste de inventário abertas para TI / mês | *(medir)* | ≤ 1 |
-| Rastreabilidade total | % de alterações em inventário com registro de auditoria (autor, data, valor anterior) | 0% | 100% |
-| Reduzir tempo de correção | Tempo médio entre detecção da divergência e correção no sistema | dias | < 10 min |
-| Qualidade dos dados | % de itens de inventário com S/N (REAL) preenchido | *(medir)* | ≥ 95% |
+| Eliminar dependência de TI/banco para corrigir slot ou item | Nº de correções feitas via SQL direto / mês | *(medir)* | 0 |
+| Rastreabilidade total de dados mestres | % de CREATE/UPDATE/DELETE de PN/slot/item com registro de auditoria | 0% (PN/slot/item sem tabela de auditoria) | 100% |
+| Fechar o bug de integração XLSX | % de slots com `posicao_xlsx` preenchido | *(medir; slots antigos do seed têm; slots criados pela UI hoje não têm o campo)* | 100% |
+| Reduzir tempo de correção | Tempo entre detecção de slot/item errado e correção no sistema | dias (via TI) | < 5 min |
 
 ---
 
@@ -76,170 +82,166 @@ O sistema de gestão da manutenção aeronáutica possui uma tela de **Inventár
 
 ### 4.1 Dentro do escopo (In Scope)
 
-1. Botão de acesso na tela **Configurações** → nova página **"Gestão de Inventário"**.
-2. CRUD de **Equipamentos** (catálogo): criar, editar, inativar/remover.
-3. CRUD de **Slots**: criar, editar, inativar/remover.
-4. **Editar** e **Remover** itens de **Inventário**.
-5. Validação de integridade referencial com mensagens de erro acionáveis.
-6. *Soft delete* + trilha de auditoria para todas as três entidades.
-7. Controle de acesso por perfil (RBAC).
-8. Adequação dos scripts de *seed* para operarem por *upsert* idempotente, sem sobrescrever edições manuais.
+1. CRUD completo de **Slots** (`slots_inventario`): editar, inativar, remover — criar já existe.
+2. CRUD completo de **Itens de Equipamento** (`itens_equipamento`): editar, excluir — criar já existe.
+3. Correção do schema de criação de slot para aceitar `posicao_xlsx`, `descricao`, `ordem_exibicao`.
+4. Tabela `auditoria_dados_mestres` (append-only) e instrumentação das escritas de PN/Slot/Item.
+5. UI de gestão dentro do modal já existente em Configurações (card "Equipamentos e PNs"), estendendo o padrão de `#modal-catalogo`.
+6. Validação de integridade referencial com mensagens de erro acionáveis (409 com detalhe do impedimento).
+7. Controle de acesso: toda escrita restrita a `ADMINISTRADOR` (via `AdminRequired`).
 
 ### 4.2 Fora do escopo (Out of Scope)
 
-- Integração automática (API) de conciliação com o SILOMS — permanece manual nesta entrega.
-- Importação/exportação em massa via planilha (CSV/XLSX) — candidato à Fase 2.
-- Gestão de vida útil, TBO, horas/ciclos de componentes.
-- Fluxo de aprovação em duas etapas (*maker-checker*) — candidato à Fase 2.
-- Redesign da tela de Inventário operacional existente.
+- CRUD de Equipamento/PN — **já implementado** (`router.py:24-79`).
+- Persistir `sn_siloms` × `sn_real` como colunas separadas com status `DIVERGENTE` — decisão do produto: a divergência continua resolvida no ato via "Sincronizar" (ver Seção 20, Q2).
+- Refatoração dos scripts de seed para upsert idempotente com `--dry-run` — backlog separado.
+- *Optimistic locking* (RNF-06 da v1.0) — usuário único ADMIN nesta operação; auditoria já dá rastreabilidade suficiente.
+- Fluxo de aprovação em duas etapas (*maker-checker*) — depende de resposta normativa (Q4).
+- Importação/exportação em massa de slots/itens via planilha — exportação de inventário por aeronave (CSV/XLSX) **já existe** (`GET /equipamentos/inventario/export`).
+- Migração de banco para PostgreSQL — proibido por `docs/ia/rules.ctx` (RN-14).
+- Introdução de `modelo_aeronave` como entidade — o modelo real de slot é global da frota (ver P4).
 
-### 4.3 Premissas
+### 4.3 Premissas — confirmadas contra o código
 
-> ⚠️ **Confirmar antes do desenvolvimento.** Premissas assumidas a partir do contexto informado:
-
-- **P1** — Backend em Python (evidência: `scripts/seed/*.py`), com ORM e ferramenta de *migration* (assumido SQLAlchemy + Alembic).
-- **P2** — As três entidades já existem como tabelas relacionadas: `inventario` referencia `slot` e `equipamento` por chave estrangeira.
-- **P3** — Já existe autenticação com sessão de usuário identificável (necessário para trigrama e auditoria).
-- **P4** — `Slot` é definido por **modelo/tipo de aeronave**, e o item de inventário é vinculado à **aeronave individual (matrícula)**. Ver Q3 na Seção 20.
+- **P1** — Backend em **FastAPI 0.115 + SQLAlchemy 2.0 (async) + Alembic 1.14**. `requirements.txt:7-16`.
+- **P2 (corrigida)** — As entidades relevantes são **quatro**, não três: `modelos_equipamento`, `slots_inventario`, `itens_equipamento`, `instalacoes`. Não existe tabela `inventario`; a "linha de inventário" é a instalação ativa de cada slot por aeronave.
+- **P3** — Autenticação por sessão/JWT com usuário identificável, e `Usuario.trigrama` já existe (`app/modules/auth/models.py`).
+- **P4 (refutada)** — `Slot` **não** é definido por modelo de aeronave; é um registro **global da frota**, vinculado apenas ao PN esperado (`modelo_id`). A mesma linha de slot é compartilhada por todas as aeronaves; o vínculo por aeronave só existe em `Instalacao`. Confirmado pelo comentário do próprio model (`models.py:108-114`) e pelos dados reais (33 slots × 22 aeronaves = 726 instalações). Não existe — e este documento não propõe criar — a entidade `modelo_aeronave`.
 
 ---
 
 ## 5. Personas e Matriz de Permissões (RBAC)
 
-| Ação | Operador de Manutenção | Supervisor / Controle de Config. | Administrador | Somente Leitura |
-|---|---|---|---|---|
-| Visualizar página de Gestão | ❌ | ✅ | ✅ | ❌ |
-| Criar/Editar Equipamento | ❌ | ✅ | ✅ | ❌ |
-| Remover Equipamento | ❌ | ❌ | ✅ | ❌ |
-| Criar/Editar Slot | ❌ | ✅ | ✅ | ❌ |
-| Remover Slot | ❌ | ❌ | ✅ | ❌ |
-| Editar Inventário | ❌ | ✅ | ✅ | ❌ |
-| Remover Inventário | ❌ | ❌ | ✅ | ❌ |
-| Editar apenas S/N (tela operacional atual) | ✅ | ✅ | ✅ | ❌ |
-| Consultar log de auditoria | ❌ | ✅ | ✅ | ❌ |
+Papéis reais do sistema (`TipoPapel`, `app/shared/core/enums.py:44-57`): **MANTENEDOR**, **ENCARREGADO**, **INSPETOR**, **ADMINISTRADOR**. Não existem os perfis "Supervisor" ou "Somente Leitura" citados na v1.0.
 
-**Regra:** operações destrutivas (remoção) são restritas ao perfil Administrador. O botão em Configurações **não deve ser renderizado** para perfis sem permissão de leitura do módulo (defesa em profundidade: validar também no backend).
+| Ação | Mantenedor | Encarregado | Inspetor | Administrador |
+|---|---|---|---|---|
+| Visualizar inventário (`/inventario`) | ✅ | ✅ | ✅ | ✅ |
+| Acessar Configurações / gestão de dados mestres | ❌ | ❌ | ❌ | ✅ |
+| Criar/Editar/Remover Equipamento (PN) | ❌ | ❌ | ❌ | ✅ (já implementado) |
+| Criar/Editar/Inativar/Remover Slot | ❌ | ❌ | ❌ | ✅ (novo) |
+| Criar/Editar/Excluir Item de Equipamento (S/N) | ❌ | ❌ | ❌ | ✅ (novo) |
+| Sincronizar S/N na tela de Inventário (fluxo operacional já existente) | ✅ | ✅ | ❌ | ✅ |
+| Consultar log de auditoria de dados mestres | ❌ | ❌ | ❌ | ✅ |
+
+**Regra:** decisão do produto (ver histórico da sessão): toda escrita de dados mestres (slot, item, PN) é **admin-only**, coerente com `/configuracoes` já ser uma rota `AdminRequired` (`app/web/pages/router.py:213-216`, ver também `docs/BACKLOG/melhorias_pagina_configuracoes.md`). A UI usa `data-role="ADMINISTRADOR"` para ocultação client-side; o backend é a autoridade real via `AdminRequired`.
 
 ---
 
 ## 6. Modelo de Dados
 
-### 6.1 Diagrama de Entidade-Relacionamento
+### 6.1 Diagrama de Entidade-Relacionamento (real)
 
 ```mermaid
 erDiagram
-    MODELO_AERONAVE ||--o{ SLOT : "define configuração"
-    MODELO_AERONAVE ||--o{ AERONAVE : "classifica"
-    AERONAVE ||--o{ INVENTARIO : "possui"
-    SLOT ||--o{ INVENTARIO : "é ocupado por"
-    EQUIPAMENTO ||--o{ INVENTARIO : "é instanciado em"
-    EQUIPAMENTO ||--o{ SLOT : "P/N esperado (opcional)"
-    AERONAVE ||--o{ INVENTARIO : "aeronave anterior"
-    USUARIO ||--o{ AUDITORIA : "executa"
+    MODELO_EQUIPAMENTO ||--o{ SLOT_INVENTARIO : "PN esperado"
+    MODELO_EQUIPAMENTO ||--o{ ITEM_EQUIPAMENTO : "instancia"
+    SLOT_INVENTARIO ||--o{ INSTALACAO : "recebe"
+    ITEM_EQUIPAMENTO ||--o{ INSTALACAO : "é instalado em"
+    AERONAVE ||--o{ INSTALACAO : "possui"
+    USUARIO ||--o{ INSTALACAO : "registra"
+    USUARIO ||--o{ AUDITORIA_DADOS_MESTRES : "executa"
 ```
 
-### 6.2 `equipamento` (catálogo)
+### 6.2 `modelos_equipamento` (catálogo — já existe, sem alteração)
 
 | Coluna | Tipo | Nulo | Regra |
 |---|---|---|---|
-| `id` | UUID / BIGINT PK | N | — |
-| `pn` | VARCHAR(50) | N | **UNIQUE** (case-insensitive), normalizado para maiúsculas, sem espaços nas extremidades |
-| `nomenclatura` | VARCHAR(120) | N | Nome do item |
-| `descricao` | TEXT | S | — |
-| `fabricante` | VARCHAR(120) | S | — |
-| `categoria` | VARCHAR(50) | S | Enum configurável (aviônico, hidráulico, elétrico…) |
-| `serializado` | BOOLEAN | N | Default `true`. Se `false`, S/N não é exigido |
-| `ativo` | BOOLEAN | N | Default `true` |
-| `origem` | ENUM(`SEED`,`MANUAL`) | N | Ver RN-11 |
-| `created_at` / `created_by` | TIMESTAMPTZ / FK usuário | N | — |
-| `updated_at` / `updated_by` | TIMESTAMPTZ / FK usuário | S | — |
-| `deleted_at` / `deleted_by` | TIMESTAMPTZ / FK usuário | S | *Soft delete* |
+| `id` | CHAR(32) UUID PK | N | `models.py:35` |
+| `part_number` | VARCHAR(50) | N | UNIQUE + index, normalizado maiúsculas/trim pelo schema (`Identificador`, `schemas.py:13-20`) |
+| `nome_generico` | VARCHAR(100) | N | — |
+| `descricao` | VARCHAR(500) | S | — |
+| `created_at` | DATETIME | N | `func.now()` |
 
-### 6.3 `slot`
+### 6.3 `slots_inventario` — **alterações propostas**
+
+| Coluna | Tipo | Nulo | Situação |
+|---|---|---|---|
+| `id` | CHAR(32) UUID PK | N | existente |
+| `nome_posicao` | VARCHAR(100) | N | existente |
+| `sistema` | VARCHAR(50) | **N** (era nullable) | existente — passa a obrigatório; é a coluna **Loc** |
+| `posicao_xlsx` | VARCHAR(20) | **N** (era nullable) | existente — passa a obrigatório na criação (corrige o bug de integração da Seção 1) |
+| `modelo_id` | FK `modelos_equipamento.id` ON DELETE RESTRICT | N | existente |
+| `descricao` | VARCHAR(200) | S | **novo** |
+| `ordem_exibicao` | INTEGER | S | **novo** — ordenação na tela de Inventário |
+| `ativo` | BOOLEAN | N, default `true` | **novo** — inativação em vez de exclusão física quando há histórico |
+| `created_at` | DATETIME(timezone=True) | N | **novo** |
+| `updated_at` | DATETIME(timezone=True) | S | **novo** |
+
+Constraint nova: `UniqueConstraint("nome_posicao", "sistema", name="uq_slot_nome_sistema")` — formaliza a chave natural que o seed já usa de fato (`seed_slots.py:64-69`) mas que hoje não é garantida pelo banco.
+
+### 6.4 `itens_equipamento` (já existe, sem alteração de schema)
 
 | Coluna | Tipo | Nulo | Regra |
 |---|---|---|---|
-| `id` | PK | N | — |
-| `modelo_aeronave_id` | FK | N | — |
-| `loc` | VARCHAR(30) | N | Localização |
-| `codigo_slot` | VARCHAR(30) | N | **UNIQUE** com (`modelo_aeronave_id`, `loc`) |
-| `descricao` | VARCHAR(200) | S | — |
-| `equipamento_esperado_id` | FK `equipamento` | S | P/N previsto em configuração |
-| `ordem_exibicao` | INTEGER | S | Ordenação na tela de Inventário |
-| `obrigatorio` | BOOLEAN | N | Default `true` — slot que não pode ficar vazio |
-| `ativo` | BOOLEAN | N | Default `true` |
-| `origem`, timestamps, *soft delete* | — | — | Idem `equipamento` |
+| `id` | CHAR(32) UUID PK | N | — |
+| `modelo_id` | FK `modelos_equipamento.id` ON DELETE RESTRICT | N | — |
+| `numero_serie` | VARCHAR(100) | N | UNIQUE com `modelo_id` (`uq_item_sn_per_pn`) |
+| `status` | VARCHAR(20) | N | `StatusItem`: `ATIVO`, `ESTOQUE`, `REMOVIDO` |
+| `created_at` / `updated_at` | DATETIME | N/S | — |
 
-### 6.4 `inventario`
+### 6.5 `instalacoes` (já existe — é o "item de inventário" real, sem alteração de schema)
 
 | Coluna | Tipo | Nulo | Regra |
 |---|---|---|---|
-| `id` | PK | N | — |
-| `aeronave_id` | FK `aeronave` | N | — |
-| `slot_id` | FK `slot` | N | — |
-| `equipamento_id` | FK `equipamento` | N | Origem da coluna **P/N** |
-| `sn_siloms` | VARCHAR(50) | S | Nulo permitido (estado pós-*seed*) |
-| `sn_real` | VARCHAR(50) | S | Nulo permitido |
-| `data_atualizacao` | DATE | S | Coluna **Atualização** |
-| `trigrama` | CHAR(3) | S | Coluna **Trigrama** |
-| `aeronave_anterior_id` | FK `aeronave` | S | Coluna **Anv Ant.** |
-| `observacao` | TEXT | S | — |
-| `status` | ENUM | N | `OK`, `PENDENTE_SN`, `DIVERGENTE`, `VAZIO` — **campo derivado** (ver RN-06) |
-| `origem`, timestamps, *soft delete* | — | — | Idem acima |
+| `id` | CHAR(32) UUID PK | N | — |
+| `item_id` | FK `itens_equipamento.id` | N | — |
+| `aeronave_id` | FK `aeronaves.id` | N | — |
+| `slot_id` | FK `slots_inventario.id` | N | — |
+| `usuario_id` | FK `usuarios.id` | S | autor da movimentação — vem sempre da sessão (`service.py:484-487`), nunca do payload |
+| `data_instalacao` / `data_remocao` | DATE | N/S | encerramento temporal = soft delete do domínio |
+| `removido_em` | DATETIME | S | timestamp do evento, imune a updates posteriores |
+| `created_at` / `updated_at` | DATETIME | N/S | — |
 
-### 6.5 Constraints e Índices
+Índice único parcial existente: `uq_instalacao_ativa_por_slot_aeronave (slot_id, aeronave_id) WHERE data_remocao IS NULL` — no máximo uma instalação ativa por par slot/aeronave. Padrão a reaproveitar para a UNIQUE de slot (Seção 6.3) e para qualquer índice condicional novo.
 
-| ID | Constraint |
-|---|---|
-| `uq_equipamento_pn` | UNIQUE (`UPPER(pn)`) WHERE `deleted_at IS NULL` |
-| `uq_slot_codigo` | UNIQUE (`modelo_aeronave_id`, `loc`, `codigo_slot`) WHERE `deleted_at IS NULL` |
-| `uq_inventario_slot` | UNIQUE (`aeronave_id`, `slot_id`) WHERE `deleted_at IS NULL` — um slot só tem um item |
-| `uq_serial_instalado` | UNIQUE (`equipamento_id`, `UPPER(sn_real)`) WHERE `sn_real IS NOT NULL AND deleted_at IS NULL` — o mesmo serial não pode estar instalado em dois lugares |
-| `fk_inventario_equipamento` | ON DELETE **RESTRICT** |
-| `fk_inventario_slot` | ON DELETE **RESTRICT** |
-| `idx_inventario_aeronave` | INDEX (`aeronave_id`, `slot_id`) |
-| `idx_equipamento_busca` | INDEX GIN/trigram em `pn`, `nomenclatura` para busca textual |
+### 6.6 `auditoria_dados_mestres` — **nova tabela**
 
-### 6.6 `auditoria_dados_mestres`
-
-| Coluna | Tipo | Descrição |
+| Coluna | Tipo (SQLite) | Regra |
 |---|---|---|
-| `id` | PK | — |
-| `entidade` | ENUM(`EQUIPAMENTO`,`SLOT`,`INVENTARIO`) | — |
-| `entidade_id` | VARCHAR | — |
-| `acao` | ENUM(`CREATE`,`UPDATE`,`DELETE`,`RESTORE`) | — |
-| `valores_anteriores` | JSONB | Somente campos alterados |
-| `valores_novos` | JSONB | Somente campos alterados |
-| `justificativa` | TEXT | Obrigatória em `DELETE` e em alteração de P/N |
-| `usuario_id` / `trigrama` | FK / CHAR(3) | Autor |
-| `ip_origem` | INET | — |
-| `criado_em` | TIMESTAMPTZ | **Registro imutável** (sem UPDATE/DELETE) |
+| `id` | CHAR(32) UUID PK | — |
+| `entidade` | VARCHAR(30) | `MODELO_EQUIPAMENTO`, `SLOT`, `ITEM` |
+| `entidade_id` | CHAR(32) | — |
+| `acao` | VARCHAR(10) | `CREATE`, `UPDATE`, `DELETE` |
+| `valores_anteriores` | **JSON** (não JSONB — SQLite) | somente campos alterados |
+| `valores_novos` | **JSON** | somente campos alterados |
+| `justificativa` | VARCHAR(500) | obrigatória em `DELETE` |
+| `usuario_id` | FK `usuarios.id` ON DELETE RESTRICT | autor — sempre da sessão |
+| `ip_origem` | **VARCHAR(45)** (não INET — SQLite não tem tipo de IP nativo; 45 cobre IPv6) | `request.client.host` |
+| `criado_em` | DATETIME(timezone=True) | append-only — nenhuma rotina de UPDATE/DELETE sobre esta tabela, no padrão de `execucoes_vencimento_historico` (`app/modules/vencimentos/models.py:125-151`) |
+
+Índices: `(entidade, entidade_id)` e `(criado_em)`.
+
+### 6.7 Constraints e Índices — resumo das alterações
+
+| ID | Constraint | Situação |
+|---|---|---|
+| `uq_modelos_equipamento_part_number` | UNIQUE em `part_number` | já existe |
+| `uq_item_sn_per_pn` | UNIQUE `(modelo_id, numero_serie)` | já existe |
+| `uq_instalacao_ativa_por_slot_aeronave` | UNIQUE parcial `(slot_id, aeronave_id) WHERE data_remocao IS NULL` | já existe |
+| `uq_slot_nome_sistema` | UNIQUE `(nome_posicao, sistema)` | **novo** — exige saneamento prévio de duplicidades (ver Seção 13) |
+| `fk_slot_modelo` | `slots_inventario.modelo_id` ON DELETE RESTRICT | já existe |
 
 ---
 
 ## 7. Requisitos Funcionais
 
-| ID | Requisito | Prioridade |
-|---|---|---|
-| **RF-01** | A tela **Configurações** deve exibir um botão/card **"Gestão de Inventário"**, visível apenas a perfis autorizados, que navega para `/configuracoes/gestao-inventario`. | Must |
-| **RF-02** | A página de gestão deve organizar as funções em três abas: **Equipamentos**, **Slots** e **Inventário**. | Must |
-| **RF-03** | Cada aba deve apresentar listagem paginada com busca textual, ordenação por coluna e filtros específicos. | Must |
-| **RF-04** | Permitir **adicionar** equipamento (P/N, nomenclatura, descrição, fabricante, categoria, serializado). | Must |
-| **RF-05** | Permitir **editar** equipamento. Alteração de P/N exige justificativa. | Must |
-| **RF-06** | Permitir **remover** equipamento, bloqueando a operação se houver item de inventário vinculado (RN-02). | Must |
-| **RF-07** | Permitir **adicionar** slot (modelo de aeronave, Loc, código, descrição, P/N esperado, ordem, obrigatório). | Must |
-| **RF-08** | Permitir **editar** slot. | Must |
-| **RF-09** | Permitir **remover** slot, bloqueando se estiver ocupado (RN-03). | Must |
-| **RF-10** | Permitir **editar** item de inventário: P/N, S/N (SILOMS), S/N (REAL), Atualização, Trigrama, Anv Ant., observação. | Must |
-| **RF-11** | Permitir **remover** item de inventário, com justificativa obrigatória e *soft delete*. | Must |
-| **RF-12** | Toda operação de escrita deve gerar registro em `auditoria_dados_mestres`. | Must |
-| **RF-13** | Operações destrutivas exigem modal de confirmação exibindo o identificador do registro afetado. | Must |
-| **RF-14** | Os scripts de *seed* devem operar por *upsert* idempotente por chave natural, sem sobrescrever registros de `origem = MANUAL` nem campos de serial preenchidos. | Must |
-| **RF-15** | A aba Inventário deve destacar visualmente itens com `status = DIVERGENTE` ou `PENDENTE_SN`. | Should |
-| **RF-16** | Permitir **adicionar** item de inventário (preencher slot vazio). Ver Q1 na Seção 20. | Should |
-| **RF-17** | Disponibilizar visualização do histórico de auditoria por registro ("Ver histórico"). | Should |
-| **RF-18** | Permitir restaurar registro removido logicamente (*undo* / *restore*) por Administrador. | Could |
-| **RF-19** | Exportar a listagem filtrada em CSV. | Could |
+| ID | Requisito | Prioridade | Situação |
+|---|---|---|---|
+| RF-01 | Cadastrar/editar/consultar Equipamento (PN) | Must | ✅ Já implementado |
+| RF-02 | Remover Equipamento, bloqueando se houver item ou slot vinculado | Must | ✅ Já implementado (`service.py:151-190`) |
+| RF-03 | Cadastrar Slot com `posicao_xlsx`, `descricao` e `ordem_exibicao` | Must | 🔴 Novo — hoje `SlotInventarioCreate` não aceita esses campos |
+| RF-04 | Editar Slot (nome, Loc, PN esperado, `posicao_xlsx`, `descricao`, `ordem_exibicao`) | Must | 🔴 Novo |
+| RF-05 | Inativar Slot (`ativo=false`) sem apagar histórico | Must | 🔴 Novo |
+| RF-06 | Remover Slot, bloqueando se existir qualquer instalação (ativa ou histórica) vinculada | Must | 🔴 Novo |
+| RF-07 | Editar Item de Equipamento (S/N, status) | Must | 🔴 Novo |
+| RF-08 | Excluir Item de Equipamento, bloqueando se houver instalação vinculada | Must | 🔴 Novo |
+| RF-09 | Toda operação de escrita em PN/Slot/Item grava registro em `auditoria_dados_mestres` | Must | 🔴 Novo |
+| RF-10 | Operações destrutivas exigem modal de confirmação + justificativa | Must | 🔴 Novo |
+| RF-11 | Disponibilizar "Ver histórico" por registro (PN, slot ou item) | Should | 🔴 Novo |
+| RF-12 | Filtrar slots inativos fora da grade de Inventário e do preview de importação XLSX | Must | 🔴 Novo (efeito colateral necessário de RF-05) |
+
+Removidos da v1.0 por já implementados ou inaplicáveis: RF-16 (criar item de inventário — o fluxo "Sincronizar" já cobre isso) e RF-19 (exportar CSV — já existe em `GET /equipamentos/inventario/export`).
 
 ---
 
@@ -247,19 +249,18 @@ erDiagram
 
 | ID | Regra |
 |---|---|
-| **RN-01** | `P/N` é normalizado (maiúsculas, *trim*) e validado por expressão regular configurável (padrão: `^[A-Z0-9][A-Z0-9\-\/\.]{2,49}$`). Duplicidade retorna erro `409`. |
-| **RN-02** | Equipamento com itens de inventário ativos **não pode ser removido**. A API retorna `409` com a lista das aeronaves/slots impedientes. A ação sugerida ao usuário é **inativar** (`ativo = false`), o que remove o item de novas seleções mas preserva o histórico. |
-| **RN-03** | Slot ocupado por item de inventário ativo **não pode ser removido**. Mesmo tratamento da RN-02. |
-| **RN-04** | Alterar o `P/N` de um item de inventário caracteriza **troca de configuração**: exige justificativa, zera os campos de serial (com confirmação explícita do usuário) e registra o P/N anterior na auditoria. |
-| **RN-05** | Ao salvar qualquer alteração em inventário, `data_atualizacao` recebe a data corrente e `trigrama` recebe o trigrama do usuário autenticado. O usuário pode sobrescrever manualmente ambos, se autorizado. |
-| **RN-06** | `status` é derivado, nunca editado diretamente: <br>• sem `equipamento_id` → `VAZIO` <br>• equipamento `serializado` e (`sn_real` nulo ou `sn_siloms` nulo) → `PENDENTE_SN` <br>• `UPPER(sn_siloms) ≠ UPPER(sn_real)` → `DIVERGENTE` <br>• demais casos → `OK` |
-| **RN-07** | Divergência entre S/N (SILOMS) e S/N (REAL) **não bloqueia** o salvamento — é um estado legítimo a ser conciliado. O sistema apenas sinaliza. |
-| **RN-08** | `trigrama` aceita exatamente 3 letras (A-Z), normalizado para maiúsculas. |
-| **RN-09** | Nenhuma entidade sofre exclusão física pela aplicação. Toda remoção é *soft delete*. Exclusão física só por procedimento de DBA documentado. |
-| **RN-10** | Registros de auditoria são *append-only*: a aplicação não possui rotina de UPDATE ou DELETE sobre `auditoria_dados_mestres`. |
-| **RN-11** | O campo `origem` protege dados curados manualmente: o *seed* trata `MANUAL` como somente-leitura e apenas insere ausentes. |
-| **RN-12** | `aeronave_anterior_id` deve ser diferente de `aeronave_id`. |
-| **RN-13** | Um mesmo `S/N (REAL)` para um mesmo P/N não pode constar como instalado em dois itens de inventário ativos (`uq_serial_instalado`). Violação retorna `409` indicando a instalação conflitante. |
+| RN-01 | `part_number` e `numero_serie` são normalizados (maiúsculas, trim) pelo tipo `Identificador` do schema (`schemas.py:13-20`) — já implementado, reaproveitado. |
+| RN-02 | Equipamento (PN) com itens ou slots vinculados não pode ser removido — retorna 409 com o motivo. *(já implementado, `service.py:151-190`)* |
+| RN-03 | Slot com qualquer instalação vinculada (ativa ou histórica) não pode ser removido; a API retorna 409 sugerindo `ativo=false`. |
+| RN-04 (reescrita) | Trocar o `modelo_id` (PN esperado) de um **slot** é uma operação de configuração que afeta **toda a frota**, não uma aeronave isolada — o slot é global. Bloquear a troca enquanto houver instalação ativa nesse slot em qualquer aeronave; exigir confirmação explícita quando não houver. |
+| RN-05 (corrigida) | `usuario_id`/`trigrama` de qualquer registro de auditoria vêm **sempre** da sessão autenticada, nunca de payload do cliente — mesma regra já aplicada em `ajustar_inventario_item` para corrigir o BUG-01 documentado (*"a trilha de auditoria do inventário era forjável"*, `service.py:484-487`). Não expor campo editável de autor/trigrama em nenhum formulário novo. |
+| RN-06 | Item de Equipamento com instalação ativa não pode ser excluído — sugerir `status=REMOVIDO` como alternativa (enum já existe, `enums.py:19-23`). |
+| RN-07 | `S/N (REAL)` continua efêmero: divergência entre o valor digitado e o S/N (SILOMS) exibido é resolvida na hora pelo botão "Sincronizar" (`ajustar_inventario_item`); nenhum estado `DIVERGENTE` é persistido. *(decisão do produto — fora de escopo desta entrega)* |
+| RN-08 | Nenhuma exclusão física de `slots_inventario` ou `itens_equipamento` pela aplicação quando há histórico — usar `ativo=false` (slot) ou `status=REMOVIDO` (item). Exclusão física só é permitida quando não há nenhum vínculo (RN-03/RN-06). |
+| RN-09 | Registros de `auditoria_dados_mestres` são *append-only* — nenhuma rotina de UPDATE/DELETE, no mesmo padrão de `execucoes_vencimento_historico`. |
+| RN-10 | `posicao_xlsx` é obrigatório na criação de slot — evita o bug de integração descrito na Seção 1. |
+
+Removidas da v1.0 por dependerem de colunas que não existirão (`sn_siloms`, `sn_real`, `status` derivado do inventário): RN-06/07/12/13 originais.
 
 ---
 
@@ -267,458 +268,185 @@ erDiagram
 
 | ID | Categoria | Requisito |
 |---|---|---|
-| **RNF-01** | Desempenho | Listagens respondem em < 500 ms (p95) para até 50.000 registros, com paginação server-side de 25/50/100 itens. |
-| **RNF-02** | Segurança | Autorização validada **no backend** em todo endpoint; proteção CSRF em formulários; toda entrada sanitizada; consultas exclusivamente parametrizadas. |
-| **RNF-03** | Auditabilidade | 100% das escritas rastreáveis a um usuário, data/hora e IP. Retenção mínima de 5 anos. |
-| **RNF-04** | Usabilidade | Mensagens de erro em português, específicas e acionáveis (ex.: *"P/N 622-4321-001 já cadastrado — ver registro existente"*). |
-| **RNF-05** | Integridade | Toda operação multi-tabela executa em transação única, com *rollback* atômico. |
-| **RNF-06** | Concorrência | Controle de edição concorrente por *optimistic locking* (campo `updated_at` ou `version`); conflito retorna `409`. |
-| **RNF-07** | Acessibilidade | Navegação por teclado e rótulos ARIA nos formulários e modais. |
-| **RNF-08** | Compatibilidade | A migração não deve quebrar a tela de Inventário existente nem a edição de S/N atual. |
-| **RNF-09** | Observabilidade | Log estruturado de todas as operações de escrita, com `request_id` correlacionável. |
+| RNF-01 (recalibrado) | Desempenho | Listagens de slots/itens respondem em < 300 ms para o volume real (33 slots, 26 PNs, ~700 itens/instalações) — sem necessidade de paginação server-side dedicada; reaproveitar o padrão de `_aplicar_paginacao` (`service.py:257-263`) se o catálogo crescer. |
+| RNF-02 | Segurança | Autorização validada no backend via `AdminRequired`; CSRF já coberto pelo middleware global; toda entrada validada por Pydantic. |
+| RNF-03 | Auditabilidade | 100% das escritas de PN/Slot/Item rastreáveis a usuário, timestamp e IP via `auditoria_dados_mestres`. |
+| RNF-04 | Usabilidade | Mensagens de erro específicas (ex.: *"Slot MDP1 está ocupado em 3 aeronaves"*), no padrão de `ConflitoNegocioError`. |
+| RNF-05 | Integridade | Cada operação de escrita + auditoria em uma única transação (padrão `db.begin_nested()` já usado no módulo). |
+| RNF-06 | Concorrência | *Optimistic locking* fica **fora de escopo** — operação admin-only, baixo volume de escrita concorrente; auditoria já cobre rastreabilidade. |
+| RNF-07 | Acessibilidade | Navegação por teclado e rótulos ARIA nos modais novos, seguindo o padrão já usado nos modais de Configurações. |
+| RNF-08 | Compatibilidade | A migração e as novas rotas não podem quebrar `/inventario` nem o fluxo de "Sincronizar" existente — cobrir com testes de regressão (`tests/unit/test_inventario.py`). |
+| RNF-09 | CSP | Zero `onclick` inline nos novos modais/JS — `script-src 'self'` sem `'unsafe-inline'` (RN-16, `docs/ia/rules.ctx`; `app/shared/middleware/security.py`). |
 
 ---
 
 ## 10. Contrato de API
 
-**Base:** `/api/v1/configuracoes` · **Auth:** sessão/JWT · **Content-Type:** `application/json`
+**Base real:** `/equipamentos` (não `/api/v1/configuracoes`). **Auth:** cookie/JWT de sessão. **Envelope de erro:** padrão FastAPI `{"detail": "..."}`, já consumido por `apiFetch` (`app/web/static/js/app.js:199-208`) — não há envelope `{"error": {...}}` customizado no projeto.
 
-### 10.1 Equipamentos
+### 10.1 Equipamentos (PN) — já implementado, sem alteração
 
-| Método | Rota | Descrição | Perfil |
-|---|---|---|---|
-| `GET` | `/equipamentos?q=&ativo=&categoria=&page=&per_page=&sort=` | Lista paginada | Supervisor+ |
-| `POST` | `/equipamentos` | Cria | Supervisor+ |
-| `GET` | `/equipamentos/{id}` | Detalha | Supervisor+ |
-| `PATCH` | `/equipamentos/{id}` | Atualiza parcialmente | Supervisor+ |
-| `DELETE` | `/equipamentos/{id}` | *Soft delete* | Admin |
-| `POST` | `/equipamentos/{id}/restore` | Restaura | Admin |
-| `GET` | `/equipamentos/{id}/vinculos` | Lista itens de inventário dependentes | Supervisor+ |
+`GET/POST /equipamentos/`, `GET/PATCH/DELETE /equipamentos/{id}`.
 
-<details>
-<summary><b>POST /equipamentos</b> — exemplo</summary>
+### 10.2 Slots — extensão proposta
 
-```json
-{
-  "pn": "622-4321-001",
-  "nomenclatura": "TRANSCEPTOR VHF",
-  "descricao": "Transceptor VHF/AM, 25 kHz",
-  "fabricante": "Collins",
-  "categoria": "AVIONICO",
-  "serializado": true
-}
-```
+| Método | Rota | Descrição | Perfil | Situação |
+|---|---|---|---|---|
+| `GET` | `/equipamentos/slots/` | Lista slots | `CurrentUser` | já existe |
+| `POST` | `/equipamentos/slots/` | Cria slot | `AdminRequired` | já existe — schema estendido |
+| `PATCH` | `/equipamentos/slots/{slot_id}` | Atualiza slot | `AdminRequired` | **novo** |
+| `DELETE` | `/equipamentos/slots/{slot_id}` | Remove slot (bloqueia se ocupado) | `AdminRequired` | **novo** |
+| `POST` | `/equipamentos/slots/{slot_id}/inativar` | Inativa slot | `AdminRequired` | **novo** |
+| `GET` | `/equipamentos/slots/{slot_id}/ocupacao` | Lista aeronaves que ocupam o slot | `AdminRequired` | **novo** |
 
-**201 Created**
-```json
-{
-  "data": {
-    "id": "9c1f...",
-    "pn": "622-4321-001",
-    "nomenclatura": "TRANSCEPTOR VHF",
-    "serializado": true,
-    "ativo": true,
-    "origem": "MANUAL",
-    "created_at": "2026-08-10T14:02:11Z",
-    "created_by": { "id": 42, "trigrama": "SLV" }
-  }
-}
-```
-</details>
+### 10.3 Itens de Equipamento — extensão proposta
 
-### 10.2 Slots
+| Método | Rota | Descrição | Perfil | Situação |
+|---|---|---|---|---|
+| `GET` | `/equipamentos/itens/` | Lista itens | `CurrentUser` | já existe |
+| `POST` | `/equipamentos/itens/` | Cria item | `AdminRequired` | já existe |
+| `PATCH` | `/equipamentos/itens/{item_id}` | Atualiza S/N ou status | `AdminRequired` | **novo** |
+| `DELETE` | `/equipamentos/itens/{item_id}` | Exclui item (bloqueia se instalado) | `AdminRequired` | **novo** |
 
-| Método | Rota | Descrição | Perfil |
-|---|---|---|---|
-| `GET` | `/slots?modelo_aeronave_id=&loc=&q=&ativo=&page=` | Lista paginada | Supervisor+ |
-| `POST` | `/slots` | Cria | Supervisor+ |
-| `PATCH` | `/slots/{id}` | Atualiza | Supervisor+ |
-| `DELETE` | `/slots/{id}` | *Soft delete* | Admin |
-| `GET` | `/slots/{id}/ocupacao` | Aeronaves que ocupam o slot | Supervisor+ |
-
-### 10.3 Inventário
-
-| Método | Rota | Descrição | Perfil |
-|---|---|---|---|
-| `GET` | `/inventario?aeronave_id=&slot_id=&pn=&status=&page=` | Lista paginada | Supervisor+ |
-| `POST` | `/inventario` | Cria item (RF-16) | Supervisor+ |
-| `PATCH` | `/inventario/{id}` | Atualiza item | Supervisor+ |
-| `DELETE` | `/inventario/{id}` | *Soft delete* (exige justificativa) | Admin |
-
-<details>
-<summary><b>PATCH /inventario/{id}</b> — exemplo</summary>
-
-```json
-{
-  "equipamento_id": "9c1f...",
-  "sn_siloms": "A-10457",
-  "sn_real": "A-10457",
-  "data_atualizacao": "2026-08-10",
-  "trigrama": "SLV",
-  "aeronave_anterior_id": 17,
-  "observacao": "Conciliado com ficha de remoção nº 2431",
-  "justificativa": "Correção de P/N lançado incorretamente na carga inicial",
-  "updated_at": "2026-08-09T11:20:00Z"
-}
-```
-
-**200 OK** — retorna o item atualizado com `status` recalculado.
-</details>
-
-### 10.4 Auditoria
+### 10.4 Auditoria — nova
 
 | Método | Rota | Descrição |
 |---|---|---|
-| `GET` | `/auditoria?entidade=&entidade_id=&usuario_id=&de=&ate=&page=` | Consulta a trilha de auditoria |
+| `GET` | `/equipamentos/auditoria?entidade=&entidade_id=&page=` | Consulta a trilha de auditoria de dados mestres |
 
-### 10.5 Códigos de Status e Formato de Erro
+### 10.5 Códigos de status (padrão real do projeto)
 
-| Código | Significado |
-|---|---|
-| `200` | Sucesso (leitura/atualização) |
-| `201` | Criado |
-| `204` | Removido logicamente com sucesso |
-| `400` | Requisição malformada |
-| `401` / `403` | Não autenticado / sem permissão |
-| `404` | Recurso inexistente ou já removido |
-| `409` | Conflito: duplicidade, dependência ou edição concorrente |
-| `422` | Falha de validação de campo |
-
-**Envelope de erro padronizado:**
-
-```json
-{
-  "error": {
-    "code": "DEPENDENCIA_EXISTENTE",
-    "message": "Não é possível remover o equipamento: existem 3 itens de inventário vinculados.",
-    "details": [
-      { "aeronave": "FAB-2450", "loc": "CABINE", "slot": "VHF-1" },
-      { "aeronave": "FAB-2451", "loc": "CABINE", "slot": "VHF-1" },
-      { "aeronave": "FAB-2455", "loc": "RACK-E", "slot": "VHF-2" }
-    ],
-    "suggested_action": "INATIVAR"
-  }
-}
-```
+`200`/`201`/`204`/`400`/`401`/`403`/`404`/`409`/`422` — sem alteração; segue `SAA29BaseException` (`app/shared/core/exceptions.py:19-42`).
 
 ---
 
 ## 11. Épico e User Stories
 
-> **EP-INV** — *Como área de Controle de Configuração, precisamos administrar os dados mestres de inventário pela aplicação, para corrigir a configuração das aeronaves com rastreabilidade e sem depender de TI.*
+> **EP-INV** — *Como Administrador, preciso corrigir slots e itens de equipamento diretamente na aplicação, com rastreabilidade, sem depender de acesso ao banco.*
 
-### US-01 — Acesso ao módulo
-
-**Como** supervisor de manutenção, **quero** um botão em Configurações que abra a gestão de inventário, **para** acessar as funções administrativas sem apoio de TI.
+### US-01 — Gerenciar slots
 
 ```gherkin
-Cenário: Botão visível para perfil autorizado
-  Dado que estou autenticado com perfil "Supervisor"
-  Quando acesso a tela "Configurações"
-  Então vejo o card "Gestão de Inventário"
-  E ao clicar sou direcionado para "/configuracoes/gestao-inventario"
-  E a aba "Equipamentos" está selecionada por padrão
-
-Cenário: Botão oculto para perfil não autorizado
-  Dado que estou autenticado com perfil "Operador de Manutenção"
-  Quando acesso a tela "Configurações"
-  Então o card "Gestão de Inventário" não é exibido
-
-Cenário: Acesso direto por URL é bloqueado
-  Dado que estou autenticado com perfil "Operador de Manutenção"
-  Quando acesso diretamente "/configuracoes/gestao-inventario"
-  Então recebo resposta 403
-  E vejo a mensagem "Você não tem permissão para acessar este módulo"
-```
-
-### US-02 — Adicionar equipamento
-
-```gherkin
-Cenário: Cadastro bem-sucedido
-  Dado que estou na aba "Equipamentos"
-  Quando clico em "Adicionar equipamento"
-  E informo P/N "622-4321-001", nomenclatura "TRANSCEPTOR VHF" e marco "Serializado"
+Cenário: Editar slot sem ocupação
+  Dado que sou ADMINISTRADOR e abro o modal "Gerenciar Slots" em Configurações
+  Quando altero a Loc e o PN esperado de um slot sem instalação vinculada
   E confirmo
-  Então o equipamento é criado com status ativo
-  E vejo a mensagem "Equipamento cadastrado com sucesso"
-  E o registro aparece na listagem
-  E um registro de auditoria CREATE é gravado com meu usuário
-
-Cenário: P/N duplicado
-  Dado que já existe o equipamento com P/N "622-4321-001"
-  Quando tento cadastrar outro com o mesmo P/N
-  Então recebo 409
-  E vejo "P/N já cadastrado" com link para o registro existente
-  E nenhum registro é criado
-
-Cenário: Normalização de P/N
-  Quando informo o P/N "  622-abc-001  "
-  Então o valor é persistido como "622-ABC-001"
-
-Cenário: Campo obrigatório ausente
-  Quando submeto o formulário sem nomenclatura
-  Então recebo 422 com o erro apontado no campo "Nomenclatura"
-```
-
-### US-03 — Editar equipamento
-
-```gherkin
-Cenário: Edição de dados descritivos
-  Quando altero a nomenclatura de um equipamento e salvo
   Então a alteração é persistida
-  E a auditoria registra valor anterior e novo apenas do campo alterado
+  E um registro de auditoria UPDATE é gravado com meu usuário e o diff dos campos
 
-Cenário: Alteração de P/N exige justificativa
-  Quando altero o P/N de um equipamento
-  Então o campo "Justificativa" torna-se obrigatório
-  E sem preenchê-lo recebo 422
+Cenário: Editar PN esperado de slot ocupado
+  Dado um slot com instalação ativa em ao menos uma aeronave
+  Quando tento alterar o modelo_id (PN esperado) desse slot
+  Então recebo 409 informando as aeronaves que ocupam o slot
 
-Cenário: Edição concorrente
-  Dado que outro usuário salvou alterações neste registro após eu abrir o formulário
-  Quando tento salvar
-  Então recebo 409
-  E vejo "Este registro foi alterado por outro usuário. Recarregue e tente novamente."
-```
-
-### US-04 — Remover equipamento
-
-```gherkin
-Cenário: Remoção de equipamento sem vínculos
-  Dado um equipamento sem itens de inventário vinculados
+Cenário: Remoção bloqueada por ocupação
+  Dado um slot com qualquer instalação vinculada (ativa ou histórica)
   Quando solicito a remoção
-  Então vejo modal de confirmação com o P/N e a nomenclatura
-  E ao confirmar informando a justificativa, o registro sofre soft delete
-  E deixa de aparecer na listagem padrão
-  E a auditoria registra DELETE com a justificativa
+  Então recebo 409 com a lista de aeronaves/instalações impedientes
+  E o sistema sugere "Inativar slot" como alternativa
 
-Cenário: Remoção bloqueada por dependência
-  Dado um equipamento com 3 itens de inventário ativos
-  Quando solicito a remoção
-  Então recebo 409
-  E vejo a lista das aeronaves e slots impedientes
-  E o sistema oferece a ação alternativa "Inativar equipamento"
-
-Cenário: Inativação como alternativa
-  Quando escolho "Inativar equipamento"
-  Então o campo ativo passa a false
-  E o equipamento não aparece mais como opção em novos cadastros
-  E os itens de inventário existentes permanecem íntegros
-```
-
-### US-05 — Adicionar slot
-
-```gherkin
-Cenário: Cadastro bem-sucedido
-  Quando cadastro um slot informando modelo de aeronave, Loc "RACK-E", código "VHF-2" e ordem 12
-  Então o slot é criado e listado sob a Loc informada
+Cenário: Inativação
+  Quando escolho "Inativar slot"
+  Então ativo passa a false
+  E o slot deixa de aparecer na grade de Inventário e no preview de importação XLSX
+  E as instalações existentes permanecem íntegras
 
 Cenário: Slot duplicado
-  Dado que já existe o slot "VHF-2" na Loc "RACK-E" para o mesmo modelo de aeronave
-  Quando tento cadastrá-lo novamente
-  Então recebo 409 com a mensagem "Já existe um slot com este código nesta localização"
+  Quando cadastro um slot com o mesmo (nome_posicao, sistema) de um já existente
+  Então recebo 409 "Já existe um slot com este nome nesta localização"
+
+Cenário: posicao_xlsx obrigatório
+  Quando submeto o formulário de novo slot sem preencher posicao_xlsx
+  Então recebo 422 apontando o campo
 ```
 
-### US-06 — Editar slot
+### US-02 — Gerenciar itens de equipamento
 
 ```gherkin
-Cenário: Alteração de descrição e ordem
-  Quando altero a descrição e a ordem de exibição de um slot
-  Então as alterações são persistidas
-  E a tela de Inventário passa a refletir a nova ordenação
+Cenário: Corrigir S/N digitado errado
+  Dado um item sem instalação ativa
+  Quando altero o numero_serie e salvo
+  Então a alteração é persistida
+  E a auditoria registra o valor anterior e o novo
 
-Cenário: Alteração de Loc de slot ocupado
-  Dado um slot ocupado por itens de inventário
-  Quando altero sua Loc
-  Então a alteração é permitida
-  E os itens de inventário vinculados passam a exibir a nova Loc
-  E a auditoria registra a alteração
-```
-
-### US-07 — Remover slot
-
-```gherkin
-Cenário: Remoção bloqueada por ocupação
-  Dado um slot ocupado por ao menos um item de inventário ativo
-  Quando solicito a remoção
-  Então recebo 409 listando as aeronaves que o ocupam
-  E o sistema oferece a ação "Inativar slot"
-
-Cenário: Remoção permitida
-  Dado um slot sem ocupação
-  Quando confirmo a remoção com justificativa
-  Então o slot sofre soft delete
-```
-
-### US-08 — Editar inventário
-
-```gherkin
-Cenário: Correção de serial
-  Dado um item de inventário com S/N (REAL) vazio
-  Quando informo o S/N (REAL) "A-10457" e salvo
-  Então o valor é persistido
-  E "Atualização" recebe a data de hoje
-  E "Trigrama" recebe o trigrama do meu usuário
-  E o status é recalculado
-
-Cenário: Sinalização de divergência
-  Quando informo S/N (SILOMS) "A-10457" e S/N (REAL) "A-99999"
-  Então o salvamento é concluído com sucesso
-  E o item é exibido com status "DIVERGENTE" destacado visualmente
-
-Cenário: Troca de P/N do item
-  Quando altero o P/N do item de inventário
-  Então vejo aviso de que os seriais serão limpos
-  E a justificativa é obrigatória
-  E ao confirmar, S/N (SILOMS) e S/N (REAL) são zerados
-  E a auditoria registra o P/N anterior e o novo
-
-Cenário: Serial já instalado em outro local
-  Dado que o S/N (REAL) "A-10457" do P/N "622-4321-001" consta instalado na aeronave FAB-2451
-  Quando tento informar o mesmo serial na aeronave FAB-2450
+Cenário: S/N duplicado para o mesmo PN
+  Quando altero o S/N de um item para um valor já usado no mesmo modelo_id
   Então recebo 409
-  E vejo a localização da instalação conflitante
 
-Cenário: Registro de aeronave anterior
-  Quando informo a aeronave anterior igual à aeronave atual
-  Então recebo 422 com "A aeronave anterior deve ser diferente da atual"
+Cenário: Exclusão bloqueada por instalação ativa
+  Dado um item instalado em uma aeronave
+  Quando solicito a exclusão
+  Então recebo 409
+  E o sistema sugere marcar status=REMOVIDO como alternativa
+
+Cenário: Exclusão de item sem vínculo
+  Dado um item sem instalação
+  Quando confirmo a exclusão com justificativa
+  Então o item é excluído
+  E a auditoria registra DELETE com a justificativa
 ```
 
-### US-09 — Remover inventário
+### US-03 — Consultar histórico de dados mestres
 
 ```gherkin
-Cenário: Remoção com justificativa
-  Quando solicito a remoção de um item de inventário
-  Então o modal exibe aeronave, Loc, Slot, P/N e S/N do item
-  E a justificativa é obrigatória
-  E ao confirmar, o item sofre soft delete
-  E o slot correspondente passa a constar como vazio na tela de Inventário
-
-Cenário: Consulta ao histórico após remoção
-  Dado um item de inventário removido
-  Quando consulto a auditoria filtrando pela entidade INVENTARIO
-  Então vejo o registro DELETE com autor, data, justificativa e valores anteriores
-```
-
-### US-10 — Seed idempotente
-
-```gherkin
-Cenário: Seed não sobrescreve dado manual
-  Dado que cadastrei manualmente o equipamento "622-4321-001" com nomenclatura ajustada
-  E que este P/N também consta no arquivo de seed
-  Quando o script seed_equipamentos.py é executado novamente
-  Então nenhum registro é duplicado
-  E a nomenclatura que ajustei manualmente é preservada
-  E o script reporta o registro como "ignorado (origem MANUAL)"
-
-Cenário: Seed não apaga seriais
-  Dado um item de inventário com S/N (REAL) preenchido pelo usuário
-  Quando seed_inventario.py é executado novamente
-  Então o S/N (REAL) permanece intacto
+Cenário: Ver histórico de um slot
+  Dado um slot com 2 edições anteriores
+  Quando abro "Ver histórico" desse slot
+  Então vejo os registros CREATE e UPDATE, cada um com autor, data e campos alterados
 ```
 
 ---
 
 ## 12. UI / UX
 
-### 12.1 Fluxo de navegação
+### 12.1 Onde a funcionalidade vive
+
+Reaproveita o card **"Equipamentos e PNs"** já existente em `/configuracoes` (`configuracoes.html:61-93`) — não é criada uma página nova nem uma rota `/configuracoes/gestao-inventario`. Novo botão `#btn-gerenciar-slots` no mesmo card, abrindo um modal `glass-panel` no padrão já validado 7 vezes na página (`docs/BACKLOG/melhorias_pagina_configuracoes.md`).
 
 ```
 Configurações
-   └── [Card] Gestão de Inventário
-          └── /configuracoes/gestao-inventario
-                 ├── Aba: Equipamentos  → tabela + [+ Adicionar] + ações por linha (Editar | Histórico | Remover)
-                 ├── Aba: Slots         → filtro por Modelo/Loc + tabela + [+ Adicionar] + ações por linha
-                 └── Aba: Inventário    → filtro por Aeronave/Status + tabela + ações por linha
+   └── Card "Equipamentos e PNs"
+          ├── [Cadastrar PN] → modal-novo-pn (já existe)
+          ├── [Gerenciar Catálogo] → modal-catalogo (já existe, ganha botão "Histórico" por linha)
+          ├── [Gerenciar Slots] → modal-slots (NOVO) → modal-form-slot (NOVO)
+          └── [Upload XLSX] → já existe
 ```
 
-### 12.2 Layout — Aba Inventário (esboço)
-
-```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│ Gestão de Inventário                                                             │
-│ [ Equipamentos ] [ Slots ] [ ●Inventário ]                                       │
-├──────────────────────────────────────────────────────────────────────────────────┤
-│ Aeronave: [FAB-2450 ▾]  Status: [Todos ▾]  Busca: [____________]  [+ Adicionar]  │
-├─────┬────────┬──────────────┬────────────┬───────────────┬───────────┬───────┬───┤
-│ Loc │ Slot   │ P/N          │ S/N SILOMS │ Atualiz./Trig.│ S/N REAL  │ Anv   │   │
-├─────┼────────┼──────────────┼────────────┼───────────────┼───────────┼───────┼───┤
-│CABIN│ VHF-1  │ 622-4321-001 │ A-10457    │ 10/08/26 SLV  │ A-10457   │ 2451  │⋮  │
-│CABIN│ VHF-2  │ 622-4321-001 │ A-10458    │ 09/08/26 MRQ  │ ⚠ A-99999 │ —     │⋮  │
-│RACK │ ADF-1  │ 071-1234-000 │ —          │ —             │ —         │ —     │⋮  │
-└─────┴────────┴──────────────┴────────────┴───────────────┴───────────┴───────┴───┘
-   ⚠ Divergente   ○ Pendente de S/N                        ‹ 1 2 3 ›  [25 ▾] itens
-```
-
-### 12.3 Diretrizes de interface
+### 12.2 Diretrizes de interface (reaproveitadas do padrão já validado)
 
 | Item | Diretriz |
 |---|---|
-| Formulários | Modal para criação/edição simples; painel lateral (*drawer*) quando houver mais de 8 campos. |
-| Confirmações destrutivas | Modal com resumo do registro + campo obrigatório de justificativa + botão vermelho rotulado com a ação ("Remover equipamento"), não "OK". |
-| Feedback | *Toast* de sucesso; erros de campo exibidos inline; erros de conflito exibidos em banner com ação sugerida. |
-| Estados | Definir explicitamente: carregando (*skeleton*), vazio ("Nenhum equipamento cadastrado — cadastre o primeiro"), erro (com botão de nova tentativa). |
-| Indicadores | `DIVERGENTE` em âmbar com ícone ⚠; `PENDENTE_SN` em cinza; `OK` sem destaque. Nunca comunicar estado apenas por cor (acessibilidade). |
-| Campos travados | `status` e `Atualização/Trigrama` exibidos como somente-leitura por padrão, com opção "editar manualmente" para perfis autorizados. |
+| Formulários | Modal `glass-panel`, mesmo esqueleto de `#modal-catalogo` (`configuracoes.html:405-440`). |
+| Confirmações destrutivas | Modal com resumo do registro + campo obrigatório de justificativa + botão vermelho com o rótulo da ação. |
+| Feedback | `showToast` para sucesso/erro; erros de conflito exibem a mensagem de `detail` do backend. |
+| Handlers | Registrados em `DOMContentLoaded`, nunca `onclick` inline (CSP). |
+| Visibilidade | `data-role="ADMINISTRADOR"` no card, lido por `window.hasPermission` (`auth_check.js`). |
 
 ---
 
-## 13. Migração e Adequação dos Seeds
+## 13. Migração
 
-### 13.1 Migrations (Alembic)
+Migration única gerada por `alembic revision --autogenerate` a partir do head atual (`b63e385e3395`), com passos manuais obrigatórios:
 
-| Ordem | Migration | Conteúdo |
-|---|---|---|
-| 1 | `add_audit_columns` | Adiciona `created_at/by`, `updated_at/by`, `deleted_at/by`, `origem`, `ativo` às três tabelas |
-| 2 | `create_auditoria_table` | Cria `auditoria_dados_mestres` + índices |
-| 3 | `backfill_origem_seed` | `UPDATE ... SET origem = 'SEED'` nos registros pré-existentes |
-| 4 | `add_unique_constraints` | Cria as constraints da Seção 6.5 (**executar dry-run antes**: pode haver duplicidades legadas) |
-| 5 | `add_search_indexes` | Índices de busca textual |
+1. **Pré-check de duplicidade antes da UNIQUE** — rodar `SELECT nome_posicao, sistema, COUNT(*) FROM slots_inventario GROUP BY 1,2 HAVING COUNT(*)>1;` e sanear manualmente qualquer duplicidade encontrada.
+2. Backfill: `UPDATE slots_inventario SET sistema = '' WHERE sistema IS NULL` antes de tornar a coluna `NOT NULL` (idem para `posicao_xlsx`, se houver nulos).
+3. `op.batch_alter_table(...)` em todas as alterações — obrigatório em SQLite (`env.py` já liga `render_as_batch=True` para URLs `sqlite`).
+4. `downgrade()` testado localmente antes do merge.
 
-> ⚠️ **Atenção na migration 4.** Executar previamente um relatório de duplicidades em `pn`, `(modelo, loc, codigo_slot)` e `(equipamento_id, sn_real)`. Duplicidades existentes precisam ser sanadas manualmente antes da criação das *constraints*, sob pena de falha no *deploy*.
-
-### 13.2 Refatoração dos seeds
-
-Os três scripts passam a seguir o mesmo contrato:
-
-```python
-# Pseudocódigo do padrão de upsert idempotente
-def upsert(session, chave_natural, dados_seed):
-    registro = buscar_por_chave_natural(session, chave_natural)
-
-    if registro is None:
-        criar(session, dados_seed, origem="SEED")
-        return "criado"
-
-    if registro.origem == "MANUAL":
-        return "ignorado (origem MANUAL)"
-
-    # Nunca sobrescrever campos preenchidos pelo usuário
-    campos_protegidos = {"sn_siloms", "sn_real", "trigrama", "data_atualizacao"}
-    atualizar(session, registro, dados_seed, exceto=campos_protegidos)
-    return "atualizado"
-```
-
-Requisitos adicionais dos scripts:
-- Suportar `--dry-run` (relatório sem escrita).
-- Emitir sumário final: `criados / atualizados / ignorados / erros`.
-- Executar em transação única com *rollback* em caso de falha.
-- Registrar as operações na tabela de auditoria com usuário técnico `SEED`.
+> Este documento **não** propõe scripts de seed idempotentes com `--dry-run` — fica registrado como débito técnico separado (ver `plano_implementacao.md`, seção de riscos).
 
 ---
 
 ## 14. Estratégia de Testes
 
-| Nível | Cobertura | Ferramenta sugerida |
-|---|---|---|
-| **Unitário** | Validadores (P/N, trigrama), cálculo de `status` (RN-06), normalizações | `pytest` |
-| **Integração** | Cada endpoint × cada perfil RBAC; violação de cada *constraint*; *rollback* transacional; *optimistic locking* | `pytest` + banco de teste |
-| **E2E** | Fluxos das US-01 a US-10 pela interface | Playwright / Cypress |
-| **Regressão** | Tela de Inventário existente e edição de S/N atual permanecem funcionais (RNF-08) | Suíte existente |
-| **Idempotência** | Executar cada *seed* duas vezes e comparar *dump*; executar após edição manual e verificar preservação | Teste de integração dedicado |
-| **Segurança** | Tentativa de acesso direto a endpoints sem permissão; *fuzzing* de payload; teste de injeção SQL | Manual + automatizado |
-| **Carga** | Listagem de inventário com 50k registros dentro do p95 definido | Locust / k6 |
+| Nível | Cobertura |
+|---|---|
+| Integração | Cada novo endpoint × RBAC (ADMIN passa, ENCARREGADO/MANTENEDOR/INSPETOR → 403); cada 409 (slot ocupado, item instalado, S/N duplicado, slot duplicado); 422 em `posicao_xlsx` ausente e em justificativa ausente no DELETE. |
+| Auditoria | Toda escrita gera exatamente 1 linha em `auditoria_dados_mestres` com `usuario_id` da sessão (nunca do payload). |
+| Regressão | `tests/unit/test_inventario.py`, `test_equipamentos.py`, `test_equipamentos_xlsx.py` continuam verdes (RNF-08) — slot inativo não pode quebrar a grade de `/inventario` nem o preview XLSX. |
+| Integração XLSX | Slot criado via API com `posicao_xlsx` casa corretamente no preview de importação (regressão do bug descrito na Seção 1). |
 
-**Critério de cobertura:** ≥ 85% de linhas nos módulos de serviço e validação; 100% das regras de negócio (RN-01 a RN-13) com ao menos um teste dedicado.
+Fixtures a reaproveitar de `tests/conftest.py`: `client`, `db`, `usuario_e_token` (ADMIN), `usuario_encarregado_e_token`, `dados_aeronave_valida` — sem criar fixtures novas de usuário/aeronave.
 
 ---
 
@@ -726,83 +454,71 @@ Requisitos adicionais dos scripts:
 
 | ID | Risco | Prob. | Impacto | Mitigação |
 |---|---|---|---|---|
-| R1 | Duplicidades legadas impedem a criação das *constraints* | Alta | Alto | Relatório de duplicidades e saneamento antes do *deploy* (Seção 13.1) |
-| R2 | Usuário remove item de inventário indevidamente | Média | Alto | *Soft delete* + justificativa obrigatória + restauração por Admin (RF-18) |
-| R3 | Divergência sistema × SILOMS aumenta com edição livre | Média | Médio | Sinalização de status + relatório de divergências + conciliação periódica |
-| R4 | Novo *seed* apaga trabalho manual | Média | Alto | Campo `origem` + campos protegidos + `--dry-run` (RF-14) |
-| R5 | Perfil com permissão ampla demais altera configuração crítica | Média | Alto | RBAC granular + auditoria + avaliar *maker-checker* na Fase 2 |
-| R6 | Modelo de dados assumido (P4) não corresponde ao real | Média | Alto | Validar premissas e responder Q1–Q6 antes de iniciar o desenvolvimento |
-| R7 | Alteração indevida de P/N gera rastreabilidade incorreta de componente | Baixa | Muito alto | Justificativa obrigatória + limpeza de seriais + auditoria (RN-04) |
+| R1 | Duplicidades legadas em `(nome_posicao, sistema)` impedem a criação da UNIQUE | Média | Alto | Relatório de duplicidades antes da migration (Seção 13) |
+| R2 | Slot inativado continua entrando no preview XLSX | Média | Médio | Filtrar `ativo=True` em `xlsx_service.py:138-142` (RF-12) |
+| R3 | Duas fontes de PN por slot já divergem hoje (`seed_slots.py` vs `scripts/maintenance/force_sync_slots.py` — 4 PNs diferentes: MDP, DVR, UFCP, PIC/NAV) | Alta | Médio | Fora de escopo desta entrega; registrar como débito técnico a resolver antes de rodar os seeds de novo |
+| R4 | Reintroduzir o BUG-01 (auditoria forjável) ao aceitar `usuario_id`/trigrama no payload de um formulário novo | Baixa | Alto | RN-05 — nunca aceitar autor via payload |
+| R5 | Editar `modelo_id` de um slot ocupado corrompe a leitura de PN esperado para toda a frota | Média | Alto | RN-04 — bloquear enquanto houver instalação ativa |
 
 ---
 
 ## 16. Plano de Entrega
 
-| Sprint | Entregas | Stories |
-|---|---|---|
-| **Sprint 1 — Fundação** | Migrations, tabela e serviço de auditoria, *soft delete*, RBAC, refatoração dos *seeds*, relatório de duplicidades | US-10 · RF-12 · RF-14 |
-| **Sprint 2 — Catálogo** | Página de gestão, navegação, abas, CRUD de Equipamentos e de Slots com todas as validações | US-01 a US-07 |
-| **Sprint 3 — Inventário** | Edição e remoção de inventário, cálculo de status, indicadores visuais, visualização de histórico | US-08 · US-09 · RF-15 · RF-17 |
-| **Fase 2 (backlog)** | Importação/exportação em massa, restauração via interface, *maker-checker*, integração de conciliação com SILOMS | RF-18 · RF-19 |
+Ver `docs/BACKLOG/modulo_inventario/plano_implementacao.md` para o passo a passo técnico (etapas, arquivos, código).
 
 ---
 
 ## 17. Definition of Ready (DoR)
 
-- [ ] Premissas P1–P4 confirmadas pela equipe técnica
-- [ ] Questões Q1–Q6 respondidas
-- [ ] Esquema atual das três tabelas anexado à especificação
-- [ ] Perfis de acesso existentes mapeados para a matriz da Seção 5
-- [ ] Protótipo de tela aprovado pelo Controle de Configuração
+- [x] Premissas P1–P4 confirmadas contra o código
+- [x] Modelo de dados real anexado a esta especificação (Seção 6)
+- [x] Perfis de acesso reais mapeados (Seção 5)
+- [ ] Q4 (maker-checker normativo) respondida antes de iniciar, caso mude o escopo
 
 ## 18. Definition of Done (DoD)
 
-- [ ] Todos os critérios de aceitação das US-01 a US-10 aprovados
-- [ ] Cobertura de testes atingida; pipeline verde
-- [ ] *Migrations* validadas em ambiente de homologação com cópia dos dados de produção
-- [ ] *Seeds* comprovadamente idempotentes
-- [ ] Revisão de código e revisão de segurança concluídas
-- [ ] Auditoria verificada: toda escrita gera registro consultável
-- [ ] Regressão da tela de Inventário atual aprovada
-- [ ] Documentação de usuário e procedimento de *rollback* publicados
+- [ ] Todos os critérios de aceite das US-01 a US-03 aprovados
+- [ ] `pytest -q` verde, incluindo os testes de regressão de `/inventario` e do preview XLSX
+- [ ] Migration validada com `alembic upgrade head` e `alembic downgrade -1`
+- [ ] Toda escrita de PN/Slot/Item gera registro consultável em `auditoria_dados_mestres`
+- [ ] `ruff check .` limpo
+- [ ] Nenhuma violação de CSP nos novos modais/JS
 - [ ] Homologação (UAT) assinada pelo dono do produto
 
 ---
 
 ## 19. Rollback
 
-1. As *migrations* possuem `downgrade` testado.
-2. Recurso protegido por *feature flag* (`enable_gestao_inventario`): desativar oculta o botão e bloqueia os endpoints sem necessidade de *redeploy*.
-3. *Backup* completo do banco imediatamente antes do *deploy*, com procedimento de restauração documentado e tempo estimado.
+1. Migration com `downgrade()` testado.
+2. Sem feature flag dedicada (não existe infraestrutura de flags no projeto) — rollback via `alembic downgrade -1` e, se necessário, restauração do arquivo `saa29_local.db` a partir de backup.
+3. Como as novas rotas são aditivas (não alteram o comportamento de `/inventario` nem do "Sincronizar"), reverter a migration é suficiente sem exigir toggle de feature.
 
 ---
 
 ## 20. Questões Abertas
 
-| ID | Questão | Impacto se não respondida | Responsável |
-|---|---|---|---|
-| **Q1** | Sua lista original prevê *editar* e *remover* inventário, mas não *adicionar*. Um slot vazio deve poder ser preenchido por esta tela (RF-16), ou a criação de item de inventário permanece exclusiva do fluxo operacional de instalação? | Escopo do RF-16 indefinido | Produto |
-| **Q2** | O S/N (SILOMS) deve ser editável nesta tela ou é dado espelhado do sistema externo (somente leitura, alterável apenas por importação)? | Afeta RN-07 e o desenho do formulário | Suprimento |
-| **Q3** | `Slot` é definido por **modelo** de aeronave ou por **matrícula** individual? (Premissa P4 assume por modelo.) | Afeta modelo de dados e *constraints* | Controle de Config. |
-| **Q4** | Existe requisito normativo aplicável (ex.: RBAC/DCA de manutenção) que exija dupla assinatura para alteração de configuração? Se sim, o *maker-checker* sai da Fase 2 para o escopo inicial. | Pode invalidar a Seção 16 | Qualidade |
-| **Q5** | Qual o volume atual de registros nas três tabelas? | Calibra RNF-01 e a estratégia de paginação | TI |
-| **Q6** | O trigrama deve vir automaticamente do cadastro do usuário logado ou continua sendo digitado manualmente (por exemplo, quando o lançamento é feito por terceiro)? | Afeta RN-05 | Manutenção |
+| ID | Questão | Status |
+|---|---|---|
+| Q1 | Um slot vazio deve poder ser preenchido pela tela de gestão, ou só pelo fluxo operacional de "Sincronizar"? | **Respondida:** o fluxo operacional já cobre isso (`ajustar_inventario_item`); esta entrega não duplica esse caminho. |
+| Q2 | O S/N (SILOMS) deve virar campo editável e persistido, separado do S/N (REAL)? | **Respondida pelo produto:** não — permanece efêmero (RN-07). |
+| Q3 | Slot é definido por modelo de aeronave ou é global da frota? | **Respondida pelo código:** global da frota (P4). |
+| Q4 | Existe requisito normativo que exija *maker-checker* para alteração de configuração de slot/item? | **Em aberto** — responsável: Qualidade. Se "sim", volta a alterar o escopo desta entrega. |
+| Q5 | Qual o volume atual das tabelas? | **Respondida:** 26 PNs, 33 slots, ~726 itens/instalações (banco local). |
+| Q6 | O trigrama vem do usuário logado ou é digitável? | **Respondida pelo código:** sempre do usuário logado — nunca aceitar via payload (RN-05, precedente BUG-01). |
 
 ---
 
 ## Anexo A — Rastreabilidade Ideia → Requisito
 
-| Item da ideia original | Requisito |
-|---|---|
-| Botão na página Configurações | RF-01, US-01 |
-| 1 – Adicionar equipamento | RF-04, US-02 |
-| 2 – Editar equipamento | RF-05, US-03 |
-| 3 – Remover equipamento | RF-06, RN-02, US-04 |
-| 4 – Adicionar slot | RF-07, US-05 |
-| 5 – Editar slot | RF-08, US-06 |
-| 6 – Remover slot | RF-09, RN-03, US-07 |
-| 7 – Editar inventário | RF-10, US-08 |
-| 8 – Remover inventário | RF-11, US-09 |
-| Seeds já alimentam as três tabelas | RF-14, RN-11, US-10 |
-| Seeds populam sem número de série | RN-06 (status `PENDENTE_SN`) |
-| Hoje só é possível alterar o S/N | RNF-08 (regressão obrigatória) |
+| Item da ideia original | Requisito | Situação |
+|---|---|---|
+| Botão na página Configurações | Reaproveita card existente "Equipamentos e PNs" | Sem rota nova |
+| Adicionar equipamento | RF-01 | ✅ Já implementado |
+| Editar equipamento | RF-01 | ✅ Já implementado |
+| Remover equipamento | RF-02 | ✅ Já implementado |
+| Adicionar slot | — | ✅ Já implementado (`POST /equipamentos/slots/`) |
+| Editar slot | RF-04 | 🔴 Novo |
+| Remover slot | RF-05, RF-06 | 🔴 Novo |
+| Editar inventário | Fora de escopo — coberto pelo fluxo "Sincronizar" já existente | — |
+| Remover inventário | RF-08 (a nível de item, não de instalação) | 🔴 Novo, com ressalva |
+| Auditoria de dados mestres | RF-09 | 🔴 Novo |
