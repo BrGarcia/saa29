@@ -195,7 +195,7 @@ async def mobile_aeronave_page(request: Request, aeronave_id: str, user=Depends(
 ```
 
 ### 3.4 Drawer sem placeholders
-Em `base_mobile.html`, remover o bloco `<div class="mobile-drawer-placeholder">` (linhas 61-71: "Relato Rápido de Pane" e "Sincronização Offline" desabilitados) — o primeiro passa a existir de verdade (Etapa 3), o segundo está fora de escopo por decisão explícita (ver spec §1.2) e não deve continuar prometido na UI.
+Em `base_mobile.html`, remover o bloco `<div class="mobile-drawer-placeholder">` (linhas 61-71: "Relato Rápido de Pane" e "Sincronização Offline" desabilitados) — o primeiro passa a existir de verdade na Etapa 3, com o rótulo "Nova Pane" (rótulo abreviado, ver `mockup_mobile.html`); o segundo está fora de escopo por decisão explícita (ver spec §1.2) e não deve continuar prometido na UI.
 
 ### 3.5 Testes
 - `GET /dashboard/frota` sem auth → 401; autenticado → 200 e formato da lista.
@@ -235,7 +235,7 @@ async def mobile_pane_detalhe_page(request: Request, pane_id: str, user=Depends(
 - Card de comentários (editável mesmo com pane já concluída, igual ao desktop) → `PUT /panes/{id}` só com `{ comentarios }`.
 
 ### 4.3 Aba Panes do hub
-`panes_mobile.js` também expõe `carregarAbaPanes(aeronaveId, container)`: `GET /panes/?aeronave_id=&status=ABERTA`, cards com link para `/m/pane/{id}` e botão flutuante "+ Relatar Pane" → `/m/pane/nova?aeronave_id=`.
+`panes_mobile.js` também expõe `carregarAbaPanes(aeronaveId, container)`: `GET /panes/?aeronave_id=&status=ABERTA`, cards com link para `/m/pane/{id}` e botão flutuante "+ Nova Pane" → `/m/pane/nova?aeronave_id=`.
 
 ### 4.4 Testes
 - Criar pane com foto → 2 chamadas encadeadas, anexo aparece em `GET /panes/{id}/anexos`.

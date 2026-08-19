@@ -85,14 +85,15 @@ O mantenedor está sempre **em uma aeronave**. Toda a informação de execução
 - **RF-M01**: A tela inicial (`/m/`) deve listar todas as aeronaves ativas, ordenadas por criticidade operacional: INDISPONÍVEL/com pendência primeiro, depois INSPEÇÃO, depois DISPONÍVEL — regra já implementada em `calcularPrioridadeOperacional` (`frota_mobile.js`), a preservar.
 - **RF-M02**: Cada card de aeronave deve exibir contadores agregados: panes abertas, tarefas de inspeção pendentes, vencimentos vencidos/vencendo — obtidos em **uma única requisição** (não uma por aeronave).
 - **RF-M03**: Tocar no card leva ao Hub da Aeronave (`/m/aeronave/{id}`).
+- **RF-M04**: Em toda tela mobile, a aeronave é identificada só pelos 4 dígitos finais da matrícula (ex. `2854`, não `A-29 FAB-2854`) — modelo e prefixo `FAB-` são redundantes numa frota de um único tipo e só ocupam espaço de tela. A matrícula completa (`aeronave.matricula`, formato `FAB-XXXX`) e o modelo continuam intactos no backend, na API e no desktop; a abreviação é só da camada de apresentação mobile (derivada no template/JS, sem novo campo).
 
 ### Hub da Aeronave (RF-M1x)
 - **RF-M10**: O hub exibe 4 abas — Panes, Inspeções, Vencimentos, Inventário — com carregamento sob demanda (a aba só busca dados quando é aberta pela primeira vez).
-- **RF-M11**: O cabeçalho do hub mostra matrícula e status atual da aeronave.
+- **RF-M11**: O cabeçalho do hub mostra matrícula (abreviada, ver RF-M04) e status atual da aeronave.
 
 ### Panes (RF-M2x)
 - **RF-M20**: A aba Panes lista as panes `ABERTA` da aeronave.
-- **RF-M21**: "Relato Rápido" cria uma pane (`POST /panes/`) com aeronave pré-preenchida, sistema ATA opcional (`GET /panes/sistemas`) e descrição; permite anexar uma foto no mesmo fluxo.
+- **RF-M21**: "Nova Pane" (fluxo de relato rápido) cria uma pane (`POST /panes/`) com aeronave pré-preenchida, sistema ATA opcional (`GET /panes/sistemas`) e descrição; permite anexar uma foto no mesmo fluxo.
 - **RF-M22**: O detalhe da pane permite: anexar foto adicional pela câmera do aparelho (`POST /panes/{id}/anexos`, campo já suporta `capture="environment"`), assumir responsabilidade sobre si mesmo (`POST /panes/{id}/responsaveis`, MANTENEDOR só pode indicar a si mesmo — regra já aplicada no router), registrar comentário, e concluir com observação (`POST /panes/{id}/concluir`).
 - **RF-M23**: Galeria de anexos já enviados, com abertura em tela cheia.
 
@@ -172,7 +173,7 @@ Agregação por aeronave para a tela inicial, eliminando o N+1 atual. Vive em `a
   }
 ]
 ```
-Autorização: `CurrentUser`. Sem paginação (frota é pequena — um esquadrão local, RN-14).
+Autorização: `CurrentUser`. Sem paginação (frota é pequena — um esquadrão local, RN-14). `matricula` continua no formato completo `FAB-XXXX` — a abreviação para os 4 dígitos finais (RF-M04) é feita na exibição (mobile), não no payload.
 
 ### `GET /vencimentos/matriz?aeronave_id=<uuid>`
 Filtro opcional acrescentado ao endpoint existente (`app/modules/vencimentos/router.py:179-183`). Sem o parâmetro, comportamento idêntico ao atual (frota inteira, consumido por `vencimentos.js` no desktop). Com o parâmetro, a query em `montar_matriz_vencimentos` (`vencimentos/service.py:408-413`) ganha um `.where(Aeronave.id == aeronave_id)` a mais.
@@ -182,7 +183,7 @@ Filtro opcional acrescentado ao endpoint existente (`app/modules/vencimentos/rou
 ## 8. Fluxo de Uso Principal (exemplo)
 
 1. Mantenedor abre o app (ícone na tela inicial, instalado como PWA) → `/m/` carrega a Frota em uma requisição.
-2. Aeronave FAB-2854 está com badge "INDISPONÍVEL — 2 pendências" no topo da lista (ordenação por criticidade). Toca no card.
+2. Aeronave 2854 está com badge "INDISPONÍVEL — 2 pendências" no topo da lista (ordenação por criticidade). Toca no card.
 3. Hub da aeronave abre na aba Panes por padrão (o que motivou a indisponibilidade). Vê 2 panes abertas.
 4. Toca em uma pane → tela de detalhe → tira foto do componente com defeito pela câmera → anexo sobe e aparece na galeria.
 5. Registra a solução no campo de observação → "Concluir e Assinar".
