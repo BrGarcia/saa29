@@ -1,0 +1,33 @@
+{% extends "mobile/base_mobile.html" %}
+
+{% block title %}Aeronave — SAA29 Mobile{% endblock %}
+
+{% block content %}
+<div class="mobile-section" id="context-aeronave-mobile" data-aeronave-id="{{ aeronave_id }}">
+    <div class="mobile-nav-back">
+        <a href="/m/" class="btn-back-mobile">← Voltar à Frota</a>
+    </div>
+
+    <div class="mobile-aeronave-header">
+        <h2 id="anv-title-mobile">----</h2>
+        <span id="anv-status-badge" class="badge-status">...</span>
+    </div>
+
+    <div class="mobile-tabs" role="tablist">
+        <button type="button" class="mobile-tab-btn active" data-tab="panes">Panes</button>
+        <button type="button" class="mobile-tab-btn" data-tab="inspecoes">Inspeções</button>
+        <button type="button" class="mobile-tab-btn" data-tab="vencimentos">Vencimentos</button>
+        <button type="button" class="mobile-tab-btn" data-tab="inventario">Inventário</button>
+    </div>
+
+    <div id="tab-panes" class="mobile-tab-panel"></div>
+    <div id="tab-inspecoes" class="mobile-tab-panel" hidden></div>
+    <div id="tab-vencimentos" class="mobile-tab-panel" hidden></div>
+    <div id="tab-inventario" class="mobile-tab-panel" hidden></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/mobile/panes_mobile.js"></script>
+<script src="/static/js/mobile/aeronave_mobile.js"></script>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "mobile/base_mobile.html" %}
+
+{% block title %}Nova Pane — SAA29 Mobile{% endblock %}
+
+{% block content %}
+<div class="mobile-section">
+    <div class="mobile-nav-back">
+        <a href="/m/aeronave/{{ aeronave_id }}" class="btn-back-mobile">← Voltar</a>
+    </div>
+
+    <h2 class="mobile-section-title">Nova Pane</h2>
+    <p class="mobile-section-sub">Relato rápido — anexe uma foto se ajudar a identificar o problema.</p>
+
+    <div class="mobile-fixed-note">
+        Aeronave: <strong id="pane-nova-aeronave-label">{{ aeronave_id }}</strong> (fixa)
+    </div>
+
+    <form id="form-pane-nova" data-aeronave-id="{{ aeronave_id }}">
+        <div class="mobile-field">
+            <label for="pane-nova-sistema">Sistema / ATA (opcional)</label>
+            <select id="pane-nova-sistema" class="mobile-select">
+                <option value="">Não especificado</option>
+            </select>
+        </div>
+
+        <div class="mobile-field">
+            <label for="pane-nova-descricao">Descrição</label>
+            <textarea id="pane-nova-descricao" class="mobile-textarea" rows="4" placeholder="Descreva a pane observada..."></textarea>
+        </div>
+
+        <div class="mobile-field">
+            <label>Foto (opcional)</label>
+            <div class="mobile-photo-row">
+                <button type="button" class="mobile-photo mobile-photo-add" id="btn-pane-nova-foto" aria-label="Adicionar foto">
+                    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+                </button>
+            </div>
+            <input type="file" id="pane-nova-foto-input" accept="image/*" capture="environment" style="display:none;">
+        </div>
+
+        <button type="submit" id="btn-pane-nova-submit" class="btn-mobile-action btn-mobile-accent">Registrar Pane</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/mobile/panes_mobile.js"></script>
+{% endblock %}

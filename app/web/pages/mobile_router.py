@@ -23,11 +23,31 @@ async def mobile_frota_page(request: Request, user=Depends(get_current_user)):
 
 
 @router.get("/aeronave/{aeronave_id}", response_class=HTMLResponse, include_in_schema=False)
-async def mobile_tarefas_aeronave_page(request: Request, aeronave_id: str, user=Depends(get_current_user)):
-    """Lista de Tarefas e Panes da Aeronave para Mantenedor em 1 Toque."""
-    return templates.TemplateResponse("mobile/tarefas_aeronave.html", {
+async def mobile_aeronave_page(request: Request, aeronave_id: str, user=Depends(get_current_user)):
+    """Hub da aeronave: Panes, Inspeções, Vencimentos e Inventário em 4 abas."""
+    return templates.TemplateResponse("mobile/aeronave.html", {
         "request": request,
         "aeronave_id": aeronave_id,
+        "user": user
+    })
+
+
+@router.get("/pane/nova", response_class=HTMLResponse, include_in_schema=False)
+async def mobile_pane_nova_page(request: Request, aeronave_id: str, user=Depends(get_current_user)):
+    """Relato rápido de nova pane, com aeronave pré-preenchida."""
+    return templates.TemplateResponse("mobile/pane_nova.html", {
+        "request": request,
+        "aeronave_id": aeronave_id,
+        "user": user
+    })
+
+
+@router.get("/pane/{pane_id}", response_class=HTMLResponse, include_in_schema=False)
+async def mobile_pane_detalhe_page(request: Request, pane_id: str, user=Depends(get_current_user)):
+    """Detalhe da pane: anexos, assumir responsabilidade, comentar e concluir."""
+    return templates.TemplateResponse("mobile/pane_detalhe.html", {
+        "request": request,
+        "pane_id": pane_id,
         "user": user
     })
 

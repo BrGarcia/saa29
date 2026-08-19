@@ -1,5 +1,6 @@
 // app/web/static/js/mobile/frota_mobile.js
-// Lógica da lista de frota mobile com contagem de pendências por ANV
+// Lista de frota mobile — 1 única requisição (GET /dashboard/frota) para
+// montar contadores de panes/inspeções/vencimentos de toda a frota (RF-M02).
 
 document.addEventListener('DOMContentLoaded', () => {
     carregarFrotaMobile();
@@ -10,76 +11,28 @@ async function carregarFrotaMobile() {
     if (!container) return;
 
     try {
-        const aeronaves = await apiFetch('/aeronaves/');
-        
-        if (!aeronaves || aeronaves.length === 0) {
+        const frota = await apiFetch('/dashboard/frota');
+
+        if (!frota || frota.length === 0) {
             container.innerHTML = '<div class="mobile-loading">Nenhuma aeronave cadastrada.</div>';
             return;
         }
 
-        container.innerHTML = '';
-        // Busca a contagem de pendências de panes para cada ANV em paralelo
-        const frotaComDados = await Promise.all(
-            aeronaves.map(async (anv) => {
-                let pendenciasCount = 0;
-                try {
-                    const panes = await apiFetch(`/panes/?aeronave_id=${anv.id}&status=ABERTA`);
-                    pendenciasCount = Array.isArray(panes) ? panes.length : 0;
-                } catch (e) {
-                    console.warn('Não foi possível obter panes da ANV:', anv.matricula);
-                }
-                return {
-                    anv,
-                    pendenciasCount,
-                    prioridade: calcularPrioridadeOperacional(anv, pendenciasCount)
-                };
-            })
-        );
+        const frotaOrdenada = [...frota].sort((a, b) => {
+            const prioA = calcularPrioridadeOperacional(a);
+            const prioB = calcularPrioridadeOperacional(b);
+            if (prioA !== prioB) return prioA - prioB;
 
-        // Reordena por criticidade operacional (INDISPONIVEL > INSPECAO > DISPONIVEL):
-        // 1. Aeronaves INDISPONÍVEIS / com panes abertas (prioridade 1)
-        // 2. Aeronaves em INSPEÇÃO (prioridade 2)
-        // 3. Aeronaves DISPONÍVEIS sem panes (prioridade 3)
-        // Desempate: quantidade de pendências desc e matrícula asc
-        frotaComDados.sort((a, b) => {
-            if (a.prioridade !== b.prioridade) {
-                return a.prioridade - b.prioridade;
-            }
-            if (a.pendenciasCount !== b.pendenciasCount) {
-                return b.pendenciasCount - a.pendenciasCount;
-            }
-            return (a.anv.matricula || '').localeCompare(b.anv.matricula || '', undefined, { numeric: true });
+            const pendA = totalPendencias(a);
+            const pendB = totalPendencias(b);
+            if (pendA !== pendB) return pendB - pendA;
+
+            return (a.matricula || '').localeCompare(b.matricula || '', undefined, { numeric: true });
         });
 
-        for (const item of frotaComDados) {
-            const { anv, pendenciasCount } = item;
-            const card = document.createElement('a');
-            card.href = `/m/aeronave/${anv.id}`;
-            card.className = 'mobile-anv-card';
-            card.setAttribute('data-aeronave-id', anv.id);
-
-            const statusUpper = (anv.status || '').toUpperCase();
-            const isInspecao = statusUpper.includes('INSPEC') || statusUpper.includes('INSPEÇ');
-
-            let countBadgeClass = 'mobile-anv-badge-count';
-            if (isInspecao) {
-                countBadgeClass += ' inspecao';
-            } else if (pendenciasCount === 0) {
-                countBadgeClass += ' zero';
-            }
-
-            const countText = pendenciasCount > 0 ? `${pendenciasCount} Pendência(s)` : '0 Pendências';
-
-            card.innerHTML = `
-                <div class="mobile-anv-info">
-                    <h3>A-29 ${escapeHtml(anv.matricula)}</h3>
-                    <p>Status: <strong>${escapeHtml(anv.status)}</strong></p>
-                </div>
-                <div class="${countBadgeClass}">
-                    ${countText}
-                </div>
-            `;
-            container.appendChild(card);
+        container.innerHTML = '';
+        for (const item of frotaOrdenada) {
+            container.appendChild(montarCardAeronave(item));
         }
     } catch (err) {
         console.error('Erro ao carregar frota mobile:', err);
@@ -87,21 +40,67 @@ async function carregarFrotaMobile() {
     }
 }
 
-function calcularPrioridadeOperacional(anv, pendenciasCount) {
-    const statusUpper = (anv.status || '').toUpperCase();
+function montarCardAeronave(item) {
+    const card = document.createElement('a');
+    card.href = `/m/aeronave/${item.aeronave_id}`;
+    card.className = 'mobile-anv-card';
+    card.setAttribute('data-aeronave-id', item.aeronave_id);
 
-    // 1. Aeronaves INDISPONÍVEIS (status INDISPONIVEL ou INDISPONÍVEL)
+    // RF-M04: só os 4 últimos dígitos da matrícula na camada de apresentação
+    // mobile — o valor completo (FAB-XXXX) continua intacto no backend/API.
+    const matriculaAbreviada = abreviarMatricula(item.matricula);
+
+    const badges = [];
+    if (item.panes_abertas > 0) {
+        badges.push(`<span class="mobile-anv-badge-count">${item.panes_abertas} pane(s)</span>`);
+    }
+    if (item.vencimentos_vencidos > 0) {
+        badges.push(`<span class="mobile-anv-badge-count">${item.vencimentos_vencidos} venc. vencido(s)</span>`);
+    }
+    if (item.vencimentos_vencendo > 0) {
+        badges.push(`<span class="mobile-anv-badge-count inspecao">${item.vencimentos_vencendo} venc. vencendo</span>`);
+    }
+    if (item.inspecoes_ativas > 0) {
+        badges.push(`<span class="mobile-anv-badge-count inspecao">${item.tarefas_pendentes} tarefa(s)</span>`);
+    }
+    if (badges.length === 0) {
+        badges.push('<span class="mobile-anv-badge-count zero">Tudo em dia</span>');
+    }
+
+    card.innerHTML = `
+        <div class="mobile-anv-info">
+            <h3>${escapeHtml(matriculaAbreviada)}</h3>
+            <p>Status: <strong>${escapeHtml(item.status)}</strong></p>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:0.35rem;">
+            ${badges.join('')}
+        </div>
+    `;
+    return card;
+}
+
+function abreviarMatricula(matricula) {
+    if (!matricula) return '----';
+    const digitos = matricula.replace(/\D/g, '');
+    return digitos.length >= 4 ? digitos.slice(-4) : matricula;
+}
+
+function totalPendencias(item) {
+    return (item.panes_abertas || 0) + (item.vencimentos_vencidos || 0) + (item.vencimentos_vencendo || 0);
+}
+
+function calcularPrioridadeOperacional(item) {
+    const statusUpper = (item.status || '').toUpperCase();
+
+    // Ordenação de criticidade operacional: INDISPONIVEL/pendência > INSPECAO > DISPONIVEL
     if (statusUpper.includes('INDISPONIVEL') || statusUpper.includes('INDISPONÍVEL')) {
         return 1;
     }
-    // 2. Aeronaves em INSPEÇÃO (status INSPEÇÃO ou INSPECAO)
+    if (totalPendencias(item) > 0) {
+        return 1;
+    }
     if (statusUpper.includes('INSPEC') || statusUpper.includes('INSPEÇ')) {
         return 2;
     }
-    // 3. Panes abertas fora de inspeção (se houver pendências e status não for de inspeção)
-    if (pendenciasCount > 0) {
-        return 1;
-    }
-    // 4. Aeronaves DISPONÍVEIS (status DISPONIVEL, OPERACIONAL ou outros sem pendências)
     return 3;
 }

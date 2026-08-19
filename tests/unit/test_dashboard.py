@@ -11,7 +11,8 @@ Metodologia:
 
 import uuid
 import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from httpx import AsyncClient
 
@@ -164,6 +165,57 @@ async def _criar_inspecao(db: AsyncSession, aeronave_id, aberto_por_id,
     db.add(inspecao)
     await db.flush()
     return inspecao
+
+
+async def _criar_slot_com_instalacao(
+    db: AsyncSession, aeronave_id,
+    *, data_vencimento: date | None = None, prorrogado_para: date | None = None,
+):
+    """Cria modelo/slot/item/instalação ATIVA para a aeronave e, opcionalmente,
+    um controle de vencimento (com prorrogação ativa) vinculado ao item — setup
+    mínimo para testar get_frota_agregada sem depender de _criar_controle_vencimento
+    (que cria um item órfão, sem instalação nem aeronave)."""
+    from app.modules.equipamentos.models import ModeloEquipamento, SlotInventario, ItemEquipamento, Instalacao
+    from app.modules.vencimentos.models import ControleVencimento, TipoControle, ProrrogacaoVencimento
+
+    suffix = uuid.uuid4().hex[:8]
+    modelo = ModeloEquipamento(part_number=f"PN-{suffix}", nome_generico=f"Equip-{suffix}")
+    db.add(modelo)
+    await db.flush()
+    slot = SlotInventario(nome_posicao=f"SLOT-{suffix}", modelo_id=modelo.id)
+    db.add(slot)
+    await db.flush()
+    item = ItemEquipamento(modelo_id=modelo.id, numero_serie=f"SN-{suffix}")
+    db.add(item)
+    await db.flush()
+    instalacao = Instalacao(
+        item_id=item.id, aeronave_id=aeronave_id, slot_id=slot.id,
+        data_instalacao=date(2024, 1, 1),
+    )
+    db.add(instalacao)
+    await db.flush()
+
+    controle = None
+    if data_vencimento is not None:
+        tipo = TipoControle(nome=f"TC-{suffix}", descricao="Tipo de teste")
+        db.add(tipo)
+        await db.flush()
+        controle = ControleVencimento(
+            item_id=item.id, tipo_controle_id=tipo.id,
+            data_vencimento=data_vencimento, status="OK",
+        )
+        db.add(controle)
+        await db.flush()
+
+        if prorrogado_para is not None:
+            db.add(ProrrogacaoVencimento(
+                controle_id=controle.id, numero_documento="AT-1",
+                data_concessao=date.today(), data_nova_vencimento=prorrogado_para,
+                dias_adicionais=30, ativo=True,
+            ))
+            await db.flush()
+
+    return instalacao, controle
 
 
 # ===========================================================================
@@ -575,3 +627,133 @@ async def test_endpoint_dashboard_estrutura_json(client_autenticado: AsyncClient
     assert "inspecoes_ativas" in data
     assert "movimentacoes_recentes" in data
     assert "frota" in data
+
+
+# ===========================================================================
+# BLOCO 7: Frota Agregada (mobile — GET /dashboard/frota)
+# ===========================================================================
+
+@pytest.mark.asyncio
+async def test_frota_agregada_conta_panes_inspecoes_e_vencimentos(db: AsyncSession):
+    """Uma aeronave com pane aberta, inspeção ativa com 1 tarefa pendente e um
+    vencimento vencido deve refletir os 3 contadores agregados numa única
+    passada — RF-M02."""
+    from app.modules.inspecoes.models import InspecaoTarefa
+
+    aeronave = await _criar_aeronave(db, f"AGR{uuid.uuid4().hex[:3]}", "DISPONIVEL")
+    usuario = await _criar_usuario(db)
+    await _criar_pane(db, aeronave.id, usuario.id, status="ABERTA")
+
+    inspecao = await _criar_inspecao(db, aeronave.id, usuario.id, status="EM_ANDAMENTO")
+    db.add(InspecaoTarefa(inspecao_id=inspecao.id, ordem=1, titulo="Tarefa X", status="PENDENTE"))
+    await db.flush()
+
+    await _criar_slot_com_instalacao(db, aeronave.id, data_vencimento=date.today() - timedelta(days=5))
+
+    resultado = await service.get_frota_agregada(db)
+
+    item = next(i for i in resultado if i.matricula == aeronave.matricula)
+    assert item.panes_abertas == 1
+    assert item.inspecoes_ativas == 1
+    assert item.tarefas_pendentes == 1
+    assert item.vencimentos_vencidos == 1
+    assert item.vencimentos_vencendo == 0
+    # Mesma hierarquia de status ao vivo de get_frota_summary: inspeção ativa
+    # tem prioridade sobre pane aberta.
+    assert item.status == "INSPEÇÃO"
+
+
+@pytest.mark.asyncio
+async def test_frota_agregada_status_indisponivel_por_pane_sem_inspecao(db: AsyncSession):
+    aeronave = await _criar_aeronave(db, f"AGR{uuid.uuid4().hex[:3]}", "DISPONIVEL")
+    usuario = await _criar_usuario(db)
+    await _criar_pane(db, aeronave.id, usuario.id, status="ABERTA")
+
+    resultado = await service.get_frota_agregada(db)
+
+    item = next(i for i in resultado if i.matricula == aeronave.matricula)
+    assert item.status == "INDISPONIVEL"
+
+
+@pytest.mark.asyncio
+async def test_frota_agregada_vencimento_vencendo_em_30_dias(db: AsyncSession):
+    aeronave = await _criar_aeronave(db, f"AGR{uuid.uuid4().hex[:3]}", "DISPONIVEL")
+    await _criar_slot_com_instalacao(db, aeronave.id, data_vencimento=date.today() + timedelta(days=10))
+
+    resultado = await service.get_frota_agregada(db)
+
+    item = next(i for i in resultado if i.matricula == aeronave.matricula)
+    assert item.vencimentos_vencendo == 1
+    assert item.vencimentos_vencidos == 0
+
+
+@pytest.mark.asyncio
+async def test_frota_agregada_prorrogacao_ativa_nao_conta_como_vencido(db: AsyncSession):
+    """O status usado na contagem é sempre o derivado (igual à matriz de
+    vencimentos do desktop) — uma prorrogação ativa cujo novo prazo ainda não
+    passou não deve inflar vencimentos_vencidos."""
+    aeronave = await _criar_aeronave(db, f"AGR{uuid.uuid4().hex[:3]}", "DISPONIVEL")
+    await _criar_slot_com_instalacao(
+        db, aeronave.id,
+        data_vencimento=date.today() - timedelta(days=10),
+        prorrogado_para=date.today() + timedelta(days=20),
+    )
+
+    resultado = await service.get_frota_agregada(db)
+
+    item = next(i for i in resultado if i.matricula == aeronave.matricula)
+    assert item.vencimentos_vencidos == 0
+    assert item.vencimentos_vencendo == 0
+
+
+@pytest.mark.asyncio
+async def test_frota_agregada_slots_vazios_desconta_instalacoes_ativas(db: AsyncSession):
+    """slots_vazios = total de posições configuradas (frota de tipo único)
+    menos as instalações ativas da própria aeronave."""
+    from app.modules.equipamentos.models import SlotInventario
+
+    aeronave = await _criar_aeronave(db, f"AGR{uuid.uuid4().hex[:3]}", "DISPONIVEL")
+    total_slots_antes = (await db.execute(select(func.count()).select_from(SlotInventario))).scalar_one()
+
+    # Cria 1 slot novo (soma +1 ao total) já com 1 instalação ativa para esta
+    # aeronave (soma +1 às instaladas) — o líquido deve ser o mesmo de antes.
+    await _criar_slot_com_instalacao(db, aeronave.id)
+
+    resultado = await service.get_frota_agregada(db)
+
+    item = next(i for i in resultado if i.matricula == aeronave.matricula)
+    assert item.slots_vazios == total_slots_antes
+
+
+@pytest.mark.asyncio
+async def test_frota_agregada_exclui_aeronaves_inativas(db: AsyncSession):
+    matricula = f"INA{uuid.uuid4().hex[:3]}"
+    await _criar_aeronave(db, matricula, "INATIVA")
+
+    resultado = await service.get_frota_agregada(db)
+
+    assert not any(i.matricula == matricula for i in resultado)
+
+
+@pytest.mark.asyncio
+async def test_endpoint_frota_retorna_401_sem_autenticacao(client: AsyncClient):
+    response = await client.get("/dashboard/frota")
+    assert response.status_code in [401, 403]
+
+
+@pytest.mark.asyncio
+async def test_endpoint_frota_retorna_200_lista_com_contadores(
+    client_autenticado: AsyncClient, db: AsyncSession
+):
+    aeronave = await _criar_aeronave(db, f"EP{uuid.uuid4().hex[:3]}", "DISPONIVEL")
+
+    response = await client_autenticado.get("/dashboard/frota")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    item = next((i for i in data if i["matricula"] == aeronave.matricula), None)
+    assert item is not None
+    assert item["panes_abertas"] == 0
+    assert "vencimentos_vencidos" in item
+    assert "slots_vazios" in item

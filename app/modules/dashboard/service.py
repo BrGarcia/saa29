@@ -9,17 +9,18 @@ Princípios:
     - Todas as funções são async/await com AsyncSession
 """
 
-from datetime import datetime, time, timezone
+from datetime import date, datetime, time, timezone
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.modules.panes.models import Pane
-from app.modules.vencimentos.models import ControleVencimento
-from app.modules.inspecoes.models import Inspecao
-from app.modules.equipamentos.models import Instalacao, ItemEquipamento
+from app.modules.vencimentos.models import ControleVencimento, ProrrogacaoVencimento
+from app.modules.inspecoes.models import Inspecao, InspecaoTarefa
+from app.modules.equipamentos.models import Instalacao, ItemEquipamento, SlotInventario
 from app.modules.aeronaves.models import Aeronave
+from app.shared.core.enums import StatusAeronave, StatusTarefaInspecao
 
 from app.modules.dashboard.schemas import (
     DashboardResumo,
@@ -28,6 +29,7 @@ from app.modules.dashboard.schemas import (
     InspecaoAtiva,
     MovimentacaoRecente,
     FrotaSummary,
+    FrotaAgregadaItem,
 )
 
 
@@ -295,7 +297,151 @@ async def get_frota_summary(db: AsyncSession) -> FrotaSummary:
 
 
 # ---------------------------------------------------------------------------
-# 6. Orquestrador
+# 6. Frota agregada (mobile — GET /dashboard/frota)
+# ---------------------------------------------------------------------------
+
+async def get_frota_agregada(db: AsyncSession) -> list[FrotaAgregadaItem]:
+    """
+    Agregação por aeronave para a Frota mobile: uma única resposta com os
+    contadores de pendência de cada módulo (panes, inspeções, vencimentos,
+    inventário), eliminando o N+1 (1 requisição de panes por aeronave) que a
+    tela inicial do mobile fazia antes — achado #6,
+    docs/backlog/modulo_mobile/01_especificacao_mobile.md.
+
+    Número fixo de queries, independente da quantidade de aeronaves.
+    """
+    from app.modules.vencimentos.service import calcular_status_vencimento
+
+    q_aeronaves = (
+        select(Aeronave)
+        .where(Aeronave.status != StatusAeronave.INATIVA)
+        .order_by(Aeronave.matricula)
+    )
+    aeronaves = (await db.execute(q_aeronaves)).scalars().all()
+    if not aeronaves:
+        return []
+
+    # 1. Panes abertas por aeronave
+    q_panes = (
+        select(Pane.aeronave_id, func.count())
+        .where(Pane.status == "ABERTA", Pane.ativo == True)  # noqa: E712
+        .group_by(Pane.aeronave_id)
+    )
+    panes_map = {str(aeronave_id): total for aeronave_id, total in (await db.execute(q_panes)).all()}
+
+    # 2. Inspeções ativas por aeronave + tarefas PENDENTES dessas inspeções
+    status_ativos = ("ABERTA", "EM_ANDAMENTO")
+    q_insp = select(Inspecao.id, Inspecao.aeronave_id).where(Inspecao.status.in_(status_ativos))
+    inspecoes_ativas_rows = (await db.execute(q_insp)).all()
+
+    inspecoes_map: dict[str, int] = {}
+    inspecao_para_aeronave: dict = {}
+    for insp_id, aeronave_id in inspecoes_ativas_rows:
+        chave = str(aeronave_id)
+        inspecoes_map[chave] = inspecoes_map.get(chave, 0) + 1
+        inspecao_para_aeronave[insp_id] = chave
+
+    tarefas_map: dict[str, int] = {}
+    if inspecao_para_aeronave:
+        q_tarefas = (
+            select(InspecaoTarefa.inspecao_id, func.count())
+            .where(
+                InspecaoTarefa.inspecao_id.in_(inspecao_para_aeronave.keys()),
+                InspecaoTarefa.status == StatusTarefaInspecao.PENDENTE.value,
+            )
+            .group_by(InspecaoTarefa.inspecao_id)
+        )
+        for insp_id, total in (await db.execute(q_tarefas)).all():
+            chave = inspecao_para_aeronave.get(insp_id)
+            if chave:
+                tarefas_map[chave] = tarefas_map.get(chave, 0) + total
+
+    # 3. Vencimentos vencidos/vencendo — só controles de itens atualmente
+    # instalados (mesmo recorte de montar_matriz_vencimentos). Status sempre
+    # derivado por calcular_status_vencimento (nunca o campo persistido),
+    # com o mesmo tratamento de prorrogação ativa da matriz.
+    q_vencs = (
+        select(Instalacao.aeronave_id, ControleVencimento.id, ControleVencimento.data_vencimento)
+        .select_from(Instalacao)
+        .join(ItemEquipamento, ItemEquipamento.id == Instalacao.item_id)
+        .join(ControleVencimento, ControleVencimento.item_id == ItemEquipamento.id)
+        .where(Instalacao.data_remocao.is_(None))
+    )
+    venc_rows = (await db.execute(q_vencs)).all()
+
+    prorrog_map: dict = {}
+    if venc_rows:
+        controle_ids = {controle_id for _, controle_id, _ in venc_rows}
+        q_prorrog = select(
+            ProrrogacaoVencimento.controle_id, ProrrogacaoVencimento.data_nova_vencimento
+        ).where(
+            ProrrogacaoVencimento.controle_id.in_(controle_ids),
+            ProrrogacaoVencimento.ativo.is_(True),
+        )
+        prorrog_map = {controle_id: data_nova for controle_id, data_nova in (await db.execute(q_prorrog)).all()}
+
+    hoje = date.today()
+    vencidos_map: dict[str, int] = {}
+    vencendo_map: dict[str, int] = {}
+    for aeronave_id, controle_id, data_vencimento in venc_rows:
+        chave = str(aeronave_id)
+        if controle_id in prorrog_map:
+            status_venc = "VENCIDO" if hoje > prorrog_map[controle_id] else "PRORROGADO"
+        else:
+            status_venc = calcular_status_vencimento(data_vencimento, hoje)
+
+        if status_venc == "VENCIDO":
+            vencidos_map[chave] = vencidos_map.get(chave, 0) + 1
+        elif status_venc == "VENCENDO":
+            vencendo_map[chave] = vencendo_map.get(chave, 0) + 1
+
+    # 4. Slots vazios: total de posições configuradas (frota de tipo único —
+    # slots não são filtrados por aeronave, mesma base de
+    # equipamentos.service.listar_inventario_aeronave) menos instalações
+    # ativas de cada aeronave.
+    total_slots = (await db.execute(select(func.count()).select_from(SlotInventario))).scalar_one() or 0
+
+    q_instaladas = (
+        select(Instalacao.aeronave_id, func.count())
+        .where(Instalacao.data_remocao.is_(None))
+        .group_by(Instalacao.aeronave_id)
+    )
+    instaladas_map = {str(aeronave_id): total for aeronave_id, total in (await db.execute(q_instaladas)).all()}
+
+    resultado: list[FrotaAgregadaItem] = []
+    for aeronave in aeronaves:
+        chave = str(aeronave.id)
+        status_final = aeronave.status.value if hasattr(aeronave.status, "value") else str(aeronave.status)
+
+        # Mesma hierarquia de status ao vivo de get_frota_summary (não confia
+        # apenas no campo persistido): inspeção ativa > pane aberta > status
+        # gravado — necessária para a ordenação por criticidade (RF-M01).
+        if chave in inspecoes_map:
+            status_final = "INSPEÇÃO"
+        elif chave in panes_map and status_final not in (
+            StatusAeronave.INATIVA.value, StatusAeronave.ESTOCADA.value
+        ):
+            status_final = "INDISPONIVEL"
+
+        resultado.append(
+            FrotaAgregadaItem(
+                aeronave_id=chave,
+                matricula=aeronave.matricula,
+                status=status_final,
+                panes_abertas=panes_map.get(chave, 0),
+                inspecoes_ativas=inspecoes_map.get(chave, 0),
+                tarefas_pendentes=tarefas_map.get(chave, 0),
+                vencimentos_vencidos=vencidos_map.get(chave, 0),
+                vencimentos_vencendo=vencendo_map.get(chave, 0),
+                slots_vazios=max(0, total_slots - instaladas_map.get(chave, 0)),
+            )
+        )
+
+    return resultado
+
+
+# ---------------------------------------------------------------------------
+# 7. Orquestrador
 # ---------------------------------------------------------------------------
 
 async def get_dashboard_resumo(db: AsyncSession) -> DashboardResumo:

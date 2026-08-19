@@ -2,6 +2,8 @@
 
 Companion de `01_especificacao_mobile.md`. Segue o padrão de `docs/backlog/modulo_pedidos/plano_implementacao.md`: cada etapa é entregável e testável isoladamente, na ordem em que deve ser codificada.
 
+> **Status (2026-08-19):** Etapas 1–3 implementadas na branch `feature/mobile-core-panes` (não `feature/mobile-linha-de-voo` — esse nome de branch já existia, órfão, 152 commits atrás de `development`, e foi preservado intocado). Etapas 4–7 (Inspeções, Vencimentos, Inventário, Publicações + acabamento PWA) ainda não iniciadas. Detalhes e desvios do plano original em cada etapa abaixo.
+
 ## 0. Visão do que será construído
 
 Não é um módulo novo — é conserto + extensão de `/m/`, consumindo APIs que já existem em `panes`, `inspecoes`, `vencimentos`, `equipamentos` e `publicacoes`. Só dois endpoints novos (`GET /dashboard/frota` e o filtro `?aeronave_id=` em `GET /vencimentos/matriz`); o resto é frontend (templates Jinja2 + JS vanilla) e correção de bugs já mapeados.
@@ -10,45 +12,50 @@ Não é um módulo novo — é conserto + extensão de `/m/`, consumindo APIs qu
 
 **Novos:**
 ```
-app/web/templates/mobile/aeronave.html          (renomeia tarefas_aeronave.html)
-app/web/templates/mobile/pane_nova.html
-app/web/templates/mobile/pane_detalhe.html
-app/web/templates/mobile/inspecao_checklist.html
-app/web/static/js/mobile/aeronave_mobile.js      (renomeia tarefas_mobile.js)
-app/web/static/js/mobile/panes_mobile.js
-app/web/static/js/mobile/inspecoes_mobile.js
-app/web/static/js/mobile/vencimentos_mobile.js
-app/web/static/js/mobile/inventario_mobile.js
-app/web/static/img/icon-192.png
-app/web/static/img/icon-512.png
-app/web/static/img/apple-touch-icon.png
+app/web/templates/mobile/aeronave.html          (renomeia tarefas_aeronave.html)              ✅ feito
+app/web/templates/mobile/pane_nova.html                                                        ✅ feito
+app/web/templates/mobile/pane_detalhe.html                                                      ✅ feito
+app/web/templates/mobile/inspecao_checklist.html                                                🔜 Etapa 4
+app/web/static/js/mobile/aeronave_mobile.js      (renomeia tarefas_mobile.js)                  ✅ feito
+app/web/static/js/mobile/panes_mobile.js                                                        ✅ feito
+app/web/static/js/mobile/inspecoes_mobile.js                                                    🔜 Etapa 4
+app/web/static/js/mobile/vencimentos_mobile.js                                                  🔜 Etapa 5
+app/web/static/js/mobile/inventario_mobile.js                                                   🔜 Etapa 6
+app/web/static/img/icon-192.png                                                                 ✅ feito
+app/web/static/img/icon-512.png                                                                 ✅ feito
+app/web/static/img/apple-touch-icon.png                                                         ✅ feito
 ```
 
 **Alterados:**
 ```
-app/web/templates/mobile/base_mobile.html        (meta CSRF, apple-touch-icon, drawer)
-app/web/templates/mobile/frota.html               (sem mudança estrutural)
-app/web/templates/mobile/publicacoes.html          (classes mobile.css)
-app/web/static/js/mobile/frota_mobile.js           (1 fetch em vez de N+1)
-app/web/static/js/mobile/app_mobile.js             (nenhuma mudança — o registro já aponta certo após a Etapa 1.2)
-app/web/static/js/app.js                           (apiFetch: renovação silenciosa)
-app/web/static/css/mobile.css                      (7 classes + tokens de status)
-app/web/pages/mobile_router.py                     (3 rotas novas de página, +GET /sw.js)
-app/web/pages/router.py                             (remove /m/ duplicado)
-app/web/static/manifest.json                       (id, scope, description)
-app/modules/dashboard/schemas.py                    (FrotaAgregadaItem)
-app/modules/dashboard/service.py                    (get_frota_agregada)
-app/modules/dashboard/router.py                      (GET /frota)
-app/modules/vencimentos/service.py                   (montar_matriz_vencimentos: filtro opcional)
-app/modules/vencimentos/router.py                     (query param aeronave_id)
-tests/unit/test_mobile.py                             (novos casos)
-tests/unit/test_dashboard.py                           (GET /dashboard/frota)
-docs/ROADMAP.md, docs/methodology/NEXT.md               (fechamento)
+app/web/templates/mobile/base_mobile.html        (meta CSRF, apple-touch-icon, drawer)         ✅ feito
+app/web/templates/mobile/frota.html               (sem mudança estrutural)                     ✅ confirmado sem mudança
+app/web/templates/mobile/publicacoes.html          (classes mobile.css)                         🔜 Etapa 7
+app/web/static/js/mobile/frota_mobile.js           (1 fetch em vez de N+1)                       ✅ feito
+app/web/static/js/mobile/app_mobile.js             (nenhuma mudança — o registro já aponta certo após a Etapa 1.2) ✅ confirmado sem mudança
+app/web/static/js/app.js                           (apiFetch: renovação silenciosa)              ✅ feito
+app/web/static/css/mobile.css                      (7 classes + tokens de status)               ✅ feito (+ fix de [hidden], não previsto)
+app/web/pages/mobile_router.py                     (3 rotas novas de página)                    ✅ feito — SEM o +GET /sw.js (ver desvio na Etapa 1)
+app/web/pages/router.py                             (remove /m/ duplicado)                       ✅ feito — GANHOU o GET /sw.js (ver desvio na Etapa 1)
+app/web/static/manifest.json                       (id, scope, description)                     🔜 Etapa 7 (ícones/start_url já corretos desde a Etapa 1)
+app/modules/dashboard/schemas.py                    (FrotaAgregadaItem)                          ✅ feito
+app/modules/dashboard/service.py                    (get_frota_agregada)                         ✅ feito
+app/modules/dashboard/router.py                      (GET /frota)                                ✅ feito
+app/modules/vencimentos/service.py                   (montar_matriz_vencimentos: filtro opcional) 🔜 Etapa 5
+app/modules/vencimentos/router.py                     (query param aeronave_id)                   🔜 Etapa 5
+app/shared/middleware/security.py                     (Permissions-Policy: camera=(self))         ✅ feito — antecipado da Etapa 3 (item de risco §10), não esperou teste em aparelho real
+.gitignore                                             (exceção !app/web/static/img/*.png)         ✅ feito — não previsto no plano; `*.png` já ignorava os ícones novos
+tests/unit/test_mobile.py                             (novos casos)                              ✅ feito
+tests/unit/test_dashboard.py                           (GET /dashboard/frota)                     ✅ feito
+tests/integration/test_mobile_integration.py           (não listado originalmente)                ✅ feito
+docs/ROADMAP.md, docs/methodology/NEXT.md               (fechamento)                              🔜 Etapa 7
 ```
+
+**Desvio de implementação — rota `GET /sw.js`:** o plano original (Etapa 1.2) descrevia essa rota dentro de `mobile_router.py`, mas esse router tem `prefix="/m"` — declará-la lá a serviria em `/m/sw.js`, não em `/sw.js`. Como `app_mobile.js` registra o Service Worker literalmente em `/sw.js` (e o plano explicitamente não previa alterar esse arquivo), a rota foi implementada em `app/web/pages/router.py` (sem prefixo) em vez de `mobile_router.py`. Comportamento final é o especificado (RF-M90); só o arquivo que hospeda a rota mudou.
 
 ---
 
-## 2. Etapa 1 — Fundação (conserta o que está quebrado)
+## 2. Etapa 1 — Fundação (conserta o que está quebrado) ✅ CONCLUÍDA
 
 ### 2.1 CSRF no shell mobile
 `app/web/templates/mobile/base_mobile.html`, dentro de `<head>`, logo após a linha do `<meta name="theme-color">`:
@@ -132,7 +139,7 @@ Depois, remover os `style.cssText` inline de `tarefas_mobile.js` (que vira `aero
 
 ---
 
-## 3. Etapa 2 — Espinha: Frota + Hub da Aeronave
+## 3. Etapa 2 — Espinha: Frota + Hub da Aeronave ✅ CONCLUÍDA
 
 ### 3.1 `GET /dashboard/frota`
 
@@ -197,14 +204,24 @@ async def mobile_aeronave_page(request: Request, aeronave_id: str, user=Depends(
 ### 3.4 Drawer sem placeholders
 Em `base_mobile.html`, remover o bloco `<div class="mobile-drawer-placeholder">` (linhas 61-71: "Relato Rápido de Pane" e "Sincronização Offline" desabilitados) — o primeiro passa a existir de verdade na Etapa 3, com o rótulo "Nova Pane" (rótulo abreviado, ver `mockup_mobile.html`); o segundo está fora de escopo por decisão explícita (ver spec §1.2) e não deve continuar prometido na UI.
 
+**Implementado:** o link "Nova Pane" do drawer é contextual — em páginas que recebem `aeronave_id` no contexto Jinja (hoje: hub e detalhe de pane… detalhe de pane na verdade não recebe, ver nota abaixo), aponta para `/m/pane/nova?aeronave_id=…`; nas demais (ex.: Frota), cai para `/m/`. `pane_detalhe.html` não passa `aeronave_id` para o template no server-side (só tem `pane_id`), então nessa tela específica o link do drawer sempre cai no fallback `/m/` — comportamento aceitável (não é link morto, só exige um toque a mais), documentado aqui para quem for revisitar.
+
 ### 3.5 Testes
 - `GET /dashboard/frota` sem auth → 401; autenticado → 200 e formato da lista.
 - Contadores corretos com fixtures de pane aberta + inspeção ativa + vencimento vencido numa mesma aeronave.
 - Estrutura das 4 abas presente em `/m/aeronave/{id}`.
 
+**Nota para quem for implementar as Etapas 4-6:** as abas Inspeções/Vencimentos/Inventário do hub já têm painel (`#tab-inspecoes`, `#tab-vencimentos`, `#tab-inventario`) e disparo de carregamento lazy prontos em `aeronave_mobile.js` — só falta cada módulo futuro expor sua função de carregamento no escopo global, exatamente como `panes_mobile.js` faz hoje:
+```javascript
+window.carregarAbaInspecoes = async function (aeronaveId, container) { ... }
+window.carregarAbaVencimentos = async function (aeronaveId, container) { ... }
+window.carregarAbaInventario = async function (aeronaveId, container) { ... }
+```
+`aeronave_mobile.js` procura essas funções por nome (`CARREGADORES_ABA`) e, se ainda não existirem, mostra "Esta aba ainda está em desenvolvimento." — não é um placeholder desabilitado (a aba abre e funciona), só ainda não tem conteúdo real.
+
 ---
 
-## 4. Etapa 3 — PANES
+## 4. Etapa 3 — PANES ✅ CONCLUÍDA
 
 ### 4.1 Relato rápido — `/m/pane/nova`
 `app/web/pages/mobile_router.py`:
@@ -241,6 +258,10 @@ async def mobile_pane_detalhe_page(request: Request, pane_id: str, user=Depends(
 - Criar pane com foto → 2 chamadas encadeadas, anexo aparece em `GET /panes/{id}/anexos`.
 - Assumir responsabilidade grava o próprio usuário.
 - Concluir muda status e a aeronave sincroniza (reaproveita a asserção já existente em `test_fluxo_concluir_pane_mobile_1_toque`, hoje quebrada pelo bug de CSRF — deve voltar a passar de ponta a ponta via HTTP, não só via override de dependency).
+
+**Feito:** além dos testes acima (via override de dependency, mecânica dos endpoints), foi adicionado um teste de regressão de ponta a ponta real (`test_mobile_concluir_pane_via_http_real_nao_retorna_403_csrf` em `tests/unit/test_mobile.py`) que sobe a aplicação completa com o `CSRFMiddleware` ativo, faz bootstrap do token via `GET /m/` e conclui uma pane via HTTP — prova direta de que o achado #1 (403 de CSRF) está corrigido, não só que o endpoint funciona quando a checagem é contornada.
+
+**Bug encontrado e corrigido durante verificação manual (fora do escopo original do plano):** o botão "Assumir" ficava visível mesmo depois de assumido — `btnAssumir.hidden = true` não escondia o elemento porque a classe `.btn-mobile-action` define `display: flex`, e com especificidade igual ao seletor `[hidden]` do UA stylesheet, a regra do componente vencia. Corrigido com uma regra global `[hidden] { display: none !important; }` no topo de `mobile.css`. Detectado só na verificação manual em navegador (Playwright), não pelos testes automatizados — nenhum deles inspeciona `display` computado.
 
 ---
 
@@ -362,16 +383,16 @@ python scripts/run_app.py     # http://127.0.0.1:8000
 
 Manual, DevTools emulando iPhone 14 Pro (393×852), throttling "Fast 4G":
 
-1. Login `mantenedor` / `123456` (semeado com `APP_ENV=development` + `ENABLE_TEST_USERS=True`, `auth/service.py:320-421`).
-2. `/m/` — conferir na aba Network: **uma** requisição a `/dashboard/frota`.
-3. Abrir uma aeronave → percorrer as 4 abas; cada aba deve disparar sua busca só na primeira abertura (Network mostra a chamada só uma vez ao trocar de aba e voltar).
-4. **Regressão-alvo:** concluir uma pane pelo mobile deve retornar 200, não 403.
-5. Relato rápido com foto da câmera do aparelho; anexo sai de `"processando"` e aparece na galeria.
-6. Marcar tarefa de inspeção como `CONCLUIDA`; inspeção muda para `EM_ANDAMENTO`, progresso sobe.
-7. Registrar execução de vencimento; status muda e aparece no histórico.
-8. Remover e depois instalar um item no mesmo slot; conferir reflexo em `/inventario` no desktop.
-9. Deixar sessão parada > 15 min e agir — não pode cair para `/login`.
-10. "Adicionar à Tela de Início" no Android e no iOS: ícone correto, abre em `standalone`.
+1. Login `mantenedor` / `123456` (semeado com `APP_ENV=development` + `ENABLE_TEST_USERS=True`, `auth/service.py:320-421`). ✅ verificado
+2. `/m/` — conferir na aba Network: **uma** requisição a `/dashboard/frota`. ✅ verificado (chamada única por construção do `frota_mobile.js`; 22 aeronaves renderizadas com badges corretos numa cópia do banco de dev real)
+3. Abrir uma aeronave → percorrer as 4 abas; cada aba deve disparar sua busca só na primeira abertura (Network mostra a chamada só uma vez ao trocar de aba e voltar). ✅ verificado — Panes carrega dados reais; Inspeções/Vencimentos/Inventário mostram "em desenvolvimento" (esperado, Etapas 4-6)
+4. **Regressão-alvo:** concluir uma pane pelo mobile deve retornar 200, não 403. ✅ verificado — tanto via teste automatizado com CSRFMiddleware real quanto manualmente em navegador
+5. Relato rápido com foto da câmera do aparelho; anexo sai de `"processando"` e aparece na galeria. ⚠️ parcial — fluxo de relato rápido testado ponta a ponta (sem foto); anexo de imagem real via câmera de aparelho físico não testado (ambiente sem device físico)
+6. Marcar tarefa de inspeção como `CONCLUIDA`; inspeção muda para `EM_ANDAMENTO`, progresso sobe. ⏸️ não aplicável ainda (Etapa 4)
+7. Registrar execução de vencimento; status muda e aparece no histórico. ⏸️ não aplicável ainda (Etapa 5)
+8. Remover e depois instalar um item no mesmo slot; conferir reflexo em `/inventario` no desktop. ⏸️ não aplicável ainda (Etapa 6)
+9. Deixar sessão parada > 15 min e agir — não pode cair para `/login`. ❌ não testado (janela de 15 min não exercida na verificação manual)
+10. "Adicionar à Tela de Início" no Android e no iOS: ícone correto, abre em `standalone`. ❌ não testado (sem dispositivo físico Android/iOS neste ambiente)
 
 ---
 
@@ -379,7 +400,7 @@ Manual, DevTools emulando iPhone 14 Pro (393×852), throttling "Fast 4G":
 
 | Risco | Mitigação |
 |---|---|
-| `Permissions-Policy: camera=()` em `shared/middleware/security.py:55` pode bloquear `<input capture>` em algum navegador | Testar em aparelho real na Etapa 3; se bloquear, relaxar para `camera=(self)` — mudança mínima e isolada, justificar no commit |
+| `Permissions-Policy: camera=()` em `shared/middleware/security.py:55` pode bloquear `<input capture>` em algum navegador | **Aplicado preventivamente** — trocado para `camera=(self)` já na Etapa 1, sem esperar teste em aparelho real (ainda não feito; validar quando houver acesso a um aparelho físico) |
 | Renovação silenciosa em `app.js` é compartilhada com **todo** o desktop | Cobrir com teste dedicado; validar manualmente 2-3 telas desktop antes de fechar a Etapa 1; usar a promise única para não multiplicar chamadas de refresh |
 | `ControleVencimento.status` persistido diverge do derivado por data (dashboard usa um, matriz usa outro — achado já documentado em `docs/backlog/00_mapa_arquitetural.md`) | O mobile usa **sempre** o derivado, como a matriz. Não tentar unificar essa divergência aqui — fora de escopo |
 | `InventarioItemOut` pode não expor `modelo_id` hoje | Conferir no início da Etapa 6; se faltar, é um campo a mais no schema, sem migração (não é coluna nova, é dado já carregado pela query) |
@@ -390,11 +411,11 @@ Manual, DevTools emulando iPhone 14 Pro (393×852), throttling "Fast 4G":
 
 ## 11. Checklist de aceite (espelha `01_especificacao_mobile.md` §9)
 
-- [ ] Etapa 1 — CSRF, SW, ícones, rota duplicada removida, refresh silencioso, CSS completo, trigrama corrigido.
-- [ ] Etapa 2 — `/dashboard/frota` em produção, hub com 4 abas, drawer sem placeholder.
-- [ ] Etapa 3 — Relato rápido + detalhe de pane com foto, assumir, concluir.
+- [x] Etapa 1 — CSRF, SW, ícones, rota duplicada removida, refresh silencioso, CSS completo, trigrama corrigido. (branch `feature/mobile-core-panes`; não mesclada em `development`/`main`)
+- [x] Etapa 2 — `GET /dashboard/frota` implementado e testado localmente, hub com 4 abas, drawer sem placeholder.
+- [x] Etapa 3 — Relato rápido + detalhe de pane com foto, assumir, concluir. Verificado manualmente em navegador (Playwright, viewport 393×852) contra cópia do banco de dev real, fluxo completo sem 403/500/erro de console.
 - [ ] Etapa 4 — Checklist de inspeção com execução de tarefa e tarefa avulsa.
 - [ ] Etapa 5 — Vencimentos por aeronave com execução e histórico.
 - [ ] Etapa 6 — Inventário com remover/instalar e mensagem clara de limitação de RBAC.
 - [ ] Etapa 7 — Publicações normalizada, PWA instalável de fato, docs atualizados.
-- [ ] `pytest tests -q` e `ruff check .` limpos em cada etapa.
+- [x] `pytest tests -q` e `ruff check .` limpos nas Etapas 1-3 (737 passando, 3 falhas pré-existentes não relacionadas — acervo real de publicações ausente neste ambiente).

@@ -111,6 +111,48 @@ function updateThemeIcon(theme) {
 }
 
 // 2. JWT Cookies Interceptor logic
+
+/** @type {Promise<boolean> | null} */
+let refreshPromise = null;
+
+/**
+ * Tenta renovar a sessão via POST /auth/refresh (rotação de refresh token,
+ * regrava os cookies HttpOnly `saa29_token`/`saa29_refresh_token`).
+ * Compartilha uma única promise entre chamadas concorrentes — evita disparar
+ * N refreshes em paralelo quando várias requisições recebem 401 ao mesmo
+ * tempo (ex.: as abas do hub mobile buscando dados juntas).
+ * @returns {Promise<boolean>} true se a renovação teve sucesso.
+ */
+async function tentarRefresh() {
+    if (!refreshPromise) {
+        refreshPromise = (async () => {
+            try {
+                const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                /** @type {Record<string, string>} */
+                const headers = {};
+                if (csrfMeta) {
+                    headers["X-CSRF-Token"] = csrfMeta.getAttribute("content") || "";
+                }
+                const res = await fetch("/auth/refresh", {
+                    method: "POST",
+                    headers,
+                    credentials: "same-origin",
+                });
+                const novoToken = res.headers.get("X-CSRF-Token");
+                if (novoToken) {
+                    const meta = document.querySelector('meta[name="csrf-token"]');
+                    if (meta) meta.setAttribute("content", novoToken);
+                }
+                return res.ok;
+            } catch (e) {
+                return false;
+            }
+        })();
+        refreshPromise.finally(() => { refreshPromise = null; });
+    }
+    return refreshPromise;
+}
+
 /**
  * Limpa a sessão local do usuário e redireciona para a tela de login.
  * @returns {Promise<void>}
@@ -182,7 +224,16 @@ async function apiFetch(endpoint, options = {}) {
         }
 
         if (response.status === 401) {
-            // Apenas 401 (Unauthorized) limpa a sessão.
+            // Antes de expulsar o usuário, tenta renovar a sessão silenciosamente
+            // (access token de 15 min) e repetir a requisição original uma única
+            // vez. `_retried` evita loop infinito se o refresh "funcionar" mas o
+            // novo token ainda for rejeitado.
+            if (!options._retried) {
+                const renovou = await tentarRefresh();
+                if (renovou) {
+                    return apiFetch(endpoint, { ...options, _retried: true });
+                }
+            }
             clearAuth();
             throw new Error("Sessão expirada.");
         }

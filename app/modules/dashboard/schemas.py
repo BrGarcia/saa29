@@ -73,3 +73,19 @@ class DashboardResumo(BaseModel):
     inspecoes_ativas: list[InspecaoAtiva] = []
     movimentacoes_recentes: list[MovimentacaoRecente] = []
     frota: FrotaSummary = FrotaSummary()
+
+
+class FrotaAgregadaItem(BaseModel):
+    """Contadores agregados de uma aeronave para a tela inicial do mobile
+    (GET /dashboard/frota) — elimina o N+1 de 1 requisição de panes por
+    aeronave que a Frota mobile fazia antes (achado #6,
+    docs/backlog/modulo_mobile/01_especificacao_mobile.md)."""
+    aeronave_id: str
+    matricula: str
+    status: str
+    panes_abertas: int = 0
+    inspecoes_ativas: int = 0
+    tarefas_pendentes: int = 0
+    vencimentos_vencidos: int = 0
+    vencimentos_vencendo: int = 0
+    slots_vazios: int = 0

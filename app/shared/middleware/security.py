@@ -52,7 +52,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         
         # Referrer Policy & Permissions Policy (Melhorias de segurança adicionais)
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
+        # camera=(self): o mobile usa <input type="file" capture="environment">
+        # (RF-M21/RF-M22, docs/backlog/modulo_mobile/01_especificacao_mobile.md)
+        # para anexar foto de pane pela câmera do aparelho — bloqueado com
+        # camera=() em alguns navegadores mesmo sem uso da API getUserMedia.
+        response.headers["Permissions-Policy"] = "camera=(self), microphone=(), geolocation=(), payment=()"
         response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
         
         # HSTS em produção (se usando HTTPS)

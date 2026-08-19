@@ -2,6 +2,16 @@
    SAA29 Mobile - Design System para Linha de Voo (Fricção Zero)
    ========================================================================== */
 
+/* Garante que o atributo `hidden` (usado em JS para alternar visibilidade,
+   ex.: aeronave_mobile.js/panes_mobile.js) sempre vença qualquer `display`
+   de classe de componente (ex.: .btn-mobile-action define display: flex) —
+   mesma especificidade de seletor, então sem isto o elemento continuava
+   visível mesmo com `el.hidden = true` (medido no botão "Assumir" do
+   detalhe de pane, que carrega .btn-mobile-action). */
+[hidden] {
+    display: none !important;
+}
+
 :root {
     --mobile-bg: #0F172A;
     --mobile-card-bg: #1E293B;
@@ -15,6 +25,14 @@
     --mobile-danger: #991B1B;
     --mobile-warning: #D97706;
     --mobile-touch-target: 56px;
+
+    /* Status derivado (vencimentos, tarefas de inspeção, panes) — mesma
+       paleta em toda tela mobile que precise sinalizar OK/atenção/crítico. */
+    --mobile-status-ok: #22C55E;
+    --mobile-status-vencendo: #D97706;
+    --mobile-status-vencido: #EF4444;
+    --mobile-status-prorrogado: #38BDF8;
+    --mobile-status-desinstalado: #64748B;
 }
 
 body.mobile-body {
@@ -206,21 +224,6 @@ body.mobile-body {
     margin: 0.75rem 0;
 }
 
-.mobile-drawer-placeholder {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.placeholder-label {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05rem;
-    color: var(--mobile-text-muted);
-    padding-left: 0.5rem;
-    margin-bottom: 0.25rem;
-}
-
 /* Conteúdo Principal */
 .mobile-content {
     padding: 1rem;
@@ -335,4 +338,310 @@ body.mobile-body {
     text-align: center;
     padding: 2rem;
     color: var(--mobile-text-muted);
+}
+
+/* ==========================================================================
+   Hub da Aeronave — cabeçalho, navegação de volta e abas
+   ========================================================================== */
+
+.mobile-nav-back {
+    margin-bottom: 0.25rem;
+}
+
+.mobile-aeronave-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.mobile-aeronave-header h2 {
+    margin: 0;
+    font-size: 1.4rem;
+    color: #FFFFFF;
+}
+
+.badge-status {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 0.3rem 0.65rem;
+    border-radius: 20px;
+    white-space: nowrap;
+    background: var(--mobile-card-bg);
+    color: var(--mobile-text);
+    border: 1px solid var(--mobile-card-border);
+}
+
+.badge-status.status-indisponivel,
+.badge-status.status-vencido,
+.badge-status.status-aberta { background: var(--mobile-status-vencido); color: #FFFFFF; border-color: transparent; }
+.badge-status.status-inspecao,
+.badge-status.status-vencendo { background: var(--mobile-status-vencendo); color: #FFFFFF; border-color: transparent; }
+.badge-status.status-disponivel,
+.badge-status.status-ok,
+.badge-status.status-resolvida { background: var(--mobile-status-ok); color: #062513; border-color: transparent; }
+.badge-status.status-prorrogado { background: var(--mobile-status-prorrogado); color: #052034; border-color: transparent; }
+.badge-status.status-desinstalado { background: var(--mobile-status-desinstalado); color: #FFFFFF; border-color: transparent; }
+
+.mobile-tabs {
+    display: flex;
+    gap: 0.4rem;
+    overflow-x: auto;
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--mobile-card-border);
+}
+
+.mobile-tab-btn {
+    flex: 1 0 auto;
+    min-height: var(--mobile-touch-target);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--mobile-text-muted);
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    touch-action: manipulation;
+    white-space: nowrap;
+}
+
+.mobile-tab-btn.active {
+    background: var(--mobile-card-bg);
+    color: var(--mobile-text);
+}
+
+.mobile-tab-panel[hidden] {
+    display: none;
+}
+
+/* ==========================================================================
+   Cartão genérico e lista de tarefas/panes
+   ========================================================================== */
+
+.mobile-card {
+    background: var(--mobile-card-bg);
+    border: 1px solid var(--mobile-card-border);
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+.mobile-task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    /* Espaço para o botão flutuante (FAB) não cobrir o último card */
+    padding-bottom: 4.5rem;
+}
+
+.mobile-task-card {
+    background: var(--mobile-card-bg);
+    border: 1px solid var(--mobile-card-border);
+    border-radius: 12px;
+    padding: 1rem;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.mobile-task-card:active {
+    border-color: var(--mobile-accent);
+}
+
+.mobile-task-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+
+.mobile-task-card-title {
+    margin: 0 0 0.3rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #FFFFFF;
+}
+
+.mobile-task-card-meta {
+    margin: 0;
+    font-size: 0.76rem;
+    color: var(--mobile-text-muted);
+}
+
+/* ==========================================================================
+   Formulários (Nova Pane, conclusão, etc.)
+   ========================================================================== */
+
+.mobile-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: 1rem;
+}
+
+.mobile-field label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--mobile-text-muted);
+}
+
+.mobile-input,
+.mobile-select,
+.mobile-textarea {
+    background: #0F1B2E;
+    border: 1px solid var(--mobile-card-border);
+    border-radius: 8px;
+    padding: 0.7rem 0.75rem;
+    color: var(--mobile-text);
+    font-size: 0.95rem;
+    font-family: inherit;
+    min-height: var(--mobile-touch-target);
+    width: 100%;
+}
+
+.mobile-textarea {
+    resize: vertical;
+    min-height: 5rem;
+}
+
+.mobile-fixed-note {
+    font-size: 0.85rem;
+    color: var(--mobile-text-muted);
+    background: #0F1B2E;
+    border: 1px dashed var(--mobile-card-border);
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.mobile-fixed-note strong {
+    color: var(--mobile-text);
+}
+
+/* ==========================================================================
+   Anexos / Câmera
+   ========================================================================== */
+
+.mobile-photo-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.mobile-photo {
+    width: 72px;
+    height: 72px;
+    border-radius: 10px;
+    flex: none;
+    background: linear-gradient(135deg, #334155, #1E293B);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--mobile-text-muted);
+    border: 1px solid var(--mobile-card-border);
+    overflow: hidden;
+    padding: 0;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.mobile-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.mobile-photo-add {
+    border-style: dashed;
+    color: var(--mobile-accent);
+    background: transparent;
+}
+
+/* ==========================================================================
+   Botões — extensão da família .btn-mobile-action já existente
+   ========================================================================== */
+
+.btn-mobile-accent {
+    background-color: var(--mobile-accent);
+    color: #FFFFFF;
+}
+
+.btn-mobile-accent:active {
+    background-color: #1d4ed8;
+}
+
+.btn-mobile-ghost {
+    background-color: rgba(255, 255, 255, 0.07);
+    color: var(--mobile-text);
+    border: 1px solid var(--mobile-card-border);
+}
+
+.btn-mobile-ghost:active {
+    background-color: rgba(255, 255, 255, 0.14);
+}
+
+.btn-mobile-danger {
+    background-color: var(--mobile-danger);
+    color: #FFFFFF;
+}
+
+.btn-mobile-danger:active {
+    background-color: #7f1d1d;
+}
+
+.btn-mobile-action:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Botão flutuante (FAB) — "+ Nova Pane" na aba Panes do hub
+   ========================================================================== */
+
+.mobile-fab {
+    position: fixed;
+    right: 1rem;
+    bottom: 1.25rem;
+    z-index: 50;
+    height: 52px;
+    padding: 0 1.1rem;
+    border-radius: 26px;
+    background: var(--mobile-accent);
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: none;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.45);
+    text-decoration: none;
+    touch-action: manipulation;
+}
+
+.mobile-fab:active {
+    background: #1d4ed8;
+}
+
+/* ==========================================================================
+   Pílula de responsável / metadados curtos
+   ========================================================================== */
+
+.mobile-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.25rem 0.6rem;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--mobile-text);
+    white-space: nowrap;
 }

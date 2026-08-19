@@ -1,0 +1,63 @@
+{% extends "mobile/base_mobile.html" %}
+
+{% block title %}Pane — SAA29 Mobile{% endblock %}
+
+{% block content %}
+<div class="mobile-section" id="context-pane-detalhe" data-pane-id="{{ pane_id }}">
+    <div class="mobile-nav-back">
+        <a href="/m/" class="btn-back-mobile" id="pane-detalhe-voltar">← Voltar</a>
+    </div>
+
+    <div class="mobile-aeronave-header">
+        <h2 id="pane-detalhe-codigo">...</h2>
+        <span id="pane-detalhe-status" class="badge-status">...</span>
+    </div>
+
+    <div class="mobile-card">
+        <p id="pane-detalhe-info" class="mobile-task-card-meta" style="margin: 0 0 0.5rem;"></p>
+        <p id="pane-detalhe-descricao" style="margin: 0; font-weight: 600;"></p>
+    </div>
+
+    <div class="mobile-card" style="margin-top: 0.75rem;">
+        <p style="margin: 0 0 0.5rem; font-weight: 700; font-size: 0.85rem;">Anexos</p>
+        <div class="mobile-photo-row" id="pane-detalhe-galeria"></div>
+        <button type="button" id="btn-pane-tirar-foto" class="btn-mobile-action btn-mobile-ghost" style="margin-top: 0.75rem;">
+            📷 Tirar Foto
+        </button>
+        <input type="file" id="pane-camera-input" accept="image/*" capture="environment" style="display:none;">
+    </div>
+
+    <div class="mobile-card" style="margin-top: 0.75rem; display:flex; align-items:center; justify-content:space-between; gap: 0.75rem;">
+        <div>
+            <p style="margin: 0; font-weight: 600;">Responsável</p>
+            <p id="pane-detalhe-responsavel" class="mobile-task-card-meta" style="margin: 0.2rem 0 0;">—</p>
+        </div>
+        <button type="button" id="btn-pane-assumir" class="btn-mobile-action btn-mobile-ghost" style="width: auto; min-width: 140px;">
+            Assumir
+        </button>
+    </div>
+
+    <form id="form-pane-comentarios" style="margin-top: 0.75rem;">
+        <div class="mobile-field">
+            <label for="pane-comentarios-input">Comentários</label>
+            <textarea id="pane-comentarios-input" class="mobile-textarea" rows="2" placeholder="Observações gerais (opcional)"></textarea>
+        </div>
+        <button type="submit" id="btn-pane-comentarios-salvar" class="btn-mobile-action btn-mobile-ghost">Salvar comentário</button>
+    </form>
+
+    <div id="pane-area-concluir" hidden>
+        <form id="form-pane-concluir" style="margin-top: 0.75rem;">
+            <div class="mobile-field">
+                <label for="pane-concluir-observacao">Solução aplicada</label>
+                <textarea id="pane-concluir-observacao" class="mobile-textarea" rows="2" placeholder="O que foi feito para resolver..."></textarea>
+            </div>
+            <button type="submit" id="btn-pane-concluir" class="btn-mobile-action btn-mobile-success">Concluir e Assinar</button>
+        </form>
+    </div>
+    <p id="pane-observacao-conclusao" class="mobile-fixed-note" style="margin-top: 0.75rem;" hidden></p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/mobile/panes_mobile.js"></script>
+{% endblock %}
