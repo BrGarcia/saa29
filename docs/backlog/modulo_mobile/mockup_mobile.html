@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linha de Voo Mobile</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='84'%3E%E2%9C%88%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ===================================================================
+     TOKENS — chrome de revisão (claro/escuro). As telas de celular usam
+     um segundo conjunto de tokens (--mob-*), fixo e escuro, porque o
+     produto real (mobile.css) é dark-only por decisão de projeto —
+     ver 01_especificacao_mobile.md RNF-02.
+     =================================================================== */
+  :root {
+    --bg: #EEF1F4;
+    --surface: #FFFFFF;
+    --surface-alt: #E4E9EE;
+    --ink: #16212C;
+    --ink-muted: #56646F;
+    --border: #D5DBE1;
+    --accent: #C1571E;
+    --accent-ink: #7C3A13;
+    --accent-soft: #FBE8D9;
+    --focus: #2563EB;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --font-sans: "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0B0F14;
+      --surface: #121820;
+      --surface-alt: #1A222C;
+      --ink: #E9EDF1;
+      --ink-muted: #96A4B0;
+      --border: #26313D;
+      --accent: #E27A33;
+      --accent-ink: #F6CBA0;
+      --accent-soft: #3A2414;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0B0F14;
+    --surface: #121820;
+    --surface-alt: #1A222C;
+    --ink: #E9EDF1;
+    --ink-muted: #96A4B0;
+    --border: #26313D;
+    --accent: #E27A33;
+    --accent-ink: #F6CBA0;
+    --accent-soft: #3A2414;
+  }
+
+  /* Tokens fixos do produto (mobile.css real) — nunca mudam com o tema da página */
+  .device {
+    --mob-bg: #0F172A;
+    --mob-card: #1E293B;
+    --mob-card-2: #243346;
+    --mob-border: #334155;
+    --mob-text: #F8FAFC;
+    --mob-muted: #94A3B8;
+    --mob-primary: #1F497D;
+    --mob-accent: #2563EB;
+    --mob-ok: #22C55E;
+    --mob-warn: #D97706;
+    --mob-danger: #EF4444;
+    --mob-danger-deep: #991B1B;
+    --mob-info: #38BDF8;
+    --mob-off: #64748B;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    line-height: 1.55;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  a { color: inherit; }
+  ::selection { background: var(--accent-soft); color: var(--accent-ink); }
+
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 0 clamp(1.25rem, 4vw, 3rem); }
+
+  /* ---------------- Masthead ---------------- */
+  .masthead {
+    padding: clamp(2.5rem, 6vw, 4rem) 0 2.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0 0 0.9rem;
+  }
+  .eyebrow .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex: none; }
+
+  .masthead h1 {
+    font-size: clamp(2rem, 3.6vw, 2.7rem);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    margin: 0 0 0.85rem;
+    text-wrap: balance;
+    max-width: 20ch;
+  }
+  .masthead .lede {
+    max-width: 62ch;
+    font-size: 1.05rem;
+    color: var(--ink-muted);
+    margin: 0 0 1.75rem;
+  }
+  .masthead .lede strong { color: var(--ink); font-weight: 600; }
+
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 0.9rem;
+    align-items: center;
+    margin-bottom: 1.75rem;
+  }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .status-pill::before { content: "●"; font-size: 0.6rem; }
+  .meta-note {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--ink-muted);
+    border-left: 1px solid var(--border);
+    padding-left: 0.9rem;
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.1rem 1.6rem;
+    padding: 0.95rem 1.1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+  .legend-group { display: flex; align-items: center; gap: 0.55rem; }
+  .legend-group .label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-muted);
+    margin-right: 0.15rem;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+  }
+  .chip .sw { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .sw--ok { background: #22C55E; }
+  .sw--warn { background: #D97706; }
+  .sw--danger { background: #EF4444; }
+  .sw--info { background: #38BDF8; }
+  .sw--off { background: #64748B; }
+
+  /* ---------------- Grupos / Galeria ---------------- */
+  .group { padding: 3.25rem 0; border-bottom: 1px solid var(--border); }
+  .group:last-of-type { border-bottom: none; }
+  .group-head { margin-bottom: 2rem; max-width: 62ch; }
+  .group-head h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0.35rem 0 0.5rem;
+    letter-spacing: -0.01em;
+  }
+  .group-head p { margin: 0; color: var(--ink-muted); font-size: 0.98rem; }
+
+  .frame-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3rem 2.75rem;
+  }
+  .frame-card { display: flex; flex-direction: column; align-items: flex-start; width: 296px; }
+  .frame-step {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 0.65rem;
+  }
+  .frame-caption { margin-top: 1.1rem; }
+  .frame-caption .name { font-weight: 600; font-size: 0.98rem; }
+  .frame-caption .route {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    color: var(--ink-muted);
+    margin-top: 0.2rem;
+  }
+  .frame-caption .purpose {
+    margin: 0.4rem 0 0;
+    font-size: 0.86rem;
+    color: var(--ink-muted);
+    max-width: 34ch;
+  }
+
+  /* ---------------- Moldura de iPhone ---------------- */
+  .device {
+    width: 296px;
+    height: 610px;
+    border-radius: 46px;
+    background: linear-gradient(160deg, #383e46, #121418);
+    padding: 12px;
+    box-shadow:
+      0 24px 44px -18px rgba(10, 12, 16, 0.45),
+      0 2px 6px rgba(10, 12, 16, 0.25),
+      inset 0 0 0 2px rgba(255, 255, 255, 0.06);
+    position: relative;
+    flex: none;
+  }
+  .device__screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 34px;
+    overflow: hidden;
+    background: var(--mob-bg);
+    color: var(--mob-text);
+    font-family: var(--font-sans);
+    display: flex;
+    flex-direction: column;
+  }
+  .device__island {
+    position: absolute;
+    top: 9px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 92px;
+    height: 25px;
+    background: #000;
+    border-radius: 16px;
+    z-index: 30;
+  }
+  .device__home {
+    position: absolute;
+    bottom: 7px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 116px;
+    height: 4px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.32);
+    z-index: 30;
+  }
+  .mob-statusbar {
+    flex: none;
+    padding: 12px 20px 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--mob-text);
+  }
+  .mob-statusbar .batt {
+    width: 20px; height: 10px; border: 1px solid var(--mob-text); border-radius: 2px;
+    position: relative; opacity: 0.9;
+  }
+  .mob-statusbar .batt::after {
+    content: ""; position: absolute; right: -3px; top: 3px; width: 2px; height: 4px;
+    background: var(--mob-text); border-radius: 0 1px 1px 0;
+  }
+  .mob-statusbar .batt::before {
+    content: ""; position: absolute; inset: 1.5px; right: 4px; background: var(--mob-text); border-radius: 1px;
+  }
+
+  /* ---------------- Componentes da UI do produto ---------------- */
+  .mob-scroll { flex: 1; overflow: hidden; padding: 0 16px 16px; display: flex; flex-direction: column; gap: 0.85rem; }
+
+  .mob-header {
+    flex: none;
+    padding: 6px 16px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    border-bottom: 1px solid var(--mob-border);
+  }
+  .mob-header__title { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+  .mob-header__title h1 { font-size: 1rem; font-weight: 700; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mob-badge {
+    background: var(--mob-primary); color: #fff; font-weight: 800; font-size: 0.62rem;
+    padding: 0.15rem 0.4rem; border-radius: 4px; letter-spacing: 0.04em; flex: none;
+  }
+  .mob-icon-btn {
+    width: 34px; height: 34px; border-radius: 9px; border: none; background: transparent;
+    color: var(--mob-text); display: flex; align-items: center; justify-content: center; flex: none;
+  }
+  .mob-icon-btn svg { width: 19px; height: 19px; }
+  .mob-user-chip {
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18);
+    padding: 0.2rem 0.55rem; border-radius: 20px; font-size: 0.72rem; font-weight: 700; flex: none;
+  }
+  .mob-back {
+    display: inline-flex; align-items: center; gap: 0.3rem; color: var(--mob-accent);
+    font-size: 0.82rem; font-weight: 600; text-decoration: none;
+  }
+  .mob-back svg { width: 15px; height: 15px; }
+
+  .mob-section-title { font-size: 1.1rem; font-weight: 700; margin: 0.2rem 0 0; }
+  .mob-section-sub { font-size: 0.78rem; color: var(--mob-muted); margin: 0 0 0.2rem; }
+
+  .mob-tabbar { flex: none; display: flex; gap: 0.4rem; padding: 10px 16px 4px; border-bottom: 1px solid var(--mob-border); }
+  .mob-tab {
+    flex: 1; text-align: center; padding: 0.5rem 0.3rem; font-size: 0.72rem; font-weight: 600;
+    color: var(--mob-muted); background: transparent; border: none; border-radius: 8px; cursor: pointer;
+  }
+  .mob-tab.is-active { background: var(--mob-card); color: var(--mob-text); }
+
+  .mob-card {
+    background: var(--mob-card); border: 1px solid var(--mob-border); border-radius: 12px; padding: 0.85rem;
+  }
+  .mob-card + .mob-card { }
+
+  .mob-pill {
+    display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.66rem; font-weight: 700;
+    padding: 0.2rem 0.5rem; border-radius: 20px; letter-spacing: 0.02em; white-space: nowrap;
+  }
+  .pill--danger { background: var(--mob-danger-deep); color: #fff; }
+  .pill--warn { background: var(--mob-warn); color: #fff; }
+  .pill--ok { background: var(--mob-ok); color: #06210f; }
+  .pill--info { background: var(--mob-info); color: #052034; }
+  .pill--off { background: var(--mob-off); color: #fff; }
+  .pill--ghost { background: rgba(255,255,255,0.08); color: var(--mob-text); }
+
+  .mob-btn {
+    display: flex; align-items: center; justify-content: center; gap: 0.45rem;
+    min-height: 46px; border: none; border-radius: 10px; font-weight: 700; font-size: 0.86rem;
+    cursor: pointer; width: 100%;
+  }
+  .mob-btn--lg { min-height: 52px; font-size: 0.92rem; }
+  .mob-btn--ok { background: #22C55E; color: #062513; }
+  .mob-btn--accent { background: var(--mob-accent); color: #fff; }
+  .mob-btn--ghost { background: rgba(255,255,255,0.07); color: var(--mob-text); border: 1px solid var(--mob-border); }
+
+  .mob-fab {
+    position: absolute; right: 16px; bottom: 16px; width: auto; height: 46px; padding: 0 1rem;
+    border-radius: 23px; background: var(--mob-accent); color: #fff; font-weight: 700; font-size: 0.8rem;
+    display: flex; align-items: center; gap: 0.4rem; box-shadow: 0 8px 18px rgba(37,99,235,0.45); z-index: 5;
+    border: none;
+  }
+
+  .mob-anv-card {
+    background: var(--mob-card); border: 1px solid var(--mob-border); border-radius: 12px; padding: 0.85rem 1rem;
+    display: flex; justify-content: space-between; align-items: center; gap: 0.6rem;
+  }
+  .mob-anv-card h3 { margin: 0 0 0.2rem; font-size: 1.02rem; }
+  .mob-anv-card p { margin: 0; font-size: 0.76rem; color: var(--mob-muted); }
+  .mob-anv-card .stack { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; }
+
+  .mob-field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .mob-field label { font-size: 0.72rem; color: var(--mob-muted); font-weight: 600; }
+  .mob-input, .mob-select, .mob-textarea {
+    background: var(--mob-card-2); border: 1px solid var(--mob-border); border-radius: 8px;
+    padding: 0.6rem 0.65rem; color: var(--mob-text); font-size: 0.85rem; font-family: inherit;
+  }
+  .mob-textarea { resize: none; }
+  .mob-fixed-note {
+    font-size: 0.78rem; color: var(--mob-muted); background: var(--mob-card-2);
+    border: 1px dashed var(--mob-border); border-radius: 8px; padding: 0.5rem 0.65rem;
+  }
+
+  .mob-photo-row { display: flex; gap: 0.5rem; }
+  .mob-photo {
+    width: 64px; height: 64px; border-radius: 9px; flex: none;
+    background: linear-gradient(135deg, #334155, #1E293B);
+    display: flex; align-items: center; justify-content: center; color: var(--mob-muted);
+    border: 1px solid var(--mob-border); overflow: hidden;
+  }
+  .mob-photo svg { width: 22px; height: 22px; }
+  .mob-photo-add {
+    border-style: dashed; color: var(--mob-accent);
+  }
+
+  .mob-task {
+    display: flex; align-items: center; gap: 0.65rem; padding: 0.7rem 0.15rem;
+    border-bottom: 1px solid var(--mob-border); cursor: pointer;
+  }
+  .mob-task:last-child { border-bottom: none; }
+  .mob-task__icon {
+    width: 26px; height: 26px; border-radius: 50%; flex: none; display: flex; align-items: center;
+    justify-content: center; font-size: 0.78rem;
+  }
+  .mob-task__icon--done { background: #22C55E; color: #062513; }
+  .mob-task__icon--na { background: var(--mob-off); color: #fff; }
+  .mob-task__icon--pending { background: transparent; border: 2px solid var(--mob-warn); }
+  .mob-task__body { min-width: 0; flex: 1; }
+  .mob-task__title { font-size: 0.85rem; font-weight: 600; margin: 0 0 0.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mob-task__meta { font-size: 0.68rem; color: var(--mob-muted); font-family: var(--font-mono); }
+  .mob-task__chev { color: var(--mob-muted); flex: none; }
+  .mob-task__chev svg { width: 15px; height: 15px; }
+
+  .mob-progress { height: 6px; border-radius: 4px; background: var(--mob-card-2); overflow: hidden; }
+  .mob-progress > span { display: block; height: 100%; background: var(--mob-accent); }
+
+  .mob-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
+    padding: 0.7rem 0; border-bottom: 1px solid var(--mob-border);
+  }
+  .mob-row:last-child { border-bottom: none; }
+  .mob-row__main { min-width: 0; }
+  .mob-row__title { font-size: 0.85rem; font-weight: 600; margin: 0 0 0.15rem; }
+  .mob-row__sub { font-size: 0.7rem; color: var(--mob-muted); font-family: var(--font-mono); }
+  .mob-row__end { display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem; flex: none; }
+
+  .mob-mini-btn {
+    font-size: 0.68rem; font-weight: 700; padding: 0.32rem 0.6rem; border-radius: 7px; border: none; cursor: pointer;
+  }
+  .mob-mini-btn--accent { background: var(--mob-accent); color: #fff; }
+  .mob-mini-btn--ghost { background: rgba(255,255,255,0.09); color: var(--mob-text); }
+  .mob-mini-btn--ok { background: #22C55E; color: #062513; }
+
+  .mob-empty-note {
+    font-size: 0.72rem; color: var(--mob-warn); background: rgba(217,119,6,0.12);
+    border: 1px solid rgba(217,119,6,0.35); border-radius: 8px; padding: 0.5rem 0.6rem; margin-top: 0.35rem;
+  }
+
+  /* Sheet de ação (checklist) */
+  .mob-sheet-backdrop {
+    position: absolute; inset: 0; background: rgba(2,6,23,0.55); opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease; z-index: 40;
+  }
+  .mob-sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; background: var(--mob-card);
+    border-top: 1px solid var(--mob-border); border-radius: 18px 18px 0 0; padding: 1rem 1.1rem 1.3rem;
+    transform: translateY(100%); transition: transform 0.25s cubic-bezier(.4,0,.2,1); z-index: 41;
+    display: flex; flex-direction: column; gap: 0.7rem;
+  }
+  .device__screen.is-sheet-open .mob-sheet-backdrop { opacity: 1; pointer-events: auto; }
+  .device__screen.is-sheet-open .mob-sheet { transform: translateY(0); }
+  .mob-sheet__handle { width: 36px; height: 4px; border-radius: 3px; background: var(--mob-border); margin: 0 auto 0.2rem; }
+  .mob-sheet__title { font-size: 0.88rem; font-weight: 700; margin: 0; }
+  .mob-sheet__actions { display: flex; gap: 0.5rem; }
+  .mob-sheet__actions .mob-btn { min-height: 44px; font-size: 0.74rem; flex-direction: column; gap: 0.2rem; }
+
+  /* Drawer */
+  .mob-overlay { position: absolute; inset: 0; background: rgba(2,6,23,0.65); z-index: 45; }
+  .mob-drawer {
+    position: absolute; top: 0; right: 0; bottom: 0; width: 76%; background: #020617;
+    border-left: 1px solid var(--mob-border); z-index: 46; display: flex; flex-direction: column;
+  }
+  .mob-drawer__head { padding: 1rem; border-bottom: 1px solid var(--mob-border); display: flex; justify-content: space-between; align-items: center; }
+  .mob-drawer__head h3 { margin: 0; font-size: 1rem; }
+  .mob-drawer nav { padding: 0.85rem; display: flex; flex-direction: column; gap: 0.3rem; }
+  .mob-drawer-item {
+    display: flex; align-items: center; gap: 0.65rem; padding: 0.7rem 0.75rem; border-radius: 8px;
+    font-size: 0.86rem; font-weight: 500; color: var(--mob-text); text-decoration: none;
+  }
+  .mob-drawer-item svg { width: 17px; height: 17px; flex: none; }
+  .mob-drawer-item.is-active { background: var(--mob-card); color: var(--mob-accent); }
+  .mob-drawer-divider { height: 1px; background: var(--mob-border); margin: 0.6rem 0; }
+
+  /* ---------------- Rodapé ---------------- */
+  .site-footer { padding: 2.75rem 0 4rem; }
+  .site-footer .files {
+    display: flex; flex-wrap: wrap; gap: 0.9rem; margin-top: 1rem;
+  }
+  .file-chip {
+    font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-muted);
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 0.45rem 0.7rem;
+  }
+  .file-chip strong { color: var(--ink); font-weight: 600; }
+  .site-footer p.colophon { color: var(--ink-muted); font-size: 0.85rem; max-width: 60ch; }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow"><span class="dot"></span>saa29 / docs / backlog / modulo_mobile</p>
+    <h1>Linha de Voo — Mockup Mobile</h1>
+    <p class="lede">
+      Telas de <strong>Panes</strong>, <strong>Inspeções</strong>, <strong>Vencimentos</strong>,
+      <strong>Inventário</strong> e <strong>Publicações</strong> recortadas para o mantenedor em campo,
+      construídas sobre o design system escuro que já existe em <code>mobile.css</code> — mesmos tokens
+      de cor, mesmo alvo de toque de 56px. Companion de
+      <code>01_especificacao_mobile.md</code> e <code>02_plano_implementacao.md</code>.
+    </p>
+    <div class="meta-row">
+      <span class="status-pill">Aguardando aprovação</span>
+      <span class="meta-note">moldura ≈ iPhone 14/15/16 Pro · 393×852</span>
+      <span class="meta-note">verificado também a 375×667 (iPhone SE)</span>
+    </div>
+    <div class="legend">
+      <div class="legend-group">
+        <span class="label">Vencimento</span>
+        <span class="chip"><span class="sw sw--ok"></span>OK</span>
+        <span class="chip"><span class="sw sw--warn"></span>Vencendo</span>
+        <span class="chip"><span class="sw sw--danger"></span>Vencido</span>
+        <span class="chip"><span class="sw sw--info"></span>Prorrogado</span>
+        <span class="chip"><span class="sw sw--off"></span>Desinstalado</span>
+      </div>
+      <div class="legend-group">
+        <span class="label">Tarefa</span>
+        <span class="chip"><span class="sw sw--ok"></span>Concluída</span>
+        <span class="chip"><span class="sw sw--warn"></span>Pendente</span>
+        <span class="chip"><span class="sw sw--off"></span>N/A</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============================================================= -->
+  <!-- GRUPO 1 — FLUXO PRINCIPAL                                      -->
+  <!-- ============================================================= -->
+  <section class="group" id="fluxo-principal">
+    <div class="group-head">
+      <p class="eyebrow"><span class="dot"></span>Sequência real de uso</p>
+      <h2>Fluxo Principal</h2>
+      <p>Do pátio até a assinatura: o mantenedor abre o app, entra na aeronave que está travando a frota,
+        relata ou resolve uma pane, e volta ao checklist da inspeção em andamento.</p>
+    </div>
+
+    <div class="frame-grid">
+
+      <!-- 01 — Frota -->
+      <div class="frame-card">
+        <span class="frame-step">01</span>
+        <div class="device">
+          <div class="device__screen">
+            <div class="device__island"></div>
+            <div class="mob-statusbar"><span>9:41</span><span class="batt"></span></div>
+            <div class="mob-header">
+              <div class="mob-header__title">
+                <span class="mob-badge">SAA29</span>
+                <h1>Linha de Voo</h1>
+              </div>
+              <div style="display:flex; align-items:center; gap:0.4rem;">
+                <span class="mob-user-chip">BRT</span>
+                <button class="mob-icon-btn" aria-label="Abrir menu">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="mob-scroll" style="padding-top:0.9rem;">
+              <p class="mob-section-title" style="margin-top:0;">Aeronaves na Linha de Voo</p>
+              <p class="mob-section-sub">Ordenadas por criticidade operacional.</p>
+
+              <div class="mob-anv-card">
+                <div><h3>A-29 FAB-2854</h3><p>INDISPONÍVEL</p></div>
+                <div class="stack">
+                  <span class="mob-pill pill--danger">2 panes</span>
+                  <span class="mob-pill pill--warn">1 venc.</span>
+                </div>
+              </div>
+              <div class="mob-anv-card">
+                <div><h3>A-29 FAB-2861</h3><p>INSPEÇÃO — IPE</p></div>
+                <div class="stack"><span class="mob-pill pill--warn">30% concl.</span></div>
+              </div>
+              <div class="mob-anv-card">
+                <div><h3>A-29 FAB-2847</h3><p>DISPONÍVEL</p></div>
+                <div class="stack"><span class="mob-pill pill--warn">1 venc.</span></div>
+              </div>
+              <div class="mob-anv-card">
+                <div><h3>A-29 FAB-2839</h3><p>DISPONÍVEL</p></div>
+                <div class="stack"><span class="mob-pill pill--ok">Tudo em dia</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="frame-caption">
+          <span class="name">Frota</span>
+          <span class="route">GET /m/ → GET /dashboard/frota</span>
+          <p class="purpose">Home. Uma única requisição monta contadores de pane, inspeção e vencimento por aeronave.</p>
+        </div>
+      </div>
+
+      <!-- 02 — Hub da aeronave -->
+      <div class="frame-card">
+        <span class="frame-step">02</span>
+        <div class="device">
+          <div class="device__screen">
+            <div class="device__island"></div>
+            <div class="mob-statusbar"><span>9:42</span><span class="batt"></span></div>
+            <div class="mob-header">
+              <a class="mob-back" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Frota</a>
+              <span class="mob-pill pill--danger">INDISPONÍVEL</span>
+            </div>
+            <div style="padding:0.7rem 16px 0;">
+              <h1 style="margin:0; font-size:1.15rem;">A-29 FAB-2854</h1>
+            </div>
+            <div class="mob-tabbar">
+              <button class="mob-tab is-active">Panes</button>
+              <button class="mob-tab">Inspeções</button>
+              <button class="mob-tab">Vencim.</button>
+              <button class="mob-tab">Invent.</button>
+            </div>
+            <div class="mob-scroll" style="position:relative; padding-top:0.9rem;">
+              <div class="mob-card">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.4rem;">
+                  <span class="mob-pill pill--danger">003/26 · ABERTA</span>
+                  <span class="mob-row__sub">há 2h</span>
+                </div>
+                <p style="margin:0 0 0.3rem; font-size:0.85rem; font-weight:600;">CMFD 1 com falha intermitente de tela na partida</p>
+                <p class="mob-row__sub" style="font-family:inherit; font-size:0.72rem;">ATA-24 · relator ALV</p>
+              </div>
+              <div class="mob-card">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.4rem;">
+                  <span class="mob-pill pill--danger">004/26 · ABERTA</span>
+                  <span class="mob-row__sub">há 40min</span>
+                </div>
+                <p style="margin:0 0 0.3rem; font-size:0.85rem; font-weight:600;">AGUARDANDO EDICAO</p>
+                <p class="mob-row__sub" style="font-family:inherit; font-size:0.72rem;">ATA-34 · relator ROD</p>
+              </div>
+              <button class="mob-fab">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="width:15px;height:15px;"><path stroke-linecap="round" d="M12 4v16m8-8H4"/></svg>
+                Relatar Pane
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="frame-caption">
+          <span class="name">Hub da Aeronave</span>
+          <span class="route">GET /m/aeronave/{id}</span>
+          <p class="purpose">4 abas com busca preguiçosa — cada uma só carrega ao ser aberta pela 1ª vez.</p>
+        </div>
+      </div>
+
+      <!-- 03 — Relato rápido -->
+      <div class="frame-card">
+        <span class="frame-step">03</span>
+        <div class="device">
+          <div class="device__screen">
+            <div class="device__island"></div>
+            <div class="mob-statusbar"><span>9:43</span><span class="batt"></span></div>
+            <div class="mob-header">
+              <a class="mob-back" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>FAB-2854</a>
+            </div>
+            <div class="mob-scroll" style="padding-top:1rem;">
+              <p class="mob-section-title" style="margin-top:0;">Relato Rápido de Pane</p>
+              <div class="mob-fixed-note">Aeronave: <strong style="color:var(--mob-text)">A-29 FAB-2854</strong> (fixa)</div>
+
+              <div class="mob-field">
+                <label>Sistema / ATA</label>
+                <select class="mob-select"><option>ATA-24 · Elétrico</option></select>
+              </div>
+              <div class="mob-field">
+                <label>Descrição</label>
+                <textarea class="mob-textarea" rows="3">Fumaça leve no compartimento avi&#243;nico direito ap&#243;s corte do motor.</textarea>
+              </div>
+              <div class="mob-field">
+                <label>Foto (opcional)</label>
+                <div class="mob-photo-row">
+                  <button class="mob-photo mob-photo-add" aria-label="Adicionar foto">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3.5"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div style="flex:1"></div>
+              <button class="mob-btn mob-btn--accent mob-btn--lg">Registrar Pane</button>
+            </div>
+          </div>
+        </div>
+        <div class="frame-caption">
+          <span class="name">Relato Rápido</span>
+          <span class="route">GET /m/pane/nova?aeronave_id=…</span>
+          <p class="purpose">POST /panes/ seguido de POST /panes/{id}/anexos quando há foto.</p>
+        </div>
+      </div>
+
+      <!-- 04 — Detalhe da pane -->
+      <div class="frame-card">
+        <span class="frame-step">04</span>
+        <div class="device">
+          <div class="device__screen">
+            <div class="device__island"></div>
+            <div class="mob-statusbar"><span>9:47</span><span class="batt"></span></div>
+            <div class="mob-header">
+              <a class="mob-back" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>FAB-2854</a>
+              <span class="mob-pill pill--danger">003/26</span>
+            </div>
+            <div class="mob-scroll" style="padding-top:0.9rem;">
+              <div class="mob-card">
+                <p class="mob-row__sub" style="font-family:inherit; font-size:0.7rem; margin:0 0 0.3rem;">ATA-24 · Elétrico · relator ALV</p>
+                <p style="margin:0; font-size:0.86rem; font-weight:600;">CMFD 1 com falha intermitente de tela na partida</p>
+              </div>
+
+              <div class="mob-card">
+                <p class="mob-row__sub" style="font-family:inherit; font-size:0.72rem; font-weight:700; color:var(--mob-text); margin:0 0 0.5rem;">Anexos</p>
+                <div class="mob-photo-row">
+                  <div class="mob-photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3.5"/></svg></div>
+                  <div class="mob-photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3.5"/></svg></div>
+                  <button class="mob-photo mob-photo-add" aria-label="Tirar foto">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M12 4v16m8-8H4"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="mob-card" style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:0.82rem; font-weight:600;">Responsável</span>
+                <span class="mob-pill pill--ghost">BRT (você)</span>
+              </div>
+
+              <div class="mob-field">
+                <label>Solução aplicada</label>
+                <textarea class="mob-textarea" rows="2">Reassentado conector J4 do CMFD 1; teste em solo normalizado.</textarea>
+              </div>
+              <div style="flex:1"></div>
+              <button class="mob-btn mob-btn--ok mob-btn--lg">Concluir e Assinar</button>
+            </div>
+          </div>
+        </div>
+        <div class="frame-caption">
+          <span class="name">Detalhe da Pane</span>
+          <span class="route">GET /m/pane/{pane_id}</span>
+          <p class="purpose">Câmera, assumir (só a si mesmo), comentar e concluir com observação.</p>
+        </div>
+      </div>
+
+      <!-- 05 — Checklist de inspeção -->
+      <div class="frame-card">
+        <span class="frame-step">05</span>
+        <div class="device">
+          <div class="device__screen is-sheet-open" id="checklistScreen">
+            <div class="device__island"></div>
+            <div class="mob-statusbar"><span>9:51</span><span class="batt"></span></div>
+            <div class="mob-header">
+              <a class="mob-back" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>FAB-2854</a>
+              <span class="mob-pill pill--warn">DPE amanhã</span>
+            </div>
+            <div style="padding:0.6rem 16px 0;">
+              <h1 style="margin:0; font-size:1.05rem;">IF-50H</h1>
+              <div style="display:flex; align-items:center; gap:0.5rem; margin:0.45rem 0;">
+                <div class="mob-progress" style="flex:1;"><span style="width:62%"></span></div>
+                <span style="font-size:0.7rem; color:var(--mob-muted); font-family:var(--font-mono);">5/8</span>
+              </div>
+            </div>
+            <div class="mob-tabbar" style="border-top:1px solid var(--mob-border); padding-top:8px;">
+              <button class="mob-tab">Pendentes</button>
+              <button class="mob-tab is-active">Todas</button>
+            </div>
+            <div class="mob-scroll" style="padding-top:0.4rem;">
+              <div class="mob-task"><span class="mob-task__icon mob-task__icon--done">✓</span><div class="mob-task__body"><p class="mob-task__title">Inspeção visual da fuselagem</p><p class="mob-task__meta">CONCLUIDA · ALV · 08:12</p></div></div>
+              <div class="mob-task"><span class="mob-task__icon mob-task__icon--done">✓</span><div class="mob-task__body"><p class="mob-task__title">Verificação de vazamento hidráulico</p><p class="mob-task__meta">CONCLUIDA · ALV · 08:40</p></div></div>
+              <div class="mob-task" data-open-sheet>
+                <span class="mob-task__icon mob-task__icon--pending"></span>
+                <div class="mob-task__body"><p class="mob-task__title">Teste funcional do CMFD 1</p><p class="mob-task__meta">PENDENTE · vinc. pane 003/26</p></div>
+                <span class="mob-task__chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg></span>
+              </div>
+              <div class="mob-task"><span class="mob-task__icon mob-task__icon--na">—</span><div class="mob-task__body"><p class="mob-task__title">Calibração do sistema pitot</p><p class="mob-task__meta">N/A · sem voo desde última calib.</p></div></div>
+              <div class="mob-task"><span class="mob-task__icon mob-task__icon--pending"></span><div class="mob-task__body"><p class="mob-task__title">Inspeção do trem de pouso</p><p class="mob-task__meta">PENDENTE</p></div></div>
+            </div>
+
+            <div class="mob-sheet-backdrop" data-close-sheet></div>
+            <div class="mob-sheet">
+              <div class="mob-sheet__handle"></div>
+              <p class="mob-sheet__title">Teste funcional do CMFD 1</p>
+              <div class="mob-sheet__actions">
+                <button class="mob-btn mob-btn--ghost">— N/A</button>
+                <button class="mob-btn mob-btn--ghost">○ Pendente</button>
+                <button class="mob-btn mob-btn--ok">✓ Concluída</button>
+              </div>
+              <textarea class="mob-textarea" rows="2" placeholder="Observação (opcional)"></textarea>
+              <button class="mob-mini-btn mob-mini-btn--ghost" data-close-sheet style="align-self:center; margin-top:0.1rem;">Fechar</button>
+            </div>
+          </div>
+        </div>
+        <div class="frame-caption">
+          <span class="name">Checklist de Inspeção</span>
+          <span class="route">GET /m/inspecao/{id}</span>
+          <p class="purpose">Toque na tarefa abre a folha de ação. PUT /inspecoes/tarefas/{id}. Toque para fechar/reabrir.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================================= -->
+  <!-- GRUPO 2 — ABAS DO HUB (não sequenciais)                        -->
+  <!-- ============================================================= -->
+  <section class="group" id="abas-hub">
+    <div class="group-head">
+      <p class="eyebrow"><span class="dot"></span>Duas abas do mesmo hub, sem rota própria</p>
+      <h2>Vencimentos e Inventário</h2>
+      <p>Vivem in-place em <code>/m/aeronave/{id}</code>, ao lado de Panes e Inspeções — sem navegação
+        extra, sem tela de gestão ou cadastro.</p>
+    </div>
+
+    <div class="frame-grid">
+
+      <!-- Vencimentos -->
+      <div class="frame-card">
+        <div class="device">
+          <div class="device__screen">
+            <div class="device__island"></div>
+            <div class="mob-statusbar"><span>9:55</span><span class="batt"></span></div>
+            <div class="mob-header">
+              <a class="mob-back" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>FAB-2854</a>
+              <span class="mob-pill pill--danger">INDISPONÍVEL</span>
+            </div>
+            <div class="mob-tabbar">
+              <button class="mob-tab">Panes</button>
+              <button class="mob-tab">Inspeções</button>
+              <button class="mob-tab is-active">Vencim.</button>
+              <button class="mob-tab">Invent.</button>
+            </div>
+            <div class="mob-scroll" style="padding-top:0.6rem; gap:0;">
+              <div class="mob-row">
+                <div class="mob-row__main"><p class="mob-row__title">VUHF-1 · TBO</p><p class="mob-row__sub">vence 12/09/2026</p></div>
+                <div class="mob-row__end"><span class="mob-pill pill--ok">OK</span></div>
+              </div>
+              <div class="mob-row">
+                <div class="mob-row__main"><p class="mob-row__title">TACAN · TLV</p><p class="mob-row__sub">vence em 3 dias</p></div>
+                <div class="mob-row__end"><span class="mob-pill pill--warn">VENCENDO</span><button class="mob-mini-btn mob-mini-btn--accent">Registrar</button></div>
+              </div>
+              <div class="mob-row">
+                <div class="mob-row__main"><p class="mob-row__title">Transponder · CRI</p><p class="mob-row__sub">venceu 10/08/2026</p></div>
+                <div class="mob-row__end"><span class="mob-pill pill--danger">VENCIDO</span><button class="mob-mini-btn mob-mini-btn--accent">Registrar</button></div>
+              </div>
+              <div class="mob-row">
+                <div class="mob-row__main"><p class="mob-row__title">Piloto Automático · TLV</p><p class="mob-row__sub">AT 045/26 · até 30/08</p></div>
+                <div class="mob-row__end"><span class="mob-pill pill--info">PRORROGADO</span></div>
+              </div>
+              <div class="mob-row">
+                <div class="mob-row__main"><p class="mob-row__title">GPS-2</p><p class="mob-row__sub">slot vazio</p></div>
+                <div class="mob-row__end"><span class="mob-pill pill--off">DESINSTAL.</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="frame-caption">
+          <span class="name">Vencimentos</span>
+          <span class="route">GET /vencimentos/matriz?aeronave_id=…</span>
+          <p class="purpose">Status sempre derivado por data, igual a matriz do desktop — nunca o campo persistido.</p>
+        </div>
+      </div>
+
+      <!-- Inventário -->
+      <div class="frame-card">
+        <div class="device">
+          <div class="device__screen">
+            <div class="device__island"></div>
+            <div class="mob-statusbar"><span>9:58</span><span class="batt"></span></div>
+            <div class="mob-header">
+              <a class="mob-back" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>FAB-2854</a>
+              <span class="mob-pill pill--danger">INDISPONÍVEL</span>
+            </div>
+            <div class="mob-tabbar">
+              <button class="mob-tab">Panes</button>
+              <button class="mob-tab">Inspeções</button>
+              <button class="mob-tab">Vencim.</button>
+              <button class="mob-tab is-active">Invent.</button>
+            </div>
+            <div class="mob-scroll" style="padding-top:0.6rem; gap:0;">
+              <div class="mob-row">
+                <div class="mob-row__main"><p class="mob-row__title">VUHF-1 · PN VU-2200</p><p class="mob-row__sub">S/N 4471 · ATIVO</p></div>
+                <div class="mob-row__end"><button class="mob-mini-btn mob-mini-btn--ghost">Remover</button></div>
+              </div>
+              <div class="mob-row">
+                <div class="mob-row__main"><p class="mob-row__title">TACAN · PN TC-410</p><p class="mob-row__sub">S/N 0092 · ATIVO</p></div>
+                <div class="mob-row__end"><button class="mob-mini-btn mob-mini-btn--ghost">Remover</button></div>
+              </div>
+              <div class="mob-row">
+                <div class="mob-row__main">
+                  <p class="mob-row__title">GPS-2 · PN GPS-900</p>
+                  <p class="mob-row__sub">slot vazio</p>
+                  <div class="mob-empty-note">Nenhum item de estoque cadastrado para este PN. Solicite ao Administrador o cadastro do S/N.</div>
+                </div>
+                <div class="mob-row__end"><button class="mob-mini-btn mob-mini-btn--ok" disabled style="opacity:.5;">Instalar</button></div>
+              </div>
+              <div class="mob-row">
+                <div class="mob-row__main"><p class="mob-row__title">Piloto Automático · PN AP-330</p><p class="mob-row__sub">S/N 1187 · ATIVO</p></div>
+                <div class="mob-row__end"><button class="mob-mini-btn mob-mini-btn--ghost">Remover</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="frame-caption">
+          <span class="name">Inventário</span>
+          <span class="route">GET /equipamentos/inventario/{id}</span>
+          <p class="purpose">Instalar só aceita S/N já cadastrado — limitação de RBAC explicada, não escondida.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================================= -->
+  <!-- GRUPO 3 — NAVEGAÇÃO                                            -->
+  <!-- ============================================================= -->
+  <section class="group" id="navegacao">
+    <div class="group-head">
+      <p class="eyebrow"><span class="dot"></span>Sem itens placeholder</p>
+      <h2>Menu (Drawer)</h2>
+      <p>Cada item do drawer leva a algo que existe de fato — "Relato Rápido de Pane" deixa de ser um item
+        desabilitado e passa a abrir a tela 03; "Sincronização Offline" sai do menu (fora de escopo desta entrega).</p>
+    </div>
+    <div class="frame-grid">
+      <div class="frame-card">
+        <div class="device">
+          <div class="device__screen">
+            <div class="device__island"></div>
+            <div class="mob-statusbar"><span>9:41</span><span class="batt"></span></div>
+            <div class="mob-header">
+              <div class="mob-header__title">
+                <span class="mob-badge">SAA29</span>
+                <h1>Linha de Voo</h1>
+              </div>
+              <div style="display:flex; align-items:center; gap:0.4rem;">
+                <span class="mob-user-chip">BRT</span>
+                <button class="mob-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+              </div>
+            </div>
+            <div class="mob-scroll" style="padding-top:0.9rem;">
+              <div class="mob-anv-card"><div><h3>A-29 FAB-2854</h3><p>INDISPONÍVEL</p></div><div class="stack"><span class="mob-pill pill--danger">2 panes</span></div></div>
+              <div class="mob-anv-card"><div><h3>A-29 FAB-2861</h3><p>INSPEÇÃO</p></div><div class="stack"><span class="mob-pill pill--warn">30%</span></div></div>
+            </div>
+
+            <div class="mob-overlay"></div>
+            <div class="mob-drawer">
+              <div class="mob-drawer__head"><h3>Menu SAA29</h3><span style="color:var(--mob-muted); font-size:1rem;">✕</span></div>
+              <nav>
+                <a class="mob-drawer-item is-active" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 00-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>Linha de Voo (Início)</a>
+                <a class="mob-drawer-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M12 4v16m8-8H4"/></svg>Relato Rápido de Pane</a>
+                <a class="mob-drawer-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/></svg>Publicações</a>
+                <a class="mob-drawer-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>Modo Desktop / Dashboard</a>
+                <div class="mob-drawer-divider"></div>
+                <a class="mob-drawer-item" href="#" style="color:var(--mob-muted);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>Sair</a>
+              </nav>
+            </div>
+          </div>
+        </div>
+        <div class="frame-caption">
+          <span class="name">Drawer aberto</span>
+          <span class="route">base_mobile.html</span>
+          <p class="purpose">Off-canvas, mesma mecânica atual — só o conteúdo dos itens muda.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="colophon">
+      Este arquivo é autocontido (sem dependência além da fonte do Google Fonts) e pode ser aberto direto
+      no navegador. Reflete o recorte de RBAC descrito na especificação — nenhuma ação aqui existe fora
+      do que o MANTENEDOR já pode fazer hoje no desktop.
+    </p>
+    <div class="files">
+      <span class="file-chip"><strong>01_especificacao_mobile.md</strong> — requisitos e critérios de aceite</span>
+      <span class="file-chip"><strong>02_plano_implementacao.md</strong> — etapas de codificação</span>
+      <span class="file-chip"><strong>mockup_mobile.html</strong> — este arquivo</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Alterna abas dentro de um mesmo device (sem afetar os outros frames).
+  document.querySelectorAll('.mob-tabbar').forEach(function (bar) {
+    bar.addEventListener('click', function (ev) {
+      var btn = ev.target.closest('.mob-tab');
+      if (!btn) return;
+      bar.querySelectorAll('.mob-tab').forEach(function (b) { b.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+    });
+  });
+
+  // Abre/fecha a folha de ação do checklist.
+  var checklistScreen = document.getElementById('checklistScreen');
+  if (checklistScreen) {
+    checklistScreen.addEventListener('click', function (ev) {
+      if (ev.target.closest('[data-open-sheet]')) {
+        checklistScreen.classList.add('is-sheet-open');
+      } else if (ev.target.closest('[data-close-sheet]')) {
+        checklistScreen.classList.remove('is-sheet-open');
+      }
+    });
+  }
+</script>
+
+</body>
+</html>
