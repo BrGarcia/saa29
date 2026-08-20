@@ -1,0 +1,2382 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAA29 - Painel Tático (Mockup Standalone)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* Light Mode */
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --primary-light: #dbeafe;
+            --accent-color: #0f172a;
+            
+            /* Status Colors */
+            --status-ok: #10b981;
+            --status-ok-bg: #d1fae5;
+            --status-warning: #f59e0b;
+            --status-warning-bg: #fef3c7;
+            --status-danger: #ef4444;
+            --status-danger-bg: #fee2e2;
+            --status-prorrogado: #8b5cf6;
+            --status-prorrogado-bg: #ede9fe;
+            --status-info: #0284c7;
+            --status-info-bg: #e0f2fe;
+            --status-incompleta: #64748b;
+            --status-incompleta-bg: #f1f5f9;
+
+            --glass-bg: rgba(255, 255, 255, 0.88);
+            --glass-border: rgba(226, 232, 240, 0.8);
+            --glass-card: rgba(255, 255, 255, 0.95);
+            
+            --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+            --shadow-lg: 0 10px 25px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+            
+            --transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+            --radius-sm: 0.375rem;
+            --radius-md: 0.55rem;
+            --radius-lg: 0.875rem;
+            --radius-full: 9999px;
+        }
+
+        [data-theme="dark"] {
+            /* Dark Mode Tático */
+            --bg-primary: #090d16;
+            --bg-secondary: #111827;
+            --bg-tertiary: #1a2336;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border-color: #243147;
+
+            --primary-color: #3b82f6;
+            --primary-hover: #60a5fa;
+            --primary-light: rgba(59, 130, 246, 0.15);
+            --accent-color: #e2e8f0;
+
+            --status-ok-bg: rgba(16, 185, 129, 0.14);
+            --status-warning-bg: rgba(245, 158, 11, 0.14);
+            --status-danger-bg: rgba(239, 68, 68, 0.16);
+            --status-prorrogado-bg: rgba(139, 92, 246, 0.16);
+            --status-info-bg: rgba(2, 132, 199, 0.16);
+            --status-incompleta-bg: rgba(100, 116, 139, 0.14);
+
+            --glass-bg: rgba(17, 24, 39, 0.8);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-card: rgba(17, 24, 39, 0.88);
+            
+            --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.3);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+            --shadow-lg: 0 12px 28px -4px rgb(0 0 0 / 0.5), 0 6px 12px -4px rgb(0 0 0 / 0.4);
+        }
+
+        /* Resets & Global Styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.25s ease, color 0.25s ease;
+            min-height: 100vh;
+            line-height: 1.5;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.06) 0px, transparent 45%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.04) 0px, transparent 45%);
+            background-attachment: fixed;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Utilitários de Ícones Planos (Flaticon / Thin UIcons Style) */
+        .uicon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            stroke-width: 1.6;
+            stroke: currentColor;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            flex-shrink: 0;
+        }
+
+        .uicon-xs { width: 14px; height: 14px; stroke-width: 1.7; }
+        .uicon-sm { width: 16px; height: 16px; stroke-width: 1.6; }
+        .uicon-md { width: 20px; height: 20px; stroke-width: 1.5; }
+        .uicon-lg { width: 24px; height: 24px; stroke-width: 1.5; }
+
+        /* Banner de Modo Mockup */
+        .mockup-watermark {
+            background: linear-gradient(90deg, #1e3a8a, #2563eb);
+            color: #ffffff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.4rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            letter-spacing: 0.4px;
+        }
+
+        .mockup-watermark-left {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .mockup-watermark .badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.15rem 0.55rem;
+            border-radius: var(--radius-full);
+            font-size: 0.68rem;
+            letter-spacing: 0.5px;
+        }
+
+        /* App Container */
+        .app-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 1.25rem 2rem 3rem 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* Top Header */
+        .top-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            padding: 0.85rem 1.25rem;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .brand-title {
+            font-size: 1.28rem;
+            font-weight: 800;
+            letter-spacing: -0.4px;
+            margin: 0;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .brand-badge {
+            font-size: 0.65rem;
+            font-weight: 700;
+            background: var(--primary-light);
+            color: var(--primary-color);
+            padding: 0.18rem 0.45rem;
+            border-radius: var(--radius-sm);
+            letter-spacing: 0.5px;
+            border: 1px solid rgba(59, 130, 246, 0.25);
+        }
+
+        .header-divider {
+            width: 1px;
+            height: 24px;
+            background: var(--border-color);
+        }
+
+        .page-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .page-indicator .live-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--status-ok);
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 8px var(--status-ok);
+            animation: pulseDot 2s infinite ease-in-out;
+        }
+
+        @keyframes pulseDot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.6; }
+        }
+
+        /* Top Navigation */
+        .header-nav {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-group {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            padding: 0.25rem 0.35rem;
+            border-radius: var(--radius-md);
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-sm);
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+            position: relative;
+        }
+
+        .btn-icon:hover {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+            border-color: var(--border-color);
+        }
+
+        .btn-icon.active {
+            color: var(--primary-color);
+            background: var(--primary-light);
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-icon .badge-dot {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 6px;
+            height: 6px;
+            background-color: var(--status-danger);
+            border-radius: 50%;
+        }
+
+        /* Tooltip Customizado */
+        .btn-icon[data-tooltip]::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: -32px;
+            left: 50%;
+            transform: translateX(-50%) scale(0.9);
+            background: #0f172a;
+            color: #ffffff;
+            font-size: 0.72rem;
+            font-weight: 500;
+            padding: 0.3rem 0.6rem;
+            border-radius: var(--radius-sm);
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.18s ease;
+            box-shadow: var(--shadow-md);
+            z-index: 100;
+        }
+
+        .btn-icon[data-tooltip]:hover::after {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+        }
+
+        /* Glass Panel */
+        .glass-panel {
+            background: var(--glass-card);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+        }
+
+        .glass-panel:hover {
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Quick Action Bar */
+        .quick-action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 0.85rem;
+            border-radius: var(--radius-md);
+            flex: 1;
+            max-width: 440px;
+            transition: var(--transition);
+            color: var(--text-secondary);
+        }
+
+        .search-box:focus-within {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .search-box input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            width: 100%;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.55rem 1.1rem;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            border: 1px solid transparent;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--primary-color);
+        }
+
+        /* Dashboard Top Grid (3 Colunas) */
+        .dashboard-top-grid {
+            display: grid;
+            grid-template-columns: 1.15fr 1fr 1.35fr;
+            gap: 1.5rem;
+        }
+
+        .dashboard-card {
+            padding: 1.25rem 1.4rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-info {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .card-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-label {
+            font-size: 0.88rem;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            color: var(--text-primary);
+            text-transform: uppercase;
+        }
+
+        .btn-link {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            text-decoration: none;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Vencimentos Grid */
+        .vencimentos-summary {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.65rem;
+        }
+
+        .v-stat {
+            padding: 0.8rem 0.95rem;
+            border-radius: var(--radius-md);
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .v-stat:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .v-stat.ok { border-left: 3.5px solid var(--status-ok); }
+        .v-stat.warning { border-left: 3.5px solid var(--status-warning); }
+        .v-stat.danger { border-left: 3.5px solid var(--status-danger); }
+        .v-stat.prorrogado { border-left: 3.5px solid var(--status-prorrogado); }
+
+        .v-stat.ok:hover { background: var(--status-ok-bg); }
+        .v-stat.warning:hover { background: var(--status-warning-bg); }
+        .v-stat.danger:hover { background: var(--status-danger-bg); }
+        .v-stat.prorrogado:hover { background: var(--status-prorrogado-bg); }
+
+        .v-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            letter-spacing: 0.4px;
+        }
+
+        .v-count {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.1;
+        }
+
+        .v-sub {
+            font-size: 0.68rem;
+            color: var(--text-secondary);
+        }
+
+        /* Inspeções List */
+        .inspecoes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+        }
+
+        .insp-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.65rem 0.8rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .insp-item:hover {
+            border-color: var(--primary-color);
+            background: var(--bg-tertiary);
+            transform: translateX(2px);
+        }
+
+        .insp-info {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+        }
+
+        .insp-tail {
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--primary-color);
+            background: var(--primary-light);
+            padding: 0.2rem 0.45rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .insp-name {
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+
+        .insp-progress-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            min-width: 105px;
+        }
+
+        .progress-bar-bg {
+            flex: 1;
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--primary-color);
+            border-radius: var(--radius-full);
+        }
+
+        .insp-pct {
+            font-size: 0.74rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-secondary);
+            width: 30px;
+            text-align: right;
+        }
+
+        /* Frota Badges Grid */
+        .frota-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 0.55rem;
+        }
+
+        .aircraft-badge {
+            display: flex;
+            flex-direction: column;
+            padding: 0.6rem 0.75rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .aircraft-badge:hover {
+            transform: translateY(-2px);
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .aircraft-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.2rem;
+        }
+
+        .aircraft-number {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 800;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+
+        .aircraft-status-pill {
+            font-size: 0.6rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 0.12rem 0.35rem;
+            border-radius: var(--radius-full);
+            letter-spacing: 0.3px;
+        }
+
+        .pill-disp {
+            background: var(--status-ok-bg);
+            color: var(--status-ok);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .pill-maint {
+            background: var(--status-danger-bg);
+            color: var(--status-danger);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .pill-insp {
+            background: var(--status-warning-bg);
+            color: var(--status-warning);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .pill-voo {
+            background: var(--status-info-bg);
+            color: var(--status-info);
+            border: 1px solid rgba(2, 132, 199, 0.3);
+        }
+
+        .aircraft-sub {
+            font-size: 0.68rem;
+            color: var(--text-secondary);
+        }
+
+        /* Bottom Grid (Panes + Inventário) */
+        .dashboard-bottom-grid {
+            display: grid;
+            grid-template-columns: 2fr 1.15fr;
+            gap: 1.5rem;
+        }
+
+        /* Panes Operacionais */
+        .panes-stats-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            padding: 0.85rem 1.25rem;
+            border-radius: var(--radius-md);
+            margin-bottom: 0.85rem;
+        }
+
+        .stat-counter-group {
+            display: flex;
+            align-items: center;
+            gap: 1.75rem;
+        }
+
+        .stat-counter {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-counter .num {
+            font-size: 1.7rem;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .stat-counter .label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .stat-sep {
+            width: 1px;
+            height: 32px;
+            background: var(--border-color);
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 0.3rem;
+            background: var(--bg-tertiary);
+            padding: 0.2rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.35rem 0.7rem;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .tab-btn.active, .tab-btn:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* Panes Items */
+        .panes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+        }
+
+        .pane-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.85rem 1.15rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .pane-card:hover {
+            border-color: var(--primary-color);
+            transform: translateX(3px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .pane-card.critical {
+            border-left: 3.5px solid var(--status-danger);
+        }
+
+        .pane-card.routine {
+            border-left: 3.5px solid var(--status-warning);
+        }
+
+        .pane-main {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.85rem;
+            flex: 1;
+        }
+
+        .pane-tail {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 800;
+            font-size: 0.9rem;
+            color: var(--primary-color);
+            background: var(--primary-light);
+            padding: 0.25rem 0.55rem;
+            border-radius: var(--radius-sm);
+            white-space: nowrap;
+        }
+
+        .pane-details {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .pane-title {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .pane-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            flex-wrap: wrap;
+        }
+
+        .pane-meta-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: var(--bg-tertiary);
+            padding: 0.15rem 0.45rem;
+            border-radius: var(--radius-sm);
+            font-weight: 500;
+        }
+
+        .status-dot-indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-dot-indicator.danger { background-color: var(--status-danger); box-shadow: 0 0 5px var(--status-danger); }
+        .status-dot-indicator.warning { background-color: var(--status-warning); }
+
+        .pane-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-left: 1rem;
+        }
+
+        .btn-action-resolve {
+            background: var(--status-ok-bg);
+            color: var(--status-ok);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 0.38rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .btn-action-resolve:hover {
+            background: var(--status-ok);
+            color: #ffffff;
+        }
+
+        /* Feed de Inventário */
+        .inventory-feed {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .feed-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem 0.9rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            transition: var(--transition);
+        }
+
+        .feed-item:hover {
+            border-color: var(--primary-color);
+            background: var(--bg-tertiary);
+        }
+
+        .feed-icon-wrap {
+            width: 34px;
+            height: 34px;
+            border-radius: var(--radius-sm);
+            background: var(--primary-light);
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .feed-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.18rem;
+            flex: 1;
+        }
+
+        .feed-header-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .feed-part-name {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .feed-time {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .feed-desc {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .feed-pn-sn {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--primary-color);
+        }
+
+        /* Calendário Tático Semanal */
+        .calendar-section {
+            width: 100%;
+        }
+
+        .calendar-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .calendar-week-nav {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            padding: 0.2rem 0.5rem;
+            border-radius: var(--radius-md);
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.65rem;
+            margin-top: 0.4rem;
+        }
+
+        .cal-day-col {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 0.7rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            min-height: 175px;
+            transition: var(--transition);
+        }
+
+        .cal-day-col:hover {
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+
+        .cal-day-col.today {
+            border-color: var(--primary-color);
+            background: rgba(59, 130, 246, 0.04);
+            box-shadow: inset 0 0 0 1px var(--primary-color);
+        }
+
+        .cal-day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.35rem;
+        }
+
+        .cal-day-name {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+
+        .cal-day-date {
+            font-size: 0.82rem;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        .cal-events {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            flex: 1;
+        }
+
+        .cal-event-pill {
+            padding: 0.35rem 0.5rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.7rem;
+            font-weight: 600;
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+            cursor: pointer;
+            transition: var(--transition);
+            border-left: 3px solid transparent;
+        }
+
+        .cal-event-pill:hover {
+            transform: scale(1.02);
+        }
+
+        .cal-event-pill.insp {
+            background: var(--status-warning-bg);
+            color: var(--status-warning);
+            border-left-color: var(--status-warning);
+        }
+
+        .cal-event-pill.duty {
+            background: var(--primary-light);
+            color: var(--primary-color);
+            border-left-color: var(--primary-color);
+        }
+
+        .cal-event-pill.flight {
+            background: var(--status-info-bg);
+            color: var(--status-info);
+            border-left-color: var(--status-info);
+        }
+
+        .event-title {
+            font-weight: 700;
+            font-size: 0.72rem;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .event-time {
+            font-size: 0.65rem;
+            opacity: 0.85;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 620px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.15rem 1.4rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 1.4rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .form-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .form-input, .form-select, .form-textarea {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.55rem 0.8rem;
+            border-radius: var(--radius-md);
+            font-family: inherit;
+            font-size: 0.85rem;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            padding: 1rem 1.4rem;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+        }
+
+        /* Toast Container */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            z-index: 2000;
+        }
+
+        .toast {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 0.8rem 1.15rem;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            font-size: 0.82rem;
+            font-weight: 600;
+            animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .toast.success { border-left-color: var(--status-ok); }
+        .toast.danger { border-left-color: var(--status-danger); }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 1200px) {
+            .dashboard-top-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .dashboard-top-grid > :nth-child(3) {
+                grid-column: span 2;
+            }
+            .dashboard-bottom-grid {
+                grid-template-columns: 1fr;
+            }
+            .calendar-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                padding: 1rem;
+            }
+            .top-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+            .header-nav {
+                width: 100%;
+                justify-content: space-between;
+                overflow-x: auto;
+            }
+            .dashboard-top-grid {
+                grid-template-columns: 1fr;
+            }
+            .dashboard-top-grid > :nth-child(3) {
+                grid-column: span 1;
+            }
+            .calendar-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .panes-stats-bar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Watermark Top Bar -->
+    <div class="mockup-watermark">
+        <div class="mockup-watermark-left">
+            <svg class="uicon uicon-sm" viewBox="0 0 24 24">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            <span><strong>SAA29 — SISTEMA DE APOIO À MANUTENÇÃO A-29 SUPER TUCANO</strong> &bull; MOCKUP TÁTICO</span>
+        </div>
+        <span class="badge">PROTÓTIPO STANDALONE</span>
+    </div>
+
+    <div class="app-container">
+        <!-- Top Navigation Header -->
+        <header class="top-header">
+            <div class="header-brand">
+                <a href="#" class="brand-logo" title="Sistema SAA29">
+                    <svg class="uicon uicon-lg" viewBox="0 0 24 24" style="color: var(--primary-color); stroke-width: 1.8;">
+                        <path d="M22 2L11 13" />
+                        <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+                    </svg>
+                    <h1 class="brand-title">
+                        Eletrônica A-29
+                        <span class="brand-badge">UI V2</span>
+                    </h1>
+                </a>
+                <div class="header-divider"></div>
+                <div class="page-indicator">
+                    <span class="live-dot" title="Telemetria Online"></span>
+                    <span id="page-title">Dashboard Central</span>
+                </div>
+            </div>
+
+            <!-- Navegação Tática e Módulos -->
+            <div class="header-nav">
+                <div class="nav-group">
+                    <button class="btn-icon active" data-tooltip="Dashboard Geral" onclick="notify('Visualizando Dashboard Central')">
+                        <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                            <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                            <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                            <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+                            <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" data-tooltip="Ciência do Encarregado" onclick="notify('Módulo: Ciência do Encarregado')">
+                        <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                            <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                        </svg>
+                        <span class="badge-dot"></span>
+                    </button>
+                    <button class="btn-icon" data-tooltip="Gestão de Panes" onclick="openNewPaneModal()">
+                        <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" data-tooltip="Central de Pedidos" onclick="notify('Módulo: Pedidos de Suprimentos')">
+                        <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                            <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" data-tooltip="Inspeções Programadas" onclick="notify('Módulo: Inspeções da Frota')">
+                        <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                            <path d="m14.5 9 3.5-3.5c1.5-1.5 2-3.5 1.5-4s-2.5 0-4 1.5L12 6.5l-8-2-1 1 5.5 3.5-3.5 3.5L2 12l.5 1.5L6 14l.5 3.5 1.5.5 1.5-3 3.5-3.5 3.5 5.5 1-1-2-8Z"></path>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" data-tooltip="Inventário & Bancada" onclick="notify('Módulo: Inventário & Equipamentos')">
+                        <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" data-tooltip="Vencimentos & Calibrações" onclick="notify('Módulo: Vencimentos & Calibrações')">
+                        <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" data-tooltip="Publicações Técnicas" onclick="notify('Módulo: Manuais & Publicações Técnicas')">
+                        <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                            <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="nav-group">
+                    <button class="btn-icon" id="theme-toggle-btn" data-tooltip="Alternar Tema (Dark/Light)" onclick="toggleTheme()">
+                        <svg id="theme-icon" class="uicon uicon-md" viewBox="0 0 24 24">
+                            <path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" data-tooltip="Configurações do Sistema" onclick="notify('Configurações do SAA29')">
+                        <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                            <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" data-tooltip="Notificações WhatsApp" onclick="notify('Módulo WhatsApp: 4 notificações táticas enviadas hoje')">
+                        <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Quick Action & Search Bar -->
+        <div class="quick-action-bar">
+            <div class="search-box">
+                <svg class="uicon uicon-sm" viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" id="global-search" placeholder="Buscar por Matrícula, Discrepância, P/N, ATA ou Especialista..." oninput="handleSearch(this.value)">
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="exportDataMock()">
+                    <svg class="uicon uicon-sm" viewBox="0 0 24 24">
+                        <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                    Exportar Relatório
+                </button>
+                <button class="btn btn-primary" onclick="openNewPaneModal()">
+                    <svg class="uicon uicon-sm" viewBox="0 0 24 24">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Registrar Nova Pane
+                </button>
+            </div>
+        </div>
+
+        <!-- TOP GRID: 3 Colunas Principais -->
+        <section class="dashboard-top-grid">
+            <!-- Card: Vencimentos -->
+            <div class="glass-panel dashboard-card">
+                <div class="card-header">
+                    <div class="header-info">
+                        <span class="card-icon" style="color: var(--status-warning);">
+                            <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                        </span>
+                        <h3 class="card-label">Vencimentos</h3>
+                    </div>
+                    <a href="javascript:void(0)" class="btn-link" onclick="notify('Filtrando todos os 32 itens de vencimento')">Detalhes</a>
+                </div>
+                <div class="vencimentos-summary">
+                    <div class="v-stat ok" onclick="notify('24 itens com validade em dia')">
+                        <span class="v-label">OK / Em Dia</span>
+                        <span class="v-count">24</span>
+                        <span class="v-sub">Conformes</span>
+                    </div>
+                    <div class="v-stat warning" onclick="notify('5 itens a vencer em até 15 dias')">
+                        <span class="v-label">A Vencer (15d)</span>
+                        <span class="v-count" style="color: var(--status-warning);">05</span>
+                        <span class="v-sub">Requer Atenção</span>
+                    </div>
+                    <div class="v-stat danger" onclick="notify('2 itens com calibração vencida!')">
+                        <span class="v-label">Vencidos</span>
+                        <span class="v-count" style="color: var(--status-danger);">02</span>
+                        <span class="v-sub">Ação Imediata</span>
+                    </div>
+                    <div class="v-stat prorrogado" onclick="notify('1 item com prorrogação autorizada')">
+                        <span class="v-label">Prorrogados</span>
+                        <span class="v-count" style="color: var(--status-prorrogado);">01</span>
+                        <span class="v-sub">Autorizado</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card: Inspeções Ativas -->
+            <div class="glass-panel dashboard-card">
+                <div class="card-header">
+                    <div class="header-info">
+                        <span class="card-icon" style="color: #10b981;">
+                            <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                                <path d="m14.5 9 3.5-3.5c1.5-1.5 2-3.5 1.5-4s-2.5 0-4 1.5L12 6.5l-8-2-1 1 5.5 3.5-3.5 3.5L2 12l.5 1.5L6 14l.5 3.5 1.5.5 1.5-3 3.5-3.5 3.5 5.5 1-1-2-8Z"></path>
+                            </svg>
+                        </span>
+                        <h3 class="card-label">Inspeções Ativas</h3>
+                    </div>
+                    <a href="javascript:void(0)" class="btn-link" onclick="notify('Visualizando 4 aeronaves em inspeção periódica')">Ver Todas</a>
+                </div>
+                <div class="inspecoes-list">
+                    <div class="insp-item" onclick="openAircraftModal('5701', 'Insp. Periódica 100h')">
+                        <div class="insp-info">
+                            <span class="insp-tail">5701</span>
+                            <div>
+                                <div class="insp-name">Insp. 100 Horas</div>
+                                <div style="font-size: 0.72rem; color: var(--text-secondary);">Resp: 2S Silva</div>
+                            </div>
+                        </div>
+                        <div class="insp-progress-wrap">
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" style="width: 78%; background: var(--status-ok);"></div>
+                            </div>
+                            <span class="insp-pct">78%</span>
+                        </div>
+                    </div>
+
+                    <div class="insp-item" onclick="openAircraftModal('5714', 'Insp. 300 Horas Estrutural')">
+                        <div class="insp-info">
+                            <span class="insp-tail">5714</span>
+                            <div>
+                                <div class="insp-name">Insp. 300 Horas</div>
+                                <div style="font-size: 0.72rem; color: var(--text-secondary);">Resp: 1S Oliveira</div>
+                            </div>
+                        </div>
+                        <div class="insp-progress-wrap">
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" style="width: 45%; background: var(--status-warning);"></div>
+                            </div>
+                            <span class="insp-pct">45%</span>
+                        </div>
+                    </div>
+
+                    <div class="insp-item" onclick="openAircraftModal('5722', 'Insp. Pré-Voo / 50 Horas')">
+                        <div class="insp-info">
+                            <span class="insp-tail">5722</span>
+                            <div>
+                                <div class="insp-name">Insp. 50 Horas</div>
+                                <div style="font-size: 0.72rem; color: var(--text-secondary);">Resp: 3S Ribeiro</div>
+                            </div>
+                        </div>
+                        <div class="insp-progress-wrap">
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" style="width: 90%; background: var(--status-ok);"></div>
+                            </div>
+                            <span class="insp-pct">90%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card: Status da Frota -->
+            <div class="glass-panel dashboard-card">
+                <div class="card-header">
+                    <div class="header-info">
+                        <span class="card-icon" style="color: var(--primary-color);">
+                            <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                                <path d="M22 2L11 13" />
+                                <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+                            </svg>
+                        </span>
+                        <h3 class="card-label">Status da Frota (A-29)</h3>
+                    </div>
+                    <span style="font-size: 0.76rem; font-weight: 700; color: var(--status-ok);">9/12 DISPONÍVEIS (75%)</span>
+                </div>
+                <div class="frota-grid" id="frota-grid-container">
+                    <div class="aircraft-badge" onclick="openAircraftModal('5701', 'Disponível em Hangar')">
+                        <div class="aircraft-top">
+                            <span class="aircraft-number">5701</span>
+                            <span class="aircraft-status-pill pill-disp">DISP</span>
+                        </div>
+                        <span class="aircraft-sub">Hangar 01 &bull; OK</span>
+                    </div>
+
+                    <div class="aircraft-badge" onclick="openAircraftModal('5704', 'Em Missão Operacional')">
+                        <div class="aircraft-top">
+                            <span class="aircraft-number">5704</span>
+                            <span class="aircraft-status-pill pill-voo">VOO</span>
+                        </div>
+                        <span class="aircraft-sub">Missão Tática</span>
+                    </div>
+
+                    <div class="aircraft-badge" onclick="openAircraftModal('5708', 'Pane Elétrica Ativa')">
+                        <div class="aircraft-top">
+                            <span class="aircraft-number">5708</span>
+                            <span class="aircraft-status-pill pill-maint">MANUT</span>
+                        </div>
+                        <span class="aircraft-sub">ATA 34 &bull; AOG</span>
+                    </div>
+
+                    <div class="aircraft-badge" onclick="openAircraftModal('5712', 'Discrepância Aviônica')">
+                        <div class="aircraft-top">
+                            <span class="aircraft-number">5712</span>
+                            <span class="aircraft-status-pill pill-maint">MANUT</span>
+                        </div>
+                        <span class="aircraft-sub">ATA 34 &bull; MFD Dir</span>
+                    </div>
+
+                    <div class="aircraft-badge" onclick="openAircraftModal('5715', 'Disponível em Linha')">
+                        <div class="aircraft-top">
+                            <span class="aircraft-number">5715</span>
+                            <span class="aircraft-status-pill pill-disp">DISP</span>
+                        </div>
+                        <span class="aircraft-sub">Pátio &bull; Pronta</span>
+                    </div>
+
+                    <div class="aircraft-badge" onclick="openAircraftModal('5720', 'Disponível em Linha')">
+                        <div class="aircraft-top">
+                            <span class="aircraft-number">5720</span>
+                            <span class="aircraft-status-pill pill-disp">DISP</span>
+                        </div>
+                        <span class="aircraft-sub">Linha de Voo</span>
+                    </div>
+
+                    <div class="aircraft-badge" onclick="openAircraftModal('5722', 'Em Inspeção Periódica')">
+                        <div class="aircraft-top">
+                            <span class="aircraft-number">5722</span>
+                            <span class="aircraft-status-pill pill-insp">INSP</span>
+                        </div>
+                        <span class="aircraft-sub">50h Finalizando</span>
+                    </div>
+
+                    <div class="aircraft-badge" onclick="openAircraftModal('5725', 'Disponível em Hangar')">
+                        <div class="aircraft-top">
+                            <span class="aircraft-number">5725</span>
+                            <span class="aircraft-status-pill pill-disp">DISP</span>
+                        </div>
+                        <span class="aircraft-sub">Hangar 02 &bull; OK</span>
+                    </div>
+
+                    <div class="aircraft-badge" onclick="openAircraftModal('5905', 'Disponível em Linha')">
+                        <div class="aircraft-top">
+                            <span class="aircraft-number">5905</span>
+                            <span class="aircraft-status-pill pill-disp">DISP</span>
+                        </div>
+                        <span class="aircraft-sub">Linha de Voo</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- BOTTOM GRID: Panes Abertas + Últimas Instalações de Inventário -->
+        <section class="dashboard-bottom-grid">
+            <!-- CAMPO CENTRAL: Panes Operacionais -->
+            <div class="glass-panel dashboard-card">
+                <div class="card-header">
+                    <div class="header-info">
+                        <span class="card-icon" style="color: var(--status-danger);">
+                            <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                            </svg>
+                        </span>
+                        <h3 class="card-label">Panes Operacionais Abertas</h3>
+                    </div>
+                    <div class="filter-tabs">
+                        <button class="tab-btn active" onclick="filterPanes('TODAS', this)">Todas (4)</button>
+                        <button class="tab-btn" onclick="filterPanes('CRITICA', this)">Críticas / AOG (2)</button>
+                        <button class="tab-btn" onclick="filterPanes('AVIONICA', this)">Aviônica (3)</button>
+                        <button class="tab-btn" onclick="filterPanes('ELETRICA', this)">Elétrica (1)</button>
+                    </div>
+                </div>
+
+                <!-- Stats Bar -->
+                <div class="panes-stats-bar">
+                    <div class="stat-counter-group">
+                        <div class="stat-counter">
+                            <span class="num" style="color: var(--status-danger);" id="count-panes-abertas">04</span>
+                            <span class="label">Panes Abertas</span>
+                        </div>
+                        <div class="stat-sep"></div>
+                        <div class="stat-counter">
+                            <span class="num" style="color: var(--status-ok);">18</span>
+                            <span class="label">Resolvidas (Mês)</span>
+                        </div>
+                        <div class="stat-sep"></div>
+                        <div class="stat-counter">
+                            <span class="num" style="color: var(--status-info);">2.4h</span>
+                            <span class="label">Tempo Médio MTTR</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="openNewPaneModal()" style="padding: 0.45rem 0.9rem; font-size: 0.8rem;">
+                        <svg class="uicon uicon-xs" viewBox="0 0 24 24">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Registrar Pane
+                    </button>
+                </div>
+
+                <!-- Lista de Panes -->
+                <div class="panes-list" id="panes-list-container">
+                    <!-- Pane 1 -->
+                    <div class="pane-card critical" data-type="AVIONICA" data-severity="CRITICA">
+                        <div class="pane-main">
+                            <span class="pane-tail">5712</span>
+                            <div class="pane-details">
+                                <div class="pane-title">Intermitência no Display Multifuncional Direito (MFD) — Apagando em teste de rota</div>
+                                <div class="pane-meta">
+                                    <span class="pane-meta-tag"><strong>ATA:</strong> 34 - Navegação</span>
+                                    <span class="pane-meta-tag" style="color: var(--status-danger); background: var(--status-danger-bg);">
+                                        <span class="status-dot-indicator danger"></span>
+                                        AOG / Crítica
+                                    </span>
+                                    <span class="pane-meta-tag">
+                                        <svg class="uicon uicon-xs" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                        Resp: 1S Albuquerque
+                                    </span>
+                                    <span class="pane-meta-tag">
+                                        <svg class="uicon uicon-xs" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                        Aberta há 3h 15min
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pane-actions">
+                            <button class="btn-action-resolve" onclick="resolvePane(this, '5712')">
+                                <svg class="uicon uicon-xs" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                Resolver
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pane 2 -->
+                    <div class="pane-card critical" data-type="AVIONICA" data-severity="CRITICA">
+                        <div class="pane-main">
+                            <span class="pane-tail">5708</span>
+                            <div class="pane-details">
+                                <div class="pane-title">Falha de travamento no sinal TACAN / Indicador RMI oscilando em aproximação</div>
+                                <div class="pane-meta">
+                                    <span class="pane-meta-tag"><strong>ATA:</strong> 34 - Rádio / Navegação</span>
+                                    <span class="pane-meta-tag" style="color: var(--status-danger); background: var(--status-danger-bg);">
+                                        <span class="status-dot-indicator danger"></span>
+                                        AOG / Crítica
+                                    </span>
+                                    <span class="pane-meta-tag">
+                                        <svg class="uicon uicon-xs" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                        Resp: 2S Fernandes
+                                    </span>
+                                    <span class="pane-meta-tag">
+                                        <svg class="uicon uicon-xs" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                        Aberta há 5h 40min
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pane-actions">
+                            <button class="btn-action-resolve" onclick="resolvePane(this, '5708')">
+                                <svg class="uicon uicon-xs" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                Resolver
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pane 3 -->
+                    <div class="pane-card routine" data-type="ELETRICA" data-severity="ROTINA">
+                        <div class="pane-main">
+                            <span class="pane-tail">5725</span>
+                            <div class="pane-details">
+                                <div class="pane-title">Aquecedor de Tubo Pitot Secundário com consumo de corrente acima do limite nominal</div>
+                                <div class="pane-meta">
+                                    <span class="pane-meta-tag"><strong>ATA:</strong> 30 - Proteção Gelo/Chuva</span>
+                                    <span class="pane-meta-tag" style="color: var(--status-warning); background: var(--status-warning-bg);">
+                                        <span class="status-dot-indicator warning"></span>
+                                        Rotina
+                                    </span>
+                                    <span class="pane-meta-tag">
+                                        <svg class="uicon uicon-xs" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                        Resp: 3S Ribeiro
+                                    </span>
+                                    <span class="pane-meta-tag">
+                                        <svg class="uicon uicon-xs" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                        Aberta há 1d 02h
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pane-actions">
+                            <button class="btn-action-resolve" onclick="resolvePane(this, '5725')">
+                                <svg class="uicon uicon-xs" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                Resolver
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pane 4 -->
+                    <div class="pane-card routine" data-type="AVIONICA" data-severity="ROTINA">
+                        <div class="pane-main">
+                            <span class="pane-tail">5701</span>
+                            <div class="pane-details">
+                                <div class="pane-title">Luz de aviso MASTER CAUTION acionando espuriamente durante rotina de teste</div>
+                                <div class="pane-meta">
+                                    <span class="pane-meta-tag"><strong>ATA:</strong> 31 - Instrumentos</span>
+                                    <span class="pane-meta-tag" style="color: var(--status-warning); background: var(--status-warning-bg);">
+                                        <span class="status-dot-indicator warning"></span>
+                                        Rotina
+                                    </span>
+                                    <span class="pane-meta-tag">
+                                        <svg class="uicon uicon-xs" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                        Resp: 2S Silva
+                                    </span>
+                                    <span class="pane-meta-tag">
+                                        <svg class="uicon uicon-xs" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                        Aberta há 1d 14h
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pane-actions">
+                            <button class="btn-action-resolve" onclick="resolvePane(this, '5701')">
+                                <svg class="uicon uicon-xs" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                Resolver
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CAMPO LATERAL: Últimas Instalações & Inventário -->
+            <div class="glass-panel dashboard-card">
+                <div class="card-header">
+                    <div class="header-info">
+                        <span class="card-icon" style="color: var(--primary-color);">
+                            <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                            </svg>
+                        </span>
+                        <h3 class="card-label">Últimas Instalações</h3>
+                    </div>
+                    <a href="javascript:void(0)" class="btn-link" onclick="notify('Redirecionando para Central de Inventário')">Ver Estoque</a>
+                </div>
+
+                <div class="inventory-feed">
+                    <div class="feed-item">
+                        <div class="feed-icon-wrap">
+                            <svg class="uicon uicon-sm" viewBox="0 0 24 24">
+                                <path d="M4.93 19.07a10 10 0 0 1 0-14.14M2 12h2M20 12h2M19.07 4.93a10 10 0 0 1 0 14.14M7.76 16.24a6 6 0 0 1 0-8.48M16.24 7.76a6 6 0 0 1 0 8.48M12 10v4"></path>
+                            </svg>
+                        </div>
+                        <div class="feed-content">
+                            <div class="feed-header-line">
+                                <span class="feed-part-name">Transponder APX-119 IFF</span>
+                                <span class="feed-time">Hoje 10:20</span>
+                            </div>
+                            <div class="feed-desc">Instalado na <strong style="color: var(--primary-color);">5704</strong> por 2S Castro</div>
+                            <div class="feed-pn-sn">P/N: 4083555-0501 &bull; S/N: 84920</div>
+                        </div>
+                    </div>
+
+                    <div class="feed-item">
+                        <div class="feed-icon-wrap">
+                            <svg class="uicon uicon-sm" viewBox="0 0 24 24">
+                                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                                <line x1="8" y1="21" x2="16" y2="21"></line>
+                                <line x1="12" y1="17" x2="12" y2="21"></line>
+                            </svg>
+                        </div>
+                        <div class="feed-content">
+                            <div class="feed-header-line">
+                                <span class="feed-part-name">Unidade MFD Color Display</span>
+                                <span class="feed-time">Ontem 16:45</span>
+                            </div>
+                            <div class="feed-desc">Substituição na <strong style="color: var(--primary-color);">5712</strong> por 1S Rocha</div>
+                            <div class="feed-pn-sn">P/N: 965-0976-003 &bull; S/N: 11420</div>
+                        </div>
+                    </div>
+
+                    <div class="feed-item">
+                        <div class="feed-icon-wrap">
+                            <svg class="uicon uicon-sm" viewBox="0 0 24 24">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                            </svg>
+                        </div>
+                        <div class="feed-content">
+                            <div class="feed-header-line">
+                                <span class="feed-part-name">Bateria Saft 24V 40Ah</span>
+                                <span class="feed-time">Ontem 09:15</span>
+                            </div>
+                            <div class="feed-desc">Instalada na <strong style="color: var(--primary-color);">5725</strong> por 3S Ribeiro</div>
+                            <div class="feed-pn-sn">P/N: 411822 &bull; S/N: 99318</div>
+                        </div>
+                    </div>
+
+                    <div class="feed-item">
+                        <div class="feed-icon-wrap">
+                            <svg class="uicon uicon-sm" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+                            </svg>
+                        </div>
+                        <div class="feed-content">
+                            <div class="feed-header-line">
+                                <span class="feed-part-name">Giro Vertical AHRS-400</span>
+                                <span class="feed-time">18/08 14:00</span>
+                            </div>
+                            <div class="feed-desc">Calibração de bancada concluída</div>
+                            <div class="feed-pn-sn">P/N: 622-9345-001 &bull; S/N: 33910</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FULL WIDTH: Calendário Tático Semanal -->
+        <section class="glass-panel dashboard-card calendar-section">
+            <div class="card-header">
+                <div class="header-info">
+                    <span class="card-icon" style="color: var(--status-ok);">
+                        <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                    </span>
+                    <h3 class="card-label">Calendário Tático Semanal &bull; Escala de Manutenção</h3>
+                </div>
+                <div class="calendar-header-actions">
+                    <div class="calendar-week-nav">
+                        <button class="btn-icon" style="width: 26px; height: 26px;" onclick="prevWeek()">
+                            <svg class="uicon uicon-xs" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                        </button>
+                        <span id="calendar-week-label">Semana 34 &bull; 17 a 23 de Agosto 2026</span>
+                        <button class="btn-icon" style="width: 26px; height: 26px;" onclick="nextWeek()">
+                            <svg class="uicon uicon-xs" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="calendar-grid">
+                <!-- Seg -->
+                <div class="cal-day-col">
+                    <div class="cal-day-header">
+                        <span class="cal-day-name">Segunda</span>
+                        <span class="cal-day-date">17</span>
+                    </div>
+                    <div class="cal-events">
+                        <div class="cal-event-pill duty" onclick="notify('Escala Seg: 1S Rocha, 2S Silva, 3S Castro')">
+                            <span class="event-title">
+                                <svg class="uicon uicon-xs" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                1º Turno (07h-13h)
+                            </span>
+                            <span class="event-time">3 Especialistas</span>
+                        </div>
+                        <div class="cal-event-pill insp" onclick="notify('Insp. 100h 5701 iniciada')">
+                            <span class="event-title">
+                                <svg class="uicon uicon-xs" viewBox="0 0 24 24"><path d="M14.5 9 18 5.5l-3-3L11.5 6M2 12l.5 1.5L6 14l.5 3.5 1.5.5 1.5-3 3.5-3.5 3.5 5.5 1-1-2-8Z"></path></svg>
+                                5701: Insp 100h
+                            </span>
+                            <span class="event-time">Hangar 1 &bull; 08:00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ter -->
+                <div class="cal-day-col">
+                    <div class="cal-day-header">
+                        <span class="cal-day-name">Terça</span>
+                        <span class="cal-day-date">18</span>
+                    </div>
+                    <div class="cal-events">
+                        <div class="cal-event-pill flight" onclick="notify('Voo de Experiência 5704')">
+                            <span class="event-title">
+                                <svg class="uicon uicon-xs" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+                                Voo de Teste 5704
+                            </span>
+                            <span class="event-time">10:30 &bull; Pista 02</span>
+                        </div>
+                        <div class="cal-event-pill duty">
+                            <span class="event-title">
+                                <svg class="uicon uicon-xs" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                2º Turno (13h-19h)
+                            </span>
+                            <span class="event-time">2 Especialistas</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Qua -->
+                <div class="cal-day-col">
+                    <div class="cal-day-header">
+                        <span class="cal-day-name">Quarta</span>
+                        <span class="cal-day-date">19</span>
+                    </div>
+                    <div class="cal-events">
+                        <div class="cal-event-pill insp">
+                            <span class="event-title">
+                                <svg class="uicon uicon-xs" viewBox="0 0 24 24"><path d="M14.5 9 18 5.5l-3-3L11.5 6M2 12l.5 1.5L6 14l.5 3.5 1.5.5 1.5-3 3.5-3.5 3.5 5.5 1-1-2-8Z"></path></svg>
+                                5714: Estrutural
+                            </span>
+                            <span class="event-time">Oficina Elétrica</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Qui (Hoje) -->
+                <div class="cal-day-col today">
+                    <div class="cal-day-header">
+                        <span class="cal-day-name" style="color: var(--primary-color);">Quinta (Hoje)</span>
+                        <span class="cal-day-date" style="color: var(--primary-color);">20</span>
+                    </div>
+                    <div class="cal-events">
+                        <div class="cal-event-pill duty" onclick="notify('Turno Ativo: 1S Albuquerque, 2S Fernandes, 3S Ribeiro')">
+                            <span class="event-title">
+                                <svg class="uicon uicon-xs" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                Plantão Atual
+                            </span>
+                            <span class="event-time">1S Albeq / 2S Fern</span>
+                        </div>
+                        <div class="cal-event-pill insp">
+                            <span class="event-title">
+                                <svg class="uicon uicon-xs" viewBox="0 0 24 24"><path d="M14.5 9 18 5.5l-3-3L11.5 6M2 12l.5 1.5L6 14l.5 3.5 1.5.5 1.5-3 3.5-3.5 3.5 5.5 1-1-2-8Z"></path></svg>
+                                5722: Insp 50h
+                            </span>
+                            <span class="event-time">Fase Final 90%</span>
+                        </div>
+                        <div class="cal-event-pill flight">
+                            <span class="event-title">
+                                <svg class="uicon uicon-xs" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+                                Surto Operacional
+                            </span>
+                            <span class="event-time">5704 &bull; 14h</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sex -->
+                <div class="cal-day-col">
+                    <div class="cal-day-header">
+                        <span class="cal-day-name">Sexta</span>
+                        <span class="cal-day-date">21</span>
+                    </div>
+                    <div class="cal-events">
+                        <div class="cal-event-pill duty">
+                            <span class="event-title">
+                                <svg class="uicon uicon-xs" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                Reunião de Apronto
+                            </span>
+                            <span class="event-time">08:00 &bull; Briefing</span>
+                        </div>
+                        <div class="cal-event-pill flight">
+                            <span class="event-title">
+                                <svg class="uicon uicon-xs" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+                                Reabastecimento Frota
+                            </span>
+                            <span class="event-time">15:00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sab -->
+                <div class="cal-day-col">
+                    <div class="cal-day-header">
+                        <span class="cal-day-name">Sábado</span>
+                        <span class="cal-day-date">22</span>
+                    </div>
+                    <div class="cal-events">
+                        <div class="cal-event-pill duty">
+                            <span class="event-title">
+                                <svg class="uicon uicon-xs" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                Sobreaviso Hangar
+                            </span>
+                            <span class="event-time">2S Silva (24h)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dom -->
+                <div class="cal-day-col">
+                    <div class="cal-day-header">
+                        <span class="cal-day-name">Domingo</span>
+                        <span class="cal-day-date">23</span>
+                    </div>
+                    <div class="cal-events">
+                        <div class="cal-event-pill duty">
+                            <span class="event-title">
+                                <svg class="uicon uicon-xs" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                Sobreaviso Hangar
+                            </span>
+                            <span class="event-time">3S Ribeiro (24h)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- MODAL: REGISTRAR NOVA PANE -->
+    <div class="modal-overlay" id="modal-pane">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <svg class="uicon uicon-md" viewBox="0 0 24 24" style="color: var(--status-danger);">
+                        <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                    Registrar Discrepância / Pane Aeronáutica
+                </h3>
+                <button class="btn-icon" onclick="closeNewPaneModal()">
+                    <svg class="uicon uicon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <form onsubmit="handleNewPaneSubmit(event)">
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Aeronave (Matrícula)</label>
+                            <select class="form-select" id="pane-modal-tail" required>
+                                <option value="5701">5701</option>
+                                <option value="5704">5704</option>
+                                <option value="5708">5708</option>
+                                <option value="5712">5712</option>
+                                <option value="5715">5715</option>
+                                <option value="5720">5720</option>
+                                <option value="5722">5722</option>
+                                <option value="5725">5725</option>
+                                <option value="5905">5905</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Capítulo ATA</label>
+                            <select class="form-select" id="pane-modal-ata" required>
+                                <option value="ATA 34 - Navegação / Rádio">ATA 34 - Navegação / Rádio</option>
+                                <option value="ATA 31 - Painel e Instrumentos">ATA 31 - Painel e Instrumentos</option>
+                                <option value="ATA 24 - Sistema Elétrico / Força">ATA 24 - Sistema Elétrico / Força</option>
+                                <option value="ATA 23 - Comunicações V/UHF">ATA 23 - Comunicações V/UHF</option>
+                                <option value="ATA 30 - Proteção de Gelo / Chuva">ATA 30 - Proteção de Gelo / Chuva</option>
+                                <option value="ATA 91 - Armamento e Mira">ATA 91 - Armamento e Mira</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Severidade / Criticidade</label>
+                            <select class="form-select" id="pane-modal-severity" required>
+                                <option value="CRITICA">AOG / Impeditiva de Voo (Crítica)</option>
+                                <option value="ROTINA" selected>Rotina / Manutenção Programada</option>
+                                <option value="INFORMATIVA">Discrepância Secundária / Informativa</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Especialista Responsável</label>
+                            <select class="form-select" id="pane-modal-tech" required>
+                                <option value="1S Albuquerque">1S Albuquerque</option>
+                                <option value="1S Rocha">1S Rocha</option>
+                                <option value="2S Silva">2S Silva</option>
+                                <option value="2S Fernandes">2S Fernandes</option>
+                                <option value="3S Ribeiro">3S Ribeiro</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Descrição Detalhada da Pane / Sintoma</label>
+                        <textarea class="form-textarea" id="pane-modal-desc" rows="3" placeholder="Descreva os sintomas observados, condições do teste ou relato do piloto..." required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="pane-modal-whatsapp" checked>
+                            <span>Disparar notificação automática via WhatsApp para o Encarregado</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeNewPaneModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Registrar no SAA29</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: DETALHES DA AERONAVE -->
+    <div class="modal-overlay" id="modal-aircraft">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <svg class="uicon uicon-md" viewBox="0 0 24 24" style="color: var(--primary-color);">
+                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
+                    </svg>
+                    Detalhes da Aeronave <span id="modal-tail-id" class="mono" style="color: var(--primary-color);">5701</span>
+                </h3>
+                <button class="btn-icon" onclick="closeAircraftModal()">
+                    <svg class="uicon uicon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; gap: 1rem; align-items: center; background: var(--bg-tertiary); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                    <div style="color: var(--primary-color);">
+                        <svg class="uicon uicon-lg" viewBox="0 0 24 24" style="width: 32px; height: 32px; stroke-width: 1.4;">
+                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700;" id="modal-aircraft-status-text">Em Inspeção Periódica</h4>
+                        <div style="font-size: 0.78rem; color: var(--text-secondary);">Modelo: Embraer EMB-314 Super Tucano (A-29)</div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="v-stat ok">
+                        <span class="v-label">Horas Totais de Célula</span>
+                        <span class="v-count mono" style="font-size: 1.15rem;">2.418,5 h</span>
+                    </div>
+                    <div class="v-stat warning">
+                        <span class="v-label">Horas até Próx. Inspeção</span>
+                        <span class="v-count mono" style="font-size: 1.15rem; color: var(--status-warning);">24,2 h</span>
+                    </div>
+                </div>
+
+                <div>
+                    <h5 style="margin-bottom: 0.5rem; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.3px;">Equipamentos Principais Instalados</h5>
+                    <div style="display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.8rem;">
+                        <div style="display: flex; justify-content: space-between; padding: 0.45rem 0.6rem; background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                            <span>Display Primário MFD</span>
+                            <span class="mono" style="color: var(--primary-color);">S/N: 88192-A &bull; OK</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 0.45rem 0.6rem; background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                            <span>Transponder APX-119 IFF</span>
+                            <span class="mono" style="color: var(--primary-color);">S/N: 77291-C &bull; OK</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 0.45rem 0.6rem; background: var(--bg-primary); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                            <span>Computador de Missão (MDP)</span>
+                            <span class="mono" style="color: var(--primary-color);">S/N: 11029-E &bull; OK</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeAircraftModal()">Fechar</button>
+                <button class="btn btn-primary" onclick="notify('Histórico completo da aeronave exportado'); closeAircraftModal();">Gerar Caderneta</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- JavaScript Interativo Standalone -->
+    <script>
+        // Alternância de Tema Dark / Light
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            
+            const iconSvg = document.getElementById('theme-icon');
+            if (newTheme === 'light') {
+                iconSvg.innerHTML = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>';
+                notify('Modo Claro ativado');
+            } else {
+                iconSvg.innerHTML = '<path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>';
+                notify('Modo Tático Escuro ativado');
+            }
+        }
+
+        // Toasts com Ícones Planos Vetoriais
+        function notify(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type === 'success' ? 'success' : type === 'danger' ? 'danger' : ''}`;
+            
+            let iconSvg = '<svg class="uicon uicon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+            if (type === 'success') {
+                iconSvg = '<svg class="uicon uicon-sm" style="color: var(--status-ok);" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
+            } else if (type === 'danger') {
+                iconSvg = '<svg class="uicon uicon-sm" style="color: var(--status-danger);" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
+            }
+            
+            toast.innerHTML = `${iconSvg} <span>${message}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(40px)';
+                setTimeout(() => toast.remove(), 260);
+            }, 3000);
+        }
+
+        // Modais
+        function openNewPaneModal() {
+            document.getElementById('modal-pane').classList.add('active');
+        }
+
+        function closeNewPaneModal() {
+            document.getElementById('modal-pane').classList.remove('active');
+        }
+
+        function openAircraftModal(tail, status) {
+            document.getElementById('modal-tail-id').textContent = tail;
+            document.getElementById('modal-aircraft-status-text').textContent = status;
+            document.getElementById('modal-aircraft').classList.add('active');
+        }
+
+        function closeAircraftModal() {
+            document.getElementById('modal-aircraft').classList.remove('active');
+        }
+
+        // Form Submit
+        function handleNewPaneSubmit(e) {
+            e.preventDefault();
+            const tail = document.getElementById('pane-modal-tail').value;
+            const ata = document.getElementById('pane-modal-ata').value;
+            const severity = document.getElementById('pane-modal-severity').value;
+            const tech = document.getElementById('pane-modal-tech').value;
+            const desc = document.getElementById('pane-modal-desc').value;
+            const sendWhatsApp = document.getElementById('pane-modal-whatsapp').checked;
+
+            const list = document.getElementById('panes-list-container');
+            const isCrit = severity === 'CRITICA';
+            
+            const newCard = document.createElement('div');
+            newCard.className = `pane-card ${isCrit ? 'critical' : 'routine'}`;
+            newCard.setAttribute('data-type', ata.includes('34') || ata.includes('31') ? 'AVIONICA' : 'ELETRICA');
+            newCard.setAttribute('data-severity', severity);
+            
+            newCard.innerHTML = `
+                <div class="pane-main">
+                    <span class="pane-tail">${tail}</span>
+                    <div class="pane-details">
+                        <div class="pane-title">${desc}</div>
+                        <div class="pane-meta">
+                            <span class="pane-meta-tag"><strong>${ata.split(' - ')[0]}:</strong> ${ata.split(' - ')[1]}</span>
+                            <span class="pane-meta-tag" style="color: ${isCrit ? 'var(--status-danger)' : 'var(--status-warning)'}; background: ${isCrit ? 'var(--status-danger-bg)' : 'var(--status-warning-bg)'};">
+                                <span class="status-dot-indicator ${isCrit ? 'danger' : 'warning'}"></span>
+                                ${isCrit ? 'AOG / Crítica' : 'Rotina'}
+                            </span>
+                            <span class="pane-meta-tag">
+                                <svg class="uicon uicon-xs" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                Resp: ${tech}
+                            </span>
+                            <span class="pane-meta-tag">
+                                <svg class="uicon uicon-xs" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                Aberta agora
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="pane-actions">
+                    <button class="btn-action-resolve" onclick="resolvePane(this, '${tail}')">
+                        <svg class="uicon uicon-xs" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        Resolver
+                    </button>
+                </div>
+            `;
+
+            list.insertBefore(newCard, list.firstChild);
+            
+            // Atualiza contadores
+            const countEl = document.getElementById('count-panes-abertas');
+            countEl.textContent = String(parseInt(countEl.textContent) + 1).padStart(2, '0');
+
+            closeNewPaneModal();
+            e.target.reset();
+
+            notify(`Pane registrada com sucesso para ${tail}!`, 'success');
+            if (sendWhatsApp) {
+                setTimeout(() => {
+                    notify(`Notificação WhatsApp enviada ao Encarregado para ${tail}`, 'success');
+                }, 800);
+            }
+        }
+
+        // Resolver Pane
+        function resolvePane(btn, tail) {
+            const card = btn.closest('.pane-card');
+            card.style.transition = 'all 0.35s ease';
+            card.style.opacity = '0.3';
+            card.style.transform = 'scale(0.98)';
+            
+            setTimeout(() => {
+                card.remove();
+                const countEl = document.getElementById('count-panes-abertas');
+                const newCount = Math.max(0, parseInt(countEl.textContent) - 1);
+                countEl.textContent = String(newCount).padStart(2, '0');
+                notify(`Pane da aeronave ${tail} resolvida e arquivada!`, 'success');
+            }, 250);
+        }
+
+        // Filtros de Panes
+        function filterPanes(filter, btn) {
+            document.querySelectorAll('.filter-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const cards = document.querySelectorAll('#panes-list-container .pane-card');
+            cards.forEach(card => {
+                if (filter === 'TODAS') {
+                    card.style.display = 'flex';
+                } else if (filter === 'CRITICA') {
+                    card.style.display = card.getAttribute('data-severity') === 'CRITICA' ? 'flex' : 'none';
+                } else {
+                    card.style.display = card.getAttribute('data-type') === filter ? 'flex' : 'none';
+                }
+            });
+            notify(`Filtro "${filter}" aplicado.`);
+        }
+
+        // Busca Rápida
+        function handleSearch(query) {
+            const term = query.toLowerCase().trim();
+            const cards = document.querySelectorAll('#panes-list-container .pane-card');
+            cards.forEach(card => {
+                const text = card.textContent.toLowerCase();
+                card.style.display = text.includes(term) ? 'flex' : 'none';
+            });
+        }
+
+        // Calendário
+        let currentWeekOffset = 0;
+        function prevWeek() {
+            currentWeekOffset--;
+            document.getElementById('calendar-week-label').textContent = `Semana ${34 + currentWeekOffset} • Histórico`;
+            notify(`Visualizando semana anterior (${34 + currentWeekOffset})`);
+        }
+
+        function nextWeek() {
+            currentWeekOffset++;
+            document.getElementById('calendar-week-label').textContent = `Semana ${34 + currentWeekOffset} • Programação`;
+            notify(`Visualizando próxima semana (${34 + currentWeekOffset})`);
+        }
+
+        function exportDataMock() {
+            notify('Gerando PDF do Relatório Tático Diário SAA29...', 'info');
+            setTimeout(() => {
+                notify('Relatório Tático pronto para download!', 'success');
+            }, 1000);
+        }
+    </script>
+</body>
+
+</html>
