@@ -2,7 +2,11 @@
 
 Companion de `01_especificacao_mobile.md`. Segue o padrão de `docs/backlog/modulo_pedidos/plano_implementacao.md`: cada etapa é entregável e testável isoladamente, na ordem em que deve ser codificada.
 
-> **Status (2026-08-19):** Etapas 1–3 implementadas na branch `feature/mobile-core-panes` (não `feature/mobile-linha-de-voo` — esse nome de branch já existia, órfão, 152 commits atrás de `development`, e foi preservado intocado). Etapas 4–7 (Inspeções, Vencimentos, Inventário, Publicações + acabamento PWA) ainda não iniciadas. Detalhes e desvios do plano original em cada etapa abaixo.
+> **Status (2026-08-19):** Etapas 1–6 implementadas na branch `feature/mobile-core-panes` (não `feature/mobile-linha-de-voo` — esse nome de branch já existia, órfão, 152 commits atrás de `development`, e foi preservado intocado). Etapa 7 (Publicações + acabamento PWA) parcialmente feita — ver nota abaixo. Detalhes e desvios do plano original em cada etapa abaixo.
+>
+> **Desvio maior — retrofit visual v2, fora do escopo original deste documento:** em paralelo à Etapa 4, `mockup_mobile.html` foi revisado para incorporar a linguagem visual de `linha-de-voo-mobile-standalone.html` (protótipo Claude Design): paleta quase-preta em vez de slate-azulado, chips em rgba/mono em vez de preenchimento sólido, cartões com listra de status, anel de progresso no checklist. Esse retrofit foi então aplicado ao produto real — `mobile.css` (tokens + componentes novos: busca, filtros, stats, sheet, ring, task-row), `base_mobile.html`, `frota.html`/`frota_mobile.js` (busca + cartões de contagem + filtros, tudo client-side sobre `/dashboard/frota`), e os componentes reaproveitados no hub/panes. **Duas decisões deliberadas de divergência do mockup de origem, ambas por exigirem trade-offs que o mockup (peça estática de documentação) não precisa fazer:**
+> 1. **Sem fonte Google (IBM Plex).** PWA de uso em pátio com conectividade ruim — carregar fonte de CDN externo é regressão, não upgrade. Mantida a stack de fontes de sistema.
+> 2. **Sem barra de navegação inferior.** O mockup v2 substitui o menu-drawer por 3 abas fixas (Frota/Alertas/Perfil), mas Alertas e Perfil não existem no produto real (exigem endpoint agregador novo, não desenhado) e foram propositalmente excluídos desta rodada — decisão confirmada com o usuário. Uma barra de navegação com 1 destino real e 2 inexistentes seria pior UX que o drawer atual, então o header + menu sanduíche foram mantidos, só repintados com a paleta v2. Migrar para a barra inferior fica pendente até Alertas/Perfil entrarem em backlog.
 
 ## 0. Visão do que será construído
 
@@ -265,7 +269,7 @@ async def mobile_pane_detalhe_page(request: Request, pane_id: str, user=Depends(
 
 ---
 
-## 5. Etapa 4 — INSPEÇÕES
+## 5. Etapa 4 — INSPEÇÕES ✅ CONCLUÍDA
 
 ### 5.1 Aba Inspeções do hub
 `inspecoes_mobile.js`, `carregarAbaInspecoes(aeronaveId, container)`: `GET /inspecoes/?aeronave_id=&status=ABERTA` e outra chamada com `status=EM_ANDAMENTO` (ou, mais simples, sem filtro de status e descartando no cliente os `STATUS_FINAIS` — decidir pelo menor número de requisições; o endpoint aceita um único `status` por vez, então **duas chamadas em paralelo com `Promise.all`** é preferível a filtrar client-side uma listagem sem filtro). Cada card mostra `progresso_percentual`, tipos aplicados, e DPE com cor (vermelho se `data_fim_prevista < hoje`, âmbar se `<= hoje + 7 dias`).
@@ -284,9 +288,15 @@ async def mobile_inspecao_checklist_page(request: Request, inspecao_id: str, use
 - Marcar 1ª tarefa como `CONCLUIDA` move a inspeção de `ABERTA` para `EM_ANDAMENTO` (mesma asserção do desktop, via rota mobile).
 - Tarefa avulsa aparece na listagem com `ordem` = max+1.
 
+**Feito, com 2 desvios de implementação:**
+1. `GET /inspecoes/{id}` (`InspecaoOut`) já embute `tarefas: list[InspecaoTarefaOut]` — não foi preciso uma segunda chamada a `GET /inspecoes/{id}/tarefas` como o plano original assumia; o checklist carrega cabeçalho + tarefas numa única requisição.
+2. A folha de ação não tem botão "Fechar" explícito — fecha ao tocar no backdrop ou ao selecionar uma das 3 ações, mesmo padrão do protótipo v2. `PUT /inspecoes/tarefas/{id}` nunca envia `executado_por_id` — o router já usa o usuário autenticado como fallback (`usuario_padrao_id`), então o cliente não precisa duplicar essa lógica.
+
+Teste automatizado adicionado: `test_mobile_inspecao_checklist_autenticado_retorna_200_html` (+ variante 401) em `tests/unit/test_mobile.py`, seguindo o padrão das demais páginas mobile — cobre a rota HTML e a injeção de `data-inspecao-id` sem HTML inline. Os dois casos de negócio (1ª tarefa concluída muda status; tarefa avulsa recebe `ordem` correta) **não** ganharam teste novo nesta rodada — já são exercidos pelos testes existentes do módulo `inspecoes` no nível de serviço/router (fora de `test_mobile.py`); a Etapa 4 só adicionou a camada de página/JS por cima de endpoints já testados.
+
 ---
 
-## 6. Etapa 5 — VENCIMENTOS
+## 6. Etapa 5 — VENCIMENTOS ✅ CONCLUÍDA
 
 ### 6.1 Filtro no backend
 `app/modules/vencimentos/service.py`, função `montar_matriz_vencimentos` (linha 366), acrescentar parâmetro opcional:
@@ -325,9 +335,13 @@ Link "Ver histórico" → `GET /vencimentos/{vencimento_id}/historico`, lista si
 - `GET /vencimentos/matriz?aeronave_id=` devolve só a aeronave pedida.
 - Execução via mobile grava e desativa prorrogação ativa (mesma regra do desktop).
 
+**Feito.** Teste novo: `test_matriz_com_filtro_aeronave_id_devolve_so_a_aeronave_pedida` em `tests/unit/test_vencimentos_criticos.py` — cria 2 aeronaves com controle configurado, confirma que sem filtro a matriz traz as duas e com `aeronave_id=` traz só a pedida, e que o `cabecalho` (colunas por modelo) não muda com o filtro (vem de `modelo_map`, não da lista de aeronaves — checagem explícita porque são duas queries independentes no serviço). A regra de desativar prorrogação ativa na execução não ganhou teste novo — já é coberta no nível de serviço fora do escopo mobile; a mudança desta etapa foi só o filtro de leitura, que não toca essa lógica de escrita.
+
+Desvio de UX: em vez de deixar o backend rejeitar com 409 (data anterior à última execução) ou 422 (data futura) e tratar a mensagem crua, o `<input type="date">` da folha de execução já nasce com `min`/`max` nativos (última execução registrada / hoje) — os dois casos de erro do plano original ficam estruturalmente inalcançáveis pela UI normal, em vez de alcançáveis-e-tratados. Mais simples e mais robusto contra o toast de erro genérico do `apiFetch` (que mostra JSON cru para erros 422 em lista, não string).
+
 ---
 
-## 7. Etapa 6 — INVENTÁRIO
+## 7. Etapa 6 — INVENTÁRIO ✅ CONCLUÍDA
 
 ### 7.1 Aba Inventário
 `inventario_mobile.js`, `carregarAbaInventario(aeronaveId, container)`: `GET /equipamentos/inventario/{aeronaveId}` → `schemas.InventarioItemOut[]` (já traz `nome_posicao`, `part_number`, `nome_generico`, `numero_serie`, `status_item`, `usuario_trigrama`). Uma linha por slot; slots vazios (`item_id is None`) em destaque visual distinto.
@@ -342,11 +356,17 @@ Botão "Instalar" (só quando slot vazio) → `GET /equipamentos/itens/?equipame
 - Remover→instalar no mesmo slot reflete em `GET /equipamentos/inventario/{id}` (troca completa).
 - Lista de itens de estoque vazia → mensagem específica, não erro 500/genérico.
 
+**Feito.** `InventarioItemOut` já expunha `equipamento_id` — não foi preciso o ajuste de schema previsto como possível no plano original. Mensagem de estoque vazio implementada literalmente como especificado. Nenhum teste novo automatizado nesta rodada (a lógica de negócio de remover/instalar já é testada no nível de serviço/router de `equipamentos`, fora do escopo mobile); a verificação ponta a ponta desta etapa ficou manual/pendente — mesma situação de "não testado em aparelho físico" já registrada na Etapa 1 para a câmera.
+
 > Nota de performance: `listar_inventario_aeronave` tem N+1 conhecido (item 2 da "Refatoração FABLE 5" em `docs/ROADMAP.md`). Esta etapa **consome** o endpoint como está; só otimizar aqui se a resposta em rede móvel real (Etapa de verificação) ficar perceptivelmente lenta — senão deixar para o item já planejado no roadmap, para não misturar refactor de performance com feature.
 
 ---
 
-## 8. Etapa 7 — PUBLICAÇÕES + acabamento PWA
+## 8. Etapa 7 — PUBLICAÇÕES + acabamento PWA — PARCIAL
+
+**Feito nesta rodada:** §8.3 (`manifest.json`: `id`/`scope`/`description` adicionados, `background_color`/`theme_color` atualizados para a paleta v2 `#0B1015`; `base_mobile.html` `<meta name="theme-color">` acompanhou). §8.4 parcial: `ruff check` e `pytest tests -q` rodados e limpos (737 passando, as mesmas 3 falhas pré-existentes do acervo de publicações real ausente neste ambiente — nenhuma nova).
+
+**Não feito — §8.1 e §8.2 ficam pendentes de propósito, não por esquecimento:** `mobile/publicacoes.html` reusa `/static/js/publicacoes.js`, o mesmo arquivo do desktop (decisão original da Etapa 7, ver comentário no próprio `mobile_publicacoes_page`). Esse JS renderiza a lista de resultados dinamicamente com classes do desktop (`.card` etc.) — trocar só as classes estáticas do template, como o plano original descrevia, teria consertado a casca e deixado os resultados de busca (a parte mais usada da tela) ainda com o mesmo contraste ruim que o `style="color: var(--text-primary)"` inline hoje tenta compensar. Um conserto de verdade precisa de `publicacoes.js` ciente do contexto mobile (ex.: checar `document.body.classList.contains('mobile-body')` antes de escolher as classes) ou de uma duplicação da lógica de renderização — qualquer uma das duas é maior que "trocar classes" e não foi feita para não misturar um refactor maior com esta rodada. Viewer de PDF em 393×852 (§8.2) não testado por falta de acesso a dispositivo/viewport real neste ambiente, mesma limitação já registrada na Etapa 1 para a câmera.
 
 ### 8.1 Normalizar `mobile/publicacoes.html`
 Trocar `.card`, `.form-input`, `.btn` (classes do desktop, hoje com `style="color: var(--text-primary)"` inline para compensar contraste — comentário explicativo já no próprio arquivo, linhas 15-19) pelas classes de `mobile.css`. Criar `.mobile-card`, `.mobile-input`, `.mobile-btn` se ainda não existirem com o contraste certo sobre fundo escuro, evitando o CSS inline atual.
@@ -414,8 +434,10 @@ Manual, DevTools emulando iPhone 14 Pro (393×852), throttling "Fast 4G":
 - [x] Etapa 1 — CSRF, SW, ícones, rota duplicada removida, refresh silencioso, CSS completo, trigrama corrigido. (branch `feature/mobile-core-panes`; não mesclada em `development`/`main`)
 - [x] Etapa 2 — `GET /dashboard/frota` implementado e testado localmente, hub com 4 abas, drawer sem placeholder.
 - [x] Etapa 3 — Relato rápido + detalhe de pane com foto, assumir, concluir. Verificado manualmente em navegador (Playwright, viewport 393×852) contra cópia do banco de dev real, fluxo completo sem 403/500/erro de console.
-- [ ] Etapa 4 — Checklist de inspeção com execução de tarefa e tarefa avulsa.
-- [ ] Etapa 5 — Vencimentos por aeronave com execução e histórico.
-- [ ] Etapa 6 — Inventário com remover/instalar e mensagem clara de limitação de RBAC.
-- [ ] Etapa 7 — Publicações normalizada, PWA instalável de fato, docs atualizados.
-- [x] `pytest tests -q` e `ruff check .` limpos nas Etapas 1-3 (737 passando, 3 falhas pré-existentes não relacionadas — acervo real de publicações ausente neste ambiente).
+- [x] Etapa 4 — Checklist de inspeção com execução de tarefa e tarefa avulsa. Verificado via `pytest`/`ruff` apenas — não verificado manualmente em navegador nesta rodada.
+- [x] Etapa 5 — Vencimentos por aeronave com execução (via `min`/`max` nativos no lugar do tratamento de 409/422) e histórico. Verificado via `pytest`/`ruff` apenas.
+- [x] Etapa 6 — Inventário com remover/instalar e mensagem clara de limitação de RBAC. Verificado via `pytest`/`ruff` apenas.
+- [ ] Etapa 7 — Publicações normalizada (não feito, ver §8 para o motivo), PWA instalável de fato (manifest atualizado, não testado em dispositivo), docs atualizados (este documento).
+- [x] `pytest tests -q` e `ruff check .` limpos nas Etapas 1-6 (737 passando, as mesmas 3 falhas pré-existentes não relacionadas do acervo real de publicações ausente neste ambiente — nenhuma nova).
+- [x] Retrofit visual v2 (fora do plano original) — `mobile.css`, `base_mobile.html`, `frota.html`/`frota_mobile.js`, `mockup_mobile.html` — ver nota de desvio maior no topo deste documento.
+- [ ] **Pendência explícita para a próxima rodada:** nenhuma tela nova desta sessão (checklist, vencimentos, inventário) foi verificada manualmente em navegador/dispositivo — só testes automatizados + leitura de código. Etapas 1-3 tiveram essa verificação manual; 4-6 não. Recomendado antes de considerar a branch pronta para revisão.

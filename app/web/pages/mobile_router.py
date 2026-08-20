@@ -52,6 +52,16 @@ async def mobile_pane_detalhe_page(request: Request, pane_id: str, user=Depends(
     })
 
 
+@router.get("/inspecao/{inspecao_id}", response_class=HTMLResponse, include_in_schema=False)
+async def mobile_inspecao_checklist_page(request: Request, inspecao_id: str, user=Depends(get_current_user)):
+    """Checklist de inspeção: execução de tarefa (Pendente/Concluída/N-A) + tarefa avulsa."""
+    return templates.TemplateResponse("mobile/inspecao_checklist.html", {
+        "request": request,
+        "inspecao_id": inspecao_id,
+        "user": user
+    })
+
+
 @router.get("/publicacoes", response_class=HTMLResponse, include_in_schema=False)
 async def mobile_publicacoes_page(request: Request, db: DBSession, user=Depends(get_current_user)):
     """

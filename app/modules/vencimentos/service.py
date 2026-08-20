@@ -363,7 +363,7 @@ async def listar_vencimentos_por_item(db: AsyncSession, item_id: uuid.UUID) -> l
     )
     return list(result.scalars().all())
 
-async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
+async def montar_matriz_vencimentos(db: AsyncSession, aeronave_id: uuid.UUID | None = None) -> dict:
     res_modelos = await db.execute(
         select(ModeloEquipamento)
         .join(EquipamentoControle, EquipamentoControle.modelo_id == ModeloEquipamento.id)
@@ -405,11 +405,11 @@ async def montar_matriz_vencimentos(db: AsyncSession) -> dict:
     if not slots:
         return {"cabecalho": cabecalho, "aeronaves": []}
 
-    res_acft = await db.execute(
-        select(Aeronave)
-        .where(Aeronave.status != StatusAeronave.INATIVA)
-        .order_by(Aeronave.matricula)
-    )
+    q_acft = select(Aeronave).where(Aeronave.status != StatusAeronave.INATIVA)
+    if aeronave_id is not None:
+        q_acft = q_acft.where(Aeronave.id == aeronave_id)
+    q_acft = q_acft.order_by(Aeronave.matricula)
+    res_acft = await db.execute(q_acft)
     aeronaves = res_acft.scalars().all()
 
     if not aeronaves:

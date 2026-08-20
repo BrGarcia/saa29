@@ -13,25 +13,34 @@
 }
 
 :root {
-    --mobile-bg: #0F172A;
-    --mobile-card-bg: #1E293B;
-    --mobile-card-border: #334155;
-    --mobile-text: #F8FAFC;
-    --mobile-text-muted: #94A3B8;
-    --mobile-primary: #1F497D;
-    --mobile-accent: #2563EB;
-    --mobile-success: #166534;
-    --mobile-success-bright: #22C55E;
-    --mobile-danger: #991B1B;
-    --mobile-warning: #D97706;
+    /* Paleta v2 (revisão alinhada a docs/backlog/modulo_mobile/mockup_mobile.html)
+       — quase-preto em vez do slate-azulado original; chips em rgba, não mais
+       preenchimento sólido. Fonte permanece a stack de sistema (sem Google
+       Fonts): é um PWA de uso em pátio com conectividade ruim — uma fonte
+       carregada de CDN externo é uma regressão, não um upgrade visual. */
+    --mobile-bg: #0B1015;
+    --mobile-card-bg: #141C24;
+    --mobile-card-bg-2: #131B23;
+    --mobile-card-border: #202C37;
+    --mobile-card-border-soft: #1A232C;
+    --mobile-text: #F3F6F8;
+    --mobile-text-muted: #8794A1;
+    --mobile-text-dim: #7D8B98;
+    --mobile-accent: #3B7DF5;
+    --mobile-accent-soft: #5B93F7;
+    --mobile-success: #14532D;
+    --mobile-success-bright: #3ED598;
+    --mobile-danger: #B23A40;
+    --mobile-warning: #F0A22E;
     --mobile-touch-target: 56px;
+    --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
     /* Status derivado (vencimentos, tarefas de inspeção, panes) — mesma
        paleta em toda tela mobile que precise sinalizar OK/atenção/crítico. */
-    --mobile-status-ok: #22C55E;
-    --mobile-status-vencendo: #D97706;
-    --mobile-status-vencido: #EF4444;
-    --mobile-status-prorrogado: #38BDF8;
+    --mobile-status-ok: #3ED598;
+    --mobile-status-vencendo: #F0A22E;
+    --mobile-status-vencido: #F2585E;
+    --mobile-status-prorrogado: #56C4F0;
     --mobile-status-desinstalado: #64748B;
 }
 
@@ -47,7 +56,7 @@ body.mobile-body {
 
 /* Header Fixo Mobile */
 .mobile-header {
-    background-color: #020617;
+    background-color: var(--mobile-bg);
     border-bottom: 1px solid var(--mobile-card-border);
     padding: 0.75rem 1rem;
     display: flex;
@@ -65,12 +74,14 @@ body.mobile-body {
 }
 
 .mobile-app-badge {
-    background: var(--mobile-primary);
-    color: #FFFFFF;
-    font-weight: 800;
-    font-size: 0.75rem;
-    padding: 0.2rem 0.5rem;
-    border-radius: 4px;
+    background: var(--mobile-card-bg);
+    border: 1px solid var(--mobile-card-border);
+    color: var(--mobile-text-dim);
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 0.68rem;
+    padding: 0.2rem 0.45rem;
+    border-radius: 5px;
     letter-spacing: 0.05rem;
 }
 
@@ -88,12 +99,14 @@ body.mobile-body {
 }
 
 .mobile-user-badge {
-    background: rgba(255, 255, 255, 0.1);
-    padding: 0.25rem 0.6rem;
-    border-radius: 20px;
-    font-size: 0.8rem;
+    background: var(--mobile-card-bg);
+    padding: 0.3rem 0.6rem;
+    border-radius: 10px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
     font-weight: 600;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--mobile-text-muted);
+    border: 1px solid var(--mobile-card-border);
 }
 
 .mobile-menu-btn {
@@ -143,7 +156,7 @@ body.mobile-body {
     width: 280px;
     max-width: 85vw;
     height: 100vh;
-    background: #020617;
+    background: var(--mobile-bg);
     border-left: 1px solid var(--mobile-card-border);
     z-index: 210;
     transform: translateX(100%);
@@ -252,8 +265,9 @@ body.mobile-body {
 .mobile-anv-card {
     background: var(--mobile-card-bg);
     border: 1px solid var(--mobile-card-border);
-    border-radius: 12px;
-    padding: 1rem;
+    border-left-width: 4px;
+    border-radius: 16px;
+    padding: 0.9rem 1rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -265,38 +279,49 @@ body.mobile-body {
 
 .mobile-anv-card:active {
     transform: scale(0.98);
-    border-color: var(--mobile-accent);
 }
 
 .mobile-anv-info h3 {
     margin: 0 0 0.25rem 0;
-    font-size: 1.2rem;
-    color: #FFFFFF;
+    font-family: var(--font-mono);
+    font-size: 1.3rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--mobile-text);
 }
 
 .mobile-anv-info p {
     margin: 0;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     color: var(--mobile-text-muted);
 }
 
 .mobile-anv-badge-count {
-    background: var(--mobile-danger);
-    color: #FFFFFF;
-    font-weight: 700;
-    font-size: 0.85rem;
-    padding: 0.4rem 0.8rem;
+    display: inline-flex;
+    align-items: center;
+    background: rgba(242, 88, 94, 0.14);
+    border: 1px solid rgba(242, 88, 94, 0.32);
+    color: #FF8A90;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.68rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 0.35rem 0.6rem;
     border-radius: 20px;
     white-space: nowrap;
 }
 
 .mobile-anv-badge-count.inspecao {
-    background: var(--mobile-warning, #D97706);
-    color: #FFFFFF;
+    background: rgba(240, 162, 46, 0.14);
+    border-color: rgba(240, 162, 46, 0.32);
+    color: #F7BB63;
 }
 
 .mobile-anv-badge-count.zero {
-    background: var(--mobile-success);
+    background: rgba(62, 213, 152, 0.12);
+    border-color: rgba(62, 213, 152, 0.3);
+    color: var(--mobile-status-ok);
 }
 
 /* Botões de Ação de 1 Toque */
@@ -318,7 +343,7 @@ body.mobile-body {
 
 .btn-mobile-success {
     background-color: var(--mobile-success-bright);
-    color: #020617;
+    color: #04240F;
 }
 
 .btn-mobile-success:active {
@@ -358,61 +383,67 @@ body.mobile-body {
 
 .mobile-aeronave-header h2 {
     margin: 0;
-    font-size: 1.4rem;
-    color: #FFFFFF;
+    font-family: var(--font-mono);
+    font-size: 1.6rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--mobile-text);
 }
 
 .badge-status {
     display: inline-flex;
     align-items: center;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    padding: 0.3rem 0.65rem;
-    border-radius: 20px;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.32rem 0.6rem;
+    border-radius: 999px;
     white-space: nowrap;
     background: var(--mobile-card-bg);
-    color: var(--mobile-text);
+    color: var(--mobile-text-muted);
     border: 1px solid var(--mobile-card-border);
 }
 
 .badge-status.status-indisponivel,
 .badge-status.status-vencido,
-.badge-status.status-aberta { background: var(--mobile-status-vencido); color: #FFFFFF; border-color: transparent; }
+.badge-status.status-aberta { background: rgba(242, 88, 94, 0.14); color: var(--mobile-status-vencido); border-color: rgba(242, 88, 94, 0.32); }
 .badge-status.status-inspecao,
-.badge-status.status-vencendo { background: var(--mobile-status-vencendo); color: #FFFFFF; border-color: transparent; }
+.badge-status.status-vencendo { background: rgba(240, 162, 46, 0.14); color: var(--mobile-status-vencendo); border-color: rgba(240, 162, 46, 0.32); }
 .badge-status.status-disponivel,
 .badge-status.status-ok,
-.badge-status.status-resolvida { background: var(--mobile-status-ok); color: #062513; border-color: transparent; }
-.badge-status.status-prorrogado { background: var(--mobile-status-prorrogado); color: #052034; border-color: transparent; }
-.badge-status.status-desinstalado { background: var(--mobile-status-desinstalado); color: #FFFFFF; border-color: transparent; }
+.badge-status.status-resolvida { background: rgba(62, 213, 152, 0.14); color: var(--mobile-status-ok); border-color: rgba(62, 213, 152, 0.32); }
+.badge-status.status-prorrogado { background: rgba(86, 196, 240, 0.14); color: var(--mobile-status-prorrogado); border-color: rgba(86, 196, 240, 0.32); }
+.badge-status.status-desinstalado { background: rgba(154, 167, 179, 0.12); color: #9AA7B3; border-color: rgba(154, 167, 179, 0.28); }
 
 .mobile-tabs {
     display: flex;
-    gap: 0.4rem;
-    overflow-x: auto;
-    padding-bottom: 0.75rem;
-    margin-bottom: 0.75rem;
-    border-bottom: 1px solid var(--mobile-card-border);
+    gap: 4px;
+    padding: 4px;
+    background: var(--mobile-card-bg);
+    border: 1px solid var(--mobile-card-border);
+    border-radius: 14px;
+    margin-bottom: 0.85rem;
 }
 
 .mobile-tab-btn {
-    flex: 1 0 auto;
+    flex: 1;
     min-height: var(--mobile-touch-target);
-    padding: 0.5rem 0.75rem;
-    font-size: 0.85rem;
+    padding: 0.5rem 0.5rem;
+    font-size: 0.78rem;
     font-weight: 600;
-    color: var(--mobile-text-muted);
+    color: var(--mobile-text-dim);
     background: transparent;
     border: none;
-    border-radius: 8px;
+    border-radius: 11px;
     cursor: pointer;
     touch-action: manipulation;
     white-space: nowrap;
 }
 
 .mobile-tab-btn.active {
-    background: var(--mobile-card-bg);
+    background: #22303D;
     color: var(--mobile-text);
 }
 
@@ -427,7 +458,7 @@ body.mobile-body {
 .mobile-card {
     background: var(--mobile-card-bg);
     border: 1px solid var(--mobile-card-border);
-    border-radius: 12px;
+    border-radius: 16px;
     padding: 1rem;
 }
 
@@ -442,7 +473,7 @@ body.mobile-body {
 .mobile-task-card {
     background: var(--mobile-card-bg);
     border: 1px solid var(--mobile-card-border);
-    border-radius: 12px;
+    border-radius: 15px;
     padding: 1rem;
     text-decoration: none;
     color: inherit;
@@ -465,7 +496,7 @@ body.mobile-body {
     margin: 0 0 0.3rem;
     font-size: 1rem;
     font-weight: 600;
-    color: #FFFFFF;
+    color: var(--mobile-text);
 }
 
 .mobile-task-card-meta {
@@ -494,9 +525,9 @@ body.mobile-body {
 .mobile-input,
 .mobile-select,
 .mobile-textarea {
-    background: #0F1B2E;
+    background: var(--mobile-card-bg);
     border: 1px solid var(--mobile-card-border);
-    border-radius: 8px;
+    border-radius: 13px;
     padding: 0.7rem 0.75rem;
     color: var(--mobile-text);
     font-size: 0.95rem;
@@ -513,9 +544,9 @@ body.mobile-body {
 .mobile-fixed-note {
     font-size: 0.85rem;
     color: var(--mobile-text-muted);
-    background: #0F1B2E;
+    background: var(--mobile-card-bg-2);
     border: 1px dashed var(--mobile-card-border);
-    border-radius: 8px;
+    border-radius: 13px;
     padding: 0.65rem 0.75rem;
     margin-bottom: 1rem;
 }
@@ -537,9 +568,9 @@ body.mobile-body {
 .mobile-photo {
     width: 72px;
     height: 72px;
-    border-radius: 10px;
+    border-radius: 13px;
     flex: none;
-    background: linear-gradient(135deg, #334155, #1E293B);
+    background: linear-gradient(135deg, #1C252F, #141C24);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -573,7 +604,7 @@ body.mobile-body {
 }
 
 .btn-mobile-accent:active {
-    background-color: #1d4ed8;
+    background-color: #2E63C7;
 }
 
 .btn-mobile-ghost {
@@ -592,7 +623,7 @@ body.mobile-body {
 }
 
 .btn-mobile-danger:active {
-    background-color: #7f1d1d;
+    background-color: #8C2C31;
 }
 
 .btn-mobile-action:disabled {
@@ -620,13 +651,13 @@ body.mobile-body {
     align-items: center;
     gap: 0.45rem;
     border: none;
-    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.45);
+    box-shadow: 0 8px 18px rgba(59, 125, 245, 0.45);
     text-decoration: none;
     touch-action: manipulation;
 }
 
 .mobile-fab:active {
-    background: #1d4ed8;
+    background: #2E63C7;
 }
 
 /* ==========================================================================
@@ -637,11 +668,314 @@ body.mobile-body {
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-    font-size: 0.75rem;
-    font-weight: 700;
-    padding: 0.25rem 0.6rem;
-    border-radius: 20px;
-    background: rgba(255, 255, 255, 0.08);
-    color: var(--mobile-text);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 0.3rem 0.6rem;
+    border-radius: 999px;
+    background: var(--mobile-card-bg-2);
+    border: 1px solid var(--mobile-card-border);
+    color: var(--mobile-text-muted);
     white-space: nowrap;
+}
+
+/* ==========================================================================
+   Busca e filtros — Frota e Publicações (Etapa 4-7, revisão v2)
+   Todo elemento tocável aqui respeita RNF-01 (alvo de toque >= 56px), mesmo
+   quando o mockup de referência usa pílulas mais finas: aquele arquivo é uma
+   peça de documentação estática, não está sujeito ao requisito de luva/mão
+   suada no pátio que rege o produto real.
+   ========================================================================== */
+
+.mobile-search {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: var(--mobile-touch-target);
+    padding: 0 0.9rem;
+    border-radius: 13px;
+    background: var(--mobile-card-bg);
+    border: 1px solid var(--mobile-card-border);
+    color: var(--mobile-text-dim);
+}
+
+.mobile-search input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--mobile-text);
+    font-size: 0.9rem;
+    font-family: inherit;
+}
+
+.mobile-search input::placeholder {
+    color: var(--mobile-text-dim);
+}
+
+.mobile-search__icon {
+    display: block;
+    width: 15px;
+    height: 15px;
+    border: 1.8px solid var(--mobile-text-dim);
+    border-radius: 50%;
+    flex: none;
+}
+
+.mobile-filter-row {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 2px;
+}
+
+.mobile-filter-pill {
+    flex: none;
+    min-height: var(--mobile-touch-target);
+    padding: 0 0.95rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+    background: var(--mobile-card-bg);
+    color: var(--mobile-text-muted);
+    border: 1px solid var(--mobile-card-border);
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.mobile-filter-pill.active {
+    background: var(--mobile-text);
+    color: var(--mobile-bg);
+    border-color: var(--mobile-text);
+}
+
+/* ==========================================================================
+   Estatísticas da frota (cartões de contagem por status — Frota v2)
+   ========================================================================== */
+
+.mobile-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.6rem;
+}
+
+.mobile-stat {
+    padding: 0.7rem 0.7rem 0.6rem;
+    border-radius: 13px;
+    background: var(--mobile-card-bg);
+    border: 1px solid var(--mobile-card-border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.mobile-stat b {
+    font-family: var(--font-mono);
+    font-size: 1.35rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.mobile-stat span {
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: var(--mobile-text-muted);
+}
+
+.mobile-stat--ok b { color: var(--mobile-status-ok); }
+.mobile-stat--warn b { color: var(--mobile-status-vencendo); }
+.mobile-stat--danger b { color: var(--mobile-status-vencido); }
+
+/* ==========================================================================
+   Linha de ação dentro de um cartão (Inspeções/Vencimentos/Inventário) e
+   nota de limitação de RBAC — Etapas 4-6
+   ========================================================================== */
+
+.mobile-row-action-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.4rem;
+}
+
+.mobile-row-action {
+    min-height: var(--mobile-touch-target);
+    padding: 0 1rem;
+    border-radius: 11px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--mobile-accent-soft);
+    background: rgba(91, 147, 247, 0.1);
+    border: 1px solid rgba(91, 147, 247, 0.35);
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.mobile-note {
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--mobile-status-vencendo);
+    background: rgba(240, 162, 46, 0.1);
+    border: 1px solid rgba(240, 162, 46, 0.28);
+    border-radius: 10px;
+    padding: 0.55rem 0.7rem;
+    margin-top: 0.5rem;
+}
+
+/* ==========================================================================
+   Anel de progresso (checklist de inspeção — Etapa 4)
+   ========================================================================== */
+
+.mobile-ring {
+    position: relative;
+    width: 56px;
+    height: 56px;
+    flex: none;
+}
+
+.mobile-ring svg {
+    transform: rotate(-90deg);
+}
+
+.mobile-ring__pct {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--mobile-text);
+}
+
+/* ==========================================================================
+   Folha de ação inferior (bottom sheet) — checklist de tarefa, Etapa 4
+   ========================================================================== */
+
+.mobile-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(4, 8, 12, 0.62);
+    z-index: 240;
+}
+
+.mobile-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 241;
+    background: var(--mobile-card-bg);
+    border-top: 1px solid var(--mobile-card-border);
+    border-radius: 22px 22px 0 0;
+    padding: 0.75rem 1.1rem calc(1.4rem + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.mobile-sheet__handle {
+    width: 36px;
+    height: 4px;
+    border-radius: 3px;
+    background: var(--mobile-card-border);
+    margin: 0 auto;
+}
+
+.mobile-sheet__title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.mobile-sheet__meta {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--mobile-text-muted);
+    margin-top: 0.2rem;
+}
+
+.mobile-sheet__actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.mobile-sheet-btn {
+    flex: 1;
+    min-height: var(--mobile-touch-target);
+    text-align: center;
+    border-radius: 13px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--mobile-card-border);
+    color: var(--mobile-text-muted);
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.mobile-sheet-btn.is-off { background: rgba(154, 167, 179, 0.14); color: #9AA7B3; border-color: rgba(154, 167, 179, 0.3); }
+.mobile-sheet-btn.is-pendente { background: rgba(240, 162, 46, 0.16); color: var(--mobile-status-vencendo); border-color: rgba(240, 162, 46, 0.4); }
+.mobile-sheet-btn.is-concluida { background: var(--mobile-status-ok); color: #04240F; border-color: var(--mobile-status-ok); }
+
+/* ==========================================================================
+   Lista de tarefas do checklist — Etapa 4
+   ========================================================================== */
+
+.mobile-task-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: var(--mobile-touch-target);
+    padding: 0.6rem 0.1rem;
+    border-bottom: 1px solid var(--mobile-card-border-soft);
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.mobile-task-row:last-child { border-bottom: none; }
+
+.mobile-task-row__icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.mobile-task-row__icon.is-concluida { background: var(--mobile-status-ok); color: #062B17; }
+.mobile-task-row__icon.is-na { background: #2A3743; color: #9AA7B3; }
+.mobile-task-row__icon.is-pendente { border: 2px solid var(--mobile-status-vencendo); }
+
+.mobile-task-row__body { flex: 1; min-width: 0; }
+
+.mobile-task-row__title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mobile-task-row__title.is-done {
+    color: #93A2AF;
+    font-weight: 500;
+    text-decoration: line-through;
+    text-decoration-color: #3B4956;
+}
+
+.mobile-task-row__meta {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--mobile-text-dim);
 }

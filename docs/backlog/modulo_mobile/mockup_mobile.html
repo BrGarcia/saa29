@@ -56,22 +56,27 @@
     --accent-soft: #3A2414;
   }
 
-  /* Tokens fixos do produto (mobile.css real) — nunca mudam com o tema da página */
+  /* Tokens fixos do produto (mobile.css real) — nunca mudam com o tema da página.
+     Paleta v2, alinhada a linha-de-voo-mobile-standalone.html: quase-preto em vez
+     de slate-azulado, chips em rgba (não mais preenchimento sólido). */
   .device {
-    --mob-bg: #0F172A;
-    --mob-card: #1E293B;
-    --mob-card-2: #243346;
-    --mob-border: #334155;
-    --mob-text: #F8FAFC;
-    --mob-muted: #94A3B8;
-    --mob-primary: #1F497D;
-    --mob-accent: #2563EB;
-    --mob-ok: #22C55E;
-    --mob-warn: #D97706;
-    --mob-danger: #EF4444;
-    --mob-danger-deep: #991B1B;
-    --mob-info: #38BDF8;
+    --mob-bg: #0B1015;
+    --mob-card: #141C24;
+    --mob-inset: #131B23;
+    --mob-border: #202C37;
+    --mob-border-soft: #1A232C;
+    --mob-text: #F3F6F8;
+    --mob-muted: #8794A1;
+    --mob-dim: #7D8B98;
+    --mob-blue: #3B7DF5;
+    --mob-blue-soft: #5B93F7;
+    --mob-ok: #2FBF7E;
+    --mob-ok-bright: #3ED598;
+    --mob-warn: #F0A22E;
+    --mob-danger: #F2585E;
+    --mob-info: #56C4F0;
     --mob-off: #64748B;
+    --mob-off-ink: #9AA7B3;
   }
 
   * { box-sizing: border-box; }
@@ -182,10 +187,10 @@
     color: var(--ink-muted);
   }
   .chip .sw { width: 9px; height: 9px; border-radius: 3px; flex: none; }
-  .sw--ok { background: #22C55E; }
-  .sw--warn { background: #D97706; }
-  .sw--danger { background: #EF4444; }
-  .sw--info { background: #38BDF8; }
+  .sw--ok { background: #3ED598; }
+  .sw--warn { background: #F0A22E; }
+  .sw--danger { background: #F2585E; }
+  .sw--info { background: #56C4F0; }
   .sw--off { background: #64748B; }
 
   /* ---------------- Grupos / Galeria ---------------- */
@@ -300,191 +305,184 @@
     content: ""; position: absolute; inset: 1.5px; right: 4px; background: var(--mob-text); border-radius: 1px;
   }
 
-  /* ---------------- Componentes da UI do produto ---------------- */
-  .mob-scroll { flex: 1; overflow: hidden; padding: 0 16px 16px; display: flex; flex-direction: column; gap: 0.85rem; }
+  /* ---------------- Componentes da UI do produto (revisão v2) ---------------- */
+  .mob-scroll { flex: 1; overflow: hidden; padding: 0 20px 108px; display: flex; flex-direction: column; gap: 1.05rem; }
 
-  .mob-header {
-    flex: none;
-    padding: 6px 16px 12px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.6rem;
-    border-bottom: 1px solid var(--mob-border);
-  }
-  .mob-header__title { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
-  .mob-header__title h1 { font-size: 1rem; font-weight: 700; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .mob-badge {
-    background: var(--mob-primary); color: #fff; font-weight: 800; font-size: 0.62rem;
-    padding: 0.15rem 0.4rem; border-radius: 4px; letter-spacing: 0.04em; flex: none;
-  }
-  .mob-icon-btn {
-    width: 34px; height: 34px; border-radius: 9px; border: none; background: transparent;
-    color: var(--mob-text); display: flex; align-items: center; justify-content: center; flex: none;
-  }
-  .mob-icon-btn svg { width: 19px; height: 19px; }
-  .mob-user-chip {
-    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18);
-    padding: 0.2rem 0.55rem; border-radius: 20px; font-size: 0.72rem; font-weight: 700; flex: none;
-  }
-  .mob-back {
-    display: inline-flex; align-items: center; gap: 0.3rem; color: var(--mob-accent);
-    font-size: 0.82rem; font-weight: 600; text-decoration: none;
-  }
-  .mob-back svg { width: 15px; height: 15px; }
+  /* ícones desenhados em CSS puro — sem SVG, no espírito do protótipo de origem */
+  .mob-icon-doc { display: block; width: 15px; height: 17px; border: 2px solid currentColor; border-radius: 2px 4px 4px 2px; border-left-width: 4px; flex: none; }
+  .mob-icon-chev-l { display: block; width: 8px; height: 8px; border-left: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); flex: none; }
+  .mob-icon-chev-r { display: block; width: 7px; height: 7px; border-right: 2px solid currentColor; border-top: 2px solid currentColor; transform: rotate(45deg); flex: none; }
+  .mob-icon-ring { display: block; width: 14px; height: 14px; border: 1.6px solid currentColor; border-radius: 50%; flex: none; }
 
-  .mob-section-title { font-size: 1.1rem; font-weight: 700; margin: 0.2rem 0 0; }
-  .mob-section-sub { font-size: 0.78rem; color: var(--mob-muted); margin: 0 0 0.2rem; }
+  .mob-eyebrow { font: 600 0.66rem/1 var(--font-mono); letter-spacing: 0.09em; text-transform: uppercase; color: var(--mob-dim); }
 
-  .mob-tabbar { flex: none; display: flex; gap: 0.4rem; padding: 10px 16px 4px; border-bottom: 1px solid var(--mob-border); }
-  .mob-tab {
-    flex: 1; text-align: center; padding: 0.5rem 0.3rem; font-size: 0.72rem; font-weight: 600;
-    color: var(--mob-muted); background: transparent; border: none; border-radius: 8px; cursor: pointer;
-  }
-  .mob-tab.is-active { background: var(--mob-card); color: var(--mob-text); }
+  .mob-home-head { flex: none; padding: 4px 20px 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .mob-home-head h1 { margin: 0; font-size: 1.45rem; font-weight: 600; letter-spacing: -0.02em; }
+  .mob-head-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+  .mob-icon-tile { position: relative; width: 40px; height: 40px; border-radius: 13px; background: var(--mob-card); border: 1px solid var(--mob-border); display: flex; align-items: center; justify-content: center; color: #BFD0DD; flex: none; }
+  .mob-icon-tile__badge { position: absolute; top: -3px; right: -3px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 8px; background: var(--mob-danger); color: #fff; font: 700 9.5px/16px var(--font-mono); text-align: center; }
+  .mob-trig-tile { width: 40px; height: 40px; border-radius: 13px; background: var(--mob-card); border: 1px solid var(--mob-border); display: flex; align-items: center; justify-content: center; font: 600 12px/1 var(--font-mono); color: #BFD0DD; flex: none; }
 
-  .mob-card {
-    background: var(--mob-card); border: 1px solid var(--mob-border); border-radius: 12px; padding: 0.85rem;
-  }
-  .mob-card + .mob-card { }
+  .mob-search { display: flex; align-items: center; gap: 9px; height: 44px; padding: 0 13px; border-radius: 13px; background: var(--mob-card); border: 1px solid var(--mob-border); color: var(--mob-dim); font-size: 0.78rem; }
 
-  .mob-pill {
-    display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.66rem; font-weight: 700;
-    padding: 0.2rem 0.5rem; border-radius: 20px; letter-spacing: 0.02em; white-space: nowrap;
-  }
-  .pill--danger { background: var(--mob-danger-deep); color: #fff; }
-  .pill--warn { background: var(--mob-warn); color: #fff; }
-  .pill--ok { background: var(--mob-ok); color: #06210f; }
-  .pill--info { background: var(--mob-info); color: #052034; }
-  .pill--off { background: var(--mob-off); color: #fff; }
-  .pill--ghost { background: rgba(255,255,255,0.08); color: var(--mob-text); }
+  .mob-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+  .mob-stat { padding: 11px 11px 10px; border-radius: 13px; background: var(--mob-card); border: 1px solid var(--mob-border); display: flex; flex-direction: column; gap: 2px; }
+  .mob-stat b { font: 600 1.25rem/1 var(--font-mono); }
+  .mob-stat span { font-size: 0.68rem; font-weight: 500; color: var(--mob-muted); }
+  .mob-stat--ok b { color: var(--mob-ok-bright); }
+  .mob-stat--warn b { color: var(--mob-warn); }
+  .mob-stat--danger b { color: var(--mob-danger); }
 
-  .mob-btn {
-    display: flex; align-items: center; justify-content: center; gap: 0.45rem;
-    min-height: 46px; border: none; border-radius: 10px; font-weight: 700; font-size: 0.86rem;
-    cursor: pointer; width: 100%;
-  }
-  .mob-btn--lg { min-height: 52px; font-size: 0.92rem; }
-  .mob-btn--ok { background: #22C55E; color: #062513; }
-  .mob-btn--accent { background: var(--mob-accent); color: #fff; }
-  .mob-btn--ghost { background: rgba(255,255,255,0.07); color: var(--mob-text); border: 1px solid var(--mob-border); }
+  .mob-filter-row { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 1px; }
+  .mob-filter-row::-webkit-scrollbar { display: none; }
+  .mob-chip-wrap { display: flex; flex-wrap: wrap; gap: 7px; }
+  .mob-filter-pill { flex: none; padding: 8px 13px; border-radius: 999px; font: 600 0.72rem/1 var(--font-sans); white-space: nowrap; background: var(--mob-card); color: var(--mob-muted); border: 1px solid var(--mob-border); }
+  .mob-filter-pill.is-active { background: var(--mob-text); color: var(--mob-bg); border-color: var(--mob-text); }
 
-  .mob-fab {
-    position: absolute; right: 16px; bottom: 16px; width: auto; height: 46px; padding: 0 1rem;
-    border-radius: 23px; background: var(--mob-accent); color: #fff; font-weight: 700; font-size: 0.8rem;
-    display: flex; align-items: center; gap: 0.4rem; box-shadow: 0 8px 18px rgba(37,99,235,0.45); z-index: 5;
-    border: none;
-  }
+  .mob-fleet-list { display: flex; flex-direction: column; gap: 10px; }
+  .mob-fleet-card { display: flex; background: var(--mob-card); border: 1px solid var(--mob-border); border-radius: 16px; overflow: hidden; min-height: 78px; }
+  .mob-fleet-card .stripe { width: 4px; flex: none; }
+  .mob-fleet-card .body { flex: 1; display: flex; flex-direction: column; gap: 7px; padding: 12px 14px; min-width: 0; }
+  .mob-fleet-card .top-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .mob-fleet-card .tail { font: 600 1.25rem/1 var(--font-mono); letter-spacing: -0.01em; color: var(--mob-text); }
+  .mob-fleet-card .line { font-size: 0.72rem; color: var(--mob-muted); }
+  .mob-fleet-card .prog-row { display: flex; align-items: center; gap: 8px; }
+  .mob-fleet-card .prog-track { flex: 1; height: 5px; border-radius: 3px; background: var(--mob-border); overflow: hidden; }
+  .mob-fleet-card .prog-fill { display: block; height: 100%; background: var(--mob-warn); border-radius: 3px; }
+  .mob-fleet-card .prog-label { font: 500 0.65rem/1 var(--font-mono); color: var(--mob-muted); }
 
-  .mob-anv-card {
-    background: var(--mob-card); border: 1px solid var(--mob-border); border-radius: 12px; padding: 0.85rem 1rem;
-    display: flex; justify-content: space-between; align-items: center; gap: 0.6rem;
-  }
-  .mob-anv-card h3 { margin: 0 0 0.2rem; font-size: 1.02rem; }
-  .mob-anv-card p { margin: 0; font-size: 0.76rem; color: var(--mob-muted); }
-  .mob-anv-card .stack { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; }
+  .mob-pill { display: inline-flex; align-items: center; font: 600 0.62rem/1 var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; padding: 5px 8px; border-radius: 999px; white-space: nowrap; flex: none; }
+  .pill--danger { color: var(--mob-danger); background: rgba(242,88,94,.12); border: 1px solid rgba(242,88,94,.3); }
+  .pill--warn { color: var(--mob-warn); background: rgba(240,162,46,.12); border: 1px solid rgba(240,162,46,.3); }
+  .pill--ok { color: var(--mob-ok-bright); background: rgba(47,191,126,.12); border: 1px solid rgba(47,191,126,.3); }
+  .pill--info { color: var(--mob-info); background: rgba(86,196,240,.12); border: 1px solid rgba(86,196,240,.3); }
+  .pill--off { color: var(--mob-off-ink); background: rgba(154,167,179,.1); border: 1px solid rgba(154,167,179,.26); }
 
-  .mob-field { display: flex; flex-direction: column; gap: 0.3rem; }
-  .mob-field label { font-size: 0.72rem; color: var(--mob-muted); font-weight: 600; }
-  .mob-input, .mob-select, .mob-textarea {
-    background: var(--mob-card-2); border: 1px solid var(--mob-border); border-radius: 8px;
-    padding: 0.6rem 0.65rem; color: var(--mob-text); font-size: 0.85rem; font-family: inherit;
-  }
-  .mob-textarea { resize: none; }
-  .mob-fixed-note {
-    font-size: 0.78rem; color: var(--mob-muted); background: var(--mob-card-2);
-    border: 1px dashed var(--mob-border); border-radius: 8px; padding: 0.5rem 0.65rem;
-  }
+  .mob-header { flex: none; padding: 8px 20px 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; }
+  .mob-back { display: inline-flex; align-items: center; gap: 6px; color: var(--mob-blue-soft); font-size: 0.82rem; font-weight: 600; text-decoration: none; }
+  .mob-cancel { font: 600 0.8rem/1 var(--font-sans); color: var(--mob-muted); }
+  .mob-header .title { font: 600 0.86rem/1 var(--font-sans); }
+  .mob-header .tail-mono { font: 600 0.78rem/1 var(--font-mono); color: var(--mob-dim); }
 
-  .mob-photo-row { display: flex; gap: 0.5rem; }
-  .mob-photo {
-    width: 64px; height: 64px; border-radius: 9px; flex: none;
-    background: linear-gradient(135deg, #334155, #1E293B);
-    display: flex; align-items: center; justify-content: center; color: var(--mob-muted);
-    border: 1px solid var(--mob-border); overflow: hidden;
-  }
-  .mob-photo svg { width: 22px; height: 22px; }
-  .mob-photo-add {
-    border-style: dashed; color: var(--mob-accent);
-  }
+  .mob-tabbar { flex: none; display: flex; gap: 4px; padding: 4px; background: var(--mob-card); border: 1px solid var(--mob-border); border-radius: 14px; }
+  .mob-tab { flex: 1; text-align: center; padding: 10px 3px; font-size: 0.71rem; font-weight: 600; color: var(--mob-dim); background: transparent; border: none; border-radius: 11px; cursor: pointer; }
+  .mob-tab.is-active { background: #22303D; color: var(--mob-text); }
 
-  .mob-task {
-    display: flex; align-items: center; gap: 0.65rem; padding: 0.7rem 0.15rem;
-    border-bottom: 1px solid var(--mob-border); cursor: pointer;
-  }
+  .mob-hub-row { display: flex; flex-direction: column; gap: 8px; padding: 14px 15px; background: var(--mob-card); border: 1px solid var(--mob-border); border-radius: 15px; }
+  .mob-hub-row .top-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .mob-hub-row .right-meta { font: 400 0.68rem/1 var(--font-mono); color: var(--mob-dim); }
+  .mob-hub-row .title { font: 600 0.86rem/1.35 var(--font-sans); color: #EDF2F6; margin: 0; }
+  .mob-hub-row .meta { font: 400 0.71rem/1.35 var(--font-mono); color: var(--mob-muted); }
+  .mob-hub-row .note { font-size: 0.7rem; line-height: 1.4; color: var(--mob-warn); background: rgba(240,162,46,.1); border: 1px solid rgba(240,162,46,.28); border-radius: 9px; padding: 7px 9px; }
+  .mob-hub-row .action-row { display: flex; justify-content: flex-end; }
+  .mob-row-action { font: 600 0.72rem/1 var(--font-sans); color: var(--mob-blue-soft); border: 1px solid rgba(91,147,247,.35); background: rgba(91,147,247,.1); border-radius: 9px; padding: 7px 11px; }
+
+  .mob-fab { position: absolute; right: 20px; bottom: 104px; height: 48px; padding: 0 18px; border: none; border-radius: 24px; background: var(--mob-blue); color: #fff; font-weight: 700; font-size: 0.78rem; display: flex; align-items: center; gap: 7px; box-shadow: 0 10px 22px -6px rgba(59,125,245,.65); z-index: 20; }
+
+  .mob-field { display: flex; flex-direction: column; gap: 9px; }
+  .mob-textarea { background: var(--mob-card); border: 1px solid var(--mob-border); border-radius: 13px; padding: 12px 13px; color: var(--mob-text); font-size: 0.82rem; font-family: inherit; resize: none; width: 100%; }
+
+  .mob-sev-row { display: flex; gap: 8px; }
+  .mob-sev-btn { flex: 1; text-align: center; padding: 12px 4px; border-radius: 13px; font: 600 0.78rem/1 var(--font-sans); background: var(--mob-card); color: var(--mob-dim); border: 1px solid var(--mob-border); }
+  .mob-sev-btn.is-active { background: #22303D; color: var(--mob-text); border-color: #2C3A46; }
+  .mob-sev-btn.is-active.is-crit { background: rgba(242,88,94,.16); color: var(--mob-danger); border-color: rgba(242,88,94,.45); }
+
+  .mob-photo-row { display: flex; gap: 9px; }
+  .mob-photo { width: 66px; height: 66px; border-radius: 13px; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+  .mob-photo--tex { border: 1px solid var(--mob-border); background: repeating-linear-gradient(135deg, #182029 0 6px, #1C252F 6px 12px); color: #6C7883; font: 500 8px/1.15 var(--font-mono); text-align: center; padding: 5px; }
+  .mob-photo--add { border: 1px dashed #33424F; background: var(--mob-inset); color: var(--mob-blue-soft); }
+  .mob-photo--add b { font-size: 1.1rem; line-height: 1; font-weight: 600; font-family: var(--font-sans); }
+  .mob-photo--add small { font-size: 0.6rem; font-weight: 500; }
+
+  .mob-sticky-cta { position: absolute; left: 0; right: 0; bottom: 0; padding: 13px 20px 26px; background: linear-gradient(to top, var(--mob-bg) 62%, rgba(11,16,21,0)); display: flex; gap: 9px; z-index: 20; }
+  .mob-btn { display: flex; align-items: center; justify-content: center; gap: 0.4rem; min-height: 50px; border: none; border-radius: 15px; font-weight: 700; font-size: 0.85rem; cursor: pointer; width: 100%; font-family: var(--font-sans); }
+  .mob-btn--accent { background: var(--mob-blue); color: #fff; }
+  .mob-btn--ok { background: var(--mob-ok-bright); color: #04240F; }
+  .mob-btn--ghost-sq { flex: none; width: 50px; background: var(--mob-card); border: 1px solid var(--mob-border); color: #DDE5EB; }
+
+  .mob-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .mob-info-card { padding: 12px 13px; background: var(--mob-card); border: 1px solid var(--mob-border); border-radius: 13px; display: flex; flex-direction: column; gap: 3px; }
+  .mob-info-card .val { font: 600 0.82rem/1.2 var(--font-sans); color: var(--mob-text); }
+  .mob-info-card .val--danger { color: var(--mob-danger); }
+
+  .mob-ref-link { display: flex; align-items: center; gap: 10px; padding: 13px 14px; border-radius: 15px; background: rgba(91,147,247,.09); border: 1px solid rgba(91,147,247,.28); text-decoration: none; }
+  .mob-ref-link .icon { color: var(--mob-blue-soft); }
+  .mob-ref-link .txt { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .mob-ref-link .ref { display: block; font: 600 0.76rem/1.3 var(--font-sans); color: #9DC0FA; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mob-ref-link .chev { color: var(--mob-blue-soft); }
+
+  .mob-panel { display: flex; flex-direction: column; gap: 10px; padding: 14px 15px; background: var(--mob-card); border: 1px solid var(--mob-border); border-radius: 16px; }
+
+  .mob-timeline-item { display: flex; gap: 10px; align-items: flex-start; }
+  .mob-timeline-item .dot { width: 6px; height: 6px; border-radius: 50%; background: #33424F; margin-top: 6px; flex: none; }
+  .mob-timeline-item .txt { font: 500 0.76rem/1.35 var(--font-sans); color: #DDE5EB; }
+  .mob-timeline-item .when { display: block; font: 400 0.65rem/1.4 var(--font-mono); color: var(--mob-dim); }
+
+  .mob-ring { position: relative; width: 56px; height: 56px; flex: none; }
+  .mob-ring svg { transform: rotate(-90deg); }
+  .mob-ring .pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 600 0.78rem/1 var(--font-mono); color: var(--mob-text); }
+  .mob-checklist-head { flex: none; padding: 6px 20px 12px; display: flex; flex-direction: column; gap: 12px; }
+  .mob-checklist-title { display: flex; align-items: center; gap: 13px; }
+  .mob-checklist-title h1 { margin: 0; font-size: 1.15rem; font-weight: 600; letter-spacing: -0.015em; }
+  .mob-checklist-title p { margin: 0; font: 400 0.72rem/1.3 var(--font-mono); color: var(--mob-muted); }
+
+  .mob-task { display: flex; align-items: center; gap: 11px; padding: 13px 2px; border-bottom: 1px solid var(--mob-border-soft); cursor: pointer; }
   .mob-task:last-child { border-bottom: none; }
-  .mob-task__icon {
-    width: 26px; height: 26px; border-radius: 50%; flex: none; display: flex; align-items: center;
-    justify-content: center; font-size: 0.78rem;
-  }
-  .mob-task__icon--done { background: #22C55E; color: #062513; }
-  .mob-task__icon--na { background: var(--mob-off); color: #fff; }
-  .mob-task__icon--pending { background: transparent; border: 2px solid var(--mob-warn); }
-  .mob-task__body { min-width: 0; flex: 1; }
-  .mob-task__title { font-size: 0.85rem; font-weight: 600; margin: 0 0 0.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mob-task__meta { font-size: 0.68rem; color: var(--mob-muted); font-family: var(--font-mono); }
-  .mob-task__chev { color: var(--mob-muted); flex: none; }
-  .mob-task__chev svg { width: 15px; height: 15px; }
+  .mob-task__icon { width: 26px; height: 26px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; }
+  .mob-task__icon--done { background: var(--mob-ok-bright); color: #062B17; }
+  .mob-task__icon--na { background: #2A3743; color: #9AA7B3; }
+  .mob-task__icon--pending { border: 2px solid var(--mob-warn); }
+  .mob-task__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .mob-task__title { font-size: 0.8rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mob-task__title.is-done { color: #93A2AF; text-decoration: line-through; text-decoration-color: #3B4956; font-weight: 500; }
+  .mob-task__meta { font-size: 0.63rem; color: var(--mob-dim); font-family: var(--font-mono); }
+  .mob-task__chev { color: #4B5A67; flex: none; }
 
-  .mob-progress { height: 6px; border-radius: 4px; background: var(--mob-card-2); overflow: hidden; }
-  .mob-progress > span { display: block; height: 100%; background: var(--mob-accent); }
-
-  .mob-row {
-    display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
-    padding: 0.7rem 0; border-bottom: 1px solid var(--mob-border);
-  }
-  .mob-row:last-child { border-bottom: none; }
-  .mob-row__main { min-width: 0; }
-  .mob-row__title { font-size: 0.85rem; font-weight: 600; margin: 0 0 0.15rem; }
-  .mob-row__sub { font-size: 0.7rem; color: var(--mob-muted); font-family: var(--font-mono); }
-  .mob-row__end { display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem; flex: none; }
-
-  .mob-mini-btn {
-    font-size: 0.68rem; font-weight: 700; padding: 0.32rem 0.6rem; border-radius: 7px; border: none; cursor: pointer;
-  }
-  .mob-mini-btn--accent { background: var(--mob-accent); color: #fff; }
-  .mob-mini-btn--ghost { background: rgba(255,255,255,0.09); color: var(--mob-text); }
-  .mob-mini-btn--ok { background: #22C55E; color: #062513; }
-
-  .mob-empty-note {
-    font-size: 0.72rem; color: var(--mob-warn); background: rgba(217,119,6,0.12);
-    border: 1px solid rgba(217,119,6,0.35); border-radius: 8px; padding: 0.5rem 0.6rem; margin-top: 0.35rem;
-  }
-
-  /* Sheet de ação (checklist) */
-  .mob-sheet-backdrop {
-    position: absolute; inset: 0; background: rgba(2,6,23,0.55); opacity: 0; pointer-events: none;
-    transition: opacity 0.2s ease; z-index: 40;
-  }
-  .mob-sheet {
-    position: absolute; left: 0; right: 0; bottom: 0; background: var(--mob-card);
-    border-top: 1px solid var(--mob-border); border-radius: 18px 18px 0 0; padding: 1rem 1.1rem 1.3rem;
-    transform: translateY(100%); transition: transform 0.25s cubic-bezier(.4,0,.2,1); z-index: 41;
-    display: flex; flex-direction: column; gap: 0.7rem;
-  }
+  .mob-sheet-backdrop { position: absolute; inset: 0; background: rgba(4,8,12,.62); opacity: 0; pointer-events: none; transition: opacity 0.2s ease; z-index: 40; }
+  .mob-sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--mob-card); border-top: 1px solid var(--mob-border); border-radius: 22px 22px 0 0; padding: 11px 18px 28px; transform: translateY(100%); transition: transform 0.25s cubic-bezier(.4,0,.2,1); z-index: 41; display: flex; flex-direction: column; gap: 13px; }
   .device__screen.is-sheet-open .mob-sheet-backdrop { opacity: 1; pointer-events: auto; }
   .device__screen.is-sheet-open .mob-sheet { transform: translateY(0); }
-  .mob-sheet__handle { width: 36px; height: 4px; border-radius: 3px; background: var(--mob-border); margin: 0 auto 0.2rem; }
-  .mob-sheet__title { font-size: 0.88rem; font-weight: 700; margin: 0; }
-  .mob-sheet__actions { display: flex; gap: 0.5rem; }
-  .mob-sheet__actions .mob-btn { min-height: 44px; font-size: 0.74rem; flex-direction: column; gap: 0.2rem; }
+  .mob-sheet__handle { width: 36px; height: 4px; border-radius: 3px; background: #2C3A46; margin: 0 auto; }
+  .mob-sheet__title { font-size: 0.86rem; font-weight: 600; margin: 0; }
+  .mob-sheet__meta { font: 400 0.68rem/1.3 var(--font-mono); color: var(--mob-muted); margin-top: 2px; }
+  .mob-sheet__actions { display: flex; gap: 8px; }
+  .mob-sheet-btn { flex: 1; text-align: center; padding: 13px 3px; border-radius: 13px; font: 600 0.72rem/1 var(--font-sans); background: rgba(255,255,255,.05); border: 1px solid var(--mob-border); color: var(--mob-muted); }
+  .mob-sheet-btn.is-active-off { background: #2A3743; color: #9AA7B3; border-color: #2A3743; }
+  .mob-sheet-btn.is-active-warn { background: var(--mob-warn); color: #04240F; border-color: var(--mob-warn); }
+  .mob-sheet-btn.is-active-ok { background: var(--mob-ok-bright); color: #04240F; border-color: var(--mob-ok-bright); }
 
-  /* Drawer */
-  .mob-overlay { position: absolute; inset: 0; background: rgba(2,6,23,0.65); z-index: 45; }
-  .mob-drawer {
-    position: absolute; top: 0; right: 0; bottom: 0; width: 76%; background: #020617;
-    border-left: 1px solid var(--mob-border); z-index: 46; display: flex; flex-direction: column;
-  }
-  .mob-drawer__head { padding: 1rem; border-bottom: 1px solid var(--mob-border); display: flex; justify-content: space-between; align-items: center; }
-  .mob-drawer__head h3 { margin: 0; font-size: 1rem; }
-  .mob-drawer nav { padding: 0.85rem; display: flex; flex-direction: column; gap: 0.3rem; }
-  .mob-drawer-item {
-    display: flex; align-items: center; gap: 0.65rem; padding: 0.7rem 0.75rem; border-radius: 8px;
-    font-size: 0.86rem; font-weight: 500; color: var(--mob-text); text-decoration: none;
-  }
-  .mob-drawer-item svg { width: 17px; height: 17px; flex: none; }
-  .mob-drawer-item.is-active { background: var(--mob-card); color: var(--mob-accent); }
-  .mob-drawer-divider { height: 1px; background: var(--mob-border); margin: 0.6rem 0; }
+  .mob-navbar { position: absolute; left: 0; right: 0; bottom: 0; height: 86px; padding: 9px 20px 0; display: flex; align-items: flex-start; justify-content: space-around; gap: 6px; background: rgba(11,16,21,.92); border-top: 1px solid var(--mob-border-soft); z-index: 30; }
+  .mob-navtab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 0; font: 600 0.62rem/1 var(--font-sans); color: #5C6B78; background: none; border: none; }
+  .mob-navtab .dot { display: block; width: 20px; height: 20px; border-radius: 7px; background: #1E2A35; }
+  .mob-navtab.is-active { color: var(--mob-text); }
+  .mob-navtab.is-active .dot { background: var(--mob-blue); }
+
+  .mob-alert-row { display: flex; gap: 12px; align-items: flex-start; padding: 13px 14px; background: var(--mob-card); border: 1px solid var(--mob-border); border-radius: 15px; }
+  .mob-alert-row .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex: none; }
+  .mob-alert-row .body { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .mob-alert-row .title { font: 600 0.78rem/1.3 var(--font-sans); }
+  .mob-alert-row .meta { font: 400 0.68rem/1.3 var(--font-mono); color: var(--mob-muted); }
+
+  .mob-pub-card { display: flex; gap: 11px; padding: 13px 14px; background: var(--mob-card); border: 1px solid var(--mob-border); border-radius: 15px; }
+  .mob-pub-card .stripe { width: 3px; border-radius: 2px; flex: none; }
+  .mob-pub-card .body { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .mob-pub-card .top-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .mob-pub-card .kind { font: 600 0.6rem/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--mob-dim); }
+  .mob-pub-card .title { font-size: 0.8rem; margin: 0; }
+  .mob-pub-card .title.is-unread { font-weight: 600; color: var(--mob-text); }
+  .mob-pub-card .title.is-read { font-weight: 500; color: #B9C6D1; }
+  .mob-pub-card .meta { font: 400 0.65rem/1.35 var(--font-mono); color: var(--mob-muted); }
+
+  .mob-profile-card { display: flex; gap: 13px; align-items: center; padding: 15px; background: var(--mob-card); border: 1px solid var(--mob-border); border-radius: 16px; }
+  .mob-profile-avatar { width: 48px; height: 48px; border-radius: 14px; background: #1F2C38; display: flex; align-items: center; justify-content: center; font: 600 0.9rem/1 var(--font-mono); color: #BFD0DD; flex: none; }
+  .mob-profile-card .name { font: 600 0.92rem/1.2 var(--font-sans); margin: 0 0 2px; }
+  .mob-profile-card .role { font: 400 0.66rem/1.2 var(--font-mono); color: var(--mob-muted); }
+  .mob-profile-list { display: flex; flex-direction: column; background: var(--mob-card); border: 1px solid var(--mob-border); border-radius: 16px; overflow: hidden; }
+  .mob-profile-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 15px; border-bottom: 1px solid var(--mob-border-soft); }
+  .mob-profile-row:last-child { border-bottom: none; }
+  .mob-profile-row .label { font: 500 0.78rem/1.2 var(--font-sans); color: #DDE5EB; }
+  .mob-profile-row .value { font: 400 0.68rem/1.2 var(--font-mono); color: var(--mob-dim); }
+  .mob-logout { text-align: center; padding: 13px; border-radius: 13px; background: rgba(242,88,94,.1); border: 1px solid rgba(242,88,94,.3); color: var(--mob-danger); font: 600 0.8rem/1 var(--font-sans); }
 
   /* ---------------- Rodapé ---------------- */
   .site-footer { padding: 2.75rem 0 4rem; }
@@ -508,15 +506,15 @@
     <h1>Linha de Voo — Mockup Mobile</h1>
     <p class="lede">
       Telas de <strong>Panes</strong>, <strong>Inspeções</strong>, <strong>Vencimentos</strong>,
-      <strong>Inventário</strong> e <strong>Publicações</strong> recortadas para o mantenedor em campo,
-      construídas sobre o design system escuro que já existe em <code>mobile.css</code> — mesmos tokens
-      de cor, mesmo alvo de toque de 56px. Companion de
+      <strong>Inventário</strong>, <strong>Alertas</strong>, <strong>Publicações</strong> e
+      <strong>Perfil</strong> recortadas para o mantenedor em campo — revisão 2, com paleta e
+      navegação inferior alinhadas a <code>linha-de-voo-mobile-standalone.html</code>. Companion de
       <code>01_especificacao_mobile.md</code> e <code>02_plano_implementacao.md</code>.
     </p>
     <div class="meta-row">
-      <span class="status-pill">Aguardando aprovação</span>
+      <span class="status-pill">Revisão 2 · aguardando aprovação</span>
       <span class="meta-note">moldura ≈ iPhone 14/15/16 Pro · 393×852</span>
-      <span class="meta-note">verificado também a 375×667 (iPhone SE)</span>
+      <span class="meta-note">sem menu sanduíche — navegação inferior fixa</span>
     </div>
     <div class="legend">
       <div class="legend-group">
@@ -546,8 +544,10 @@
     <div class="group-head">
       <p class="eyebrow"><span class="dot"></span>Sequência real de uso</p>
       <h2>Fluxo Principal</h2>
-      <p>Do pátio até a assinatura: o mantenedor abre o app, entra na aeronave que está travando a frota,
-        relata ou resolve uma pane, e volta ao checklist da inspeção em andamento.</p>
+      <p>Do pátio até a assinatura: o mantenedor abre o app, vê a frota priorizada por status,
+        entra na aeronave que está travando a operação, relata ou resolve uma pane e volta ao
+        checklist da inspeção em andamento — agora com busca e contadores na home, e referência
+        técnica linkada direto da pane e da tarefa do checklist.</p>
     </div>
 
     <div class="frame-grid">
@@ -559,48 +559,81 @@
           <div class="device__screen">
             <div class="device__island"></div>
             <div class="mob-statusbar"><span>9:41</span><span class="batt"></span></div>
-            <div class="mob-header">
-              <div class="mob-header__title">
-                <span class="mob-badge">SAA29</span>
+
+            <div class="mob-home-head">
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <span class="mob-eyebrow">Turno 08:00 · Hangar 2</span>
                 <h1>Linha de Voo</h1>
               </div>
-              <div style="display:flex; align-items:center; gap:0.4rem;">
-                <span class="mob-user-chip">BRT</span>
-                <button class="mob-icon-btn" aria-label="Abrir menu">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+              <div class="mob-head-actions">
+                <button class="mob-icon-tile" aria-label="Publicações não lidas">
+                  <span class="mob-icon-doc"></span>
+                  <span class="mob-icon-tile__badge">2</span>
                 </button>
+                <span class="mob-trig-tile">BRT</span>
               </div>
             </div>
-            <div class="mob-scroll" style="padding-top:0.9rem;">
-              <p class="mob-section-title" style="margin-top:0;">Linha de Voo</p>
-              <p class="mob-section-sub">Ordenadas por criticidade operacional.</p>
 
-              <div class="mob-anv-card">
-                <div><h3>2854</h3><p>INDISPONÍVEL</p></div>
-                <div class="stack">
-                  <span class="mob-pill pill--danger">2 panes</span>
-                  <span class="mob-pill pill--warn">1 venc.</span>
+            <div class="mob-scroll" style="padding-top:0.85rem;">
+              <div class="mob-search"><span class="mob-icon-ring"></span>Buscar matrícula, pane, PN…</div>
+
+              <div class="mob-stats">
+                <div class="mob-stat mob-stat--ok"><b>2</b><span>Disponíveis</span></div>
+                <div class="mob-stat mob-stat--warn"><b>1</b><span>Em inspeção</span></div>
+                <div class="mob-stat mob-stat--danger"><b>1</b><span>Indisponível</span></div>
+              </div>
+
+              <div class="mob-filter-row">
+                <button class="mob-filter-pill is-active">Todas</button>
+                <button class="mob-filter-pill">Ação necessária</button>
+                <button class="mob-filter-pill">Em inspeção</button>
+                <button class="mob-filter-pill">Disponíveis</button>
+              </div>
+
+              <div class="mob-fleet-list">
+                <div class="mob-fleet-card">
+                  <span class="stripe" style="background:var(--mob-danger);"></span>
+                  <div class="body">
+                    <div class="top-row"><span class="tail">2854</span><span class="mob-pill pill--danger">Indisponível</span></div>
+                    <span class="line">2 panes abertas · 1 vencimento vencido</span>
+                  </div>
+                </div>
+                <div class="mob-fleet-card">
+                  <span class="stripe" style="background:var(--mob-warn);"></span>
+                  <div class="body">
+                    <div class="top-row"><span class="tail">2861</span><span class="mob-pill pill--warn">Em inspeção</span></div>
+                    <span class="line">IPE em andamento · DPE amanhã</span>
+                    <div class="prog-row"><span class="prog-track"><span class="prog-fill" style="width:30%"></span></span><span class="prog-label">30%</span></div>
+                  </div>
+                </div>
+                <div class="mob-fleet-card">
+                  <span class="stripe" style="background:var(--mob-ok-bright);"></span>
+                  <div class="body">
+                    <div class="top-row"><span class="tail">2847</span><span class="mob-pill pill--ok">Disponível</span></div>
+                    <span class="line">1 vencimento vencendo em 3 dias</span>
+                  </div>
+                </div>
+                <div class="mob-fleet-card">
+                  <span class="stripe" style="background:var(--mob-ok-bright);"></span>
+                  <div class="body">
+                    <div class="top-row"><span class="tail">2839</span><span class="mob-pill pill--ok">Disponível</span></div>
+                    <span class="line">Tudo em dia</span>
+                  </div>
                 </div>
               </div>
-              <div class="mob-anv-card">
-                <div><h3>2861</h3><p>INSPEÇÃO — IPE</p></div>
-                <div class="stack"><span class="mob-pill pill--warn">30% concl.</span></div>
-              </div>
-              <div class="mob-anv-card">
-                <div><h3>2847</h3><p>DISPONÍVEL</p></div>
-                <div class="stack"><span class="mob-pill pill--warn">1 venc.</span></div>
-              </div>
-              <div class="mob-anv-card">
-                <div><h3>2839</h3><p>DISPONÍVEL</p></div>
-                <div class="stack"><span class="mob-pill pill--ok">Tudo em dia</span></div>
-              </div>
+            </div>
+
+            <div class="mob-navbar">
+              <button class="mob-navtab is-active"><span class="dot"></span>Frota</button>
+              <button class="mob-navtab"><span class="dot"></span>Alertas</button>
+              <button class="mob-navtab"><span class="dot"></span>Perfil</button>
             </div>
           </div>
         </div>
         <div class="frame-caption">
           <span class="name">Frota</span>
           <span class="route">GET /m/ → GET /dashboard/frota</span>
-          <p class="purpose">Home. Uma única requisição monta contadores de pane, inspeção e vencimento por aeronave.</p>
+          <p class="purpose">Home com busca, contadores por status e navegação inferior fixa — substitui o menu sanduíche.</p>
         </div>
       </div>
 
@@ -612,38 +645,39 @@
             <div class="device__island"></div>
             <div class="mob-statusbar"><span>9:42</span><span class="batt"></span></div>
             <div class="mob-header">
-              <a class="mob-back" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Frota</a>
-              <span class="mob-pill pill--danger">INDISPONÍVEL</span>
+              <a class="mob-back" href="#"><span class="mob-icon-chev-l"></span>Frota</a>
+              <span class="mob-pill pill--danger">Indisponível</span>
             </div>
-            <div style="padding:0.7rem 16px 0;">
-              <h1 style="margin:0; font-size:1.15rem;">2854</h1>
+            <div style="padding:10px 20px 0;">
+              <span style="display:block;font:600 2rem/1 var(--font-mono);letter-spacing:-0.02em;">2854</span>
+              <span style="display:block;font:400 0.75rem/1.3 var(--font-mono);color:var(--mob-muted);margin-top:2px;">A-29B · 4.310h</span>
             </div>
-            <div class="mob-tabbar">
-              <button class="mob-tab is-active">Panes</button>
-              <button class="mob-tab">Inspeções</button>
-              <button class="mob-tab">Vencim.</button>
-              <button class="mob-tab">Invent.</button>
-            </div>
-            <div class="mob-scroll" style="position:relative; padding-top:0.9rem;">
-              <div class="mob-card">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.4rem;">
-                  <span class="mob-pill pill--danger">003/26 · ABERTA</span>
-                  <span class="mob-row__sub">há 2h</span>
-                </div>
-                <p style="margin:0 0 0.3rem; font-size:0.85rem; font-weight:600;">CMFD 1 com falha intermitente de tela na partida</p>
-                <p class="mob-row__sub" style="font-family:inherit; font-size:0.72rem;">ATA-24 · relator ALV</p>
+            <div style="padding:12px 20px 0;">
+              <div class="mob-tabbar">
+                <button class="mob-tab is-active">Panes</button>
+                <button class="mob-tab">Inspeções</button>
+                <button class="mob-tab">Vencim.</button>
+                <button class="mob-tab">Invent.</button>
               </div>
-              <div class="mob-card">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.4rem;">
-                  <span class="mob-pill pill--danger">004/26 · ABERTA</span>
-                  <span class="mob-row__sub">há 40min</span>
-                </div>
-                <p style="margin:0 0 0.3rem; font-size:0.85rem; font-weight:600;">AGUARDANDO EDICAO</p>
-                <p class="mob-row__sub" style="font-family:inherit; font-size:0.72rem;">ATA-34 · relator ROD</p>
+            </div>
+            <div class="mob-scroll" style="position:relative;padding-top:0.85rem;">
+              <div class="mob-hub-row">
+                <div class="top-row"><span class="mob-pill pill--danger">003/26 · aberta</span><span class="right-meta">há 2h</span></div>
+                <p class="title">CMFD 1 com falha intermitente de tela na partida</p>
+                <span class="meta">ATA-24 · relator ALV</span>
+              </div>
+              <div class="mob-hub-row">
+                <div class="top-row"><span class="mob-pill pill--warn">004/26 · em análise</span><span class="right-meta">há 40min</span></div>
+                <p class="title">Vibração anormal no trem de nariz durante taxi</p>
+                <span class="meta">ATA-32 · relator ROD</span>
+              </div>
+              <div class="mob-hub-row">
+                <div class="top-row"><span class="mob-pill pill--off">001/26 · concluída</span><span class="right-meta">ontem</span></div>
+                <p class="title">Luz de inspeção do compartimento aviônico queimada</p>
+                <span class="meta">ATA-33 · assinada por BRT</span>
               </div>
               <button class="mob-fab">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="width:15px;height:15px;"><path stroke-linecap="round" d="M12 4v16m8-8H4"/></svg>
-                Nova Pane
+                <span style="font-size:1.05rem;line-height:1;">+</span>Nova pane
               </button>
             </div>
           </div>
@@ -655,7 +689,7 @@
         </div>
       </div>
 
-      <!-- 03 — Relato rápido -->
+      <!-- 03 — Nova pane -->
       <div class="frame-card">
         <span class="frame-step">03</span>
         <div class="device">
@@ -663,35 +697,48 @@
             <div class="device__island"></div>
             <div class="mob-statusbar"><span>9:43</span><span class="batt"></span></div>
             <div class="mob-header">
-              <a class="mob-back" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>2854</a>
+              <span class="mob-cancel">Cancelar</span>
+              <span class="title">Nova pane</span>
+              <span class="tail-mono">2854</span>
             </div>
             <div class="mob-scroll" style="padding-top:1rem;">
-              <p class="mob-section-title" style="margin-top:0;">Nova Pane</p>
-              <div class="mob-fixed-note">Aeronave: <strong style="color:var(--mob-text)">2854</strong> (fixa)</div>
-
               <div class="mob-field">
-                <label>Sistema / ATA</label>
-                <select class="mob-select"><option>ATA-24 · Elétrico</option></select>
-              </div>
-              <div class="mob-field">
-                <label>Descrição</label>
-                <textarea class="mob-textarea" rows="3">Fumaça leve no compartimento avi&#243;nico direito ap&#243;s corte do motor.</textarea>
-              </div>
-              <div class="mob-field">
-                <label>Foto (opcional)</label>
-                <div class="mob-photo-row">
-                  <button class="mob-photo mob-photo-add" aria-label="Adicionar foto">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3.5"/></svg>
-                  </button>
+                <span class="mob-eyebrow">Sistema ATA</span>
+                <div class="mob-chip-wrap">
+                  <button class="mob-filter-pill is-active">ATA-24 Elétrico</button>
+                  <button class="mob-filter-pill">ATA-32 Trem</button>
+                  <button class="mob-filter-pill">ATA-34 Nav</button>
+                  <button class="mob-filter-pill">ATA-27 Comandos</button>
+                  <button class="mob-filter-pill">Outro</button>
                 </div>
               </div>
-              <div style="flex:1"></div>
-              <button class="mob-btn mob-btn--accent mob-btn--lg">Registrar Pane</button>
+              <div class="mob-field">
+                <span class="mob-eyebrow">Severidade</span>
+                <div class="mob-sev-row">
+                  <button class="mob-sev-btn">Baixa</button>
+                  <button class="mob-sev-btn">Média</button>
+                  <button class="mob-sev-btn is-active is-crit">Crítica</button>
+                </div>
+              </div>
+              <div class="mob-field">
+                <span class="mob-eyebrow">Descrição</span>
+                <textarea class="mob-textarea" rows="4">Fumaça leve no compartimento aviônico direito após corte do motor.</textarea>
+              </div>
+              <div class="mob-field">
+                <span class="mob-eyebrow">Evidência</span>
+                <div class="mob-photo-row">
+                  <div class="mob-photo mob-photo--add"><b>+</b><small>Foto</small></div>
+                  <div class="mob-photo mob-photo--tex">foto do defeito</div>
+                </div>
+              </div>
+            </div>
+            <div class="mob-sticky-cta">
+              <button class="mob-btn mob-btn--accent">Registrar pane</button>
             </div>
           </div>
         </div>
         <div class="frame-caption">
-          <span class="name">Relato Rápido</span>
+          <span class="name">Nova Pane</span>
           <span class="route">GET /m/pane/nova?aeronave_id=…</span>
           <p class="purpose">POST /panes/ seguido de POST /panes/{id}/anexos quando há foto.</p>
         </div>
@@ -705,44 +752,55 @@
             <div class="device__island"></div>
             <div class="mob-statusbar"><span>9:47</span><span class="batt"></span></div>
             <div class="mob-header">
-              <a class="mob-back" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>2854</a>
-              <span class="mob-pill pill--danger">003/26</span>
+              <a class="mob-back" href="#"><span class="mob-icon-chev-l"></span>2854</a>
+              <span class="mob-pill pill--danger">003/26 · aberta</span>
             </div>
-            <div class="mob-scroll" style="padding-top:0.9rem;">
-              <div class="mob-card">
-                <p class="mob-row__sub" style="font-family:inherit; font-size:0.7rem; margin:0 0 0.3rem;">ATA-24 · Elétrico · relator ALV</p>
-                <p style="margin:0; font-size:0.86rem; font-weight:600;">CMFD 1 com falha intermitente de tela na partida</p>
+            <div class="mob-scroll" style="padding-top:0.85rem;">
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <p style="margin:0;font:600 1.05rem/1.3 var(--font-sans);letter-spacing:-0.01em;">CMFD 1 com falha intermitente de tela na partida</p>
+                <span style="font:400 0.72rem/1.3 var(--font-mono);color:var(--mob-muted);">ATA-24 · Elétrico · relator ALV · há 2h</span>
               </div>
-
-              <div class="mob-card">
-                <p class="mob-row__sub" style="font-family:inherit; font-size:0.72rem; font-weight:700; color:var(--mob-text); margin:0 0 0.5rem;">Anexos</p>
+              <div class="mob-grid2">
+                <div class="mob-info-card"><span class="mob-eyebrow">Responsável</span><span class="val">BRT (você)</span></div>
+                <div class="mob-info-card"><span class="mob-eyebrow">Impacto</span><span class="val val--danger">Aeronave INOP</span></div>
+              </div>
+              <a class="mob-ref-link" href="#">
+                <span class="icon mob-icon-doc"></span>
+                <span class="txt">
+                  <span class="mob-eyebrow">Referência técnica · ATA-24</span>
+                  <span class="ref">MM A-29 Cap. 24 §3-12 · DA 2854-24/26</span>
+                </span>
+                <span class="chev mob-icon-chev-r"></span>
+              </a>
+              <div class="mob-panel">
+                <span class="mob-eyebrow">Anexos</span>
                 <div class="mob-photo-row">
-                  <div class="mob-photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3.5"/></svg></div>
-                  <div class="mob-photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3.5"/></svg></div>
-                  <button class="mob-photo mob-photo-add" aria-label="Tirar foto">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M12 4v16m8-8H4"/></svg>
-                  </button>
+                  <div class="mob-photo mob-photo--tex" style="width:64px;height:64px;">CMFD 1</div>
+                  <div class="mob-photo mob-photo--tex" style="width:64px;height:64px;">conector J4</div>
+                  <div class="mob-photo mob-photo--add" style="width:64px;height:64px;"><b>+</b></div>
                 </div>
               </div>
-
-              <div class="mob-card" style="display:flex; align-items:center; justify-content:space-between;">
-                <span style="font-size:0.82rem; font-weight:600;">Responsável</span>
-                <span class="mob-pill pill--ghost">BRT (você)</span>
+              <div class="mob-panel">
+                <span class="mob-eyebrow">Histórico</span>
+                <div class="mob-timeline-item"><span class="dot"></span><div><span class="txt">Pane registrada por ALV com foto do CMFD 1</span><span class="when">hoje 07:38</span></div></div>
+                <div class="mob-timeline-item"><span class="dot"></span><div><span class="txt">BRT assumiu a execução</span><span class="when">hoje 09:12</span></div></div>
+                <div class="mob-timeline-item"><span class="dot"></span><div><span class="txt">Conector J4 reassentado; teste em solo normalizado</span><span class="when">hoje 09:44</span></div></div>
               </div>
-
               <div class="mob-field">
-                <label>Solução aplicada</label>
+                <span class="mob-eyebrow">Solução aplicada</span>
                 <textarea class="mob-textarea" rows="2">Reassentado conector J4 do CMFD 1; teste em solo normalizado.</textarea>
               </div>
-              <div style="flex:1"></div>
-              <button class="mob-btn mob-btn--ok mob-btn--lg">Concluir e Assinar</button>
+            </div>
+            <div class="mob-sticky-cta">
+              <button class="mob-btn mob-btn--ghost-sq">···</button>
+              <button class="mob-btn mob-btn--ok">Concluir e assinar</button>
             </div>
           </div>
         </div>
         <div class="frame-caption">
           <span class="name">Detalhe da Pane</span>
           <span class="route">GET /m/pane/{pane_id}</span>
-          <p class="purpose">Câmera, assumir (só a si mesmo), comentar e concluir com observação.</p>
+          <p class="purpose">Câmera, referência técnica linkada, histórico e conclusão com assinatura.</p>
         </div>
       </div>
 
@@ -753,51 +811,71 @@
           <div class="device__screen is-sheet-open" id="checklistScreen">
             <div class="device__island"></div>
             <div class="mob-statusbar"><span>9:51</span><span class="batt"></span></div>
-            <div class="mob-header">
-              <a class="mob-back" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>2854</a>
-              <span class="mob-pill pill--warn">DPE amanhã</span>
-            </div>
-            <div style="padding:0.6rem 16px 0;">
-              <h1 style="margin:0; font-size:1.05rem;">IF-50H</h1>
-              <div style="display:flex; align-items:center; gap:0.5rem; margin:0.45rem 0;">
-                <div class="mob-progress" style="flex:1;"><span style="width:62%"></span></div>
-                <span style="font-size:0.7rem; color:var(--mob-muted); font-family:var(--font-mono);">5/8</span>
+            <div class="mob-checklist-head">
+              <div class="mob-header" style="padding:0;">
+                <a class="mob-back" href="#"><span class="mob-icon-chev-l"></span>2854</a>
+                <span class="mob-pill pill--warn">DPE amanhã</span>
+              </div>
+              <div class="mob-checklist-title">
+                <div class="mob-ring">
+                  <svg width="56" height="56" viewBox="0 0 64 64">
+                    <circle cx="32" cy="32" r="27" fill="none" stroke="#202C37" stroke-width="6"/>
+                    <circle cx="32" cy="32" r="27" fill="none" stroke="#3ED598" stroke-width="6" stroke-linecap="round" stroke-dasharray="169.6" stroke-dashoffset="63.6"/>
+                  </svg>
+                  <span class="pct">63%</span>
+                </div>
+                <div>
+                  <h1>Inspeção IF-50H</h1>
+                  <p>5 de 8 tarefas · ALV, BRT</p>
+                </div>
+              </div>
+              <div class="mob-tabbar">
+                <button class="mob-tab">Pendentes</button>
+                <button class="mob-tab is-active">Todas</button>
               </div>
             </div>
-            <div class="mob-tabbar" style="border-top:1px solid var(--mob-border); padding-top:8px;">
-              <button class="mob-tab">Pendentes</button>
-              <button class="mob-tab is-active">Todas</button>
-            </div>
-            <div class="mob-scroll" style="padding-top:0.4rem;">
-              <div class="mob-task"><span class="mob-task__icon mob-task__icon--done">✓</span><div class="mob-task__body"><p class="mob-task__title">Inspeção visual da fuselagem</p><p class="mob-task__meta">CONCLUIDA · ALV · 08:12</p></div></div>
-              <div class="mob-task"><span class="mob-task__icon mob-task__icon--done">✓</span><div class="mob-task__body"><p class="mob-task__title">Verificação de vazamento hidráulico</p><p class="mob-task__meta">CONCLUIDA · ALV · 08:40</p></div></div>
-              <div class="mob-task" data-open-sheet>
-                <span class="mob-task__icon mob-task__icon--pending"></span>
-                <div class="mob-task__body"><p class="mob-task__title">Teste funcional do CMFD 1</p><p class="mob-task__meta">PENDENTE · vinc. pane 003/26</p></div>
-                <span class="mob-task__chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg></span>
+            <div class="mob-scroll" style="padding-top:0;">
+              <div style="display:flex;flex-direction:column;">
+                <div class="mob-task"><span class="mob-task__icon mob-task__icon--done">✓</span><div class="mob-task__body"><span class="mob-task__title is-done">Inspeção visual da fuselagem</span><span class="mob-task__meta">CONCLUÍDA · ALV · 08:12</span></div></div>
+                <div class="mob-task"><span class="mob-task__icon mob-task__icon--done">✓</span><div class="mob-task__body"><span class="mob-task__title is-done">Verificação de vazamento hidráulico</span><span class="mob-task__meta">CONCLUÍDA · ALV · 08:40</span></div></div>
+                <div class="mob-task" data-open-sheet>
+                  <span class="mob-task__icon mob-task__icon--pending"></span>
+                  <div class="mob-task__body"><span class="mob-task__title">Teste funcional do CMFD 1</span><span class="mob-task__meta">PENDENTE · vinc. pane 003/26</span></div>
+                  <span class="mob-task__chev mob-icon-chev-r"></span>
+                </div>
+                <div class="mob-task"><span class="mob-task__icon mob-task__icon--na">—</span><div class="mob-task__body"><span class="mob-task__title">Calibração do sistema pitot</span><span class="mob-task__meta">N/A · sem voo desde última calib.</span></div></div>
+                <div class="mob-task"><span class="mob-task__icon mob-task__icon--pending"></span><div class="mob-task__body"><span class="mob-task__title">Inspeção do trem de pouso</span><span class="mob-task__meta">PENDENTE · requer macaco hidráulico</span></div></div>
               </div>
-              <div class="mob-task"><span class="mob-task__icon mob-task__icon--na">—</span><div class="mob-task__body"><p class="mob-task__title">Calibração do sistema pitot</p><p class="mob-task__meta">N/A · sem voo desde última calib.</p></div></div>
-              <div class="mob-task"><span class="mob-task__icon mob-task__icon--pending"></span><div class="mob-task__body"><p class="mob-task__title">Inspeção do trem de pouso</p><p class="mob-task__meta">PENDENTE</p></div></div>
             </div>
 
             <div class="mob-sheet-backdrop" data-close-sheet></div>
             <div class="mob-sheet">
               <div class="mob-sheet__handle"></div>
-              <p class="mob-sheet__title">Teste funcional do CMFD 1</p>
-              <div class="mob-sheet__actions">
-                <button class="mob-btn mob-btn--ghost">— N/A</button>
-                <button class="mob-btn mob-btn--ghost">○ Pendente</button>
-                <button class="mob-btn mob-btn--ok">✓ Concluída</button>
+              <div>
+                <p class="mob-sheet__title">Teste funcional do CMFD 1</p>
+                <span class="mob-sheet__meta">IF-50H · 2854 · registro assinado por BRT</span>
               </div>
-              <textarea class="mob-textarea" rows="2" placeholder="Observação (opcional)"></textarea>
-              <button class="mob-mini-btn mob-mini-btn--ghost" data-close-sheet style="align-self:center; margin-top:0.1rem;">Fechar</button>
+              <div class="mob-sheet__actions">
+                <button class="mob-sheet-btn">— N/A</button>
+                <button class="mob-sheet-btn is-active-warn">○ Pendente</button>
+                <button class="mob-sheet-btn">✓ Concluída</button>
+              </div>
+              <a class="mob-ref-link" href="#">
+                <span class="icon mob-icon-doc"></span>
+                <span class="txt">
+                  <span class="mob-eyebrow">Referência técnica</span>
+                  <span class="ref">MM A-29 Cap. 24 §3-12 — CMFD · DA 2854-24/26</span>
+                </span>
+                <span class="chev mob-icon-chev-r"></span>
+              </a>
+              <textarea class="mob-textarea" rows="2" placeholder="Observação (opcional)" style="background:var(--mob-inset);"></textarea>
             </div>
           </div>
         </div>
         <div class="frame-caption">
           <span class="name">Checklist de Inspeção</span>
           <span class="route">GET /m/inspecao/{id}</span>
-          <p class="purpose">Toque na tarefa abre a folha de ação. PUT /inspecoes/tarefas/{id}. Toque para fechar/reabrir.</p>
+          <p class="purpose">Anel de progresso no cabeçalho; toque na tarefa abre a folha de ação com referência técnica.</p>
         </div>
       </div>
 
@@ -809,13 +887,53 @@
   <!-- ============================================================= -->
   <section class="group" id="abas-hub">
     <div class="group-head">
-      <p class="eyebrow"><span class="dot"></span>Duas abas do mesmo hub, sem rota própria</p>
-      <h2>Vencimentos e Inventário</h2>
-      <p>Vivem in-place em <code>/m/aeronave/{id}</code>, ao lado de Panes e Inspeções — sem navegação
+      <p class="eyebrow"><span class="dot"></span>Três abas do mesmo hub, sem rota própria</p>
+      <h2>Inspeções, Vencimentos e Inventário</h2>
+      <p>Vivem in-place em <code>/m/aeronave/{id}</code>, ao lado de Panes — sem navegação
         extra, sem tela de gestão ou cadastro.</p>
     </div>
 
     <div class="frame-grid">
+
+      <!-- Inspeções -->
+      <div class="frame-card">
+        <div class="device">
+          <div class="device__screen">
+            <div class="device__island"></div>
+            <div class="mob-statusbar"><span>9:53</span><span class="batt"></span></div>
+            <div class="mob-header">
+              <a class="mob-back" href="#"><span class="mob-icon-chev-l"></span>2854</a>
+              <span class="mob-pill pill--danger">Indisponível</span>
+            </div>
+            <div style="padding:10px 20px 0;">
+              <div class="mob-tabbar">
+                <button class="mob-tab">Panes</button>
+                <button class="mob-tab is-active">Inspeções</button>
+                <button class="mob-tab">Vencim.</button>
+                <button class="mob-tab">Invent.</button>
+              </div>
+            </div>
+            <div class="mob-scroll" style="padding-top:0.85rem;">
+              <div class="mob-hub-row">
+                <div class="top-row"><span class="mob-pill pill--warn">IF-50H · em curso</span><span class="right-meta">5/8</span></div>
+                <p class="title">Inspeção de fase 50 horas</p>
+                <span class="meta">aberta 08:00 · ALV, BRT</span>
+                <div class="action-row"><span class="mob-row-action">Abrir checklist</span></div>
+              </div>
+              <div class="mob-hub-row">
+                <div class="top-row"><span class="mob-pill pill--info">DPE · agendada</span><span class="right-meta">amanhã</span></div>
+                <p class="title">Inspeção pré-voo diária</p>
+                <span class="meta">prevista 06:30</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="frame-caption">
+          <span class="name">Inspeções</span>
+          <span class="route">GET /m/aeronave/{id}?tab=inspecoes</span>
+          <p class="purpose">Inspeção em curso abre direto no checklist da tela 05.</p>
+        </div>
+      </div>
 
       <!-- Vencimentos -->
       <div class="frame-card">
@@ -824,35 +942,44 @@
             <div class="device__island"></div>
             <div class="mob-statusbar"><span>9:55</span><span class="batt"></span></div>
             <div class="mob-header">
-              <a class="mob-back" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>2854</a>
-              <span class="mob-pill pill--danger">INDISPONÍVEL</span>
+              <a class="mob-back" href="#"><span class="mob-icon-chev-l"></span>2854</a>
+              <span class="mob-pill pill--danger">Indisponível</span>
             </div>
-            <div class="mob-tabbar">
-              <button class="mob-tab">Panes</button>
-              <button class="mob-tab">Inspeções</button>
-              <button class="mob-tab is-active">Vencim.</button>
-              <button class="mob-tab">Invent.</button>
+            <div style="padding:10px 20px 0;">
+              <div class="mob-tabbar">
+                <button class="mob-tab">Panes</button>
+                <button class="mob-tab">Inspeções</button>
+                <button class="mob-tab is-active">Vencim.</button>
+                <button class="mob-tab">Invent.</button>
+              </div>
             </div>
-            <div class="mob-scroll" style="padding-top:0.6rem; gap:0;">
-              <div class="mob-row">
-                <div class="mob-row__main"><p class="mob-row__title">VUHF-1 · TBO</p><p class="mob-row__sub">vence 12/09/2026</p></div>
-                <div class="mob-row__end"><span class="mob-pill pill--ok">OK</span></div>
+            <div class="mob-scroll" style="padding-top:0.85rem;">
+              <div class="mob-hub-row">
+                <div class="top-row"><span class="mob-pill pill--danger">vencido</span><span class="right-meta">10/08/2026</span></div>
+                <p class="title">Transponder · CRI</p>
+                <span class="meta">S/N 0331 · atraso de 9 dias</span>
+                <div class="action-row"><span class="mob-row-action">Registrar</span></div>
               </div>
-              <div class="mob-row">
-                <div class="mob-row__main"><p class="mob-row__title">TACAN · TLV</p><p class="mob-row__sub">vence em 3 dias</p></div>
-                <div class="mob-row__end"><span class="mob-pill pill--warn">VENCENDO</span><button class="mob-mini-btn mob-mini-btn--accent">Registrar</button></div>
+              <div class="mob-hub-row">
+                <div class="top-row"><span class="mob-pill pill--warn">vencendo</span><span class="right-meta">em 3 dias</span></div>
+                <p class="title">TACAN · TLV</p>
+                <span class="meta">S/N 0092</span>
+                <div class="action-row"><span class="mob-row-action">Registrar</span></div>
               </div>
-              <div class="mob-row">
-                <div class="mob-row__main"><p class="mob-row__title">Transponder · CRI</p><p class="mob-row__sub">venceu 10/08/2026</p></div>
-                <div class="mob-row__end"><span class="mob-pill pill--danger">VENCIDO</span><button class="mob-mini-btn mob-mini-btn--accent">Registrar</button></div>
+              <div class="mob-hub-row">
+                <div class="top-row"><span class="mob-pill pill--info">prorrogado</span><span class="right-meta">até 30/08</span></div>
+                <p class="title">Piloto automático · TLV</p>
+                <span class="meta">AT 045/26</span>
               </div>
-              <div class="mob-row">
-                <div class="mob-row__main"><p class="mob-row__title">Piloto Automático · TLV</p><p class="mob-row__sub">AT 045/26 · até 30/08</p></div>
-                <div class="mob-row__end"><span class="mob-pill pill--info">PRORROGADO</span></div>
+              <div class="mob-hub-row">
+                <div class="top-row"><span class="mob-pill pill--ok">ok</span><span class="right-meta">12/09/2026</span></div>
+                <p class="title">VUHF-1 · TBO</p>
+                <span class="meta">S/N 4471</span>
               </div>
-              <div class="mob-row">
-                <div class="mob-row__main"><p class="mob-row__title">GPS-2</p><p class="mob-row__sub">slot vazio</p></div>
-                <div class="mob-row__end"><span class="mob-pill pill--off">DESINSTAL.</span></div>
+              <div class="mob-hub-row">
+                <div class="top-row"><span class="mob-pill pill--off">desinstalado</span><span class="right-meta">—</span></div>
+                <p class="title">GPS-2</p>
+                <span class="meta">slot vazio</span>
               </div>
             </div>
           </div>
@@ -871,35 +998,41 @@
             <div class="device__island"></div>
             <div class="mob-statusbar"><span>9:58</span><span class="batt"></span></div>
             <div class="mob-header">
-              <a class="mob-back" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>2854</a>
-              <span class="mob-pill pill--danger">INDISPONÍVEL</span>
+              <a class="mob-back" href="#"><span class="mob-icon-chev-l"></span>2854</a>
+              <span class="mob-pill pill--danger">Indisponível</span>
             </div>
-            <div class="mob-tabbar">
-              <button class="mob-tab">Panes</button>
-              <button class="mob-tab">Inspeções</button>
-              <button class="mob-tab">Vencim.</button>
-              <button class="mob-tab is-active">Invent.</button>
+            <div style="padding:10px 20px 0;">
+              <div class="mob-tabbar">
+                <button class="mob-tab">Panes</button>
+                <button class="mob-tab">Inspeções</button>
+                <button class="mob-tab">Vencim.</button>
+                <button class="mob-tab is-active">Invent.</button>
+              </div>
             </div>
-            <div class="mob-scroll" style="padding-top:0.6rem; gap:0;">
-              <div class="mob-row">
-                <div class="mob-row__main"><p class="mob-row__title">VUHF-1 · PN VU-2200</p><p class="mob-row__sub">S/N 4471 · ATIVO</p></div>
-                <div class="mob-row__end"><button class="mob-mini-btn mob-mini-btn--ghost">Remover</button></div>
+            <div class="mob-scroll" style="padding-top:0.85rem;">
+              <div class="mob-hub-row">
+                <div class="top-row"><span class="mob-pill pill--ok">instalado</span><span class="right-meta">S/N 4471</span></div>
+                <p class="title">VUHF-1 · PN VU-2200</p>
+                <span class="meta">instalado 02/2026 por ALV</span>
+                <div class="action-row"><span class="mob-row-action">Remover</span></div>
               </div>
-              <div class="mob-row">
-                <div class="mob-row__main"><p class="mob-row__title">TACAN · PN TC-410</p><p class="mob-row__sub">S/N 0092 · ATIVO</p></div>
-                <div class="mob-row__end"><button class="mob-mini-btn mob-mini-btn--ghost">Remover</button></div>
+              <div class="mob-hub-row">
+                <div class="top-row"><span class="mob-pill pill--ok">instalado</span><span class="right-meta">S/N 0092</span></div>
+                <p class="title">TACAN · PN TC-410</p>
+                <span class="meta">instalado 11/2025 por BRT</span>
+                <div class="action-row"><span class="mob-row-action">Remover</span></div>
               </div>
-              <div class="mob-row">
-                <div class="mob-row__main">
-                  <p class="mob-row__title">GPS-2 · PN GPS-900</p>
-                  <p class="mob-row__sub">slot vazio</p>
-                  <div class="mob-empty-note">Nenhum item de estoque cadastrado para este PN. Solicite ao Administrador o cadastro do S/N.</div>
-                </div>
-                <div class="mob-row__end"><button class="mob-mini-btn mob-mini-btn--ok" disabled style="opacity:.5;">Instalar</button></div>
+              <div class="mob-hub-row">
+                <div class="top-row"><span class="mob-pill pill--off">slot vazio</span><span class="right-meta">—</span></div>
+                <p class="title">GPS-2 · PN GPS-900</p>
+                <span class="meta">sem item de estoque</span>
+                <span class="note">Nenhum S/N cadastrado para este PN. Solicite o cadastro ao administrador antes de instalar.</span>
               </div>
-              <div class="mob-row">
-                <div class="mob-row__main"><p class="mob-row__title">Piloto Automático · PN AP-330</p><p class="mob-row__sub">S/N 1187 · ATIVO</p></div>
-                <div class="mob-row__end"><button class="mob-mini-btn mob-mini-btn--ghost">Remover</button></div>
+              <div class="mob-hub-row">
+                <div class="top-row"><span class="mob-pill pill--ok">instalado</span><span class="right-meta">S/N 1187</span></div>
+                <p class="title">Piloto automático · PN AP-330</p>
+                <span class="meta">instalado 07/2025 por ROD</span>
+                <div class="action-row"><span class="mob-row-action">Remover</span></div>
               </div>
             </div>
           </div>
@@ -915,56 +1048,170 @@
   </section>
 
   <!-- ============================================================= -->
-  <!-- GRUPO 3 — NAVEGAÇÃO                                            -->
+  <!-- GRUPO 3 — CENTRAL E NAVEGAÇÃO                                  -->
   <!-- ============================================================= -->
-  <section class="group" id="navegacao">
+  <section class="group" id="central-navegacao">
     <div class="group-head">
-      <p class="eyebrow"><span class="dot"></span>Sem itens placeholder</p>
-      <h2>Menu (Drawer)</h2>
-      <p>Cada item do drawer leva a algo que existe de fato — "Nova Pane" deixa de ser um item
-        desabilitado e passa a abrir a tela 03; "Sincronização Offline" sai do menu (fora de escopo desta entrega).</p>
+      <p class="eyebrow"><span class="dot"></span>Sem menu sanduíche</p>
+      <h2>Alertas, Publicações e Perfil</h2>
+      <p>O off-canvas drawer saiu: a navegação agora é uma barra inferior fixa com três destinos —
+        Frota, Alertas e Perfil. Publicações não tem aba própria; é sempre alcançada por um link
+        contextual (sino de não lidas na home, item do Perfil, ou "Referência técnica" dentro de
+        uma pane ou tarefa do checklist).</p>
     </div>
+
     <div class="frame-grid">
+
+      <!-- Alertas -->
       <div class="frame-card">
+        <span class="frame-step">06</span>
         <div class="device">
           <div class="device__screen">
             <div class="device__island"></div>
-            <div class="mob-statusbar"><span>9:41</span><span class="batt"></span></div>
-            <div class="mob-header">
-              <div class="mob-header__title">
-                <span class="mob-badge">SAA29</span>
-                <h1>Linha de Voo</h1>
+            <div class="mob-statusbar"><span>10:02</span><span class="batt"></span></div>
+            <div class="mob-scroll" style="padding-top:1rem;">
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <span style="font:600 1.55rem/1.15 var(--font-sans);letter-spacing:-0.02em;">Alertas</span>
+                <span style="font:400 0.78rem/1.4 var(--font-sans);color:var(--mob-muted);">Vencimentos e panes de toda a frota, ordenados por urgência.</span>
               </div>
-              <div style="display:flex; align-items:center; gap:0.4rem;">
-                <span class="mob-user-chip">BRT</span>
-                <button class="mob-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+              <div style="display:flex;flex-direction:column;gap:9px;">
+                <div class="mob-alert-row"><span class="dot" style="background:var(--mob-danger);"></span><div class="body"><span class="title">DA 2854-24/26 — cumprimento obrigatório</span><span class="meta">Diretriz não lida · aplica a A-29B · prazo 30/08</span></div><span class="mob-pill pill--danger">diretriz</span></div>
+                <div class="mob-alert-row"><span class="dot" style="background:var(--mob-danger);"></span><div class="body"><span class="title">Transponder · CRI vencido</span><span class="meta">2854 · atraso de 9 dias</span></div><span class="mob-pill pill--danger">crítico</span></div>
+                <div class="mob-alert-row"><span class="dot" style="background:var(--mob-danger);"></span><div class="body"><span class="title">Pane 003/26 aberta há 2h</span><span class="meta">2854 · ATA-24 · aeronave INOP</span></div><span class="mob-pill pill--danger">pane</span></div>
+                <div class="mob-alert-row"><span class="dot" style="background:var(--mob-warn);"></span><div class="body"><span class="title">TACAN · TLV vence em 3 dias</span><span class="meta">2847 · S/N 0092</span></div><span class="mob-pill pill--warn">atenção</span></div>
+                <div class="mob-alert-row"><span class="dot" style="background:var(--mob-warn);"></span><div class="body"><span class="title">DPE prevista para amanhã 06:30</span><span class="meta">2861 · IPE ainda em curso</span></div><span class="mob-pill pill--warn">agenda</span></div>
+                <div class="mob-alert-row"><span class="dot" style="background:var(--mob-warn);"></span><div class="body"><span class="title">BS A29-2026-07 — nova revisão publicada</span><span class="meta">Boletim rev. 2 · torque do trem de nariz</span></div><span class="mob-pill pill--warn">boletim</span></div>
+                <div class="mob-alert-row"><span class="dot" style="background:var(--mob-info);"></span><div class="body"><span class="title">Piloto automático prorrogado</span><span class="meta">2854 · AT 045/26 até 30/08</span></div><span class="mob-pill pill--info">info</span></div>
               </div>
             </div>
-            <div class="mob-scroll" style="padding-top:0.9rem;">
-              <div class="mob-anv-card"><div><h3>2854</h3><p>INDISPONÍVEL</p></div><div class="stack"><span class="mob-pill pill--danger">2 panes</span></div></div>
-              <div class="mob-anv-card"><div><h3>2861</h3><p>INSPEÇÃO</p></div><div class="stack"><span class="mob-pill pill--warn">30%</span></div></div>
-            </div>
-
-            <div class="mob-overlay"></div>
-            <div class="mob-drawer">
-              <div class="mob-drawer__head"><h3>Menu SAA29</h3><span style="color:var(--mob-muted); font-size:1rem;">✕</span></div>
-              <nav>
-                <a class="mob-drawer-item is-active" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 00-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>Linha de Voo (Início)</a>
-                <a class="mob-drawer-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M12 4v16m8-8H4"/></svg>Nova Pane</a>
-                <a class="mob-drawer-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/></svg>Publicações</a>
-                <a class="mob-drawer-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>Modo Desktop / Dashboard</a>
-                <div class="mob-drawer-divider"></div>
-                <a class="mob-drawer-item" href="#" style="color:var(--mob-muted);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>Sair</a>
-              </nav>
+            <div class="mob-navbar">
+              <button class="mob-navtab"><span class="dot"></span>Frota</button>
+              <button class="mob-navtab is-active"><span class="dot"></span>Alertas</button>
+              <button class="mob-navtab"><span class="dot"></span>Perfil</button>
             </div>
           </div>
         </div>
         <div class="frame-caption">
-          <span class="name">Drawer aberto</span>
-          <span class="route">base_mobile.html</span>
-          <p class="purpose">Off-canvas, mesma mecânica atual — só o conteúdo dos itens muda.</p>
+          <span class="name">Alertas</span>
+          <span class="route">GET /m/alertas</span>
+          <p class="purpose">Novo destino da barra inferior — cruza vencimento, pane e publicação numa lista só.</p>
         </div>
       </div>
+
+      <!-- Publicações -->
+      <div class="frame-card">
+        <span class="frame-step">07</span>
+        <div class="device">
+          <div class="device__screen">
+            <div class="device__island"></div>
+            <div class="mob-statusbar"><span>10:03</span><span class="batt"></span></div>
+            <div class="mob-header" style="padding-bottom:0;">
+              <a class="mob-back" href="#"><span class="mob-icon-chev-l"></span>Frota</a>
+            </div>
+            <div class="mob-scroll" style="padding-top:0.6rem;">
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <span style="font:600 1.55rem/1.15 var(--font-sans);letter-spacing:-0.02em;">Publicações</span>
+                <span style="font:400 0.78rem/1.4 var(--font-sans);color:var(--mob-muted);">Manuais, boletins e diretrizes aplicáveis à frota. Sempre a revisão vigente.</span>
+              </div>
+              <div class="mob-search"><span class="mob-icon-ring"></span>Buscar por ATA, número ou título…</div>
+              <div class="mob-filter-row">
+                <button class="mob-filter-pill is-active">Todas</button>
+                <button class="mob-filter-pill">Não lidas</button>
+                <button class="mob-filter-pill">Manuais</button>
+                <button class="mob-filter-pill">Boletins</button>
+                <button class="mob-filter-pill">Diretrizes</button>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:9px;">
+                <div class="mob-pub-card">
+                  <span class="stripe" style="background:var(--mob-danger);"></span>
+                  <div class="body">
+                    <div class="top-row"><span class="kind">Diretriz</span><span class="mob-pill pill--danger">obrigatória</span></div>
+                    <p class="title is-unread">DA 2854-24/26 — Inspeção do conector J4 do CMFD</p>
+                    <span class="meta">ANAC · emitida 12/08/2026 · aplica a A-29B</span>
+                  </div>
+                </div>
+                <div class="mob-pub-card">
+                  <span class="stripe" style="background:var(--mob-warn);"></span>
+                  <div class="body">
+                    <div class="top-row"><span class="kind">Boletim</span><span class="mob-pill pill--warn">nova rev.</span></div>
+                    <p class="title is-unread">BS A29-2026-07 — Torque revisado do trem de nariz</p>
+                    <span class="meta">Fabricante · rev. 2 · 04/08/2026</span>
+                  </div>
+                </div>
+                <div class="mob-pub-card">
+                  <span class="stripe" style="background:var(--mob-ok-bright);"></span>
+                  <div class="body">
+                    <div class="top-row"><span class="kind">Manual</span><span class="mob-pill pill--ok">vigente</span></div>
+                    <p class="title is-read">MM A-29 Cap. 24 — Sistema elétrico</p>
+                    <span class="meta">rev. 18 · vigente desde 01/07/2026</span>
+                  </div>
+                </div>
+                <div class="mob-pub-card">
+                  <span class="stripe" style="background:var(--mob-ok-bright);"></span>
+                  <div class="body">
+                    <div class="top-row"><span class="kind">Manual</span><span class="mob-pill pill--ok">vigente</span></div>
+                    <p class="title is-read">MM A-29 Cap. 32 — Trem de pouso</p>
+                    <span class="meta">rev. 15 · vigente desde 22/03/2026</span>
+                  </div>
+                </div>
+                <div class="mob-pub-card">
+                  <span class="stripe" style="background:var(--mob-info);"></span>
+                  <div class="body">
+                    <div class="top-row"><span class="kind">Cartão</span><span class="mob-pill pill--info">em uso</span></div>
+                    <p class="title is-read">IPE-50H — Cartão de inspeção de fase</p>
+                    <span class="meta">rev. 9 · usado na inspeção em curso</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="frame-caption">
+          <span class="name">Publicações</span>
+          <span class="route">GET /m/publicacoes</span>
+          <p class="purpose">Sem aba própria — chegada sempre contextual, com botão de volta indicando a origem.</p>
+        </div>
+      </div>
+
+      <!-- Perfil -->
+      <div class="frame-card">
+        <span class="frame-step">08</span>
+        <div class="device">
+          <div class="device__screen">
+            <div class="device__island"></div>
+            <div class="mob-statusbar"><span>10:05</span><span class="batt"></span></div>
+            <div class="mob-scroll" style="padding-top:1rem;">
+              <span style="font:600 1.55rem/1.15 var(--font-sans);letter-spacing:-0.02em;">Perfil</span>
+              <div class="mob-profile-card">
+                <span class="mob-profile-avatar">BRT</span>
+                <div>
+                  <p class="name">Sgt. Bertoldo</p>
+                  <span class="role">MANTENEDOR · Esq. 1º/9º GAV</span>
+                </div>
+              </div>
+              <div class="mob-profile-list">
+                <div class="mob-profile-row"><span class="label">Publicações técnicas</span><span class="value">2 não lidas ›</span></div>
+                <div class="mob-profile-row"><span class="label">Perfil de acesso</span><span class="value">MANTENEDOR</span></div>
+                <div class="mob-profile-row"><span class="label">Assinatura digital</span><span class="value">ativa</span></div>
+                <div class="mob-profile-row"><span class="label">Notificações de vencimento</span><span class="value">ligadas</span></div>
+                <div class="mob-profile-row"><span class="label">Modo desktop</span><span class="value">abrir</span></div>
+              </div>
+              <span class="mob-logout">Sair</span>
+            </div>
+            <div class="mob-navbar">
+              <button class="mob-navtab"><span class="dot"></span>Frota</button>
+              <button class="mob-navtab"><span class="dot"></span>Alertas</button>
+              <button class="mob-navtab is-active"><span class="dot"></span>Perfil</button>
+            </div>
+          </div>
+        </div>
+        <div class="frame-caption">
+          <span class="name">Perfil</span>
+          <span class="route">GET /m/perfil</span>
+          <p class="purpose">Novo destino da barra inferior — identidade, acesso e atalho para "Modo desktop".</p>
+        </div>
+      </div>
+
     </div>
   </section>
 
@@ -980,6 +1227,7 @@
     <div class="files">
       <span class="file-chip"><strong>01_especificacao_mobile.md</strong> — requisitos e critérios de aceite</span>
       <span class="file-chip"><strong>02_plano_implementacao.md</strong> — etapas de codificação</span>
+      <span class="file-chip"><strong>linha-de-voo-mobile-standalone.html</strong> — fonte visual desta revisão</span>
       <span class="file-chip"><strong>mockup_mobile.html</strong> — este arquivo</span>
     </div>
   </div>

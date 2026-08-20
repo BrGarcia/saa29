@@ -168,6 +168,30 @@ async def test_mobile_pane_detalhe_autenticado_retorna_200_html(db: AsyncSession
 
 
 @pytest.mark.asyncio
+async def test_mobile_inspecao_checklist_requer_autenticacao(db: AsyncSession):
+    app = criar_app_mobile(db, usuario=None)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        response = await client.get(f"/m/inspecao/{uuid.uuid4()}")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_mobile_inspecao_checklist_autenticado_retorna_200_html(db: AsyncSession):
+    """Etapa 4: checklist de inspeção renderiza com o ID injetado via
+    data-inspecao-id (sem HTML inline, mesma conformidade CSP das demais telas)."""
+    usuario = await criar_usuario_teste(db)
+    app = criar_app_mobile(db, usuario=usuario)
+    inspecao_id_falso = str(uuid.uuid4())
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        response = await client.get(f"/m/inspecao/{inspecao_id_falso}")
+
+    assert response.status_code == 200
+    assert f'data-inspecao-id="{inspecao_id_falso}"' in response.text
+    assert "inspecoes_mobile.js" in response.text
+
+
+@pytest.mark.asyncio
 async def test_mobile_drawer_nova_pane_usa_contexto_da_aeronave_quando_disponivel(db: AsyncSession):
     """RF-M92: o item 'Nova Pane' do drawer deixa de ser placeholder — no hub
     da aeronave, ele já aponta para o relato rápido daquela mesma aeronave."""
@@ -223,7 +247,7 @@ async def test_pwa_manifest_contem_icones_e_theme_color(db: AsyncSession):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["theme_color"] == "#0F172A"
+    assert data["theme_color"] == "#0B1015"
     assert data["start_url"] == "/m/"
     assert len(data["icons"]) >= 2
 

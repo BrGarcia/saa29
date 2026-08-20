@@ -1,0 +1,85 @@
+{% extends "mobile/base_mobile.html" %}
+
+{% block title %}Checklist — SAA29 Mobile{% endblock %}
+
+{% block content %}
+<div class="mobile-section" id="context-checklist" data-inspecao-id="{{ inspecao_id }}">
+    <div class="mobile-nav-back">
+        <a href="/m/" class="btn-back-mobile" id="checklist-voltar">← Voltar</a>
+    </div>
+
+    <div class="mobile-aeronave-header">
+        <h2 id="checklist-titulo">----</h2>
+        <span id="checklist-dpe-badge" class="badge-status" hidden></span>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:0.9rem; margin-bottom:1rem;">
+        <div class="mobile-ring" id="checklist-ring"></div>
+        <p id="checklist-progresso-texto" class="mobile-task-card-meta" style="margin:0;">Carregando…</p>
+    </div>
+
+    <div class="mobile-tabs" role="tablist">
+        <button type="button" class="mobile-tab-btn active" data-filtro="pendentes">Pendentes</button>
+        <button type="button" class="mobile-tab-btn" data-filtro="todas">Todas</button>
+    </div>
+
+    <div id="checklist-lista" style="display:flex; flex-direction:column; margin-bottom: 1rem;">
+        <div class="mobile-loading">Carregando tarefas…</div>
+    </div>
+
+    <button type="button" id="btn-checklist-tarefa-extra" class="btn-mobile-action btn-mobile-ghost">+ Adicionar tarefa extra</button>
+
+    <div id="checklist-form-extra" hidden style="margin-top:0.85rem;">
+        <form id="form-tarefa-extra">
+            <div class="mobile-field">
+                <label for="extra-titulo">Título</label>
+                <input type="text" id="extra-titulo" class="mobile-input" required>
+            </div>
+            <div class="mobile-field">
+                <label for="extra-sistema">Sistema (opcional)</label>
+                <input type="text" id="extra-sistema" class="mobile-input" placeholder="Ex: ATA-24 Elétrico">
+            </div>
+            <div class="mobile-field">
+                <label for="extra-manual">Manual (opcional)</label>
+                <input type="text" id="extra-manual" class="mobile-input">
+            </div>
+            <div class="mobile-field">
+                <label for="extra-codigo">Código da tarefa (opcional)</label>
+                <input type="text" id="extra-codigo" class="mobile-input">
+            </div>
+            <div class="mobile-field">
+                <label for="extra-descricao">Descrição (opcional)</label>
+                <textarea id="extra-descricao" class="mobile-textarea" rows="2"></textarea>
+            </div>
+            <label style="display:flex; align-items:center; gap:0.6rem; margin-bottom:1rem; min-height:44px; font-size:0.85rem; color:var(--mobile-text-muted);">
+                <input type="checkbox" id="extra-obrigatoria" checked style="width:22px; height:22px;">
+                Tarefa obrigatória
+            </label>
+            <button type="submit" id="btn-tarefa-extra-salvar" class="btn-mobile-action btn-mobile-accent">Adicionar tarefa</button>
+        </form>
+    </div>
+</div>
+
+<div id="checklist-sheet-backdrop" class="mobile-sheet-backdrop" hidden></div>
+<div id="checklist-sheet" class="mobile-sheet" hidden>
+    <div class="mobile-sheet__handle"></div>
+    <div>
+        <p class="mobile-sheet__title" id="sheet-tarefa-titulo">----</p>
+        <p class="mobile-sheet__meta" id="sheet-tarefa-meta"></p>
+    </div>
+    <div class="mobile-sheet__actions">
+        <button type="button" class="mobile-sheet-btn" data-status="N/A">— N/A</button>
+        <button type="button" class="mobile-sheet-btn" data-status="PENDENTE">○ Pendente</button>
+        <button type="button" class="mobile-sheet-btn" data-status="CONCLUIDA">✓ Concluída</button>
+    </div>
+    <div class="mobile-field" style="margin-bottom:0;">
+        <label for="sheet-observacao">Observação (opcional)</label>
+        <textarea id="sheet-observacao" class="mobile-textarea" rows="2"></textarea>
+    </div>
+    <button type="button" id="btn-sheet-fechar" class="btn-mobile-action btn-mobile-ghost">Fechar</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/mobile/inspecoes_mobile.js"></script>
+{% endblock %}

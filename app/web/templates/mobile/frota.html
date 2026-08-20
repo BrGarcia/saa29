@@ -6,7 +6,16 @@
 <div class="mobile-section">
     <h2 class="mobile-section-title">Aeronaves na Linha de Voo</h2>
     <p class="mobile-section-sub">Selecione uma aeronave para visualizar e concluir tarefas pendentes em 1 toque.</p>
-    
+
+    <div class="mobile-search" style="margin-bottom: 0.75rem;">
+        <span class="mobile-search__icon"></span>
+        <input type="text" id="frota-busca-input" placeholder="Buscar matrícula…" autocomplete="off">
+    </div>
+
+    <div class="mobile-stats" id="frota-stats" style="margin-bottom: 0.75rem;" hidden></div>
+
+    <div class="mobile-filter-row" id="frota-filtros" style="margin-bottom: 0.85rem;" hidden></div>
+
     <div id="container-frota-mobile" class="mobile-card-grid">
         <div class="mobile-loading">Carregando aeronaves...</div>
     </div>

@@ -5,7 +5,7 @@ Endpoints para a inteligência temporal de manutenções e vencimentos.
 
 import uuid
 from datetime import date
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 from app.modules.vencimentos import schemas, service
 from app.bootstrap.dependencies import DBSession, CurrentUser, AdminRequired, EncarregadoInspetorOuAdmin, ExecucaoPermitida
 from app.shared.core.enums import StatusVencimento
@@ -180,5 +180,9 @@ async def cancelar_prorrogacao(
     "/matriz",
     summary="Visão matricial de vencimentos (Frota x Slot x Controle)",
 )
-async def matriz_vencimentos(db: DBSession, _: CurrentUser):
-    return await service.montar_matriz_vencimentos(db)
+async def matriz_vencimentos(
+    db: DBSession,
+    _: CurrentUser,
+    aeronave_id: uuid.UUID | None = Query(default=None),
+):
+    return await service.montar_matriz_vencimentos(db, aeronave_id=aeronave_id)
