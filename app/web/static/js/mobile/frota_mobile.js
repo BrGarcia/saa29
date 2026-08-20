@@ -166,6 +166,9 @@ function montarCardAeronave(item) {
     if (item.inspecoes_ativas > 0) {
         badges.push(`<span class="mobile-anv-badge-count inspecao">${item.tarefas_pendentes} tarefa(s)</span>`);
     }
+    if (item.slots_vazios > 0) {
+        badges.push(`<span class="mobile-anv-badge-count inspecao">${item.slots_vazios} desinstalado(s)</span>`);
+    }
     if (badges.length === 0) {
         badges.push('<span class="mobile-anv-badge-count zero">Tudo em dia</span>');
     }
@@ -189,7 +192,7 @@ function abreviarMatricula(matricula) {
 }
 
 function totalPendencias(item) {
-    return (item.panes_abertas || 0) + (item.vencimentos_vencidos || 0) + (item.vencimentos_vencendo || 0);
+    return (item.panes_abertas || 0) + (item.vencimentos_vencidos || 0) + (item.vencimentos_vencendo || 0) + (item.slots_vazios || 0);
 }
 
 const FROTA_PRIORIDADE_STATUS = { indisponivel: 1, inspecao: 2, disponivel: 3 };
