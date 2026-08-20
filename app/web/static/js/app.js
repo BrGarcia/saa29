@@ -184,8 +184,23 @@ async function clearAuth() {
 }
 
 /**
+ * Retorna a data local (YYYY-MM-DD) do navegador. Diferente de
+ * `new Date().toISOString().slice(0, 10)`, que usa o dia em UTC e por isso
+ * fica um dia adiantado durante a noite em fusos negativos (ex: Brasil).
+ *
+ * @returns {string}
+ */
+function hojeLocalIso() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+/**
  * Função utilitária para chamadas à API com suporte a CSRF e tratamento de erros automático.
- * 
+ *
  * @param {string} endpoint - O endpoint da API (ex: "/aeronaves/")
  * @param {Omit<RequestInit, "body"> & { body?: any }} [options] - Opções extras da requisição HTTP
  * @returns {Promise<any>} O payload retornado em formato JSON

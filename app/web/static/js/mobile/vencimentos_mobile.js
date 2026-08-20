@@ -132,7 +132,7 @@ async function alternarHistorico(card, vencimentoId) {
 function abrirSheetExecucao(controle, slot, aeronaveId) {
     fecharSheetExecucao();
 
-    const hojeIso = new Date().toISOString().slice(0, 10);
+    const hojeIso = hojeLocalIso();
     const backdrop = document.createElement('div');
     backdrop.className = 'mobile-sheet-backdrop';
     backdrop.id = 'venc-sheet-backdrop';

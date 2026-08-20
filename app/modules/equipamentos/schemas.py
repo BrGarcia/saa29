@@ -104,11 +104,12 @@ class InventarioItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     slot_id: uuid.UUID
+    modelo_id: uuid.UUID
     nome_posicao: str
     sistema: str | None = None
     part_number: str
     nome_generico: str
-    
+
     # Compatibilidade Frontend (V1)
     equipamento_nome: str | None = None
     equipamento_id: uuid.UUID | None = None

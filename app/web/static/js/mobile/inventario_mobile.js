@@ -87,7 +87,7 @@ async function handleRemoverItem(item, aeronaveId) {
     try {
         await apiFetch(`/equipamentos/instalacoes/${item.instalacao_id}/remover`, {
             method: 'PATCH',
-            body: { data_remocao: new Date().toISOString().slice(0, 10) },
+            body: { data_remocao: hojeLocalIso() },
         });
         showToast('Remoção registrada.', 'success');
         const container = document.getElementById('tab-inventario');
@@ -120,7 +120,7 @@ async function abrirSheetInstalar(item, aeronaveId) {
     document.body.appendChild(backdrop);
     document.body.appendChild(sheet);
 
-    if (!item.equipamento_id) {
+    if (!item.modelo_id) {
         document.getElementById('inv-sheet-corpo').innerHTML =
             '<div class="mobile-note">Este slot não está vinculado a um modelo de equipamento cadastrado. Solicite ao Administrador a configuração do slot antes de instalar.</div>' +
             '<button type="button" id="btn-inv-sem-equipamento-fechar" class="btn-mobile-action btn-mobile-ghost" style="margin-top:0.75rem;">Fechar</button>';
@@ -129,7 +129,7 @@ async function abrirSheetInstalar(item, aeronaveId) {
     }
 
     try {
-        const todosItens = await apiFetch(`/equipamentos/itens/?equipamento_id=${item.equipamento_id}`);
+        const todosItens = await apiFetch(`/equipamentos/itens/?equipamento_id=${item.modelo_id}`);
         const disponiveis = (Array.isArray(todosItens) ? todosItens : []).filter((i) => i.status === 'ESTOQUE');
         renderizarCorpoSheetInstalar(disponiveis, item, aeronaveId);
     } catch (err) {
@@ -186,7 +186,7 @@ async function handleConfirmarInstalacao(item, aeronaveId) {
             body: {
                 aeronave_id: aeronaveId,
                 slot_id: item.slot_id,
-                data_instalacao: new Date().toISOString().slice(0, 10),
+                data_instalacao: hojeLocalIso(),
             },
         });
         showToast('Item instalado.', 'success');

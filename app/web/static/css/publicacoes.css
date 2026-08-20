@@ -597,3 +597,45 @@ arquivo não é carregado lá.
         display: none;
     }
 }
+
+/* Degrau extra para telas de aparelho (ex.: 393px, iPhone 14 Pro) — a barra
+   de ferramentas tem 5 grupos de controles que, empilhados por wrap, comiam
+   boa parte da altura útil. Corta o que é dispensável em tela pequena
+   (subtítulo, thumbnails já saem no breakpoint acima) e usa o espaço da
+   busca em vez de reservar uma linha inteira pra ela. Lógica do viewer
+   (`publicacoes_viewer.js`) inalterada — só reflow. */
+@media (max-width: 480px) {
+    .pub-viewer-toolbar {
+        padding: 0.4rem 0.5rem;
+        gap: 0.4rem;
+    }
+
+    .pub-viewer-toolbar-grupo {
+        gap: 0.2rem;
+    }
+
+    #pub-viewer-subtitulo {
+        display: none;
+    }
+
+    .pub-viewer-busca-doc {
+        order: 5;
+        width: 100%;
+    }
+
+    .pub-viewer-busca-doc input {
+        width: 100%;
+    }
+
+    .pub-viewer-busca-doc-lista {
+        width: 100%;
+        max-width: 100%;
+        right: auto;
+        left: 0;
+    }
+
+    .pub-viewer-palco {
+        padding: 0.5rem;
+        max-height: calc(100vh - 6rem);
+    }
+}

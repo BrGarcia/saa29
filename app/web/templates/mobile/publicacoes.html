@@ -9,60 +9,66 @@
     <h2 class="mobile-section-title">Publicações</h2>
     <p class="mobile-section-sub">Busca no acervo de manuais e resolução de mensagem do FIM.</p>
 
-    <div class="card" style="margin-bottom: 0.75rem;">
-        <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Navegar no acervo</label>
+    <div class="mobile-card" style="margin-bottom: 0.75rem;">
+        <label style="display:block; font-size: 0.78rem; font-weight: 600; color: var(--mobile-text-muted); margin-bottom: 0.5rem;">Navegar no acervo</label>
         {% for categoria, manuais in categorias_manuais.items() %}
-        {# `color` explícito no summary e no link abaixo, nunca herdado: `.mobile-body`
-           pinta o texto de --mobile-text (#F8FAFC, para o shell escuro) e estes
-           elementos ficam dentro do `.card` do desktop, que é branco — herdar dava
-           1,05:1 de contraste (medido), ou seja, texto invisível. --text-primary
-           acerta nos dois temas. #}
         <details {% if categoria != "Ordens Técnicas" %}open{% endif %} style="margin-bottom: 0.5rem;">
-            <summary style="cursor: pointer; font-weight: 600; padding: 0.5rem 0; min-height: 44px; display: flex; align-items: center; color: var(--text-primary);">{{ categoria }} ({{ manuais|length }})</summary>
+            <summary style="cursor: pointer; font-weight: 600; padding: 0.5rem 0; min-height: 44px; display: flex; align-items: center;">{{ categoria }} ({{ manuais|length }})</summary>
             <div style="display: flex; flex-direction: column; gap: 0.4rem;">
                 {% for manual in manuais %}
                 <a href="/publicacoes/manuais/{{ manual.codigo | urlencode }}"
                    style="display:flex; flex-direction: column; justify-content:center; min-height: 44px; padding: 0.5rem 0.6rem;
-                          border: 1px solid var(--border-color); border-radius: var(--radius-md);
-                          text-decoration: none; color: var(--text-primary);">
+                          border: 1px solid var(--mobile-card-border); border-radius: 13px;
+                          text-decoration: none; color: inherit;">
                     <span>{{ manual.descricao }}</span>
-                    <span style="color: var(--text-secondary); font-size: 0.8rem;">{{ manual.codigo }} · {{ manual.documentos }} doc(s)</span>
+                    <span style="color: var(--mobile-text-muted); font-size: 0.8rem;">{{ manual.codigo }} · {{ manual.documentos }} doc(s)</span>
                 </a>
                 {% endfor %}
             </div>
         </details>
         {% endfor %}
         {% if not categorias_manuais %}
-        <div style="color: var(--text-secondary);">Acervo ainda não indexado nesta instância.</div>
+        <div style="color: var(--mobile-text-muted);">Acervo ainda não indexado nesta instância.</div>
         {% endif %}
     </div>
 
-    <div class="card" style="margin-bottom: 0.75rem;">
-        <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Buscar</label>
-        <input type="text" id="pub-busca-input" class="form-input" placeholder="Ex: sangria do compressor">
-        <div style="display:flex; flex-direction: column; gap:0.5rem; margin-top:0.5rem;">
-            <select id="pub-filtro-manual" class="form-input">
+    <div class="mobile-card" style="margin-bottom: 0.75rem;">
+        <div class="mobile-field" style="margin-bottom: 0.6rem;">
+            <label for="pub-busca-input">Buscar</label>
+            <input type="text" id="pub-busca-input" class="mobile-input" placeholder="Ex: sangria do compressor">
+        </div>
+        <div class="mobile-field" style="margin-bottom: 0.5rem;">
+            <label for="pub-filtro-manual">Manual</label>
+            <select id="pub-filtro-manual" class="mobile-select">
                 <option value="">Todos os manuais</option>
             </select>
-            <select id="pub-filtro-capitulo" class="form-input" disabled>
+        </div>
+        <div class="mobile-field" style="margin-bottom: 0.5rem;">
+            <label for="pub-filtro-capitulo">Capítulo</label>
+            <select id="pub-filtro-capitulo" class="mobile-select" disabled>
                 <option value="">Todos os capítulos</option>
             </select>
-            <input type="text" id="pub-filtro-ata" class="form-input" placeholder="ATA (opcional)">
         </div>
-        <button type="button" class="btn btn-primary" id="pub-busca-btn" style="width:100%; margin-top:0.5rem;">Buscar</button>
+        <div class="mobile-field">
+            <label for="pub-filtro-ata">ATA (opcional)</label>
+            <input type="text" id="pub-filtro-ata" class="mobile-input" placeholder="Ex: 32">
+        </div>
+        <button type="button" class="btn-mobile-action btn-mobile-accent" id="pub-busca-btn">Buscar</button>
     </div>
 
-    <div class="card" style="margin-bottom: 0.75rem;">
-        <label style="display:block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Mensagem do CAS/EICAS (FIM)</label>
-        <input type="text" id="pub-fim-input" class="form-input" placeholder="Ex: ADC 001">
-        <button type="button" class="btn btn-outline" id="pub-fim-btn" style="width:100%; margin-top:0.5rem;">Resolver procedimento</button>
-        <div id="pub-fim-resultados" style="margin-top: 0.5rem;"></div>
+    <div class="mobile-card" style="margin-bottom: 0.75rem;">
+        <div class="mobile-field">
+            <label for="pub-fim-input">Mensagem do CAS/EICAS (FIM)</label>
+            <input type="text" id="pub-fim-input" class="mobile-input" placeholder="Ex: ADC 001">
+        </div>
+        <button type="button" class="btn-mobile-action btn-mobile-ghost" id="pub-fim-btn">Resolver procedimento</button>
+        <div id="pub-fim-resultados" style="margin-top: 0.6rem;"></div>
     </div>
 
-    <div id="pub-status-vazio" class="card" style="display: none; text-align: center; color: var(--text-secondary);">
+    <div id="pub-status-vazio" class="mobile-card" style="display: none; text-align: center; color: var(--mobile-text-muted);">
         Acervo ainda não indexado nesta instância.
     </div>
-    <div id="pub-resultados-meta" style="margin: 0.5rem 0; color: var(--text-secondary); font-size: 0.85rem;"></div>
+    <div id="pub-resultados-meta" style="margin: 0.5rem 0; color: var(--mobile-text-muted); font-size: 0.85rem;"></div>
     <div id="pub-resultados-lista"></div>
 </div>
 {% endblock %}

@@ -192,6 +192,39 @@ async def test_mobile_inspecao_checklist_autenticado_retorna_200_html(db: AsyncS
 
 
 @pytest.mark.asyncio
+async def test_mobile_publicacoes_requer_autenticacao(db: AsyncSession):
+    app = criar_app_mobile(db, usuario=None)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        response = await client.get("/m/publicacoes")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_mobile_publicacoes_usa_classes_mobile_nao_desktop(db: AsyncSession):
+    """Etapa 7 §8.1: `mobile/publicacoes.html` deve usar as classes de
+    `mobile.css` (fundo escuro, contraste correto por herança de cor do
+    corpo) em vez de `.card`/`.form-input`/`.btn` do desktop, que exigiam
+    `style="color: var(--text-primary)"` inline para compensar o fundo
+    branco herdado sobre a casca escura do mobile."""
+    usuario = await criar_usuario_teste(db)
+    app = criar_app_mobile(db, usuario=usuario)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        response = await client.get("/m/publicacoes")
+
+    assert response.status_code == 200
+    html_content = response.text
+    assert "mobile-card" in html_content
+    assert "mobile-input" in html_content
+    assert "mobile-select" in html_content
+    assert "btn-mobile-action" in html_content
+    assert 'class="card"' not in html_content
+    assert 'class="form-input"' not in html_content
+    assert 'class="btn btn-primary"' not in html_content
+    assert 'class="btn btn-outline"' not in html_content
+
+
+@pytest.mark.asyncio
 async def test_mobile_drawer_nova_pane_usa_contexto_da_aeronave_quando_disponivel(db: AsyncSession):
     """RF-M92: o item 'Nova Pane' do drawer deixa de ser placeholder — no hub
     da aeronave, ele já aponta para o relato rápido daquela mesma aeronave."""

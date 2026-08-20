@@ -454,6 +454,7 @@ def _montar_linha_inventario(
 
     return InventarioItemOut(
         slot_id=slot.id,
+        modelo_id=slot.modelo_id,
         nome_posicao=slot.nome_posicao,
         sistema=slot.sistema,
         part_number=slot.modelo.part_number,

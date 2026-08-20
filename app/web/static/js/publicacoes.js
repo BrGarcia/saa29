@@ -27,6 +27,14 @@
 
     if (!contexto) return;
 
+    // `mobile/publicacoes.html` reusa este arquivo; a lista de resultados é
+    // renderizada aqui via JS (não no template), então precisa saber em qual
+    // casca está rodando para usar `.mobile-card` (fundo escuro) em vez de
+    // `.card` (fundo branco do desktop) e as variáveis de cor certas.
+    const isMobile = document.body.classList.contains("mobile-body");
+    const corSecundaria = isMobile ? "var(--mobile-text-muted)" : "var(--text-secondary)";
+    const corBorda = isMobile ? "var(--mobile-card-border-soft)" : "var(--border-color)";
+
     async function popularFiltroManuais() {
         // Se o filtro é um <input> livre (versão antiga do mobile), não há o
         // que popular — este só é um <select> na versão convertida da Etapa 2.
@@ -95,17 +103,17 @@
 
     function renderResultado(item) {
         const div = document.createElement("div");
-        div.className = "card";
+        div.className = isMobile ? "mobile-card" : "card";
         div.style.marginBottom = "0.5rem";
         div.style.cursor = "pointer";
         div.innerHTML = `
             <div style="display:flex; justify-content:space-between; gap:0.5rem; flex-wrap:wrap;">
                 <strong>${escapeHtml(item.title)}</strong>
-                <span style="color:var(--text-secondary); font-size:0.85rem;">
+                <span style="color:${corSecundaria}; font-size:0.85rem;">
                     ${escapeHtml(item.manual.path)} · ${escapeHtml(item.chapter || "—")} · pág. ${item.page ?? "—"}
                 </span>
             </div>
-            <div style="margin-top:0.35rem; color:var(--text-secondary);">${snippetSeguro(item.snippet)}</div>
+            <div style="margin-top:0.35rem; color:${corSecundaria};">${snippetSeguro(item.snippet)}</div>
         `;
         div.addEventListener("click", () => {
             window.location.href = item.viewer_url;
@@ -125,8 +133,9 @@
             const resposta = await apiFetch(montarUrlBusca());
             resultadosMeta.textContent = `${resposta.total} resultado(s) em ${resposta.took_ms} ms`;
             if (resposta.results.length === 0) {
+                const classeVazia = isMobile ? "mobile-card" : "card";
                 resultadosLista.innerHTML =
-                    '<div class="card" style="text-align:center; color:var(--text-secondary);">Nenhum resultado.</div>';
+                    `<div class="${classeVazia}" style="text-align:center; color:${corSecundaria};">Nenhum resultado.</div>`;
                 return;
             }
             resposta.results.forEach((item) => resultadosLista.appendChild(renderResultado(item)));
@@ -148,16 +157,17 @@
             );
             if (resposta.results.length === 0) {
                 resultadosFim.innerHTML =
-                    '<div style="color:var(--text-secondary);">Nenhuma mensagem encontrada com esse prefixo.</div>';
+                    `<div style="color:${corSecundaria};">Nenhuma mensagem encontrada com esse prefixo.</div>`;
                 return;
             }
             resposta.results.forEach((item) => {
                 const linha = document.createElement("div");
                 linha.style.padding = "0.4rem 0";
-                linha.style.borderBottom = "1px solid var(--border-color)";
+                linha.style.borderBottom = `1px solid ${corBorda}`;
+                const corLink = isMobile ? "color:var(--mobile-accent-soft);" : "";
                 const alvo = item.viewer_url
-                    ? `<a href="${item.viewer_url}">${escapeHtml(item.title || item.procedimento)}</a>`
-                    : `${escapeHtml(item.procedimento)} <em style="color:var(--text-secondary);">(sem PDF no acervo)</em>`;
+                    ? `<a href="${item.viewer_url}" style="${corLink}">${escapeHtml(item.title || item.procedimento)}</a>`
+                    : `${escapeHtml(item.procedimento)} <em style="color:${corSecundaria};">(sem PDF no acervo)</em>`;
                 linha.innerHTML = `<strong>${escapeHtml(item.mensagem)}</strong> → ${alvo}`;
                 resultadosFim.appendChild(linha);
             });

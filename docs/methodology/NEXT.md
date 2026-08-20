@@ -16,6 +16,7 @@
 | ✅ Arquitetura & DDD | 100% | Desacoplamento via `AeronaveLookupProtocol` e 179 testes unitários passing |
 | ✅ Deploy Automatizado | 100% | CI/CD no GitHub Actions com matriz de testes em SQLite & Postgres |
 | 🔲 Ordem de Inspeção (PDF) | Planejado | Emissão de PDF A4 da Ordem de Serviço com checklist e inventário controlado |
+| ✅ Mobile / PWA (Linha de Voo) | 100% | `/m/` instalável (manifest, SW, ícones), Frota agregada, Hub de 4 abas (Panes/Inspeções/Vencimentos/Inventário), Publicações normalizada — ver `docs/backlog/modulo_mobile/02_plano_implementacao.md`. Sem modo offline de gravação (fora de escopo) e sem verificação em aparelho físico Android/iOS. |
 
 ---
 
@@ -47,10 +48,6 @@ python scripts/run_app.py
 2. **Carga e Importação em Lote via Excel (XLSX)**:
    - Interface para upload e validação de inventário massivo via planilha.
 
-2. **Mobilidade & PWA (Hangar Floor)**:
-   - Tornar a aplicação instalável como PWA para tablets e celulares no pátio.
-   - Suporte a cache offline de consultas essenciais.
-
 3. **Scanner de QR Code**:
    - Leitura via câmera do dispositivo para busca instantânea de caixas-pretas e células.
 
@@ -69,7 +66,8 @@ python scripts/run_app.py
 - [x] Sistema genérico de exportação CSV (UTF-8 BOM) e XLSX em Panes, Inventário e Inspeções.
 - [x] Resolução de 100% das 13 vulnerabilidades e defeitos auditados no `RELATORIO_FINAL.MD`.
 - [x] Suíte automatizada com **179 testes unitários e de integração passing (100% sucesso)**.
+- [x] Interface Mobile PWA da Linha de Voo (`/m/`): CSRF/SW/manifest corrigidos, Frota agregada em 1 fetch, Hub de 4 abas por aeronave, Publicações normalizada com as classes de `mobile.css` (fim do `.card`/`.form-input` de desktop herdado).
 
 ---
 
-*Última atualização: 2026-07-23*
+*Última atualização: 2026-08-20*

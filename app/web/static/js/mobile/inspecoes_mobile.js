@@ -173,7 +173,7 @@ function renderizarCabecalhoInspecao() {
 function renderizarAnelProgresso() {
     const tarefas = (inspecaoAtual && inspecaoAtual.tarefas) || [];
     const total = tarefas.length;
-    const concluidas = tarefas.filter((t) => t.status === 'CONCLUIDA').length;
+    const concluidas = tarefas.filter((t) => t.status === 'CONCLUIDA' || t.status === 'N/A').length;
     const pct = total ? concluidas / total : 0;
 
     const ringEl = document.getElementById('checklist-ring');
