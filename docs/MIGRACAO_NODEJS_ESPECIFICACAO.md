@@ -3,6 +3,7 @@
 > **Documento de Handoff Técnico para Equipe de Desenvolvimento**  
 > **Sistema:** SAA29 – Sistema de Gestão de Panes e Manutenção Aeronáutica (A-29 Super Tucano)  
 > **Data de Emissão:** 13/08/2026  
+> **Versão:** 1.0
 > **Objetivo:** Orientar o planejamento, estimativa e reescrita do sistema mantendo total paridade de dados e funcionalidades.
 
 ---

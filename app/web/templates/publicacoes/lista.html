@@ -70,10 +70,17 @@
 
         {#
             Viewer embutido: mesmo shell da página dedicada, escondido até que
-            um PDF seja selecionado (na árvore ou no painel). Sem `data-doc-id`
-            no contexto — quem monta e troca o documento é o explorador.
+            um PDF seja selecionado (na árvore ou no painel). Quem monta e
+            troca o documento aqui é o explorador, não o próprio viewer.
+
+            O id é `pub-acervo-viewer-context`, NUNCA `pub-viewer-context`: o
+            segundo é o gatilho de auto-montagem da página dedicada, e uma
+            cópia antiga do `publicacoes_viewer.js` ainda em cache no navegador
+            se agarraria a ele e tentaria carregar um PDF que não existe nesta
+            tela (`getDocument({url: undefined})`). Com ids distintos, módulo
+            velho + página nova simplesmente não se encontram.
         #}
-        <div id="pub-viewer-context" data-worker-src="/static/js/pdfjs/pdf.worker.min.mjs" style="display: none;"></div>
+        <div id="pub-acervo-viewer-context" data-worker-src="/static/js/pdfjs/pdf.worker.min.mjs" style="display: none;"></div>
         <div id="pub-acervo-viewer" class="pub-acervo-viewer" hidden>
             {% with viewer_embutido = true %}
             {% include "publicacoes/_viewer_shell.html" %}

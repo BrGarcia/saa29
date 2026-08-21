@@ -1070,15 +1070,31 @@ async def test_pagina_lista_retorna_200_autenticado(client_autenticado: AsyncCli
         "pub-acervo-fim-input", "pub-acervo-fim-btn", "pub-acervo-fim-resultados",
         # Viewer embutido: o PDF escolhido na árvore abre no painel direito,
         # no mesmo shell da página dedicada (_viewer_shell.html).
-        "pub-acervo-viewer", "pub-viewer-context", "pub-viewer-shell",
+        "pub-acervo-viewer", "pub-acervo-viewer-context", "pub-viewer-shell",
         "pub-viewer-canvas", "pub-viewer-voltar",
     ]:
         assert f'id="{id_esperado}"' in resposta.text, f"id ausente no template: {id_esperado}"
     assert 'href="/publicacoes/avulsas"' in resposta.text
     assert "/static/js/publicacoes_explorador.js" in resposta.text
-    # `criarViewer()` lê o worker daqui; sem `data-doc-id` para o bootstrap da
-    # página dedicada não montar nada por conta própria nesta tela.
+    # `criarViewer()` lê o worker daqui.
     assert 'data-worker-src="/static/js/pdfjs/pdf.worker.min.mjs"' in resposta.text
+
+
+@pytest.mark.asyncio
+async def test_pagina_lista_nao_dispara_o_bootstrap_do_viewer_dedicado(
+    client_autenticado: AsyncClient,
+):
+    """
+    Regressão real: com o contexto do explorador chamado `pub-viewer-context`,
+    uma cópia ANTIGA do `publicacoes_viewer.js` ainda em cache no navegador se
+    agarrava a ele ao carregar e chamava `getDocument({url: undefined})` —
+    "Não foi possível carregar este documento" numa tela onde nem se escolheu
+    documento. Ids distintos são o que impede módulo velho de encontrar
+    página nova.
+    """
+    resposta = await client_autenticado.get("/publicacoes")
+    assert resposta.status_code == 200
+    assert 'id="pub-viewer-context"' not in resposta.text
     assert "data-doc-id" not in resposta.text
 
 
@@ -1127,6 +1143,24 @@ async def test_pagina_viewer_retorna_200_autenticado(client_autenticado: AsyncCl
     # Voltar aqui é link para o acervo, não o botão do modo embutido.
     assert 'id="pub-viewer-voltar"' not in resposta.text
     assert 'href="/publicacoes"' in resposta.text
+
+
+@pytest.mark.asyncio
+async def test_estaticos_pedem_revalidacao_ao_navegador(client: AsyncClient):
+    """
+    Sem `Cache-Control`, o navegador só tem ETag/Last-Modified e aplica cache
+    HEURÍSTICO: serve o arquivo guardado sem perguntar nada ao servidor. Um
+    deploy que troca um `.js` fica invisível para quem já visitou a página, e
+    JS velho + HTML novo quebra de formas difíceis de diagnosticar — foi o que
+    aconteceu com o `publicacoes_viewer.js` no refactor do viewer embutido.
+
+    `no-cache` não desliga o cache, só obriga a revalidar (304 barato quando
+    nada mudou). Vale para todo `/static`, não só para publicações.
+    """
+    resposta = await client.get("/static/js/publicacoes_viewer.js")
+    assert resposta.status_code == 200
+    assert "no-cache" in resposta.headers.get("cache-control", "")
+    assert resposta.headers.get("etag"), "revalidação precisa de ETag para render 304"
 
 
 @pytest.mark.asyncio

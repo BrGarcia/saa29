@@ -173,6 +173,34 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(pages_router)
 
 
+class _EstaticosRevalidados(StaticFiles):
+    """
+    `StaticFiles` que obriga o navegador a revalidar todo arquivo estático.
+
+    Sem `Cache-Control`, o navegador só tem `ETag`/`Last-Modified` e aplica
+    cache HEURÍSTICO: guarda a resposta por uma fração do tempo desde a última
+    modificação e a serve SEM perguntar nada ao servidor. Um deploy que troca
+    um `.js` fica então invisível para quem já visitou a página — e o estrago
+    não é "a tela não atualizou": JS velho encontrando HTML novo quebra de
+    formas difíceis de diagnosticar (aconteceu de verdade aqui, com o
+    `publicacoes_viewer.js` pré-refactor chamando `getDocument({url:
+    undefined})` sobre o `lista.html` novo).
+
+    `no-cache` NÃO desliga o cache — o arquivo continua guardado, só passa a
+    ser revalidado por `If-None-Match`. O caso comum vira um 304 vazio, que é
+    barato; o caso de arquivo alterado passa a ser sempre correto.
+
+    O header é aplicado sobre a resposta JÁ escolhida pelo `StaticFiles`, seja
+    ela o 200 com o arquivo ou o 304 vazio — as duas precisam da instrução,
+    senão a revalidação de hoje autoriza um cache heurístico amanhã.
+    """
+
+    def file_response(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        resposta = super().file_response(*args, **kwargs)
+        resposta.headers.setdefault("Cache-Control", "no-cache")
+        return resposta
+
+
 def _mount_static(app: FastAPI) -> None:
     """Monta os arquivos estáticos públicos da aplicação."""
     os.makedirs("app/web/static", exist_ok=True)
@@ -187,7 +215,7 @@ def _mount_static(app: FastAPI) -> None:
     # ambiente, em vez de depender do que a máquina tem instalado.
     mimetypes.add_type("text/javascript", ".mjs")
 
-    app.mount("/static", StaticFiles(directory="app/web/static"), name="static")
+    app.mount("/static", _EstaticosRevalidados(directory="app/web/static"), name="static")
 
 
 # Instância global para o servidor ASGI

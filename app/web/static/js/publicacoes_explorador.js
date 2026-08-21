@@ -113,7 +113,7 @@
         filtroOrigemBtns: document.querySelectorAll(".pub-acervo-filtro-origem button"),
         viewer: document.getElementById("pub-acervo-viewer"),
         viewerShell: document.getElementById("pub-viewer-shell"),
-        viewerContexto: document.getElementById("pub-viewer-context"),
+        viewerContexto: document.getElementById("pub-acervo-viewer-context"),
     };
 
     const estado = {

@@ -7,11 +7,17 @@
 
 {#
     `data-doc-id` presente = página dedicada: `publicacoes_viewer.js` monta o
-    viewer sozinho ao carregar. No explorador (`lista.html`) o mesmo bloco vem
-    sem `data-doc-id`, e quem chama `criarViewer()` é o explorador.
+    viewer sozinho ao carregar. O explorador (`lista.html`) usa um contexto de
+    id próprio e chama `criarViewer()` na mão.
+
+    `data-pdf-url` não é mais lido pelo módulo atual (ele deriva a URL do
+    `doc_id`), mas fica aqui de propósito: é o que a versão anterior do
+    `publicacoes_viewer.js` usava, e enquanto houver navegador com aquela
+    cópia em cache é isto que mantém esta página funcionando para ele.
 #}
 <div id="pub-viewer-context"
      data-doc-id="{{ doc_id }}"
+     data-pdf-url="/publicacoes/doc/{{ doc_id }}/pdf"
      data-worker-src="/static/js/pdfjs/pdf.worker.min.mjs"
      style="display: none;"></div>
 
