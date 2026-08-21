@@ -16,9 +16,19 @@
  * antes deste) e ficam disponíveis como globais — sem import.
  *
  * Estado da árvore: Categoria (nível 0, em memória) → Manual (nível 1, em
- * memória) → Capítulo (nível 2, carregado sob demanda ao abrir o manual).
- * Documentos NUNCA entram na árvore — são o conteúdo do painel quando um
- * capítulo é selecionado, sempre paginados (nunca os 5.724 de uma vez).
+ * memória) → Capítulo (nível 2, carregado sob demanda ao abrir o manual) →
+ * Documento (nível 3, carregado sob demanda ao abrir o capítulo).
+ *
+ * Os documentos entram na árvore por capítulo, nunca em bloco: cada capítulo
+ * carrega no máximo `LIMITE_DOCUMENTOS_ARVORE` PDFs (o teto do endpoint), e o
+ * excedente vira um nó "mais N documentos…" que leva à listagem paginada do
+ * painel — a árvore nunca tenta segurar os milhares de documentos do acervo.
+ *
+ * Selecionar um documento NÃO troca de página: o PDF abre no próprio painel
+ * direito, no mesmo shell da página dedicada
+ * (`templates/publicacoes/_viewer_shell.html`), montado por `criarViewer()` de
+ * `publicacoes_viewer.js` — importado dinamicamente na primeira vez que um
+ * documento é aberto, porque puxa o build do PDF.js junto.
  *
  * `capitulo` distingue dois estados que parecem iguais e não são:
  *   - `null`      → nenhum capítulo selecionado (painel mostra os capítulos)
@@ -49,10 +59,17 @@
     const CHAVE_ORDEM = "pubAcervoOrdemNome";
     const CHAVE_FILTRO_ORIGEM = "pubAcervoFiltroOrigem";
     const LIMITE_DOCUMENTOS = 60;
+    /** Teto de `/api/manuais/{codigo}/documentos` — o resto do capítulo fica no painel. */
+    const LIMITE_DOCUMENTOS_ARVORE = 100;
 
     /** Chave composta de manual — `codigo` sozinho colide entre origens. */
     function chaveManual(codigo, origem) {
         return `${origem}::${codigo}`;
+    }
+
+    /** Chave de capítulo — `""` (raiz do manual) é capítulo válido, não "nenhum". */
+    function chaveCapitulo(codigo, origem, capitulo) {
+        return `${chaveManual(codigo, origem)}::${capitulo}`;
     }
 
     const ICONE_CHEVRON =
@@ -94,6 +111,9 @@
         fimBtn: document.getElementById("pub-acervo-fim-btn"),
         fimResultados: document.getElementById("pub-acervo-fim-resultados"),
         filtroOrigemBtns: document.querySelectorAll(".pub-acervo-filtro-origem button"),
+        viewer: document.getElementById("pub-acervo-viewer"),
+        viewerShell: document.getElementById("pub-viewer-shell"),
+        viewerContexto: document.getElementById("pub-viewer-context"),
     };
 
     const estado = {
@@ -106,10 +126,14 @@
         /** Chave composta (`chaveManual`) — nunca `codigo` sozinho. */
         capitulosPorManual: new Map(),
         /** Idem — chave composta. */
+        documentosPorCapitulo: new Map(),
+        /** Chave de `chaveCapitulo` → `"carregando"` | `{ total, results }`. */
         categoriasAbertas: new Set(),
         manuaisAbertos: new Set(),
         /** Idem — chave composta. */
-        atual: { categoria: null, manual: null, origem: null, capitulo: null, offset: 0 },
+        capitulosAbertos: new Set(),
+        /** Chave de `chaveCapitulo`. */
+        atual: { categoria: null, manual: null, origem: null, capitulo: null, doc: null, pagina: 1, offset: 0 },
         viewMode: localStorage.getItem(CHAVE_VIEW) === "icones" ? "icones" : "lista",
         ordemNome: localStorage.getItem(CHAVE_ORDEM) === "1",
         filtroOrigem: ["MANUTENCAO", "OPERACIONAL"].includes(localStorage.getItem(CHAVE_FILTRO_ORIGEM))
@@ -192,6 +216,31 @@
         }
     }
 
+    /**
+     * Documentos de um capítulo para a árvore — a primeira página só, até
+     * `LIMITE_DOCUMENTOS_ARVORE`. `total` fica guardado para o nó de excedente.
+     */
+    async function carregarDocumentosDoCapitulo(codigoManual, origem, capitulo) {
+        const chave = chaveCapitulo(codigoManual, origem, capitulo);
+        const cache = estado.documentosPorCapitulo.get(chave);
+        if (cache && cache !== "carregando") return;
+        estado.documentosPorCapitulo.set(chave, "carregando");
+        try {
+            const params = new URLSearchParams({
+                limit: String(LIMITE_DOCUMENTOS_ARVORE),
+                offset: "0",
+            });
+            params.set("capitulo", capitulo); // "" (raiz do manual) é valor válido
+            if (origem) params.set("origem", origem);
+            const resp = await apiFetch(
+                `/publicacoes/api/manuais/${encodeURIComponent(codigoManual)}/documentos?${params.toString()}`
+            );
+            estado.documentosPorCapitulo.set(chave, { total: resp.total, results: resp.results });
+        } catch (e) {
+            estado.documentosPorCapitulo.set(chave, { total: 0, results: [] });
+        }
+    }
+
     function ordenarSeNecessario(lista, extrator) {
         if (!estado.ordemNome) return lista;
         return [...lista].sort((a, b) => extrator(a).localeCompare(extrator(b), "pt-BR"));
@@ -207,6 +256,8 @@
             manual: alvo.manual || null,
             origem: alvo.origem || null,
             capitulo: alvo.capitulo === undefined ? null : alvo.capitulo,
+            doc: alvo.doc || null,
+            pagina: alvo.pagina || 1,
             offset: alvo.offset || 0,
         };
         if (out.manual) {
@@ -229,6 +280,8 @@
         if (alvo.manual) params.set("manual", alvo.manual);
         if (alvo.manual && alvo.origem) params.set("origem", alvo.origem);
         if (alvo.capitulo !== null) params.set("capitulo", alvo.capitulo);
+        if (alvo.doc) params.set("doc", alvo.doc);
+        if (alvo.doc && alvo.pagina > 1) params.set("pagina", String(alvo.pagina));
         if (alvo.offset) params.set("offset", String(alvo.offset));
         const texto = params.toString();
         return texto ? `?${texto}` : "";
@@ -241,6 +294,8 @@
             manual: params.get("manual"),
             origem: params.get("origem"),
             capitulo: params.has("capitulo") ? params.get("capitulo") : null,
+            doc: params.get("doc"),
+            pagina: parseInt(params.get("pagina") || "1", 10) || 1,
             offset: parseInt(params.get("offset") || "0", 10) || 0,
         };
     }
@@ -252,6 +307,12 @@
         if (alvo.manual) {
             estado.manuaisAbertos.add(chaveManual(alvo.manual, alvo.origem));
             await carregarCapitulos(alvo.manual, alvo.origem);
+        }
+        // Com um documento selecionado a árvore precisa mostrar onde ele está —
+        // abre o capítulo e garante que a lista de PDFs dele esteja carregada.
+        if (alvo.manual && alvo.capitulo !== null && alvo.doc) {
+            estado.capitulosAbertos.add(chaveCapitulo(alvo.manual, alvo.origem, alvo.capitulo));
+            await carregarDocumentosDoCapitulo(alvo.manual, alvo.origem, alvo.capitulo);
         }
         if (historico) {
             history.pushState(null, "", `${window.location.pathname}${estadoParaQueryString(alvo)}`);
@@ -304,6 +365,74 @@
         }
         el.addEventListener("click", onClickLinha);
         return el;
+    }
+
+    /**
+     * Nível 3 da árvore: os PDFs de um capítulo aberto. Clicar num deles abre
+     * o documento no painel direito (viewer embutido), sem trocar de página.
+     */
+    function renderDocumentosDaArvore(container, manual, cap) {
+        const chaveCap = chaveCapitulo(manual.codigo, manual.origem, cap.capitulo);
+        const dados = estado.documentosPorCapitulo.get(chaveCap);
+
+        if (!dados || dados === "carregando") {
+            const carregando = document.createElement("div");
+            carregando.className = "pub-acervo-node-carregando";
+            carregando.style.setProperty("--pub-acervo-nivel", "3");
+            carregando.textContent = "Carregando documentos…";
+            container.appendChild(carregando);
+            return;
+        }
+
+        if (dados.results.length === 0) {
+            const vazio = document.createElement("div");
+            vazio.className = "pub-acervo-node-carregando";
+            vazio.style.setProperty("--pub-acervo-nivel", "3");
+            vazio.textContent = "Nenhum documento.";
+            container.appendChild(vazio);
+            return;
+        }
+
+        ordenarSeNecessario(dados.results, (d) => d.titulo).forEach((doc) => {
+            container.appendChild(
+                criarNoArvore({
+                    nivel: 3,
+                    temFilhos: false,
+                    aberto: false,
+                    selecionado: estado.atual.doc === doc.doc_id,
+                    icone: ICONE_DOCUMENTO,
+                    rotulo: doc.titulo,
+                    contagem: doc.paginas ? `${doc.paginas}p` : null,
+                    onClickLinha: () =>
+                        irPara({
+                            manual: manual.codigo,
+                            origem: manual.origem,
+                            capitulo: cap.capitulo,
+                            doc: doc.doc_id,
+                        }),
+                    onClickChevron: () => {},
+                })
+            );
+        });
+
+        // O endpoint tem teto de 100 por página: o que passa disso não cabe na
+        // árvore, mas continua alcançável pela listagem paginada do painel.
+        if (dados.total > dados.results.length) {
+            const restante = dados.total - dados.results.length;
+            const mais = document.createElement("div");
+            mais.className = "pub-acervo-node-carregando pub-acervo-node-mais";
+            mais.style.setProperty("--pub-acervo-nivel", "3");
+            mais.textContent = `mais ${restante} documento(s) — abrir listagem`;
+            mais.addEventListener("click", () =>
+                irPara({
+                    manual: manual.codigo,
+                    origem: manual.origem,
+                    capitulo: cap.capitulo,
+                    offset: LIMITE_DOCUMENTOS,
+                })
+            );
+            container.appendChild(mais);
+        }
     }
 
     function renderArvore() {
@@ -393,28 +522,59 @@
                     } else {
                         capitulos.forEach((cap) => {
                             const rotuloCap = cap.capitulo || "(raiz do manual)";
+                            const chaveCap = chaveCapitulo(manual.codigo, manual.origem, cap.capitulo);
+                            const abertoCap = estado.capitulosAbertos.has(chaveCap);
                             filhosManual.appendChild(
                                 criarNoArvore({
                                     nivel: 2,
-                                    temFilhos: false,
-                                    aberto: false,
+                                    temFilhos: true,
+                                    aberto: abertoCap,
                                     selecionado:
                                         estado.atual.manual === manual.codigo &&
                                         estado.atual.origem === manual.origem &&
-                                        estado.atual.capitulo === cap.capitulo,
-                                    icone: ICONE_PASTA,
+                                        estado.atual.capitulo === cap.capitulo &&
+                                        !estado.atual.doc,
+                                    icone: abertoCap ? ICONE_PASTA_ABERTA : ICONE_PASTA,
                                     rotulo: cap.ata_codigo ? `ATA ${cap.ata_codigo} — ${rotuloCap}` : rotuloCap,
                                     contagem: cap.documentos,
-                                    onClickLinha: () =>
+                                    onClickLinha: () => {
+                                        estado.capitulosAbertos.add(chaveCap);
+                                        carregarDocumentosDoCapitulo(
+                                            manual.codigo,
+                                            manual.origem,
+                                            cap.capitulo
+                                        ).then(renderArvore);
                                         irPara({
                                             manual: manual.codigo,
                                             origem: manual.origem,
                                             capitulo: cap.capitulo,
                                             offset: 0,
-                                        }),
-                                    onClickChevron: () => {},
+                                        });
+                                    },
+                                    onClickChevron: () => {
+                                        if (estado.capitulosAbertos.has(chaveCap)) {
+                                            estado.capitulosAbertos.delete(chaveCap);
+                                            renderArvore();
+                                        } else {
+                                            estado.capitulosAbertos.add(chaveCap);
+                                            renderArvore();
+                                            carregarDocumentosDoCapitulo(
+                                                manual.codigo,
+                                                manual.origem,
+                                                cap.capitulo
+                                            ).then(renderArvore);
+                                        }
+                                    },
                                 })
                             );
+
+                            const filhosCapitulo = document.createElement("div");
+                            filhosCapitulo.className =
+                                "pub-acervo-filhos" + (abertoCap ? " is-aberto" : "");
+                            if (abertoCap) {
+                                renderDocumentosDaArvore(filhosCapitulo, manual, cap);
+                            }
+                            filhosManual.appendChild(filhosCapitulo);
                         });
                     }
                 }
@@ -429,9 +589,19 @@
     // Breadcrumb
     // --------------------------------------------------------------------
 
+    /** Título de um documento já visto em algum capítulo carregado (só para o breadcrumb). */
+    function tituloDoDocumento(docId) {
+        for (const dados of estado.documentosPorCapitulo.values()) {
+            if (!dados || dados === "carregando") continue;
+            const achado = dados.results.find((d) => d.doc_id === docId);
+            if (achado) return achado.titulo;
+        }
+        return "Documento";
+    }
+
     function renderBreadcrumb() {
         els.breadcrumb.innerHTML = "";
-        const { categoria, manual, origem, capitulo } = estado.atual;
+        const { categoria, manual, origem, capitulo, doc } = estado.atual;
 
         const segmentos = [
             {
@@ -459,7 +629,13 @@
             });
         }
         if (capitulo !== null) {
-            segmentos.push({ rotulo: capitulo || "(raiz do manual)", onClick: null });
+            segmentos.push({
+                rotulo: capitulo || "(raiz do manual)",
+                onClick: () => irPara({ categoria, manual, origem, capitulo, doc: null, offset: 0 }),
+            });
+        }
+        if (doc) {
+            segmentos.push({ rotulo: tituloDoDocumento(doc), onClick: null });
         }
 
         segmentos.forEach((seg, i) => {
@@ -594,12 +770,66 @@
         els.painel.appendChild(paginacao);
     }
 
-    function abrirDocumento(docId) {
-        window.location.href = `/publicacoes/viewer/${docId}`;
+    // --------------------------------------------------------------------
+    // Viewer embutido — o PDF abre no painel direito, sem trocar de página
+    // --------------------------------------------------------------------
+
+    let viewer = null;
+    let viewerPromessa = null;
+
+    /**
+     * Monta o viewer na primeira vez que um documento é aberto. `import()`
+     * dinâmico porque `publicacoes_viewer.js` puxa o build do PDF.js junto —
+     * quem só navega pela árvore nunca paga esse download.
+     */
+    function garantirViewer() {
+        if (viewer) return Promise.resolve(viewer);
+        if (!viewerPromessa) {
+            viewerPromessa = import("/static/js/publicacoes_viewer.js")
+                .catch((e) => {
+                    viewerPromessa = null; // deixa uma próxima tentativa possível
+                    throw e;
+                })
+                .then((mod) => {
+                    viewer = mod.criarViewer({
+                        raiz: els.viewerShell,
+                        workerSrc: els.viewerContexto.dataset.workerSrc,
+                        // A URL desta página é do explorador (`?manual=&capitulo=&doc=`);
+                        // o viewer não escreve `#page=` nela.
+                        sincronizarHash: false,
+                        aoVoltar: () => irPara({ ...estado.atual, doc: null, pagina: 1 }),
+                        aoTrocarDocumento: (id) => irPara({ ...estado.atual, doc: id, pagina: 1 }),
+                    });
+                    return viewer;
+                });
+        }
+        return viewerPromessa;
+    }
+
+    function abrirDocumento(docId, pagina = 1) {
+        irPara({ ...estado.atual, doc: docId, pagina });
     }
 
     async function renderPainel() {
-        const { categoria, manual, origem, capitulo, offset } = estado.atual;
+        const { categoria, manual, origem, capitulo, doc, offset } = estado.atual;
+
+        if (doc) {
+            els.painel.hidden = true;
+            els.viewer.hidden = false;
+            try {
+                const v = await garantirViewer();
+                // Só recarrega quando o documento muda de fato: `renderPainel`
+                // roda de novo a cada troca de filtro/ordenação, e reabrir o
+                // mesmo PDF duplicaria a linha de `service.registrar_acesso`.
+                if (v.docIdAtual() !== doc) v.abrir(doc, { pagina: estado.atual.pagina || 1 });
+            } catch (e) {
+                // PDF.js não carregou — a página dedicada faz o mesmo trabalho.
+                window.location.href = `/publicacoes/viewer/${doc}`;
+            }
+            return;
+        }
+        els.viewer.hidden = true;
+        els.painel.hidden = false;
 
         if (!categoria) {
             renderCards(
@@ -723,8 +953,8 @@
                     ? `<div class="pub-acervo-busca-resultado-trecho">${snippetSeguro(item.snippet)}</div>`
                     : "");
             el.addEventListener("click", () => {
-                const pagina = item.page ? `#page=${item.page}` : "";
-                window.location.href = `/publicacoes/viewer/${item.doc_id}${pagina}`;
+                els.buscaResultados.classList.remove("is-aberto");
+                abrirDocumento(item.doc_id, item.page || 1);
             });
             els.buscaResultados.appendChild(el);
         });

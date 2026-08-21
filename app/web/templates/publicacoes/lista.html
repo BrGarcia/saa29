@@ -67,6 +67,18 @@
         <div id="pub-acervo-painel" class="pub-acervo-painel">
             <div class="pub-acervo-estado-vazio">Carregando acervo…</div>
         </div>
+
+        {#
+            Viewer embutido: mesmo shell da página dedicada, escondido até que
+            um PDF seja selecionado (na árvore ou no painel). Sem `data-doc-id`
+            no contexto — quem monta e troca o documento é o explorador.
+        #}
+        <div id="pub-viewer-context" data-worker-src="/static/js/pdfjs/pdf.worker.min.mjs" style="display: none;"></div>
+        <div id="pub-acervo-viewer" class="pub-acervo-viewer" hidden>
+            {% with viewer_embutido = true %}
+            {% include "publicacoes/_viewer_shell.html" %}
+            {% endwith %}
+        </div>
     </main>
 </div>
 {% endblock %}

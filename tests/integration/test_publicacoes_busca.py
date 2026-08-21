@@ -1068,10 +1068,32 @@ async def test_pagina_lista_retorna_200_autenticado(client_autenticado: AsyncCli
         "pub-acervo-view-lista", "pub-acervo-view-icones", "pub-acervo-ordenar",
         "pub-acervo-busca-input", "pub-acervo-busca-resultados",
         "pub-acervo-fim-input", "pub-acervo-fim-btn", "pub-acervo-fim-resultados",
+        # Viewer embutido: o PDF escolhido na árvore abre no painel direito,
+        # no mesmo shell da página dedicada (_viewer_shell.html).
+        "pub-acervo-viewer", "pub-viewer-context", "pub-viewer-shell",
+        "pub-viewer-canvas", "pub-viewer-voltar",
     ]:
         assert f'id="{id_esperado}"' in resposta.text, f"id ausente no template: {id_esperado}"
     assert 'href="/publicacoes/avulsas"' in resposta.text
     assert "/static/js/publicacoes_explorador.js" in resposta.text
+    # `criarViewer()` lê o worker daqui; sem `data-doc-id` para o bootstrap da
+    # página dedicada não montar nada por conta própria nesta tela.
+    assert 'data-worker-src="/static/js/pdfjs/pdf.worker.min.mjs"' in resposta.text
+    assert "data-doc-id" not in resposta.text
+
+
+@pytest.mark.asyncio
+async def test_pagina_lista_tem_filtro_de_origem_sem_opcao_todos(client_autenticado: AsyncClient):
+    """
+    O acervo tem dois discos (Manutenção/Operacional) e a origem é filtro, não
+    nível da árvore. "Todos" foi removido: misturar os dois discos numa lista
+    só mostrava o mesmo código de manual duas vezes sem o operador ter pedido.
+    """
+    resposta = await client_autenticado.get("/publicacoes")
+    assert resposta.status_code == 200
+    assert 'data-origem="MANUTENCAO"' in resposta.text
+    assert 'data-origem="OPERACIONAL"' in resposta.text
+    assert 'data-origem="TODOS"' not in resposta.text
 
 
 @pytest.mark.asyncio
@@ -1087,16 +1109,24 @@ async def test_pagina_lista_honra_deep_link_de_busca(client_autenticado: AsyncCl
 
 @pytest.mark.asyncio
 async def test_pagina_viewer_retorna_200_autenticado(client_autenticado: AsyncClient):
-    resposta = await client_autenticado.get(f"/publicacoes/viewer/{uuid.uuid4()}")
+    doc_id = uuid.uuid4()
+    resposta = await client_autenticado.get(f"/publicacoes/viewer/{doc_id}")
     assert resposta.status_code == 200
     assert "text/html" in resposta.headers["content-type"]
     for id_esperado in [
-        "pub-viewer-canvas", "pub-viewer-miniaturas", "pub-viewer-pagina-input",
-        "pub-viewer-zoom-mais", "pub-viewer-zoom-menos", "pub-viewer-rotacionar",
-        "pub-viewer-tela-cheia", "pub-viewer-busca-input", "pub-viewer-favorito",
+        "pub-viewer-shell", "pub-viewer-canvas", "pub-viewer-miniaturas",
+        "pub-viewer-pagina-input", "pub-viewer-zoom-mais", "pub-viewer-zoom-menos",
+        "pub-viewer-rotacionar", "pub-viewer-tela-cheia", "pub-viewer-busca-input",
+        "pub-viewer-favorito",
     ]:
         assert f'id="{id_esperado}"' in resposta.text, f"id ausente no template: {id_esperado}"
     assert "/static/js/publicacoes_viewer.js" in resposta.text
+    # `data-doc-id` é o gatilho do bootstrap da página dedicada — o explorador
+    # renderiza o mesmo shell sem ele, e lá quem monta é `criarViewer()`.
+    assert f'data-doc-id="{doc_id}"' in resposta.text
+    # Voltar aqui é link para o acervo, não o botão do modo embutido.
+    assert 'id="pub-viewer-voltar"' not in resposta.text
+    assert 'href="/publicacoes"' in resposta.text
 
 
 @pytest.mark.asyncio

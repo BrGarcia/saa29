@@ -153,6 +153,18 @@ arquivo não é carregado lá.
     font-style: italic;
 }
 
+/* "mais N documento(s)" — excedente do teto de 100 do endpoint, leva à
+   listagem paginada do painel. Clicável, ao contrário dos outros
+   `-carregando`, que são só rótulos de estado. */
+.pub-acervo-node-mais {
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.pub-acervo-node-mais:hover {
+    color: var(--primary-color);
+}
+
 /* --- Coluna principal --- */
 
 .pub-acervo-main {
@@ -238,6 +250,26 @@ arquivo não é carregado lá.
     text-align: center;
     color: var(--text-secondary);
     padding: 2.5rem 1rem;
+}
+
+/* --- Viewer embutido no painel direito ---
+   O mesmo shell da página dedicada, aqui dividindo a largura com a árvore:
+   miniaturas mais estreitas e palco mais baixo (a barra do explorador já
+   ocupa uma faixa acima). `[hidden]` explícito porque o par
+   painel/viewer alterna por atributo, e um `display` futuro no seletor de
+   classe apagaria o padrão do navegador. */
+.pub-acervo-painel[hidden],
+.pub-acervo-viewer[hidden] {
+    display: none;
+}
+
+.pub-acervo-viewer .pub-viewer-corpo {
+    grid-template-columns: 120px 1fr;
+}
+
+.pub-acervo-viewer .pub-viewer-miniaturas,
+.pub-acervo-viewer .pub-viewer-palco {
+    max-height: calc(100vh - 11rem);
 }
 
 /* --- Cards de pasta/documento (visão em lista) --- */
