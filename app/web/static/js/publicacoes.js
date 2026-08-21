@@ -70,8 +70,9 @@
             resposta.capitulos.forEach((c) => {
                 const opcao = document.createElement("option");
                 opcao.value = c.capitulo;
-                const rotulo = c.capitulo || "(raiz do manual)";
-                opcao.textContent = c.ata_codigo ? `ATA ${c.ata_codigo} — ${rotulo}` : rotulo;
+                // Sem prefixo "ATA XX —": o código vem do próprio nome do
+                // capítulo (`catalog.extrair_ata`), o prefixo só o repetia.
+                opcao.textContent = c.capitulo || "(raiz do manual)";
                 filtroCapitulo.appendChild(opcao);
             });
             filtroCapitulo.disabled = false;

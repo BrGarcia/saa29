@@ -535,7 +535,11 @@
                                         estado.atual.capitulo === cap.capitulo &&
                                         !estado.atual.doc,
                                     icone: abertoCap ? ICONE_PASTA_ABERTA : ICONE_PASTA,
-                                    rotulo: cap.ata_codigo ? `ATA ${cap.ata_codigo} — ${rotuloCap}` : rotuloCap,
+                                    // Sem prefixo "ATA XX —": `catalog.extrair_ata` deduz o
+                                    // código do PRÓPRIO nome do capítulo (`CHAPTER_42` → 42),
+                                    // então o prefixo só repetia o nome da pasta e roubava a
+                                    // largura útil da árvore.
+                                    rotulo: rotuloCap,
                                     contagem: cap.documentos,
                                     onClickLinha: () => {
                                         estado.capitulosAbertos.add(chaveCap);
@@ -869,7 +873,7 @@
             renderCards(
                 ordenados.map((c) => ({
                     rotulo: c.capitulo || "(raiz do manual)",
-                    meta: c.ata_codigo ? `ATA ${c.ata_codigo} · ${c.documentos} doc(s)` : `${c.documentos} doc(s)`,
+                    meta: `${c.documentos} doc(s)`,
                     onClick: () => irPara({ manual, origem, capitulo: c.capitulo, offset: 0 }),
                 })),
                 ICONE_PASTA

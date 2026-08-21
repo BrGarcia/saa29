@@ -29,8 +29,10 @@
             <tr style="border-top: 1px solid var(--border-color);">
                 <td style="padding: 0.6rem 0.5rem;">
                     <a href="/publicacoes/manuais/{{ manual.codigo | urlencode }}/{{ (cap.capitulo if cap.capitulo else capitulo_raiz_slug) | urlencode }}?origem={{ manual.origem | urlencode }}">
+                        {# Sem prefixo "ATA XX —": `catalog.extrair_ata` deduz o código do
+                           próprio nome do capítulo, e a coluna ATA ao lado já o mostra. #}
                         {% if cap.capitulo %}
-                            {% if cap.ata_codigo %}ATA {{ cap.ata_codigo }} — {% endif %}{{ cap.capitulo }}
+                            {{ cap.capitulo }}
                         {% else %}
                             (raiz do manual)
                         {% endif %}
