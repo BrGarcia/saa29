@@ -112,7 +112,9 @@
         atual: { categoria: null, manual: null, origem: null, capitulo: null, offset: 0 },
         viewMode: localStorage.getItem(CHAVE_VIEW) === "icones" ? "icones" : "lista",
         ordemNome: localStorage.getItem(CHAVE_ORDEM) === "1",
-        filtroOrigem: localStorage.getItem(CHAVE_FILTRO_ORIGEM) || "TODOS",
+        filtroOrigem: ["MANUTENCAO", "OPERACIONAL"].includes(localStorage.getItem(CHAVE_FILTRO_ORIGEM))
+            ? localStorage.getItem(CHAVE_FILTRO_ORIGEM)
+            : "MANUTENCAO",
         modoBusca: "nome",
         buscaSeq: 0,
     };
