@@ -30,9 +30,26 @@ from app.shared.core.enums import RevisionStatus
 # Caminho do acervo real; ausente no CI.
 ACERVO = Path("var/publicacoes/acervo/Manuais")
 FIM_JSON = Path("docs/fim.json") if Path("docs/fim.json").is_file() else Path("fim.json")
+
+
+def _acervo_populado() -> bool:
+    """
+    O acervo existe *e* tem manual indexado — não basta a pasta estar lá.
+
+    `ACERVO.is_dir()` sozinho era falso-positivo: numa máquina de
+    desenvolvimento a pasta é criada por qualquer upload de edição, ficando
+    presente mas sem nenhum `<manual>/index_2.0`. Os testes de regressão então
+    rodavam sobre zero manuais e quebravam em `0 == 34`, o que lê como "o
+    parser regrediu" quando na verdade é "os 1 GB não estão nesta máquina".
+    """
+    if not ACERVO.is_dir():
+        return False
+    return any((d / "index_2.0").is_dir() for d in ACERVO.iterdir() if d.is_dir())
+
+
 sem_acervo = pytest.mark.skipif(
-    not ACERVO.is_dir(),
-    reason="acervo real ausente (esperado no CI — 1 GB fora do repositório)",
+    not _acervo_populado(),
+    reason="acervo real ausente ou vazio (esperado no CI — 1 GB fora do repositório)",
 )
 
 CAMPOS = ["data", "title", "revision", "tsn", "filename", "chapter"]
