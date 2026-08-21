@@ -35,6 +35,29 @@ def acervo_amostra(tmp_path: Path) -> Path:
     return raiz
 
 
+@pytest.fixture
+def disco_cru_amostra(tmp_path: Path) -> Path:
+    """
+    Disco cru sintético (11_achados_disco_completo.md §1): `Program/Data/` e
+    `Program_Operational/Data/`, cada um com um manual — o mesmo código
+    (`FIM_1741`) nos dois lados, com `file_key` idêntico e conteúdo diferente,
+    para exercitar o caso que motivou origem na chave. `Data-ALX/` é a réplica
+    que o layout C descarta (doc 11 §2.2).
+    """
+    raiz = tmp_path / "19MAIO26"
+    manutencao = raiz / "Program" / "Data" / "FIM_1741" / "010_FRONTMATTER"
+    operacional = raiz / "Program_Operational" / "Data" / "FIM_1741" / "010_FRONTMATTER"
+    data_alx = raiz / "Program" / "Data" / "Data-ALX" / "FIM_1741"
+    manutencao.mkdir(parents=True)
+    operacional.mkdir(parents=True)
+    data_alx.mkdir(parents=True)
+
+    (manutencao / "A.PDF").write_bytes(b"%PDF-1.4 revisao 2016")
+    (operacional / "A.PDF").write_bytes(b"%PDF-1.4 revisao 2013")
+    (data_alx / "A.PDF").write_bytes(b"%PDF-1.4 replica descartada")
+    return raiz
+
+
 # --------------------------------------------------------------------------
 # Inventário
 # --------------------------------------------------------------------------
@@ -43,13 +66,19 @@ def acervo_amostra(tmp_path: Path) -> Path:
 def test_inventariar_acervo_produz_uma_entrada_por_pdf(acervo_amostra: Path):
     inventario = publicar.inventariar_acervo(acervo_amostra)
 
+    # Layout B (um diretório por manual, sem Program/Program_Operational):
+    # `descobrir_manuais` fixa origem="MANUTENCAO" — é o valor compatível com
+    # o acervo de fonte única já publicado.
     assert set(inventario) == {
-        ("MANUAL_A", "DOC1.PDF"),
-        ("MANUAL_A", "DOC2.PDF"),
-        ("MANUAL_B", "DOC3.PDF"),
+        ("MANUTENCAO", "MANUAL_A", "DOC1.PDF"),
+        ("MANUTENCAO", "MANUAL_A", "DOC2.PDF"),
+        ("MANUTENCAO", "MANUAL_B", "DOC3.PDF"),
     }
     # Hash de verdade, não placeholder — dois conteúdos diferentes não podem colidir.
-    assert inventario[("MANUAL_A", "DOC1.PDF")] != inventario[("MANUAL_A", "DOC2.PDF")]
+    assert (
+        inventario[("MANUTENCAO", "MANUAL_A", "DOC1.PDF")]
+        != inventario[("MANUTENCAO", "MANUAL_A", "DOC2.PDF")]
+    )
 
 
 def test_inventariar_acervo_mesmo_conteudo_mesmo_hash(tmp_path: Path):
@@ -60,7 +89,31 @@ def test_inventariar_acervo_mesmo_conteudo_mesmo_hash(tmp_path: Path):
     (manual / "DOC2.PDF").write_bytes(b"%PDF-1.4 identico")
 
     inventario = publicar.inventariar_acervo(raiz)
-    assert inventario[("MANUAL_A", "DOC1.PDF")] == inventario[("MANUAL_A", "DOC2.PDF")]
+    assert (
+        inventario[("MANUTENCAO", "MANUAL_A", "DOC1.PDF")]
+        == inventario[("MANUTENCAO", "MANUAL_A", "DOC2.PDF")]
+    )
+
+
+def test_inventariar_disco_cru_nao_colide_entre_origens(disco_cru_amostra: Path):
+    """
+    `FIM_1741/010_FRONTMATTER/A.PDF` existe nos dois discos com o MESMO
+    `file_key` e hash diferente — é exatamente o cenário que fez a origem
+    entrar na chave (achado desta sessão: sem ela, um dos dois some do
+    inventário por colisão silenciosa de dict).
+    """
+    inventario = publicar.inventariar_acervo(disco_cru_amostra)
+
+    assert set(inventario) == {
+        ("MANUTENCAO", "FIM_1741", "010_FRONTMATTER/A.PDF"),
+        ("OPERACIONAL", "FIM_1741", "010_FRONTMATTER/A.PDF"),
+    }
+    assert (
+        inventario[("MANUTENCAO", "FIM_1741", "010_FRONTMATTER/A.PDF")]
+        != inventario[("OPERACIONAL", "FIM_1741", "010_FRONTMATTER/A.PDF")]
+    )
+    # Data-ALX/ é réplica de revisão intermediária — nunca vira "manual" à parte.
+    assert not any(manual == "Data-ALX" for _origem, manual, _fk in inventario)
 
 
 # --------------------------------------------------------------------------
@@ -70,28 +123,47 @@ def test_inventariar_acervo_mesmo_conteudo_mesmo_hash(tmp_path: Path):
 
 def test_diff_classifica_novo_alterado_removido_inalterado():
     antigo = {
-        ("M", "a.pdf"): "hash_a",
-        ("M", "b.pdf"): "hash_b",
-        ("M", "c.pdf"): "hash_c",
+        ("MANUTENCAO", "M", "a.pdf"): "hash_a",
+        ("MANUTENCAO", "M", "b.pdf"): "hash_b",
+        ("MANUTENCAO", "M", "c.pdf"): "hash_c",
     }
     novo = {
-        ("M", "a.pdf"): "hash_a",       # inalterado
-        ("M", "b.pdf"): "hash_b_novo",  # alterado
-        ("M", "d.pdf"): "hash_d",       # novo
+        ("MANUTENCAO", "M", "a.pdf"): "hash_a",       # inalterado
+        ("MANUTENCAO", "M", "b.pdf"): "hash_b_novo",  # alterado
+        ("MANUTENCAO", "M", "d.pdf"): "hash_d",       # novo
         # c.pdf sumiu -> removido
     }
 
     diff = publicar.calcular_diff(antigo, novo)
 
-    assert diff.novos == [("M", "d.pdf")]
-    assert diff.alterados == [("M", "b.pdf")]
-    assert diff.removidos == [("M", "c.pdf")]
+    assert diff.novos == [("MANUTENCAO", "M", "d.pdf")]
+    assert diff.alterados == [("MANUTENCAO", "M", "b.pdf")]
+    assert diff.removidos == [("MANUTENCAO", "M", "c.pdf")]
     assert diff.inalterados == 1
     assert diff.total_mudancas == 3
 
 
+def test_diff_mesmo_manual_e_arquivo_em_origens_diferentes_nao_colide():
+    """
+    Os dois discos podem ter o mesmo (manual, file_key) apontando para PDFs
+    diferentes — sem a origem na chave, um pareceria "alterado" quando na
+    verdade são dois documentos distintos que nunca se relacionam.
+    """
+    antigo = {("MANUTENCAO", "FIM_1741", "a.pdf"): "hash_manutencao"}
+    novo = {
+        ("MANUTENCAO", "FIM_1741", "a.pdf"): "hash_manutencao",  # inalterado
+        ("OPERACIONAL", "FIM_1741", "a.pdf"): "hash_operacional",  # novo, não "alterado"
+    }
+
+    diff = publicar.calcular_diff(antigo, novo)
+
+    assert diff.novos == [("OPERACIONAL", "FIM_1741", "a.pdf")]
+    assert diff.alterados == []
+    assert diff.inalterados == 1
+
+
 def test_diff_contra_acervo_vazio_e_tudo_novo():
-    novo = {("M", "a.pdf"): "h1", ("M", "b.pdf"): "h2"}
+    novo = {("MANUTENCAO", "M", "a.pdf"): "h1", ("MANUTENCAO", "M", "b.pdf"): "h2"}
     diff = publicar.calcular_diff({}, novo)
 
     assert set(diff.novos) == set(novo)
@@ -102,10 +174,10 @@ def test_diff_contra_acervo_vazio_e_tudo_novo():
 
 def test_diff_acervo_completo_removido_e_tudo_removido():
     """Simula uma edição sem sucessora (acervo esvaziado) — não deve quebrar."""
-    antigo = {("M", "a.pdf"): "h1"}
+    antigo = {("MANUTENCAO", "M", "a.pdf"): "h1"}
     diff = publicar.calcular_diff(antigo, {})
 
-    assert diff.removidos == [("M", "a.pdf")]
+    assert diff.removidos == [("MANUTENCAO", "M", "a.pdf")]
     assert diff.novos == []
 
 
@@ -116,9 +188,9 @@ def test_diff_acervo_completo_removido_e_tudo_removido():
 
 def test_relatorio_markdown_contem_contagens_e_secoes():
     diff = publicar.DiffAcervo(
-        novos=[("M", "novo.pdf")],
-        alterados=[("M", "alt.pdf")],
-        removidos=[("M", "rem.pdf")],
+        novos=[("MANUTENCAO", "M", "novo.pdf")],
+        alterados=[("MANUTENCAO", "M", "alt.pdf")],
+        removidos=[("MANUTENCAO", "M", "rem.pdf")],
         inalterados=42,
     )
     relatorio = publicar.gerar_relatorio_markdown(
@@ -131,11 +203,11 @@ def test_relatorio_markdown_contem_contagens_e_secoes():
     assert "Alterados: 1" in relatorio
     assert "Removidos: 1" in relatorio
     assert "Inalterados: 42" in relatorio
-    assert "M/novo.pdf" in relatorio
+    assert "[MANUTENCAO] M/novo.pdf" in relatorio
 
 
 def test_relatorio_primeira_publicacao_sem_edicao_anterior():
-    diff = publicar.DiffAcervo(novos=[("M", "a.pdf")])
+    diff = publicar.DiffAcervo(novos=[("MANUTENCAO", "M", "a.pdf")])
     relatorio = publicar.gerar_relatorio_markdown(
         diff, edicao_nova="2026", edicao_anterior=None
     )
@@ -143,7 +215,7 @@ def test_relatorio_primeira_publicacao_sem_edicao_anterior():
 
 
 def test_relatorio_trunca_listas_muito_longas():
-    diff = publicar.DiffAcervo(novos=[("M", f"{i}.pdf") for i in range(250)])
+    diff = publicar.DiffAcervo(novos=[("MANUTENCAO", "M", f"{i}.pdf") for i in range(250)])
     relatorio = publicar.gerar_relatorio_markdown(diff, edicao_nova="2027", edicao_anterior=None)
     assert "e mais 50" in relatorio
 

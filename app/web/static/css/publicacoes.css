@@ -377,6 +377,33 @@ arquivo não é carregado lá.
     color: #fff;
 }
 
+/* Filtro Manutenção/Operacional/Todos — os dois discos do acervo (docs/
+   backlog/modulo_publicacoes/12_refinamento_gestao_e_envio.md §6). Mesmo
+   padrão visual do toggle de modo de busca acima, mas em índigo — a cor já
+   associada ao módulo de publicações em /configuracoes. */
+.pub-acervo-filtro-origem {
+    display: flex;
+    gap: 0.3rem;
+    margin-bottom: 0.6rem;
+}
+
+.pub-acervo-filtro-origem button {
+    flex: 1;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    border-radius: var(--radius-md);
+    padding: 0.3rem 0.4rem;
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+
+.pub-acervo-filtro-origem button.is-ativo {
+    background: #6366f1;
+    border-color: #6366f1;
+    color: #fff;
+}
+
 .pub-acervo-busca-resultados {
     margin-top: 0.5rem;
     max-height: 320px;

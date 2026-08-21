@@ -68,8 +68,13 @@ from scripts.publicacoes import indexar as indexar_mod
 
 logger = logging.getLogger("publicacoes.publicar")
 
-ChaveDocumento = tuple[str, str]
-"""(manual_codigo, file_key) — a mesma chave natural de `uq_manuais_documentos_manual_file`."""
+ChaveDocumento = tuple[str, str, str]
+"""
+(origem, manual_codigo, file_key) — a origem entra porque os dois discos
+(Manutenção/Operacional) podem trazer o mesmo `manual_codigo`+`file_key`
+apontando para PDFs diferentes (11_achados_disco_completo.md §1); sem ela, o
+inventário perderia metade dos documentos por colisão de chave silenciosa.
+"""
 
 
 @dataclass
@@ -103,7 +108,7 @@ def inventariar_acervo(acervo_dir: Path) -> dict[ChaveDocumento, str]:
             file_key = pdf_path.relative_to(manual.raiz).as_posix()
             hash_arquivo = indexar_mod.hash_arquivo(pdf_path)
             if hash_arquivo is not None:
-                inventario[(manual.codigo, file_key)] = hash_arquivo
+                inventario[(manual.origem.value, manual.codigo, file_key)] = hash_arquivo
     return inventario
 
 
@@ -120,14 +125,16 @@ async def inventario_da_edicao_vigente(db) -> dict[ChaveDocumento, str]:
 
     linhas = (
         await db.execute(
-            select(Manual.codigo, ManualDocumento.file_key, ManualDocumento.hash_sha256)
+            select(
+                Manual.origem, Manual.codigo, ManualDocumento.file_key, ManualDocumento.hash_sha256
+            )
             .join(ManualDocumento, ManualDocumento.manual_id == Manual.id)
             .where(Manual.edicao_id == edicao.id)
         )
     ).all()
     return {
-        (codigo, file_key): (hash_sha256 or "")
-        for codigo, file_key, hash_sha256 in linhas
+        (origem.value, codigo, file_key): (hash_sha256 or "")
+        for origem, codigo, file_key, hash_sha256 in linhas
     }
 
 
@@ -173,8 +180,8 @@ def gerar_relatorio_markdown(
         if not chaves:
             return [f"## {titulo}", "", "(nenhum)", ""]
         bloco = [f"## {titulo} ({len(chaves)})", ""]
-        for manual, file_key in chaves[:limite]:
-            bloco.append(f"- `{manual}/{file_key}`")
+        for origem, manual, file_key in chaves[:limite]:
+            bloco.append(f"- `[{origem}] {manual}/{file_key}`")
         if len(chaves) > limite:
             bloco.append(f"- … e mais {len(chaves) - limite}")
         bloco.append("")

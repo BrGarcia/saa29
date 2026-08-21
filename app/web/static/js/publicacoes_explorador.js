@@ -29,6 +29,15 @@
  * `?q=` na URL é um contrato com quem já linkava para a busca desta página
  * (o checklist de inspeção, `inspecao_detalhe.js`) — dispara a busca "no
  * conteúdo" automaticamente ao abrir, mesmo efeito que a tela antiga tinha.
+ *
+ * Origem (Manutenção/Operacional): filtro, não nível novo da árvore — a
+ * hierarquia continua Categoria → Manual → Capítulo. O mesmo `codigo` de
+ * manual pode existir nas duas origens dentro da mesma edição vigente (os
+ * dois discos do acervo, ver
+ * docs/backlog/modulo_publicacoes/12_refinamento_gestao_e_envio.md §6 —
+ * esta rodada não mescla revisão, só lista as duas lado a lado). Por isso
+ * `codigo` sozinho NUNCA é chave de manual aqui — sempre `chaveManual(codigo,
+ * origem)`, inclusive nos `Map`/`Set` de estado e no contrato de URL.
  */
 (function () {
     "use strict";
@@ -38,7 +47,13 @@
 
     const CHAVE_VIEW = "pubAcervoViewMode";
     const CHAVE_ORDEM = "pubAcervoOrdemNome";
+    const CHAVE_FILTRO_ORIGEM = "pubAcervoFiltroOrigem";
     const LIMITE_DOCUMENTOS = 60;
+
+    /** Chave composta de manual — `codigo` sozinho colide entre origens. */
+    function chaveManual(codigo, origem) {
+        return `${origem}::${codigo}`;
+    }
 
     const ICONE_CHEVRON =
         '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
@@ -78,21 +93,34 @@
         fimInput: document.getElementById("pub-acervo-fim-input"),
         fimBtn: document.getElementById("pub-acervo-fim-btn"),
         fimResultados: document.getElementById("pub-acervo-fim-resultados"),
+        filtroOrigemBtns: document.querySelectorAll(".pub-acervo-filtro-origem button"),
     };
 
     const estado = {
+        manuaisTodos: [],
+        /** Lista completa (as duas origens), vinda de uma só chamada a `/api/manuais`. */
         categoriaOrdem: [],
         manuaisPorCategoria: new Map(),
+        /** Reconstruídos por `reconstruirAgrupamento()` a cada troca do filtro de origem. */
         manuaisPorCodigo: new Map(),
+        /** Chave composta (`chaveManual`) — nunca `codigo` sozinho. */
         capitulosPorManual: new Map(),
+        /** Idem — chave composta. */
         categoriasAbertas: new Set(),
         manuaisAbertos: new Set(),
-        atual: { categoria: null, manual: null, capitulo: null, offset: 0 },
+        /** Idem — chave composta. */
+        atual: { categoria: null, manual: null, origem: null, capitulo: null, offset: 0 },
         viewMode: localStorage.getItem(CHAVE_VIEW) === "icones" ? "icones" : "lista",
         ordemNome: localStorage.getItem(CHAVE_ORDEM) === "1",
+        filtroOrigem: localStorage.getItem(CHAVE_FILTRO_ORIGEM) || "TODOS",
         modoBusca: "nome",
         buscaSeq: 0,
     };
+
+    /** Rótulo curto de origem, para badges/breadcrumb quando o filtro é "Todos". */
+    function rotuloOrigem(origem) {
+        return origem === "OPERACIONAL" ? "Operacional" : "Manutenção";
+    }
 
     // --------------------------------------------------------------------
     // Carga de dados
@@ -101,29 +129,64 @@
     async function carregarManuais() {
         try {
             const manuais = await apiFetch("/publicacoes/api/manuais");
-            manuais.forEach((m) => {
-                estado.manuaisPorCodigo.set(m.codigo, m);
-                if (!estado.manuaisPorCategoria.has(m.categoria)) {
-                    estado.manuaisPorCategoria.set(m.categoria, []);
-                    estado.categoriaOrdem.push(m.categoria);
-                }
-                estado.manuaisPorCategoria.get(m.categoria).push(m);
-            });
+            estado.manuaisTodos = manuais;
+            manuais.forEach((m) => estado.manuaisPorCodigo.set(chaveManual(m.codigo, m.origem), m));
+            reconstruirAgrupamento();
         } catch (e) {
             // apiFetch já notificou — a árvore fica vazia, com o estado tratado no render.
         }
     }
 
-    async function carregarCapitulos(codigoManual) {
-        if (Array.isArray(estado.capitulosPorManual.get(codigoManual))) return;
-        estado.capitulosPorManual.set(codigoManual, "carregando");
+    /**
+     * Reconstrói `categoriaOrdem`/`manuaisPorCategoria` a partir de
+     * `manuaisTodos`, aplicando `estado.filtroOrigem` — sem nova requisição
+     * (o filtro é 100% cliente, igual ao agrupamento por categoria já era).
+     */
+    function reconstruirAgrupamento() {
+        estado.categoriaOrdem = [];
+        estado.manuaisPorCategoria = new Map();
+        const visiveis =
+            estado.filtroOrigem === "TODOS"
+                ? estado.manuaisTodos
+                : estado.manuaisTodos.filter((m) => m.origem === estado.filtroOrigem);
+        visiveis.forEach((m) => {
+            if (!estado.manuaisPorCategoria.has(m.categoria)) {
+                estado.manuaisPorCategoria.set(m.categoria, []);
+                estado.categoriaOrdem.push(m.categoria);
+            }
+            estado.manuaisPorCategoria.get(m.categoria).push(m);
+        });
+    }
+
+    /**
+     * Resolve um manual por código, desambiguando por origem quando dada.
+     * Sem origem (link antigo, mobile): MANUTENCAO vence — mesmo critério de
+     * `service._manual_da_edicao_vigente` no backend.
+     */
+    function buscarManual(codigo, origem) {
+        if (!codigo) return null;
+        if (origem) return estado.manuaisPorCodigo.get(chaveManual(codigo, origem)) || null;
+        return (
+            estado.manuaisPorCodigo.get(chaveManual(codigo, "MANUTENCAO")) ||
+            estado.manuaisTodos.find((m) => m.codigo === codigo) ||
+            null
+        );
+    }
+
+    async function carregarCapitulos(codigoManual, origem) {
+        const chave = chaveManual(codigoManual, origem);
+        if (Array.isArray(estado.capitulosPorManual.get(chave))) return;
+        estado.capitulosPorManual.set(chave, "carregando");
         try {
+            const params = new URLSearchParams();
+            if (origem) params.set("origem", origem);
+            const qs = params.toString();
             const resp = await apiFetch(
-                `/publicacoes/api/manuais/${encodeURIComponent(codigoManual)}/capitulos`
+                `/publicacoes/api/manuais/${encodeURIComponent(codigoManual)}/capitulos${qs ? `?${qs}` : ""}`
             );
-            estado.capitulosPorManual.set(codigoManual, resp.capitulos);
+            estado.capitulosPorManual.set(chave, resp.capitulos);
         } catch (e) {
-            estado.capitulosPorManual.set(codigoManual, []);
+            estado.capitulosPorManual.set(chave, []);
         }
     }
 
@@ -140,14 +203,21 @@
         const out = {
             categoria: alvo.categoria || null,
             manual: alvo.manual || null,
+            origem: alvo.origem || null,
             capitulo: alvo.capitulo === undefined ? null : alvo.capitulo,
             offset: alvo.offset || 0,
         };
-        if (out.manual && !out.categoria) {
-            const m = estado.manuaisPorCodigo.get(out.manual);
-            if (m) out.categoria = m.categoria;
+        if (out.manual) {
+            const m = buscarManual(out.manual, out.origem);
+            if (m) {
+                out.origem = m.origem;
+                if (!out.categoria) out.categoria = m.categoria;
+            }
         }
-        if (!out.manual) out.capitulo = null;
+        if (!out.manual) {
+            out.capitulo = null;
+            out.origem = null;
+        }
         return out;
     }
 
@@ -155,6 +225,7 @@
         const params = new URLSearchParams();
         if (alvo.categoria) params.set("categoria", alvo.categoria);
         if (alvo.manual) params.set("manual", alvo.manual);
+        if (alvo.manual && alvo.origem) params.set("origem", alvo.origem);
         if (alvo.capitulo !== null) params.set("capitulo", alvo.capitulo);
         if (alvo.offset) params.set("offset", String(alvo.offset));
         const texto = params.toString();
@@ -166,6 +237,7 @@
         return {
             categoria: params.get("categoria"),
             manual: params.get("manual"),
+            origem: params.get("origem"),
             capitulo: params.has("capitulo") ? params.get("capitulo") : null,
             offset: parseInt(params.get("offset") || "0", 10) || 0,
         };
@@ -176,8 +248,8 @@
         estado.atual = alvo;
         if (alvo.categoria) estado.categoriasAbertas.add(alvo.categoria);
         if (alvo.manual) {
-            estado.manuaisAbertos.add(alvo.manual);
-            await carregarCapitulos(alvo.manual);
+            estado.manuaisAbertos.add(chaveManual(alvo.manual, alvo.origem));
+            await carregarCapitulos(alvo.manual, alvo.origem);
         }
         if (historico) {
             history.pushState(null, "", `${window.location.pathname}${estadoParaQueryString(alvo)}`);
@@ -269,28 +341,38 @@
             filhosCategoria.className = "pub-acervo-filhos" + (abertaCategoria ? " is-aberto" : "");
 
             manuais.forEach((manual) => {
-                const abertoManual = estado.manuaisAbertos.has(manual.codigo);
+                const chaveM = chaveManual(manual.codigo, manual.origem);
+                const abertoManual = estado.manuaisAbertos.has(chaveM);
+                // Badge de origem só quando "Todos" — com um filtro ativo, todo
+                // mundo na árvore já é da mesma origem, o rótulo seria ruído.
+                const rotuloManual =
+                    estado.filtroOrigem === "TODOS"
+                        ? `${manual.descricao} · ${rotuloOrigem(manual.origem)}`
+                        : manual.descricao;
                 filhosCategoria.appendChild(
                     criarNoArvore({
                         nivel: 1,
                         temFilhos: true,
                         aberto: abertoManual,
-                        selecionado: estado.atual.manual === manual.codigo && estado.atual.capitulo === null,
+                        selecionado:
+                            estado.atual.manual === manual.codigo &&
+                            estado.atual.origem === manual.origem &&
+                            estado.atual.capitulo === null,
                         icone: abertoManual ? ICONE_PASTA_ABERTA : ICONE_PASTA,
-                        rotulo: manual.descricao,
+                        rotulo: rotuloManual,
                         contagem: manual.documentos,
                         onClickLinha: () => {
-                            estado.manuaisAbertos.add(manual.codigo);
-                            irPara({ manual: manual.codigo, capitulo: null, offset: 0 });
+                            estado.manuaisAbertos.add(chaveM);
+                            irPara({ manual: manual.codigo, origem: manual.origem, capitulo: null, offset: 0 });
                         },
                         onClickChevron: () => {
-                            if (estado.manuaisAbertos.has(manual.codigo)) {
-                                estado.manuaisAbertos.delete(manual.codigo);
+                            if (estado.manuaisAbertos.has(chaveM)) {
+                                estado.manuaisAbertos.delete(chaveM);
                                 renderArvore();
                             } else {
-                                estado.manuaisAbertos.add(manual.codigo);
+                                estado.manuaisAbertos.add(chaveM);
                                 renderArvore();
-                                carregarCapitulos(manual.codigo).then(renderArvore);
+                                carregarCapitulos(manual.codigo, manual.origem).then(renderArvore);
                             }
                         },
                     })
@@ -299,7 +381,7 @@
                 const filhosManual = document.createElement("div");
                 filhosManual.className = "pub-acervo-filhos" + (abertoManual ? " is-aberto" : "");
                 if (abertoManual) {
-                    const capitulos = estado.capitulosPorManual.get(manual.codigo);
+                    const capitulos = estado.capitulosPorManual.get(chaveM);
                     if (!Array.isArray(capitulos)) {
                         const carregando = document.createElement("div");
                         carregando.className = "pub-acervo-node-carregando";
@@ -316,12 +398,18 @@
                                     aberto: false,
                                     selecionado:
                                         estado.atual.manual === manual.codigo &&
+                                        estado.atual.origem === manual.origem &&
                                         estado.atual.capitulo === cap.capitulo,
                                     icone: ICONE_PASTA,
                                     rotulo: cap.ata_codigo ? `ATA ${cap.ata_codigo} — ${rotuloCap}` : rotuloCap,
                                     contagem: cap.documentos,
                                     onClickLinha: () =>
-                                        irPara({ manual: manual.codigo, capitulo: cap.capitulo, offset: 0 }),
+                                        irPara({
+                                            manual: manual.codigo,
+                                            origem: manual.origem,
+                                            capitulo: cap.capitulo,
+                                            offset: 0,
+                                        }),
                                     onClickChevron: () => {},
                                 })
                             );
@@ -341,22 +429,31 @@
 
     function renderBreadcrumb() {
         els.breadcrumb.innerHTML = "";
-        const { categoria, manual, capitulo } = estado.atual;
+        const { categoria, manual, origem, capitulo } = estado.atual;
 
         const segmentos = [
-            { rotulo: "Acervo", onClick: () => irPara({ categoria: null, manual: null, capitulo: null, offset: 0 }) },
+            {
+                rotulo: "Acervo",
+                onClick: () => irPara({ categoria: null, manual: null, origem: null, capitulo: null, offset: 0 }),
+            },
         ];
         if (categoria) {
             segmentos.push({
                 rotulo: categoria,
-                onClick: () => irPara({ categoria, manual: null, capitulo: null, offset: 0 }),
+                onClick: () => irPara({ categoria, manual: null, origem: null, capitulo: null, offset: 0 }),
             });
         }
         if (manual) {
-            const m = estado.manuaisPorCodigo.get(manual);
+            const m = buscarManual(manual, origem);
+            const rotuloManual =
+                m && estado.filtroOrigem === "TODOS"
+                    ? `${m.descricao} (${rotuloOrigem(origem)})`
+                    : m
+                      ? m.descricao
+                      : manual;
             segmentos.push({
-                rotulo: m ? m.descricao : manual,
-                onClick: () => irPara({ categoria, manual, capitulo: null, offset: 0 }),
+                rotulo: rotuloManual,
+                onClick: () => irPara({ categoria, manual, origem, capitulo: null, offset: 0 }),
             });
         }
         if (capitulo !== null) {
@@ -421,10 +518,11 @@
         els.painel.appendChild(container);
     }
 
-    async function renderDocumentos(codigoManual, capitulo, offset) {
+    async function renderDocumentos(codigoManual, origem, capitulo, offset) {
         els.painel.innerHTML = '<div class="pub-acervo-estado-vazio">Carregando documentos…</div>';
         const params = new URLSearchParams({ limit: String(LIMITE_DOCUMENTOS), offset: String(offset) });
         params.set("capitulo", capitulo); // "" (raiz do manual) é valor válido de query string
+        if (origem) params.set("origem", origem);
 
         let resposta;
         try {
@@ -478,7 +576,7 @@
         btnAnt.textContent = "← Anterior";
         btnAnt.disabled = offset <= 0;
         btnAnt.addEventListener("click", () =>
-            irPara({ manual: codigoManual, capitulo, offset: Math.max(0, offset - LIMITE_DOCUMENTOS) })
+            irPara({ manual: codigoManual, origem, capitulo, offset: Math.max(0, offset - LIMITE_DOCUMENTOS) })
         );
         const spanInfo = document.createElement("span");
         spanInfo.textContent = `${de}–${ate} de ${resposta.total}`;
@@ -488,7 +586,7 @@
         btnProx.textContent = "Próxima →";
         btnProx.disabled = offset + LIMITE_DOCUMENTOS >= resposta.total;
         btnProx.addEventListener("click", () =>
-            irPara({ manual: codigoManual, capitulo, offset: offset + LIMITE_DOCUMENTOS })
+            irPara({ manual: codigoManual, origem, capitulo, offset: offset + LIMITE_DOCUMENTOS })
         );
         paginacao.append(btnAnt, spanInfo, btnProx);
         els.painel.appendChild(paginacao);
@@ -499,14 +597,14 @@
     }
 
     async function renderPainel() {
-        const { categoria, manual, capitulo, offset } = estado.atual;
+        const { categoria, manual, origem, capitulo, offset } = estado.atual;
 
         if (!categoria) {
             renderCards(
                 estado.categoriaOrdem.map((c) => ({
                     rotulo: c,
                     meta: `${(estado.manuaisPorCategoria.get(c) || []).length} manual(is)`,
-                    onClick: () => irPara({ categoria: c, manual: null, capitulo: null, offset: 0 }),
+                    onClick: () => irPara({ categoria: c, manual: null, origem: null, capitulo: null, offset: 0 }),
                 })),
                 ICONE_PASTA
             );
@@ -517,9 +615,12 @@
             const manuais = ordenarSeNecessario(estado.manuaisPorCategoria.get(categoria) || [], (m) => m.descricao);
             renderCards(
                 manuais.map((m) => ({
-                    rotulo: m.descricao,
+                    rotulo:
+                        estado.filtroOrigem === "TODOS"
+                            ? `${m.descricao} · ${rotuloOrigem(m.origem)}`
+                            : m.descricao,
                     meta: `${m.codigo} · ${m.documentos} doc(s)`,
-                    onClick: () => irPara({ manual: m.codigo, capitulo: null, offset: 0 }),
+                    onClick: () => irPara({ manual: m.codigo, origem: m.origem, capitulo: null, offset: 0 }),
                 })),
                 ICONE_PASTA
             );
@@ -527,7 +628,7 @@
         }
 
         if (capitulo === null) {
-            const capitulos = estado.capitulosPorManual.get(manual);
+            const capitulos = estado.capitulosPorManual.get(chaveManual(manual, origem));
             if (!Array.isArray(capitulos)) {
                 els.painel.innerHTML = '<div class="pub-acervo-estado-vazio">Carregando capítulos…</div>';
                 return;
@@ -537,14 +638,14 @@
                 ordenados.map((c) => ({
                     rotulo: c.capitulo || "(raiz do manual)",
                     meta: c.ata_codigo ? `ATA ${c.ata_codigo} · ${c.documentos} doc(s)` : `${c.documentos} doc(s)`,
-                    onClick: () => irPara({ manual, capitulo: c.capitulo, offset: 0 }),
+                    onClick: () => irPara({ manual, origem, capitulo: c.capitulo, offset: 0 }),
                 })),
                 ICONE_PASTA
             );
             return;
         }
 
-        await renderDocumentos(manual, capitulo, offset);
+        await renderDocumentos(manual, origem, capitulo, offset);
     }
 
     // --------------------------------------------------------------------
@@ -553,7 +654,23 @@
 
     els.btnVoltar.addEventListener("click", () => history.back());
     els.btnAvancar.addEventListener("click", () => history.forward());
-    els.btnRaiz.addEventListener("click", () => irPara({ categoria: null, manual: null, capitulo: null, offset: 0 }));
+    els.btnRaiz.addEventListener("click", () =>
+        irPara({ categoria: null, manual: null, origem: null, capitulo: null, offset: 0 })
+    );
+
+    function aplicarFiltroOrigem(valor) {
+        estado.filtroOrigem = valor;
+        localStorage.setItem(CHAVE_FILTRO_ORIGEM, valor);
+        els.filtroOrigemBtns.forEach((b) => b.classList.toggle("is-ativo", b.dataset.origem === valor));
+        reconstruirAgrupamento();
+        renderArvore();
+        renderBreadcrumb();
+        renderPainel();
+    }
+    els.filtroOrigemBtns.forEach((b) => {
+        b.classList.toggle("is-ativo", b.dataset.origem === estado.filtroOrigem);
+        b.addEventListener("click", () => aplicarFiltroOrigem(b.dataset.origem));
+    });
 
     function aplicarViewMode(modo) {
         estado.viewMode = modo;

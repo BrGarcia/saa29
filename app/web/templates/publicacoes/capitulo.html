@@ -5,7 +5,7 @@
 {% block content %}
 <div style="margin-bottom: 0.75rem; color: var(--text-secondary); font-size: 0.9rem;">
     <a href="/publicacoes" style="text-decoration: none;">Publicações</a> ›
-    <a href="/publicacoes/manuais/{{ manual.codigo | urlencode }}" style="text-decoration: none;">{{ manual.descricao }}</a> ›
+    <a href="/publicacoes/manuais/{{ manual.codigo | urlencode }}?origem={{ manual.origem | urlencode }}" style="text-decoration: none;">{{ manual.descricao }}</a> ›
     {{ capitulo if capitulo else "(raiz do manual)" }}
 </div>
 
@@ -46,7 +46,7 @@
 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem;">
     {% if offset > 0 %}
     <a class="btn btn-outline" style="text-decoration: none;"
-       href="?offset={{ [offset - limit, 0]|max }}&limit={{ limit }}">← Anterior</a>
+       href="?offset={{ [offset - limit, 0]|max }}&limit={{ limit }}&origem={{ manual.origem | urlencode }}">← Anterior</a>
     {% else %}
     <span></span>
     {% endif %}
@@ -57,7 +57,7 @@
 
     {% if offset + limit < total %}
     <a class="btn btn-outline" style="text-decoration: none;"
-       href="?offset={{ offset + limit }}&limit={{ limit }}">Próxima →</a>
+       href="?offset={{ offset + limit }}&limit={{ limit }}&origem={{ manual.origem | urlencode }}">Próxima →</a>
     {% else %}
     <span></span>
     {% endif %}

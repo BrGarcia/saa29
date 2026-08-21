@@ -307,9 +307,16 @@ async def obter_documento_viewer(
     response_model=list[schemas.ManualListItem],
     summary="Manuais da edição vigente, para o índice do acervo",
 )
-async def listar_manuais(db: DBSession, _: CurrentUser) -> list[schemas.ManualListItem]:
-    """Sem paginação — 34 manuais cabem numa resposta só; o agrupamento por categoria é do cliente."""
-    linhas = await service.listar_manuais_vigentes(db)
+async def listar_manuais(
+    db: DBSession,
+    _: CurrentUser,
+    origem: str | None = Query(
+        default=None,
+        description="MANUTENCAO ou OPERACIONAL — filtra por origem do disco. Omitido: os dois.",
+    ),
+) -> list[schemas.ManualListItem]:
+    """Sem paginação — os manuais de uma origem cabem numa resposta só; o agrupamento por categoria é do cliente."""
+    linhas = await service.listar_manuais_vigentes(db, origem=origem)
     return [schemas.ManualListItem(**linha) for linha in linhas]  # type: ignore[arg-type]
 
 
@@ -319,9 +326,15 @@ async def listar_manuais(db: DBSession, _: CurrentUser) -> list[schemas.ManualLi
     summary="Capítulos de um manual da edição vigente",
 )
 async def listar_capitulos_do_manual(
-    codigo: str, db: DBSession, _: CurrentUser
+    codigo: str,
+    db: DBSession,
+    _: CurrentUser,
+    origem: str | None = Query(
+        default=None,
+        description="Desambigua quando o mesmo código existe nos dois discos.",
+    ),
 ) -> schemas.RespostaCapitulos:
-    dados = await service.obter_manual_com_capitulos(db, codigo)
+    dados = await service.obter_manual_com_capitulos(db, codigo, origem=origem)
     return schemas.RespostaCapitulos(
         manual=schemas.ManualResumo(**dados["manual"]),  # type: ignore[arg-type]
         capitulos=[schemas.CapituloItem(**c) for c in dados["capitulos"]],  # type: ignore[arg-type]
@@ -337,6 +350,10 @@ async def listar_documentos_do_manual(
     codigo: str,
     db: DBSession,
     _: CurrentUser,
+    origem: str | None = Query(
+        default=None,
+        description="Desambigua quando o mesmo código existe nos dois discos.",
+    ),
     capitulo: str | None = Query(default=None, max_length=80),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
@@ -346,7 +363,7 @@ async def listar_documentos_do_manual(
     quer a página do trecho vem pela busca, que já monta a âncora.
     """
     total, documentos = await service.listar_documentos_do_manual(
-        db, codigo, capitulo=capitulo, limit=limit, offset=offset
+        db, codigo, origem=origem, capitulo=capitulo, limit=limit, offset=offset
     )
     return schemas.RespostaDocumentosCatalogo(
         total=total,

@@ -191,6 +191,10 @@ class ManualListItem(BaseModel):
     """Uma linha de `GET /api/manuais` — o índice da home, agrupado por categoria no cliente."""
 
     codigo: str
+    origem: str
+    """MANUTENCAO ou OPERACIONAL — qual disco trouxe o manual. O mesmo `codigo`
+    pode aparecer duas vezes (uma por origem); é o filtro do explorador que
+    desambigua, não a listagem em si."""
     descricao: str
     categoria: str
     capitulos: int
@@ -202,6 +206,7 @@ class ManualResumo(BaseModel):
     """Cabeçalho do manual dentro de `RespostaCapitulos` — não é `ManualRef` (schema da busca)."""
 
     codigo: str
+    origem: str
     descricao: str
     categoria: str
 

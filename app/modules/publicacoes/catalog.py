@@ -274,10 +274,10 @@ def titulo_de_arquivo(nome_pdf: str) -> str:
 
 
 def documento_id_deterministico(
-    edicao_rotulo: str, manual_codigo: str, file_key: str
+    edicao_rotulo: str, origem: str, manual_codigo: str, file_key: str
 ) -> uuid.UUID:
     """
-    UUID v5 de um documento, derivado de (edição, manual, caminho relativo).
+    UUID v5 de um documento, derivado de (edição, origem, manual, caminho relativo).
 
     Estável entre reindexações DA MESMA edição — é o que faz um link
     compartilhado continuar abrindo o mesmo documento (CA-07) — e distinto
@@ -287,9 +287,16 @@ def documento_id_deterministico(
     duas edições online ao mesmo tempo, e o mesmo arquivo existe nas duas. Sem
     o rótulo no input, as duas gerariam o mesmo UUID e a primeira publicação
     anual morreria com violação de PK.
+
+    A origem também faz parte do input, e não é opcional: os dois discos
+    (`docs/backlog/modulo_publicacoes/11_achados_disco_completo.md` §1) têm
+    estrutura de capítulo parecida — é comum o mesmo `manual_codigo` ter um
+    `file_key` idêntico (ex.: `010_FRONTMATTER/010-FIM1741-FRONTPAGE.PDF`) nos
+    dois lados, apontando para PDFs *diferentes*. Sem a origem no input, os
+    dois gerariam o mesmo UUID e `manuais_documentos` colidiria na PK.
     """
     return uuid.uuid5(
-        _NAMESPACE_PUBLICACOES, f"{edicao_rotulo}/{manual_codigo}/{file_key}"
+        _NAMESPACE_PUBLICACOES, f"{edicao_rotulo}/{origem}/{manual_codigo}/{file_key}"
     )
 
 
@@ -447,3 +454,103 @@ def categoria_de_manual(
         categoria=entrada.categoria,
         descricao_pt=entrada.descricao_pt.replace("{codigo}", codigo),
     )
+
+
+# --------------------------------------------------------------------------
+# Metadados do disco cru (manual_details.xml / manual_type.xml)
+#
+# Cobrem os manuais que config/categorias_manuais.toml não cura à mão —
+# ver docs/backlog/modulo_publicacoes/11_achados_disco_completo.md §3.1/§3.2.
+# `carregar_categorias` (TOML) continua a fonte primária quando o manual está
+# curado lá; estes dois arquivos só preenchem a lacuna.
+# --------------------------------------------------------------------------
+
+# Nomes das categorias por `catid` de manual_type.xml — inferidos de
+# collections.ini e do contexto (11_achados_disco_completo.md §3.2). Não há
+# catid 6 no XML; catid desconhecido cai em "Outros" como qualquer outro
+# manual não mapeado.
+_CATID_CATEGORIA = {
+    "1": "Manutenção",
+    "2": "Elétrica",
+    "3": "Catálogos e Reparos",
+    "4": "Boletins de Serviço",
+    "5": "Registros e Inventário",
+    "7": "Operacional / Voo",
+}
+
+
+def _texto_xml(elemento, caminho: str) -> str | None:
+    """`elemento.findtext`, tolerante a tag ausente — devolve None, não ''."""
+    achado = elemento.find(caminho)
+    if achado is None or achado.text is None:
+        return None
+    texto = achado.text.strip()
+    return texto or None
+
+
+def carregar_categorias_disco(data_dir: Path) -> dict[str, CategoriaManual]:
+    """
+    Lê `manual_details.xml` (nome PT-BR) e `manual_type.xml` (categoria via
+    `catid`) de `data_dir` (ex.: `.../Program/Data/`) e devolve um mapa no
+    mesmo formato de `carregar_categorias`, para servir de segunda fonte
+    (TOML tem prioridade — ver `indexar.categorias_mescladas`).
+
+    Cada manual entra sob DUAS chaves candidatas, porque o disco não é
+    consistente sobre incluir o `partnumber` no nome do diretório: manuais
+    como `FIM_1741` juntam `type_partnumber`, mas `CMM_EMBRAERALX` usa só o
+    `type` (partnumber "0000" não aparece na pasta). Sem árbitro confiável
+    entre os dois formatos, gravar as duas chaves é mais barato que adivinhar
+    errado e deixar o manual sem descrição.
+
+    Arquivo ausente ou malformado: devolve `{}` (silencioso, como o resto do
+    módulo trata metadado opcional — nunca deve derrubar a indexação).
+
+    `xml.etree` em vez de `defusedxml` (não é dependência do projeto): estes
+    XMLs vêm do disco que o operador copia manualmente para o servidor via
+    `indexar.py`/`publicar.py`, offline — mesma confiança de
+    `categorias_manuais.toml` (`tomllib`, sem hardening equivalente) e do
+    parser binário Lucene deste mesmo arquivo. Nunca chega aqui a partir de
+    upload web nem de qualquer requisição HTTP.
+    """
+    import xml.etree.ElementTree as ET
+
+    caminho_details = data_dir / "manual_details.xml"
+    caminho_type = data_dir / "manual_type.xml"
+    if not caminho_details.is_file():
+        return {}
+
+    catid_por_type: dict[str, str] = {}
+    if caminho_type.is_file():
+        try:
+            raiz_type = ET.parse(caminho_type).getroot()  # noqa: S314 — ver docstring
+        except ET.ParseError:
+            logger.warning("manual_type.xml malformado em %s — ignorado.", caminho_type)
+        else:
+            for elemento in raiz_type.findall(".//type"):
+                typeid = elemento.get("typeid")
+                catid = elemento.get("catid")
+                if typeid and catid:
+                    catid_por_type[typeid] = catid
+
+    try:
+        raiz_details = ET.parse(caminho_details).getroot()  # noqa: S314 — ver docstring
+    except ET.ParseError:
+        logger.warning("manual_details.xml malformado em %s — ignorado.", caminho_details)
+        return {}
+
+    mapa: dict[str, CategoriaManual] = {}
+    for elemento in raiz_details.findall(".//manual"):
+        tipo = elemento.get("type")
+        partnumber = elemento.get("partnumber")
+        descricao = _texto_xml(elemento, "custom-description")
+        if not tipo or not descricao:
+            continue
+
+        categoria = _CATID_CATEGORIA.get(catid_por_type.get(tipo, ""), "Outros")
+        entrada = CategoriaManual(categoria=categoria, descricao_pt=descricao)
+
+        mapa[tipo] = entrada
+        if partnumber:
+            mapa[f"{tipo}_{partnumber}"] = entrada
+
+    return mapa

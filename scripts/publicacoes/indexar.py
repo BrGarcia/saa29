@@ -8,12 +8,16 @@ Indexação OFFLINE do acervo de manuais.
 
 O que faz, nesta ordem:
 
-1. descobre os manuais dentro de `--entrada` (um diretório por manual, ou o
-   próprio diretório quando os PDFs estão soltos — é o caso de uma amostra
-   como `tests/fixtures/fim/`, com `--manual` informado);
+1. descobre os manuais dentro de `--entrada`, em um de três layouts —
+   `Program/Data/`+`Program_Operational/Data/` do disco cru do TechData (cada
+   um vira uma origem, MANUTENCAO/OPERACIONAL —
+   docs/backlog/modulo_publicacoes/11_achados_disco_completo.md §1), um
+   diretório por manual (acervo já normalizado), ou PDFs soltos na raiz
+   (amostra como `tests/fixtures/fim/`, com `--manual` informado);
 2. enriquece os metadados com o índice Lucene legado do manual correspondente
    no acervo, quando ele existir (opcional — sem ele o título vem do nome do
-   arquivo, RN-02 nível 3);
+   arquivo, RN-02 nível 3), e com `manual_details.xml`/`manual_type.xml` do
+   próprio disco para os manuais fora de `config/categorias_manuais.toml`;
 3. extrai o texto **página a página** com `pypdfium2` e monta o `catalog.db`
    (`documents` + `pages` + `pages_fts`), com `rebuild` + `optimize` ao final;
 4. grava o catálogo leve no banco principal via `publicacoes.service`;
@@ -74,7 +78,7 @@ import app.modules.panes.models         # noqa: F401
 import app.modules.vencimentos.models   # noqa: F401
 from app.modules.publicacoes import catalog, service
 from app.modules.publicacoes.models import Manual
-from app.shared.core.enums import RevisionStatus
+from app.shared.core.enums import OrigemManual, RevisionStatus
 
 logger = logging.getLogger("publicacoes.indexar")
 
@@ -95,7 +99,8 @@ CREATE TABLE documents (
     capitulo      TEXT NOT NULL,
     titulo        TEXT NOT NULL,
     categoria     TEXT NOT NULL,
-    ata_codigo    TEXT
+    ata_codigo    TEXT,
+    origem        TEXT NOT NULL DEFAULT 'MANUTENCAO'
 );
 CREATE INDEX ix_documents_manual   ON documents(manual_codigo);
 CREATE INDEX ix_documents_capitulo ON documents(capitulo);
@@ -126,11 +131,30 @@ class ManualEncontrado:
     raiz: Path
     """Diretório a partir do qual os `file_key` são relativos."""
     pdfs: list[Path]
+    origem: OrigemManual = OrigemManual.MANUTENCAO
+    """Qual disco trouxe o manual — só é != MANUTENCAO no layout C (disco cru)."""
 
 
 # --------------------------------------------------------------------------
 # Descoberta
 # --------------------------------------------------------------------------
+
+# Layout C (disco cru do TechData): `<pasta>/Data/` é a raiz de uma origem —
+# docs/backlog/modulo_publicacoes/11_achados_disco_completo.md §1. Checado
+# antes do layout B: sem isso, o loop genérico trataria `Program/` (ou
+# `Program_Operational/`) como "um manual só" — `_listar_pdfs` é recursivo e
+# engoliria todos os PDFs de todos os manuais, achatando tudo num único
+# código (foi exatamente o bug que motivou este layout, ver captura de tela
+# "Acervo › Outros › Data" no histórico do card de publicações).
+_ORIGEM_POR_PASTA_DISCO: dict[str, OrigemManual] = {
+    "Program": OrigemManual.MANUTENCAO,
+    "Program_Operational": OrigemManual.OPERACIONAL,
+}
+
+# Réplica de revisão intermediária que acompanha o disco de manutenção — só
+# o `index_2.0/` dela importa (já lido via `localizar_index_lucene`), os
+# PDFs "de verdade" estão na raiz de `Program/Data/` (doc 11 §2.2).
+_DIRETORIOS_MANUAL_EXCLUIDOS = {"Data-ALX"}
 
 
 def _listar_pdfs(diretorio: Path) -> list[Path]:
@@ -139,21 +163,55 @@ def _listar_pdfs(diretorio: Path) -> list[Path]:
     )
 
 
+def _raizes_disco_cru(entrada: Path) -> list[tuple[Path, OrigemManual]]:
+    """Subconjunto de `Program/Data` e `Program_Operational/Data` presentes em `entrada`."""
+    return [
+        (entrada / pasta / "Data", origem)
+        for pasta, origem in _ORIGEM_POR_PASTA_DISCO.items()
+        if (entrada / pasta / "Data").is_dir()
+    ]
+
+
+def _manuais_de_raiz(raiz: Path, origem: OrigemManual) -> list[ManualEncontrado]:
+    manuais: list[ManualEncontrado] = []
+    for sub in sorted(p for p in raiz.iterdir() if p.is_dir()):
+        if sub.name in _DIRETORIOS_MANUAL_EXCLUIDOS:
+            continue
+        pdfs = _listar_pdfs(sub)
+        if not pdfs:
+            logger.info("Diretório %s não tem PDF — ignorado.", sub)
+            continue
+        manuais.append(ManualEncontrado(codigo=sub.name, raiz=sub, pdfs=pdfs, origem=origem))
+    return manuais
+
+
 def descobrir_manuais(entrada: Path, codigo_forcado: str | None) -> list[ManualEncontrado]:
     """
-    Descobre os manuais em `entrada`, aceitando os dois layouts do projeto.
+    Descobre os manuais em `entrada`, aceitando os três layouts do projeto.
 
+    - **Disco cru** (ex. `var/publicacoes/acervo/Manuais/19MAIO26/`):
+      `Program/Data/` e/ou `Program_Operational/Data/` presentes — cada um
+      vira uma origem, um subdiretório por manual dentro dela.
     - **Acervo** (`var/publicacoes/acervo/Manuais/`): um subdiretório por
-      manual, capítulos dentro dele.
+      manual, capítulos dentro dele. `origem` fixa em `MANUTENCAO` — é o
+      valor compatível com o acervo de fonte única já publicado.
     - **Amostra avulsa** (ex. `tests/fixtures/fim/`): PDFs soltos na raiz. Vira
       um manual único, cujo código é `--manual` quando informado e o nome do
       diretório caso contrário.
 
-    A distinção é feita por onde os PDFs estão, não por convenção de nome: um
-    diretório com PDFs na raiz é um manual, mesmo que também tenha subpastas.
+    A distinção entre os dois últimos é feita por onde os PDFs estão, não por
+    convenção de nome: um diretório com PDFs na raiz é um manual, mesmo que
+    também tenha subpastas.
     """
     if not entrada.is_dir():
         raise FileNotFoundError(f"Diretório de entrada não existe: {entrada}")
+
+    raizes = _raizes_disco_cru(entrada)
+    if raizes:
+        manuais: list[ManualEncontrado] = []
+        for raiz, origem in raizes:
+            manuais.extend(_manuais_de_raiz(raiz, origem))
+        return manuais
 
     soltos = sorted(
         p for p in entrada.iterdir() if p.is_file() and p.suffix in _SUFIXOS_PDF
@@ -162,14 +220,7 @@ def descobrir_manuais(entrada: Path, codigo_forcado: str | None) -> list[ManualE
         codigo = codigo_forcado or entrada.name
         return [ManualEncontrado(codigo=codigo, raiz=entrada, pdfs=soltos)]
 
-    manuais: list[ManualEncontrado] = []
-    for sub in sorted(p for p in entrada.iterdir() if p.is_dir()):
-        pdfs = _listar_pdfs(sub)
-        if not pdfs:
-            logger.info("Diretório %s não tem PDF — ignorado.", sub.name)
-            continue
-        manuais.append(ManualEncontrado(codigo=sub.name, raiz=sub, pdfs=pdfs))
-    return manuais
+    return _manuais_de_raiz(entrada, OrigemManual.MANUTENCAO)
 
 
 def localizar_index_lucene(manual: ManualEncontrado, acervo: Path) -> Path | None:
@@ -365,10 +416,11 @@ def processar_manual(
         descricao_pt=categoria.descricao_pt[:200],
         categoria=categoria.categoria,
         path=manual.raiz.as_posix(),
+        origem=manual.origem,
     )
 
     lote: list[tuple[str, int, str]] = []
-    documentos: list[tuple[str, str, str, str, str, str | None]] = []
+    documentos: list[tuple[str, str, str, str, str, str | None, str]] = []
     casados = 0
 
     for pdf_path in manual.pdfs:
@@ -388,7 +440,7 @@ def processar_manual(
         )
         ata_codigo = catalog.extrair_ata(capitulo, pdf_path.name)
         doc_id = catalog.documento_id_deterministico(
-            edicao_rotulo, manual.codigo, file_key
+            edicao_rotulo, manual.origem.value, manual.codigo, file_key
         )
 
         paginas, tem_texto = extrair_paginas(pdf_path)
@@ -423,6 +475,7 @@ def processar_manual(
                 titulo,
                 categoria.categoria,
                 ata_codigo,
+                manual.origem.value,
             )
         )
         for numero, texto in enumerate(paginas, start=1):
@@ -437,8 +490,8 @@ def processar_manual(
             _gravar_lote(conn, lote)
         conn.executemany(
             "INSERT OR REPLACE INTO documents "
-            "(document_id, manual_codigo, capitulo, titulo, categoria, ata_codigo) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
+            "(document_id, manual_codigo, capitulo, titulo, categoria, ata_codigo, origem) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
             documentos,
         )
         conn.commit()
@@ -492,14 +545,21 @@ async def gravar_no_banco_principal(
         try:
             edicao = await service.obter_ou_criar_edicao(session, edicao_rotulo)
 
-            codigos_da_execucao = {p.codigo for p in payloads}
+            # (codigo, origem) — não só `codigo`: as duas origens podem
+            # compartilhar código, e comparar só por código faria indexar
+            # apenas o lado Operacional acusar (falsamente) que todo o lado
+            # Manutenção "saiu do índice de busca".
+            codigos_da_execucao = {(p.codigo, p.origem.value) for p in payloads}
             ja_no_banco = set(
                 (
                     await session.execute(
-                        select(Manual.codigo).where(Manual.edicao_id == edicao.id)
+                        select(Manual.codigo, Manual.origem).where(
+                            Manual.edicao_id == edicao.id
+                        )
                     )
-                ).scalars()
+                ).all()
             )
+            ja_no_banco = {(codigo, origem.value) for codigo, origem in ja_no_banco}
             fora_da_execucao = ja_no_banco - codigos_da_execucao
             if fora_da_execucao:
                 # Não é erro — mas o catalog.db acabou de ser reconstruído só
@@ -511,7 +571,7 @@ async def gravar_no_banco_principal(
                     "acervo inteiro se isso não for intencional.",
                     len(fora_da_execucao),
                     edicao_rotulo,
-                    ", ".join(sorted(fora_da_execucao)),
+                    ", ".join(sorted(f"{codigo} ({origem})" for codigo, origem in fora_da_execucao)),
                 )
 
             contagem = await service.sincronizar_catalogo(session, edicao, payloads)
@@ -537,6 +597,23 @@ async def gravar_no_banco_principal(
         except Exception:
             await session.rollback()
             raise
+
+
+def categorias_mescladas(
+    entrada: Path, categorias_path: Path
+) -> dict[str, catalog.CategoriaManual]:
+    """
+    `config/categorias_manuais.toml` (curado à mão) tem prioridade; os
+    `manual_details.xml`/`manual_type.xml` do próprio disco cru — quando
+    `entrada` for um layout C — cobrem os manuais que o TOML ainda não cura
+    (11_achados_disco_completo.md §3.1/§3.2). Sem eles, esses manuais caem em
+    "Outros" com o código cru como descrição.
+    """
+    mesclado: dict[str, catalog.CategoriaManual] = {}
+    for raiz, _origem in _raizes_disco_cru(entrada):
+        mesclado.update(catalog.carregar_categorias_disco(raiz))
+    mesclado.update(catalog.carregar_categorias(categorias_path))
+    return mesclado
 
 
 # --------------------------------------------------------------------------
@@ -621,17 +698,21 @@ async def main(argv: list[str] | None = None) -> int:
         return 1
 
     total_pdfs = sum(len(m.pdfs) for m in manuais)
+    por_origem: dict[str, int] = {}
+    for m in manuais:
+        por_origem[m.origem.value] = por_origem.get(m.origem.value, 0) + 1
     logger.info(
-        "%d manual(is), %d PDF(s) em %s — edição %r%s.",
+        "%d manual(is) (%s), %d PDF(s) em %s — edição %r%s.",
         len(manuais),
+        ", ".join(f"{v} {k}" for k, v in sorted(por_origem.items())),
         total_pdfs,
         entrada,
         args.edicao,
         " [DRY-RUN]" if args.dry_run else "",
     )
 
-    categorias = catalog.carregar_categorias(
-        Path(get_settings().publicacoes_categorias_path)
+    categorias = categorias_mescladas(
+        entrada, Path(get_settings().publicacoes_categorias_path)
     )
 
     conn: sqlite3.Connection | None = None

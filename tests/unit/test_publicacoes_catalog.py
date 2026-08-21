@@ -307,8 +307,8 @@ def test_titulo_de_arquivo_e_fallback_que_nunca_falha():
 
 def test_document_id_estavel_entre_reindexacoes_da_mesma_edicao():
     """CA-07: link compartilhado continua abrindo o mesmo documento."""
-    a = catalog.documento_id_deterministico("2026", "FIM_1741", "CHAPTER_21/X.PDF")
-    b = catalog.documento_id_deterministico("2026", "FIM_1741", "CHAPTER_21/X.PDF")
+    a = catalog.documento_id_deterministico("2026", "MANUTENCAO", "FIM_1741", "CHAPTER_21/X.PDF")
+    b = catalog.documento_id_deterministico("2026", "MANUTENCAO", "FIM_1741", "CHAPTER_21/X.PDF")
     assert a == b
     assert isinstance(a, uuid.UUID)
 
@@ -319,15 +319,27 @@ def test_document_id_difere_entre_edicoes():
     online geraria o mesmo UUID e a primeira publicação anual morreria com
     violação de PK.
     """
-    a = catalog.documento_id_deterministico("2026", "FIM_1741", "CHAPTER_21/X.PDF")
-    b = catalog.documento_id_deterministico("2027", "FIM_1741", "CHAPTER_21/X.PDF")
+    a = catalog.documento_id_deterministico("2026", "MANUTENCAO", "FIM_1741", "CHAPTER_21/X.PDF")
+    b = catalog.documento_id_deterministico("2027", "MANUTENCAO", "FIM_1741", "CHAPTER_21/X.PDF")
     assert a != b
 
 
 def test_document_id_difere_entre_manuais_e_arquivos():
-    base = catalog.documento_id_deterministico("2026", "FIM_1741", "C/X.PDF")
-    assert base != catalog.documento_id_deterministico("2026", "AMM_PART1_1651", "C/X.PDF")
-    assert base != catalog.documento_id_deterministico("2026", "FIM_1741", "C/Y.PDF")
+    base = catalog.documento_id_deterministico("2026", "MANUTENCAO", "FIM_1741", "C/X.PDF")
+    assert base != catalog.documento_id_deterministico("2026", "MANUTENCAO", "AMM_PART1_1651", "C/X.PDF")
+    assert base != catalog.documento_id_deterministico("2026", "MANUTENCAO", "FIM_1741", "C/Y.PDF")
+
+
+def test_document_id_difere_entre_origens():
+    """
+    Os dois discos (Manutenção/Operacional) podem ter o mesmo `manual_codigo`
+    + `file_key` (chapters com nome genérico se repetem — ver
+    docs/backlog/modulo_publicacoes/11_achados_disco_completo.md §1)
+    apontando para PDFs diferentes. Sem a origem no input, colidiriam.
+    """
+    a = catalog.documento_id_deterministico("19maio26", "MANUTENCAO", "FIM_1741", "010_FRONTMATTER/X.PDF")
+    b = catalog.documento_id_deterministico("19maio26", "OPERACIONAL", "FIM_1741", "010_FRONTMATTER/X.PDF")
+    assert a != b
 
 
 def test_namespace_nao_mudou():
@@ -388,6 +400,87 @@ def test_categorias_aplicam_default_e_substituem_placeholder(tmp_path: Path):
 def test_categorias_arquivo_ausente_nao_quebra(tmp_path: Path):
     mapa = catalog.carregar_categorias(tmp_path / "nao_existe.toml")
     assert catalog.categoria_de_manual(mapa, "QUALQUER").categoria == "Outros"
+
+
+# --------------------------------------------------------------------------
+# Metadados do disco cru (manual_details.xml / manual_type.xml)
+# --------------------------------------------------------------------------
+
+
+def _escrever_metadados_disco(data_dir: Path) -> None:
+    """
+    Sintetiza os dois XMLs do disco (11_achados_disco_completo.md §3.1/§3.2),
+    com um manual em cada convenção de nome medida no disco real: `GP_5206`
+    junta type+partnumber (como a maioria); `CMM_EMBRAERALX` usa só o type
+    (o partnumber "0000" não aparece na pasta). `OTFN1A29AB1_0001` não tem
+    entrada em manual_type.xml — cobre o catid ausente (cai em "Outros").
+    """
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "manual_details.xml").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        "<manuals>"
+        '<manual partnumber="5206" type="GP">'
+        "<custom-description>Publicação Geral</custom-description></manual>"
+        '<manual partnumber="0000" type="CMM_EMBRAERALX">'
+        "<custom-description>Manual de Manutenção de Componentes</custom-description></manual>"
+        '<manual partnumber="0001" type="OTFN1A29AB1">'
+        "<custom-description>Manual de Voo</custom-description></manual>"
+        "</manuals>",
+        encoding="utf-8",
+    )
+    (data_dir / "manual_type.xml").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        "<types>"
+        '<type typeid="GP" catid="7"><language/></type>'
+        '<type typeid="CMM_EMBRAERALX" catid="1"><language/></type>'
+        "</types>",
+        encoding="utf-8",
+    )
+
+
+def test_categorias_disco_junta_type_e_partnumber(tmp_path: Path):
+    """A maioria dos manuais junta `type_partnumber` no nome do diretório."""
+    _escrever_metadados_disco(tmp_path)
+    mapa = catalog.carregar_categorias_disco(tmp_path)
+    assert mapa["GP_5206"].descricao_pt == "Publicação Geral"
+    assert mapa["GP_5206"].categoria == "Operacional / Voo"  # catid 7
+
+
+def test_categorias_disco_aceita_codigo_so_com_type(tmp_path: Path):
+    """
+    `CMM_EMBRAERALX` não tem o partnumber "0000" no nome da pasta — a chave
+    `type` sozinha também precisa resolver, sem isso o manual cairia em
+    'Outros' mesmo tendo entrada no XML.
+    """
+    _escrever_metadados_disco(tmp_path)
+    mapa = catalog.carregar_categorias_disco(tmp_path)
+    assert mapa["CMM_EMBRAERALX"].categoria == "Manutenção"  # catid 1
+
+
+def test_categorias_disco_sem_catid_cai_em_outros(tmp_path: Path):
+    """`OTFN1A29AB1_0001` tem descrição no manual_details.xml mas não tem
+    entrada em manual_type.xml — sem catid, a categoria é 'Outros', não erro."""
+    _escrever_metadados_disco(tmp_path)
+    mapa = catalog.carregar_categorias_disco(tmp_path)
+    assert mapa["OTFN1A29AB1_0001"].descricao_pt == "Manual de Voo"
+    assert mapa["OTFN1A29AB1_0001"].categoria == "Outros"
+
+
+def test_categorias_disco_sem_manual_details_devolve_vazio(tmp_path: Path):
+    assert catalog.carregar_categorias_disco(tmp_path) == {}
+
+
+def test_categorias_disco_toml_tem_prioridade_na_mesclagem(tmp_path: Path):
+    """
+    Contrato de `indexar.categorias_mescladas`: o TOML curado vence quando os
+    dois lados descrevem o mesmo manual — só reproduzido aqui pelo dict
+    literal do jeito que o indexador monta (`{**disco, **toml}`).
+    """
+    _escrever_metadados_disco(tmp_path)
+    disco = catalog.carregar_categorias_disco(tmp_path)
+    toml_curado = {"GP_5206": catalog.CategoriaManual(categoria="Manutenção", descricao_pt="Nome curado")}
+    mesclado = {**disco, **toml_curado}
+    assert mesclado["GP_5206"].descricao_pt == "Nome curado"
 
 
 def test_categorias_reais_cobrem_o_toml_do_repositorio():

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#0B1015"/><rect x="16" y="26" width="68" height="42" rx="5" fill="none" stroke="#3B7DF5" stroke-width="3"/><rect x="24" y="34" width="20" height="6" rx="3" fill="#2FBF7E"/><rect x="24" y="46" width="44" height="4" rx="2" fill="#F0A22E"/><rect x="24" y="55" width="34" height="4" rx="2" fill="#2C3A46"/></svg></template>
+<style>
+body{margin:0;background:#06090C;font-family:"IBM Plex Sans",-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+*{box-sizing:border-box}
+a{color:#5B93F7;text-decoration:none}a:hover{color:#84B0FA}
+@keyframes beat{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
+@keyframes pageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</helmet>
+<div style="width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;background:var(--outerBg);overflow:hidden;{{ themeVars }}">
+  <div ref="{{ stageRef }}" style="width:1920px;height:1080px;flex:none;transform-origin:center center;background:var(--bg);color:var(--text);padding:28px;display:flex;flex-direction:column;gap:20px">
+
+    <div style="flex:none;height:92px;display:flex;align-items:center;justify-content:space-between;gap:32px;padding:0 26px;background:var(--surface);border:1px solid var(--border);border-radius:20px">
+      <div style="display:flex;align-items:center;gap:20px;min-width:0">
+        <div style="width:56px;height:56px;border-radius:16px;background:#3B7DF5;display:flex;align-items:center;justify-content:center;font:700 17px/1 'IBM Plex Mono',monospace;color:#fff;flex:none">29</div>
+        <div style="display:flex;flex-direction:column;gap:5px;min-width:0">
+          <span style="font:600 27px/1 'IBM Plex Sans',sans-serif;letter-spacing:-.02em;white-space:nowrap">Eletrônica A-29</span>
+          <span style="font:500 14px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);white-space:nowrap">Base Aérea de Natal</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:none">
+        <span style="font:700 46px/1 'IBM Plex Mono',monospace;letter-spacing:.03em;color:#F0A22E">{{ zuluTime }}</span>
+        <span style="font:500 15px/1 'IBM Plex Mono',monospace;letter-spacing:.05em;color:var(--dim)">local {{ localTime }}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:18px;flex:none">
+        <div style="display:flex;align-items:center;gap:11px;padding:11px 18px;border-radius:999px;background:rgba(47,191,126,.1);border:1px solid rgba(47,191,126,.3)">
+          <span style="display:block;width:11px;height:11px;border-radius:50%;background:#3ED598;box-shadow:0 0 12px rgba(62,213,152,.8);animation:beat 2s infinite cubic-bezier(.4,0,.6,1)"></span>
+          <span style="font:600 14px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#3ED598">Ao vivo</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:118px">
+          <span style="font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)">Data</span>
+          <span style="font:600 24px/1 'IBM Plex Mono',monospace;letter-spacing:.03em;color:var(--text2)">{{ dateStr }}</span>
+        </div>
+        <button type="button" onClick="{{ toggleTheme }}" style="{{ themeBtnStyle }}">{{ themeBtnLabel }}</button>
+      </div>
+    </div>
+
+    <div style="flex:none;height:128px;display:grid;grid-template-columns:repeat(4,1fr);gap:20px">
+      <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+        <div style="display:flex;background:var(--surface);border:1px solid var(--border);border-radius:20px;overflow:hidden">
+          <span style="{{ k.stripe }}"></span>
+          <span style="flex:1;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 26px">
+            <span style="display:flex;flex-direction:column;gap:7px;min-width:0">
+              <span style="{{ k.titleStyle }}">{{ k.title }}</span>
+              <span style="font:400 14px/1.2 'IBM Plex Sans',sans-serif;color:var(--dim)">{{ k.sub }}</span>
+            </span>
+            <span style="{{ k.valueStyle }}">{{ k.value }}</span>
+          </span>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="flex:1;min-height:0;display:grid;grid-template-rows:1.15fr 1fr;gap:20px">
+
+    <div style="min-height:0;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--border);border-radius:20px;overflow:hidden">
+        <div style="flex:none;height:66px;padding:0 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="display:block;width:10px;height:10px;border-radius:50%;background:#F2585E"></span>
+            <span style="font:600 21px/1 'IBM Plex Sans',sans-serif;letter-spacing:-.01em">Panes abertas na linha</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px">
+            <span style="font:600 14px/1 'IBM Plex Mono',monospace;color:#F2585E;background:rgba(242,88,94,.12);border:1px solid rgba(242,88,94,.3);padding:8px 13px;border-radius:999px;white-space:nowrap">{{ panesTotal }} ocorrências</span>
+            <span style="{{ panesPagerStyle }}">{{ panesPager }}</span>
+          </div>
+        </div>
+        <div style="flex:none;height:40px;display:grid;grid-template-columns:104px 190px 1fr 132px;align-items:center;gap:18px;padding:0 24px;background:var(--tableHead);border-bottom:1px solid var(--rowBorder);font:600 12.5px/1 'IBM Plex Mono',monospace;letter-spacing:.11em;text-transform:uppercase;color:var(--dim)">
+          <span>ANV</span><span>Sistema ATA</span><span>Discrepância</span><span style="text-align:right">Aberta há</span>
+        </div>
+        <div key="{{ panesKey }}" style="flex:1;min-height:0;display:flex;flex-direction:column;animation:pageIn .4s ease">
+          <sc-for list="{{ panes }}" as="p" hint-placeholder-count="4">
+            <div style="{{ p.rowStyle }}">
+              <span style="font:700 26px/1 'IBM Plex Mono',monospace;color:var(--text)">{{ p.tail }}</span>
+              <span style="font:600 19px/1.25 'IBM Plex Sans',sans-serif;color:var(--accentBlue2)">{{ p.ata }}</span>
+              <span style="font:400 28px/1.4 'IBM Plex Sans',sans-serif;color:var(--text2);text-wrap:pretty">{{ p.desc }}</span>
+              <span style="{{ p.ageStyle }}">{{ p.age }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+    <div style="min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+      <div style="display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--border);border-radius:20px;overflow:hidden">
+        <div style="flex:none;height:66px;padding:0 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="display:block;width:10px;height:10px;border-radius:50%;background:#F0A22E"></span>
+            <span style="font:600 21px/1 'IBM Plex Sans',sans-serif;letter-spacing:-.01em">Aeronaves em inspeção</span>
+          </div>
+          <span style="font:600 14px/1 'IBM Plex Mono',monospace;color:#F0A22E;background:rgba(240,162,46,.12);border:1px solid rgba(240,162,46,.3);padding:8px 13px;border-radius:999px">{{ inspTotal }} ativas</span>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;padding:8px 0">
+          <sc-for list="{{ inspecoes }}" as="i" hint-placeholder-count="3">
+            <div style="flex:1;display:flex;flex-direction:column;gap:13px;justify-content:center;padding:0 24px;border-bottom:1px solid var(--rowBorder)">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+                <div style="display:flex;align-items:center;gap:14px;min-width:0">
+                  <span style="font:700 22px/1 'IBM Plex Mono',monospace;color:var(--text)">{{ i.tail }}</span>
+                  <span style="font:600 13px/1 'IBM Plex Mono',monospace;letter-spacing:.06em;color:#F0A22E;background:rgba(240,162,46,.12);border:1px solid rgba(240,162,46,.3);padding:7px 11px;border-radius:8px">{{ i.tipo }}</span>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:none">
+                  <span style="font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)">Previsão</span>
+                  <span style="font:600 16px/1 'IBM Plex Mono',monospace;color:var(--text2)">{{ i.prev }}</span>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:16px">
+                <span style="flex:1;height:9px;border-radius:5px;background:var(--border);overflow:hidden;display:block"><span style="{{ i.fillStyle }}"></span></span>
+                <span style="{{ i.pctStyle }}">{{ i.pct }}</span>
+                <span style="font:500 15px/1 'IBM Plex Mono',monospace;color:var(--muted);min-width:104px;text-align:right">{{ i.tasks }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--border);border-radius:20px;overflow:hidden">
+      <div style="flex:none;padding:14px 22px;display:flex;flex-direction:column;gap:9px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div style="display:flex;align-items:center;gap:10px;min-width:0">
+            <span style="display:block;width:10px;height:10px;border-radius:50%;background:#5B93F7;flex:none"></span>
+            <span style="font:600 19px/1 'IBM Plex Sans',sans-serif;letter-spacing:-.01em;white-space:nowrap">Vencimentos e validades</span>
+          </div>
+          <span style="{{ vencPagerStyle }}">{{ vencPager }}</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <span style="font:500 13px/1 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);white-space:nowrap">horizonte {{ horizonLabel }}</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <sc-for list="{{ vencSummary }}" as="v" hint-placeholder-count="3">
+              <span style="{{ v.style }}">{{ v.label }}</span>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      <div style="flex:none;height:40px;display:grid;grid-template-columns:1fr 130px 140px 110px;align-items:center;gap:14px;padding:0 22px;background:var(--tableHead);border-bottom:1px solid var(--rowBorder);font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)">
+        <span>Item controlado</span><span>Instalado em</span><span>Vencimento</span><span style="text-align:right">Status</span>
+      </div>
+      <div key="{{ vencKey }}" style="flex:1;display:flex;flex-direction:column;animation:pageIn .4s ease">
+        <sc-for list="{{ vencimentos }}" as="v" hint-placeholder-count="3">
+          <div style="min-height:76px;flex:none;display:grid;grid-template-columns:1fr 130px 140px 110px;align-items:center;gap:14px;padding:0 22px;border-bottom:1px solid var(--rowBorder)">
+            <span style="display:flex;flex-direction:column;gap:3px;min-width:0">
+              <span style="font:600 16px/1.2 'IBM Plex Sans',sans-serif;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ v.item }}</span>
+              <span style="font:400 12.5px/1 'IBM Plex Mono',monospace;color:var(--dim)">S/N {{ v.sn }} · {{ v.pn }}</span>
+            </span>
+            <span style="{{ v.locStyle }}">{{ v.loc }}</span>
+            <span style="display:flex;flex-direction:column;gap:3px">
+              <span style="font:500 14px/1 'IBM Plex Mono',monospace;color:var(--text2)">{{ v.venc }}</span>
+              <span style="{{ v.prazoStyle }}">{{ v.prazo }}</span>
+            </span>
+            <span style="display:flex;justify-content:flex-end"><span style="{{ v.chip }}">{{ v.tag }}</span></span>
+          </div>
+        </sc-for>
+      </div>
+      </div>
+
+    </div>
+
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1920,&quot;height&quot;:1080},&quot;rotateSeconds&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:12,&quot;min&quot;:4,&quot;max&quot;:60,&quot;unit&quot;:&quot;s&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Exibição&quot;},&quot;horizonLabel&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;60 dias&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Exibição&quot;}}">
+const C = {
+  text:'#F3F6F8', muted:'#8794A1', dim:'#7D8B98',
+  blue:'#5B93F7', ok:'#3ED598', warn:'#F0A22E', danger:'#F2585E', ext:'#B48CF5', off:'#8895A2'
+};
+const HEX = { ok:C.ok, warn:C.warn, danger:C.danger, ext:C.ext, off:C.off };
+const chip = (t) => `display:inline-flex;align-items:center;font:600 13px/1 'IBM Plex Mono',monospace;letter-spacing:.07em;text-transform:uppercase;padding:8px 13px;border-radius:999px;white-space:nowrap;color:${HEX[t]};background:${HEX[t]}1F;border:1px solid ${HEX[t]}55`;
+const pager = `font:600 13px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);background:var(--tableHead);border:1px solid var(--border);padding:8px 12px;border-radius:999px;white-space:nowrap`;
+
+const KPIS = [
+  { title:'Disponíveis', sub:'liberadas para voo', value:'12', tone:'ok' },
+  { title:'Em inspeção', sub:'manutenção programada', value:'03', tone:'warn' },
+  { title:'Indisponíveis', sub:'retidas por pane', value:'02', tone:'danger' },
+  { title:'Estocadas', sub:'preservação no hangar', value:'01', tone:'off' }
+];
+const PANES = [
+  { tail:'5922', ata:'72 · Motor PT6', desc:'Alarme de limalha no óleo lubrificante — chip detector aceso.', age:'5h 40m', tone:'danger' },
+  { tail:'5916', ata:'34 · Aviônica', desc:'Indicação espúria no MFD esquerdo durante teste de giro de motor.', age:'2h 15m', tone:'warn' },
+  { tail:'5908', ata:'24 · Elétrico', desc:'Gerador principal nº 1 desarmando em regime de alta demanda elétrica.', age:'1d 03h', tone:'danger' },
+  { tail:'5914', ata:'32 · Trem de pouso', desc:'Vazamento hidráulico leve no atuador da bequilha dianteira.', age:'2d 11h', tone:'danger' },
+  { tail:'5901', ata:'23 · Comunicações', desc:'Interferência e ruído estático excessivo no transceptor VHF-2.', age:'3d 08h', tone:'danger' },
+  { tail:'5919', ata:'27 · Comandos', desc:'Folga acima do limite no cabo de compensação do profundor.', age:'4h 05m', tone:'warn' },
+  { tail:'5905', ata:'21 · Ar condicionado', desc:'Pressurização da cabine oscilando acima de 8.000 ft equivalentes.', age:'6h 50m', tone:'warn' }
+];
+const INSP = [
+  { tail:'5925', tipo:'IF-50H', pct:93, tasks:'42 / 45', prev:'17 AGO', tone:'ok' },
+  { tail:'5902', tipo:'IF-100H + PS', pct:75, tasks:'36 / 48', prev:'18 AGO', tone:'ok' },
+  { tail:'5918', tipo:'IPG', pct:20, tasks:'12 / 60', prev:'25 AGO', tone:'warn' }
+];
+const VENC = [
+  { item:'Cartucho de iniciação do assento ejetável (L1)', sn:'CT-8841', pn:'CAR-29-01', loc:'FAB 5916', venc:'12/08/2026', prazo:'há 8 dias', tag:'vencido', tone:'danger' },
+  { item:'Bateria principal 24V 44Ah', sn:'BAT-9902', pn:'24-BAT-44', loc:'FAB 5922', venc:'28/08/2026', prazo:'em 8 dias', tag:'vencendo', tone:'warn' },
+  { item:'Transponder Mode-S IFF', sn:'XP-4410', pn:'AN/APX-119', loc:'Estoque · sala rádio', venc:'05/09/2026', prazo:'em 16 dias', tag:'vencendo', tone:'warn' },
+  { item:'Válvula reguladora de pressão de oxigênio', sn:'O2-3301', pn:'REG-O2-29', loc:'FAB 5902', venc:'15/09/2026', prazo:'prorrogado +30d', tag:'prorrogado', tone:'ext' },
+  { item:'Extintor portátil de cabine', sn:'EX-2207', pn:'EXT-29-CAB', loc:'FAB 5914', venc:'19/09/2026', prazo:'em 30 dias', tag:'vencendo', tone:'warn' },
+  { item:'Cilindro atuador do flap direito', sn:'FL-1092', pn:'CYL-29-FL', loc:'FAB 5908', venc:'20/10/2026', prazo:'em 61 dias', tag:'ok', tone:'ok' }
+];
+
+class Component extends DCLogic {
+  state = { now: new Date(), panePage: 0, vencPage: 0, theme: 'dark' };
+  stageRef = React.createRef();
+
+  componentDidMount() {
+    this.fit();
+    this._onResize = () => this.fit();
+    window.addEventListener('resize', this._onResize);
+    this._clock = setInterval(() => this.setState({ now: new Date() }), 1000);
+    const secs = Math.max(4, Number(this.props.rotateSeconds) || 12);
+    this._rot = setInterval(() => this.setState(s => ({
+      panePage: (s.panePage + 1) % Math.max(1, Math.ceil(PANES.length / 4)),
+      vencPage: (s.vencPage + 1) % Math.max(1, Math.ceil(VENC.length / 3))
+    })), secs * 1000);
+  }
+  componentDidUpdate() { this.fit(); }
+  componentWillUnmount() {
+    window.removeEventListener('resize', this._onResize);
+    clearInterval(this._clock); clearInterval(this._rot);
+  }
+  fit() {
+    const el = this.stageRef.current; if (!el) return;
+    const k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    el.style.transform = 'scale(' + k + ')';
+    el.style.margin = ((1080 * k - 1080) / 2) + 'px ' + ((1920 * k - 1920) / 2) + 'px';
+  }
+
+  renderVals() {
+    const n = this.state.now, p2 = (x) => String(x).padStart(2, '0');
+    const MES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+    const pageSlice = (arr, size, page) => {
+      const pages = Math.max(1, Math.ceil(arr.length / size));
+      const pg = page % pages, out = arr.slice(pg * size, pg * size + size);
+      return { rows: out, pages, pg };
+    };
+    const P = pageSlice(PANES, 4, this.state.panePage);
+    const V = pageSlice(VENC, 3, this.state.vencPage);
+
+    const dark = this.state.theme !== 'light';
+    const themeVars = dark
+      ? '--outerBg:#06090C;--bg:#0B1015;--surface:#141C24;--tableHead:#101820;--border:#202C37;--rowBorder:#1A232C;--text:#F3F6F8;--text2:#CBD6DF;--muted:#8794A1;--dim:#7D8B98;--accentBlue2:#8FB6F9;'
+      : '--outerBg:#E4E8EC;--bg:#F4F6F8;--surface:#FFFFFF;--tableHead:#EEF1F4;--border:#DCE2E8;--rowBorder:#E6EAEE;--text:#151A20;--text2:#3C4650;--muted:#5C6A76;--dim:#788593;--accentBlue2:#2E63D6;';
+
+    return {
+      themeVars,
+      toggleTheme: () => this.setState(s => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
+      themeBtnLabel: dark ? '☾ Escuro' : '☀ Claro',
+      themeBtnStyle: `all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;padding:11px 16px;border-radius:999px;background:var(--surface);border:1px solid var(--border);color:var(--text2);font:600 13px/1 'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase`,
+      horizonLabel: this.props.horizonLabel || '60 dias',
+      localTime: p2(n.getHours()) + ':' + p2(n.getMinutes()) + ':' + p2(n.getSeconds()),
+      zuluTime: p2(n.getUTCHours()) + ':' + p2(n.getUTCMinutes()) + ':' + p2(n.getUTCSeconds()) + 'Z',
+      dateStr: p2(n.getDate()) + ' ' + MES[n.getMonth()] + ' ' + n.getFullYear(),
+      stageRef: this.stageRef,
+
+      kpis: KPIS.map(k => ({
+        title: k.title, sub: k.sub, value: k.value,
+        stripe: `display:block;width:7px;flex:none;background:${HEX[k.tone]}`,
+        titleStyle: `font:600 19px/1 'IBM Plex Sans',sans-serif;letter-spacing:-.01em;color:var(--text)`,
+        valueStyle: `font:700 52px/1 'IBM Plex Mono',monospace;letter-spacing:-.02em;color:${HEX[k.tone]}`
+      })),
+
+      panesTotal: PANES.length,
+      panes: P.rows.map(r => ({
+        tail: r.tail, ata: r.ata, desc: r.desc, age: r.age,
+        rowStyle: 'height:104px;display:grid;grid-template-columns:104px 190px 1fr 132px;align-items:center;gap:18px;padding:0 24px;border-bottom:1px solid var(--rowBorder)',
+        ageStyle: `font:600 19px/1 'IBM Plex Mono',monospace;text-align:right;color:${HEX[r.tone]}`
+      })),
+      panesPager: 'pág ' + (P.pg + 1) + '/' + P.pages,
+      panesPagerStyle: pager,
+      panesKey: 'p' + P.pg,
+
+      inspTotal: INSP.length,
+      inspecoes: INSP.map(i => ({
+        tail: i.tail, tipo: i.tipo, prev: i.prev, pct: i.pct + '%', tasks: i.tasks + ' tarefas',
+        fillStyle: `display:block;height:100%;width:${i.pct}%;border-radius:5px;background:${HEX[i.tone]};transition:width .6s ease`,
+        pctStyle: `font:700 20px/1 'IBM Plex Mono',monospace;min-width:64px;text-align:right;color:${HEX[i.tone]}`
+      })),
+
+      vencSummary: [
+        { label: '1 vencido', tone: 'danger' },
+        { label: '3 vencendo', tone: 'warn' },
+        { label: '1 prorrogado', tone: 'ext' }
+      ].map(s => ({ label: s.label, style: chip(s.tone).replace('padding:8px 13px', 'padding:6px 10px').replace('font:600 13px', 'font:600 12px') })),
+      vencimentos: V.rows.map(v => ({
+        item: v.item, sn: v.sn, pn: v.pn, venc: v.venc, prazo: v.prazo, tag: v.tag,
+        loc: v.loc,
+        locStyle: `font:500 14px/1.25 'IBM Plex Sans',sans-serif;color:${v.loc.indexOf('Estoque') === 0 ? 'var(--dim)' : 'var(--text2)'}`,
+        prazoStyle: `font:600 13px/1 'IBM Plex Mono',monospace;color:${HEX[v.tone]}`,
+        chip: chip(v.tone)
+      })),
+      vencPager: 'pág ' + (V.pg + 1) + '/' + V.pages,
+      vencPagerStyle: pager,
+      vencKey: 'v' + V.pg
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -164,10 +164,20 @@ async def publicacoes_avulsas_page(request: Request, _=Depends(get_current_user)
 # distintos), mas mantém o padrão do projeto.
 @router.get("/publicacoes/manuais/{codigo}", response_class=HTMLResponse, include_in_schema=False)
 async def publicacoes_manual_page(
-    request: Request, codigo: str, db: DBSession, _=Depends(get_current_user)
+    request: Request,
+    codigo: str,
+    db: DBSession,
+    _=Depends(get_current_user),
+    origem: str | None = None,
 ):
-    """Capítulos de um manual da edição vigente (Etapa 2 — lacuna do M1)."""
-    dados = await publicacoes_service.obter_manual_com_capitulos(db, codigo)
+    """
+    Capítulos de um manual da edição vigente (Etapa 2 — lacuna do M1).
+
+    `?origem=` desambigua quando o mesmo código existe nos dois discos
+    (Manutenção/Operacional); omitido, `_manual_da_edicao_vigente` resolve
+    para MANUTENCAO — compatível com links antigos, de antes da origem.
+    """
+    dados = await publicacoes_service.obter_manual_com_capitulos(db, codigo, origem=origem)
     return templates.TemplateResponse(
         "publicacoes/manual.html",
         {
@@ -190,20 +200,22 @@ async def publicacoes_capitulo_page(
     capitulo: str,
     db: DBSession,
     _=Depends(get_current_user),
+    origem: str | None = None,
     offset: int = 0,
     limit: int = 50,
 ):
     """
     Documentos de um capítulo, paginados por query string — `?offset=`/`?limit=`
     na própria URL, para não perder a propriedade de URL compartilhável.
+    `?origem=` segue o mesmo contrato de `publicacoes_manual_page`.
     """
     offset = max(0, offset)
     limit = max(1, min(limit, 100))
     capitulo_real = "" if capitulo == CAPITULO_RAIZ_SLUG else capitulo
 
-    manual = await publicacoes_service.obter_cabecalho_manual(db, codigo)
+    manual = await publicacoes_service.obter_cabecalho_manual(db, codigo, origem=origem)
     total, documentos = await publicacoes_service.listar_documentos_do_manual(
-        db, codigo, capitulo=capitulo_real, limit=limit, offset=offset
+        db, codigo, origem=origem, capitulo=capitulo_real, limit=limit, offset=offset
     )
     return templates.TemplateResponse(
         "publicacoes/capitulo.html",

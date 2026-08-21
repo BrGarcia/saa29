@@ -44,7 +44,11 @@
             manuais.forEach((m) => {
                 const opcao = document.createElement("option");
                 opcao.value = m.codigo;
-                opcao.textContent = `${m.descricao} (${m.codigo})`;
+                // O mesmo código pode existir duas vezes (Manutenção/Operacional,
+                // ver docs/backlog/modulo_publicacoes/12_refinamento_gestao_e_envio.md
+                // §6) — a origem no rótulo evita duas opções com o mesmo texto.
+                const origemRotulo = m.origem === "OPERACIONAL" ? "Operacional" : "Manutenção";
+                opcao.textContent = `${m.descricao} (${m.codigo}) · ${origemRotulo}`;
                 filtroManual.appendChild(opcao);
             });
         } catch (e) {

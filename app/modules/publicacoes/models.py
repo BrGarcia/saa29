@@ -44,6 +44,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.bootstrap.database import Base
 from app.shared.core.enums import (
     ModoProcessamentoUpload,
+    OrigemManual,
     RevisionStatus,
     StatusEdicao,
     StatusPublicacaoAvulsa,
@@ -143,7 +144,14 @@ class Manual(Base):
 
     __tablename__ = "manuais"
     __table_args__ = (
-        UniqueConstraint("edicao_id", "codigo", name="uq_manuais_edicao_codigo"),
+        # A identidade do manual inclui a origem: os discos de manutenção e
+        # operacional (docs/backlog/modulo_publicacoes/11_achados_disco_completo.md
+        # §1) trazem o mesmo `codigo` com PDFs e revisão diferentes, e esta
+        # rodada os mantém lado a lado em vez de mesclar — ver
+        # docs/backlog/modulo_publicacoes/12_refinamento_gestao_e_envio.md §6.
+        UniqueConstraint(
+            "edicao_id", "origem", "codigo", name="uq_manuais_edicao_origem_codigo"
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -155,17 +163,24 @@ class Manual(Base):
         nullable=False,
         comment="Nome do diretório do manual (ex: 'FIM_1741', 'AMM_PART1_1651')",
     )
+    origem: Mapped[OrigemManual] = mapped_column(
+        Enum(OrigemManual, native_enum=False, length=20),
+        nullable=False,
+        default=OrigemManual.MANUTENCAO,
+        index=True,
+        comment="Qual disco trouxe este manual — MANUTENCAO (Program/) ou OPERACIONAL (Program_Operational/)",
+    )
     descricao_pt: Mapped[str] = mapped_column(
         String(200),
         nullable=False,
-        comment="Descrição legível — de categorias_manuais.toml, com fallback para o código",
+        comment="Descrição legível — de categorias_manuais.toml/manual_details.xml, com fallback para o código",
     )
     categoria: Mapped[str] = mapped_column(
         String(60),
         nullable=False,
         default="Outros",
         index=True,
-        comment="De categorias_manuais.toml (RN-04); manual desconhecido cai em 'Outros' (E-04)",
+        comment="De categorias_manuais.toml/manual_type.xml (RN-04); manual desconhecido cai em 'Outros' (E-04)",
     )
     path: Mapped[str] = mapped_column(
         String(255), nullable=False, comment="Caminho relativo ao PUBLICACOES_ACERVO_DIR"

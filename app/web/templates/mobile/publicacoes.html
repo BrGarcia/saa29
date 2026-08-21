@@ -16,12 +16,14 @@
             <summary style="cursor: pointer; font-weight: 600; padding: 0.5rem 0; min-height: 44px; display: flex; align-items: center;">{{ categoria }} ({{ manuais|length }})</summary>
             <div style="display: flex; flex-direction: column; gap: 0.4rem;">
                 {% for manual in manuais %}
-                <a href="/publicacoes/manuais/{{ manual.codigo | urlencode }}"
+                <a href="/publicacoes/manuais/{{ manual.codigo | urlencode }}?origem={{ manual.origem | urlencode }}"
                    style="display:flex; flex-direction: column; justify-content:center; min-height: 44px; padding: 0.5rem 0.6rem;
                           border: 1px solid var(--mobile-card-border); border-radius: 13px;
                           text-decoration: none; color: inherit;">
                     <span>{{ manual.descricao }}</span>
-                    <span style="color: var(--mobile-text-muted); font-size: 0.8rem;">{{ manual.codigo }} · {{ manual.documentos }} doc(s)</span>
+                    <span style="color: var(--mobile-text-muted); font-size: 0.8rem;">
+                        {{ manual.codigo }} · {{ "Manutenção" if manual.origem == "MANUTENCAO" else "Operacional" }} · {{ manual.documentos }} doc(s)
+                    </span>
                 </a>
                 {% endfor %}
             </div>

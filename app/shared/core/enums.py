@@ -118,6 +118,20 @@ class RevisionStatus(str, enum.Enum):
     DESCONHECIDO = "DESCONHECIDO"  # '0'/'1'/'2' e ausência de entrada
 
 
+class OrigemManual(str, enum.Enum):
+    """
+    Origem física de um manual dentro do acervo — qual dos dois discos do
+    TechData o trouxe (`docs/backlog/modulo_publicacoes/11_achados_disco_completo.md`
+    §1: `Program/` é o disco de manutenção, `Program_Operational/` é o
+    operacional). Os dois podem trazer o mesmo `Manual.codigo` com conteúdo e
+    revisão diferentes — é por isso que a identidade do manual passa a
+    incluir a origem (`uq_manuais_edicao_origem_codigo`), e não é resolvida
+    por merge nesta rodada.
+    """
+    MANUTENCAO = "MANUTENCAO"
+    OPERACIONAL = "OPERACIONAL"
+
+
 class TipoPublicacao(str, enum.Enum):
     """Tipo de publicação avulsa (acervo B: BO/BS/NPO/BT)."""
     BO = "BO"

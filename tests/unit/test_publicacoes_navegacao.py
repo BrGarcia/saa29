@@ -29,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.publicacoes import service
 from app.modules.publicacoes.models import Manual, ManualDocumento, ManualEdicao
-from app.shared.core.enums import StatusEdicao
+from app.shared.core.enums import OrigemManual, StatusEdicao
 
 URL = "/publicacoes/api/manuais"
 
@@ -52,10 +52,12 @@ async def _inserir_manual(
     descricao: str = "Descrição de teste",
     categoria: str = "Manutenção",
     revisao: str | None = None,
+    origem: OrigemManual = OrigemManual.MANUTENCAO,
 ) -> Manual:
     manual = Manual(
         edicao_id=edicao.id,
         codigo=codigo,
+        origem=origem,
         descricao_pt=descricao,
         categoria=categoria,
         path=codigo,
@@ -398,3 +400,97 @@ async def test_mobile_publicacoes_lista_o_acervo_por_categoria(
     html = (await client_autenticado.get("/m/publicacoes")).text
     assert "FIM — Isolamento de Falhas" in html
     assert "/publicacoes/manuais/FIM_1741" in html
+
+
+# --------------------------------------------------------------------------
+# Origem (Manutenção/Operacional) — os dois discos do acervo, ver
+# docs/backlog/modulo_publicacoes/12_refinamento_gestao_e_envio.md §6.
+# Mesmo `codigo` pode existir duas vezes na mesma edição vigente, uma por
+# origem — esta rodada não mescla revisão, só lista as duas lado a lado.
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_mesmo_codigo_duas_origens_nao_colide(
+    client_autenticado: AsyncClient, db: AsyncSession
+):
+    """`uq_manuais_edicao_origem_codigo` — o ponto central da mudança de schema."""
+    edicao = await _inserir_edicao(db)
+    await _inserir_manual(db, edicao, codigo="FIM_1741", origem=OrigemManual.MANUTENCAO)
+    await _inserir_manual(db, edicao, codigo="FIM_1741", origem=OrigemManual.OPERACIONAL)
+
+    corpo = (await client_autenticado.get(URL)).json()
+    origens = {item["origem"] for item in corpo if item["codigo"] == "FIM_1741"}
+    assert origens == {"MANUTENCAO", "OPERACIONAL"}
+
+
+@pytest.mark.asyncio
+async def test_listar_manuais_filtra_por_origem(
+    client_autenticado: AsyncClient, db: AsyncSession
+):
+    edicao = await _inserir_edicao(db)
+    await _inserir_manual(db, edicao, codigo="FIM_1741", origem=OrigemManual.MANUTENCAO)
+    await _inserir_manual(db, edicao, codigo="FIM_1741", origem=OrigemManual.OPERACIONAL)
+
+    corpo = (await client_autenticado.get(f"{URL}?origem=OPERACIONAL")).json()
+    assert [item["codigo"] for item in corpo] == ["FIM_1741"]
+    assert corpo[0]["origem"] == "OPERACIONAL"
+
+
+@pytest.mark.asyncio
+async def test_capitulos_desambiguados_por_origem(
+    client_autenticado: AsyncClient, db: AsyncSession
+):
+    """
+    Sem `?origem=`, MANUTENCAO vence (mesmo critério de
+    `service._manual_da_edicao_vigente`) — com `?origem=OPERACIONAL`, o
+    outro manual.
+    """
+    edicao = await _inserir_edicao(db)
+    manutencao = await _inserir_manual(db, edicao, codigo="FIM_1741", origem=OrigemManual.MANUTENCAO)
+    operacional = await _inserir_manual(db, edicao, codigo="FIM_1741", origem=OrigemManual.OPERACIONAL)
+    db.add(_documento(manutencao, capitulo="CAP_MANUTENCAO", titulo="Doc manutenção"))
+    db.add(_documento(operacional, capitulo="CAP_OPERACIONAL", titulo="Doc operacional"))
+    await db.flush()
+
+    sem_origem = (await client_autenticado.get(f"{URL}/FIM_1741/capitulos")).json()
+    assert [c["capitulo"] for c in sem_origem["capitulos"]] == ["CAP_MANUTENCAO"]
+
+    com_origem = (
+        await client_autenticado.get(f"{URL}/FIM_1741/capitulos?origem=OPERACIONAL")
+    ).json()
+    assert [c["capitulo"] for c in com_origem["capitulos"]] == ["CAP_OPERACIONAL"]
+
+
+@pytest.mark.asyncio
+async def test_documentos_desambiguados_por_origem(
+    client_autenticado: AsyncClient, db: AsyncSession
+):
+    edicao = await _inserir_edicao(db)
+    manutencao = await _inserir_manual(db, edicao, codigo="FIM_1741", origem=OrigemManual.MANUTENCAO)
+    operacional = await _inserir_manual(db, edicao, codigo="FIM_1741", origem=OrigemManual.OPERACIONAL)
+    db.add(_documento(manutencao, capitulo="CAP", titulo="Doc manutenção"))
+    db.add(_documento(operacional, capitulo="CAP", titulo="Doc operacional"))
+    await db.flush()
+
+    corpo = (
+        await client_autenticado.get(f"{URL}/FIM_1741/documentos?origem=OPERACIONAL")
+    ).json()
+    assert [d["titulo"] for d in corpo["results"]] == ["Doc operacional"]
+
+
+@pytest.mark.asyncio
+async def test_pagina_manual_desambiguada_por_origem(
+    client_autenticado: AsyncClient, db: AsyncSession
+):
+    edicao = await _inserir_edicao(db)
+    manutencao = await _inserir_manual(db, edicao, codigo="FIM_1741", origem=OrigemManual.MANUTENCAO)
+    operacional = await _inserir_manual(db, edicao, codigo="FIM_1741", origem=OrigemManual.OPERACIONAL)
+    db.add(_documento(manutencao, capitulo="CAP_MANUTENCAO", titulo="Doc manutenção"))
+    db.add(_documento(operacional, capitulo="CAP_OPERACIONAL", titulo="Doc operacional"))
+    await db.flush()
+
+    resposta = await client_autenticado.get("/publicacoes/manuais/FIM_1741?origem=OPERACIONAL")
+    assert resposta.status_code == 200
+    assert "CAP_OPERACIONAL" in resposta.text
+    assert "CAP_MANUTENCAO" not in resposta.text

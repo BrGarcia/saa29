@@ -10,7 +10,7 @@
 <div class="card" style="margin-bottom: 1rem;">
     <h2 style="margin: 0 0 0.25rem 0;">{{ manual.descricao }}</h2>
     <div style="color: var(--text-secondary); font-size: 0.9rem;">
-        {{ manual.codigo }} · {{ manual.categoria }} · {{ capitulos|length }} capítulo(s)
+        {{ manual.codigo }} · {{ manual.categoria }} · {{ "Manutenção" if manual.origem == "MANUTENCAO" else "Operacional" }} · {{ capitulos|length }} capítulo(s)
     </div>
 </div>
 
@@ -28,7 +28,7 @@
             {% for cap in capitulos %}
             <tr style="border-top: 1px solid var(--border-color);">
                 <td style="padding: 0.6rem 0.5rem;">
-                    <a href="/publicacoes/manuais/{{ manual.codigo | urlencode }}/{{ (cap.capitulo if cap.capitulo else capitulo_raiz_slug) | urlencode }}">
+                    <a href="/publicacoes/manuais/{{ manual.codigo | urlencode }}/{{ (cap.capitulo if cap.capitulo else capitulo_raiz_slug) | urlencode }}?origem={{ manual.origem | urlencode }}">
                         {% if cap.capitulo %}
                             {% if cap.ata_codigo %}ATA {{ cap.ata_codigo }} — {% endif %}{{ cap.capitulo }}
                         {% else %}

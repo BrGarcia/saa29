@@ -40,7 +40,7 @@ from app.modules.publicacoes.models import (
     PublicacaoFavorito,
 )
 from app.shared.core.db_utils import escape_like
-from app.shared.core.enums import RevisionStatus, StatusEdicao
+from app.shared.core.enums import OrigemManual, RevisionStatus, StatusEdicao
 from app.shared.core.exceptions import ConflitoNegocioError, EntidadeNaoEncontradaError
 
 logger = logging.getLogger(__name__)
@@ -97,6 +97,8 @@ class ManualPayload:
     descricao_pt: str
     categoria: str
     path: str
+    origem: OrigemManual
+    """Qual disco trouxe o manual — entra na identidade (edicao_id, origem, codigo)."""
     documentos: list[DocumentoPayload] = field(default_factory=list)
 
 
@@ -515,21 +517,34 @@ async def arquivar_edicao(db: AsyncSession, edicao_id: uuid.UUID) -> ManualEdica
 # --------------------------------------------------------------------------
 
 
-async def listar_manuais_vigentes(db: AsyncSession) -> list[dict[str, object]]:
+async def listar_manuais_vigentes(
+    db: AsyncSession, *, origem: str | None = None
+) -> list[dict[str, object]]:
     """
     Os manuais da edição vigente, com contagem de capítulos/documentos.
 
     `outerjoin`, não `join`: um manual sem documento nenhum (indexação falhou
     para ele) não pode sumir da listagem — é como se descobre o problema.
+
+    `origem` filtra por MANUTENCAO/OPERACIONAL quando informado (o toggle do
+    explorador); `None` devolve os dois lado a lado — o mesmo `codigo` pode
+    aparecer duas vezes, uma por origem, e cabe à UI desambiguar (ver
+    `docs/backlog/modulo_publicacoes/12_refinamento_gestao_e_envio.md` §6:
+    esta rodada não mescla revisão, só lista as duas).
     """
     vigente = await obter_edicao_vigente(db)
     if vigente is None:
         return []
 
+    filtros = [Manual.edicao_id == vigente.id]
+    if origem is not None:
+        filtros.append(Manual.origem == origem)
+
     linhas = (
         await db.execute(
             select(
                 Manual.codigo,
+                Manual.origem,
                 Manual.descricao_pt,
                 Manual.categoria,
                 Manual.revisao,
@@ -538,45 +553,59 @@ async def listar_manuais_vigentes(db: AsyncSession) -> list[dict[str, object]]:
             )
             .select_from(Manual)
             .outerjoin(ManualDocumento, ManualDocumento.manual_id == Manual.id)
-            .where(Manual.edicao_id == vigente.id)
+            .where(*filtros)
             .group_by(Manual.id)
-            .order_by(Manual.categoria, Manual.codigo)
+            .order_by(Manual.categoria, Manual.codigo, Manual.origem)
         )
     ).all()
 
     return [
         {
             "codigo": codigo,
+            "origem": origem_manual.value,
             "descricao": descricao_pt,
             "categoria": categoria,
             "capitulos": int(capitulos),
             "documentos": int(documentos),
             "revisao": revisao,
         }
-        for codigo, descricao_pt, categoria, revisao, capitulos, documentos in linhas
+        for codigo, origem_manual, descricao_pt, categoria, revisao, capitulos, documentos in linhas
     ]
 
 
-async def _manual_da_edicao_vigente(db: AsyncSession, codigo: str) -> Manual:
+async def _manual_da_edicao_vigente(
+    db: AsyncSession, codigo: str, *, origem: str | None = None
+) -> Manual:
     """
     O manual `codigo` na edição VIGENTE, ou 404.
 
     Escopado pela vigente de propósito: um manual que só existe numa edição
     arquivada não deve aparecer na navegação (achado B2 — o mesmo código de
     manual existe em edições diferentes, com `manual_id` diferente).
+
+    `origem` desambigua quando o mesmo `codigo` existe nos dois discos
+    (Manutenção/Operacional) dentro da mesma edição — ver
+    `uq_manuais_edicao_origem_codigo`. Quando omitida e há mais de um manual
+    com esse código, MANUTENCAO vence (`ORDER BY origem` — "MANUTENCAO" <
+    "OPERACIONAL" alfabeticamente): é o caminho de compatibilidade para telas
+    que ainda não mandam `origem` (mobile, link antigo); o explorador manda
+    sempre que o manual está listado com o filtro "Todos".
     """
     vigente = await obter_edicao_vigente(db)
+    if vigente is None:
+        raise EntidadeNaoEncontradaError(
+            f"Manual {codigo!r} não encontrado na edição vigente."
+        )
+
+    filtros = [Manual.edicao_id == vigente.id, Manual.codigo == codigo]
+    if origem is not None:
+        filtros.append(Manual.origem == origem)
+
     manual = (
-        (
-            await db.execute(
-                select(Manual).where(
-                    Manual.edicao_id == vigente.id, Manual.codigo == codigo
-                )
-            )
-        ).scalar_one_or_none()
-        if vigente is not None
-        else None
-    )
+        await db.execute(
+            select(Manual).where(*filtros).order_by(Manual.origem).limit(1)
+        )
+    ).scalar_one_or_none()
     if manual is None:
         raise EntidadeNaoEncontradaError(
             f"Manual {codigo!r} não encontrado na edição vigente."
@@ -584,19 +613,24 @@ async def _manual_da_edicao_vigente(db: AsyncSession, codigo: str) -> Manual:
     return manual
 
 
-async def obter_cabecalho_manual(db: AsyncSession, codigo: str) -> dict[str, str]:
+async def obter_cabecalho_manual(
+    db: AsyncSession, codigo: str, *, origem: str | None = None
+) -> dict[str, str]:
     """Só o cabeçalho (sem capítulos) — usado pelo breadcrumb da página de documentos."""
-    manual = await _manual_da_edicao_vigente(db, codigo)
+    manual = await _manual_da_edicao_vigente(db, codigo, origem=origem)
     return {
         "codigo": manual.codigo,
+        "origem": manual.origem.value,
         "descricao": manual.descricao_pt,
         "categoria": manual.categoria,
     }
 
 
-async def obter_manual_com_capitulos(db: AsyncSession, codigo: str) -> dict[str, object]:
+async def obter_manual_com_capitulos(
+    db: AsyncSession, codigo: str, *, origem: str | None = None
+) -> dict[str, object]:
     """Cabeçalho do manual + capítulos, ordenados pelo prefixo numérico (RN-05)."""
-    manual = await _manual_da_edicao_vigente(db, codigo)
+    manual = await _manual_da_edicao_vigente(db, codigo, origem=origem)
 
     linhas = (
         await db.execute(
@@ -614,6 +648,7 @@ async def obter_manual_com_capitulos(db: AsyncSession, codigo: str) -> dict[str,
     return {
         "manual": {
             "codigo": manual.codigo,
+            "origem": manual.origem.value,
             "descricao": manual.descricao_pt,
             "categoria": manual.categoria,
         },
@@ -628,6 +663,7 @@ async def listar_documentos_do_manual(
     db: AsyncSession,
     codigo: str,
     *,
+    origem: str | None = None,
     capitulo: str | None = None,
     limit: int = 50,
     offset: int = 0,
@@ -636,9 +672,10 @@ async def listar_documentos_do_manual(
     Documentos do manual `codigo` (edição vigente), ordenados por `sort_order`
     (RN-05) — a ordem que o mecânico via no DVD.
 
-    `capitulo=None` devolve todos os capítulos do manual.
+    `capitulo=None` devolve todos os capítulos do manual. `origem` desambigua
+    quando o mesmo `codigo` existe nos dois discos — ver `_manual_da_edicao_vigente`.
     """
-    manual = await _manual_da_edicao_vigente(db, codigo)
+    manual = await _manual_da_edicao_vigente(db, codigo, origem=origem)
 
     limit = max(1, min(limit, LIMITE_MAXIMO_LISTAGEM))
     offset = max(0, offset)
@@ -735,11 +772,11 @@ async def sincronizar_catalogo(
     Reconcilia o catálogo leve de `edicao` com o que o indexador encontrou.
 
     Idempotente por construção: as chaves são determinísticas
-    (`uq_manuais_edicao_codigo` e o UUID v5 do documento), então rodar duas
-    vezes sobre o mesmo acervo produz exatamente o mesmo estado.
+    (`uq_manuais_edicao_origem_codigo` e o UUID v5 do documento), então rodar
+    duas vezes sobre o mesmo acervo produz exatamente o mesmo estado.
 
     Reconcilia só os manuais presentes em `manuais` — indexar uma amostra ou um
-    manual isolado não pode apagar o catálogo dos outros 33 da mesma edição.
+    manual isolado não pode apagar o catálogo dos outros da mesma edição.
     Dentro de cada manual processado, documentos que sumiram do disco são
     removidos (RN-09); a auditoria sobrevive porque `publicacoes_acessos` usa
     SET NULL + snapshot do título (B4).
@@ -750,7 +787,9 @@ async def sincronizar_catalogo(
         manual = (
             await db.execute(
                 select(Manual).where(
-                    Manual.edicao_id == edicao.id, Manual.codigo == payload.codigo
+                    Manual.edicao_id == edicao.id,
+                    Manual.origem == payload.origem,
+                    Manual.codigo == payload.codigo,
                 )
             )
         ).scalar_one_or_none()
@@ -759,6 +798,7 @@ async def sincronizar_catalogo(
             manual = Manual(
                 edicao_id=edicao.id,
                 codigo=payload.codigo,
+                origem=payload.origem,
                 descricao_pt=payload.descricao_pt,
                 categoria=payload.categoria,
                 path=payload.path,
