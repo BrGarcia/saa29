@@ -52,6 +52,14 @@ async function handleLogin(e) {
             body: new URLSearchParams(formData)
         });
 
+        // Sincroniza o token CSRF rotacionado pelo middleware nesta resposta
+        // (200, 401 ou 429) — sem isso, a 2a tentativa reenvia o token velho
+        // da meta tag contra o cookie ja rotacionado e leva 403 de CSRF.
+        const novoCsrfToken = response.headers.get('X-CSRF-Token');
+        if (novoCsrfToken && csrfMeta) {
+            csrfMeta.setAttribute('content', novoCsrfToken);
+        }
+
         if (!response.ok) {
             const data = await response.json().catch(() => ({}));
             let msg = 'Credenciais inválidas ou erro no servidor.';

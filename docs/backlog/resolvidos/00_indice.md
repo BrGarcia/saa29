@@ -12,6 +12,7 @@ Este diretório contém a documentação histórica, relatórios de auditoria e 
 - [feature_encarregado_alteracoes_pendentes.md](file:///c:/Users/brgar/Projetos/SAA29/docs/backlog/resolvidos/modulo_auth/feature_encarregado_alteracoes_pendentes.md)
 - [feature_encarregado_alteracoes_pendentes_plano.md](file:///c:/Users/brgar/Projetos/SAA29/docs/backlog/resolvidos/modulo_auth/feature_encarregado_alteracoes_pendentes_plano.md)
 - [implementacao_rbac_v2.md](file:///c:/Users/brgar/Projetos/SAA29/docs/backlog/resolvidos/modulo_auth/implementacao_rbac_v2.md)
+- [pane_login_csrf_e_lockout.md](file:///c:/Users/brgar/Projetos/SAA29/docs/backlog/resolvidos/modulo_auth/pane_login_csrf_e_lockout.md)
 
 ### 2. `modulo_calendario/` (Agendamentos e Bloqueios de Calendário)
 - [bug_calendario.md](file:///c:/Users/brgar/Projetos/SAA29/docs/backlog/resolvidos/modulo_calendario/bug_calendario.md)

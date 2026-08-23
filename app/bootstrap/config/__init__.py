@@ -72,6 +72,10 @@ class Settings(BaseSettings):
             "em separado em security.py e router.py e podiam divergir."
         ),
     )
+    auth_login_rate_limit: str = Field(
+        default="5/minute",
+        description="Taxa do rate limit de POST /auth/login (formato slowapi, ex: '5/minute').",
+    )
 
     # --- Upload e Storage ---
     upload_dir: str = "var/uploads"

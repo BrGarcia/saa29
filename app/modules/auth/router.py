@@ -41,7 +41,7 @@ def _cookies_secure(settings) -> bool:
     summary="Login de usuário",
     description="Autentica o usuário e retorna um JWT + Refresh Token (via Cookie HttpOnly). (RF-01)",
 )
-@limiter.limit("5/minute")
+@limiter.limit(lambda: get_settings().auth_login_rate_limit)
 async def login(
     request: Request,
     db: DBSession,
