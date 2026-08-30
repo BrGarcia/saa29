@@ -7,7 +7,6 @@ o Catálogo de Tipos de Inspeção, Usuários e o Módulo de Publicações.
 """
 
 import asyncio
-import os
 import sys
 from pathlib import Path
 from dotenv import load_dotenv

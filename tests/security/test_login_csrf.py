@@ -3,9 +3,12 @@ Regressao para o fluxo de login protegido por CSRF.
 """
 
 import re
+import uuid
 
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.auth.models import Usuario
@@ -24,6 +27,39 @@ def _extrair_csrf_meta(html: str) -> str:
     return match.group(1)
 
 
+@pytest_asyncio.fixture
+async def usuario_csrf(db: AsyncSession, dados_usuario_valido: dict):
+    """Usuario com username proprio deste modulo, removido no teardown.
+
+    O endpoint de login faz `db.commit()` explicito (app/modules/auth/router.py:59,
+    e tambem nos caminhos de tentativa falha do rate limiting). Commit nao e
+    desfeito pelo rollback da fixture `db`, entao um usuario criado aqui
+    SOBREVIVE ao teste. Reusar o `joao.silva` de `dados_usuario_valido` fazia a
+    linha vazar e quebrar tests/unit/test_auth.py::TestLogin::test_login_sucesso
+    com `UNIQUE constraint failed: usuarios.username` — mas so na suite completa,
+    nunca com o arquivo rodando isolado.
+
+    Dai as duas defesas: username unico (evita a colisao) e DELETE explicito
+    (evita o acumulo). TokenRefresh.usuario_id tem ondelete=CASCADE, entao os
+    tokens criados pelo login saem junto.
+    """
+    dados = {**dados_usuario_valido, "username": f"csrf.{uuid.uuid4().hex[:8]}"}
+    usuario = Usuario(
+        nome=dados["nome"],
+        posto=dados["posto"],
+        funcao=dados["funcao"],
+        username=dados["username"],
+        senha_hash=hash_senha(dados["password"]),
+    )
+    db.add(usuario)
+    await db.commit()
+
+    yield dados
+
+    await db.execute(delete(Usuario).where(Usuario.username == dados["username"]))
+    await db.commit()
+
+
 @pytest.mark.asyncio
 async def test_login_html_com_csrf_nao_e_cacheavel(client: AsyncClient):
     response = await client.get(LOGIN_PAGE_URL)
@@ -40,18 +76,9 @@ async def test_login_html_com_csrf_nao_e_cacheavel(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_login_com_credenciais_validas_envia_csrf_real(
     client: AsyncClient,
-    db: AsyncSession,
-    dados_usuario_valido: dict,
+    usuario_csrf: dict,
 ):
-    usuario = Usuario(
-        nome=dados_usuario_valido["nome"],
-        posto=dados_usuario_valido["posto"],
-        funcao=dados_usuario_valido["funcao"],
-        username=dados_usuario_valido["username"],
-        senha_hash=hash_senha(dados_usuario_valido["password"]),
-    )
-    db.add(usuario)
-    await db.flush()
+    dados_usuario_valido = usuario_csrf
 
     login_page_response = await client.get(LOGIN_PAGE_URL)
     csrf_token = _extrair_csrf_meta(login_page_response.text)
@@ -79,8 +106,7 @@ async def test_login_com_credenciais_validas_envia_csrf_real(
 @pytest.mark.asyncio
 async def test_segunda_tentativa_com_token_rotacionado_nao_leva_403(
     client: AsyncClient,
-    db: AsyncSession,
-    dados_usuario_valido: dict,
+    usuario_csrf: dict,
 ):
     """Regressao: errar a senha e tentar de novo sem F5 nao pode virar 403 de CSRF.
 
@@ -90,15 +116,7 @@ async def test_segunda_tentativa_com_token_rotacionado_nao_leva_403(
     tentativa (ainda com senha errada) deve continuar recebendo 401 —
     nunca 403 (o bug era o front reenviar o token velho da meta tag).
     """
-    usuario = Usuario(
-        nome=dados_usuario_valido["nome"],
-        posto=dados_usuario_valido["posto"],
-        funcao=dados_usuario_valido["funcao"],
-        username=dados_usuario_valido["username"],
-        senha_hash=hash_senha(dados_usuario_valido["password"]),
-    )
-    db.add(usuario)
-    await db.flush()
+    dados_usuario_valido = usuario_csrf
 
     login_page_response = await client.get(LOGIN_PAGE_URL)
     token_inicial = _extrair_csrf_meta(login_page_response.text)

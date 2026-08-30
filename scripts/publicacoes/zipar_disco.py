@@ -125,6 +125,6 @@ def main(argv: list[str]) -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main(sys.argv[1:]))
-    except KeyboardInterrupt:
+    except KeyboardInterrupt as exc:
         print("\nCancelado.")
-        raise SystemExit(1)
+        raise SystemExit(1) from exc

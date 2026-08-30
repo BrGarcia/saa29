@@ -1,6 +1,7 @@
 import pytest
 import uuid
 from sqlalchemy import delete
+from sqlalchemy.exc import IntegrityError
 from app.shared.core.enums import StatusUploadJob
 from app.modules.publicacoes.models import PublicacoesUploadJob
 from app.modules.auth.models import Usuario
@@ -74,7 +75,7 @@ async def test_single_flight_lock_upload_job(db):
         criado_por_id=user.id,
     )
     db.add(job2)
-    with pytest.raises(Exception):
+    with pytest.raises(IntegrityError):
         await db.commit()
     await db.rollback()
 

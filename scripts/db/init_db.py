@@ -7,7 +7,6 @@ Seguro para rodar tanto em Dev quanto em Produção.
 import asyncio
 import sys
 from pathlib import Path
-from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 SCRIPTS_DIR = ROOT_DIR / "scripts"

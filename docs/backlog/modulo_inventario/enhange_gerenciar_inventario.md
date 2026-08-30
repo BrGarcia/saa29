@@ -5,12 +5,22 @@
 | **ID** | SPEC-CONF-001 |
 | **Título** | Gestão administrativa de Equipamentos, Slots e Inventário via tela de Configurações |
 | **Tipo** | Feature Specification (PRD + Technical Design) |
-| **Versão** | 2.0 — Revisada contra o código |
-| **Data** | 2026-08-19 |
+| **Versão** | 2.5 — Revisada contra código, pipeline e convenções de API; pré-check de produção e linha de base de testes executados |
+| **Data** | 2026-08-30 (v2.0 em 2026-08-19) |
 | **Autor** | *(preencher)* |
 | **Status** | 🟢 Revisada — pronta para virar plano de execução |
 | **Épico** | EP-INV — Manutenção de dados mestres de inventário |
 | **Stakeholders** | Seção de Manutenção, Suprimento/Almoxarifado, Controle de Configuração, TI/Sustentação |
+
+> ✅ **Nota de revisão (v2.5 — 2026-08-30):** a linha de base de qualidade foi medida e corrigida antes de iniciar (PR-0, `plano_implementacao.md` §0.2). O branch `development` já estava vermelho por motivos alheios a esta feature: 11 erros de `ruff` (CI reprovando desde 21/08) e 4 falhas de `pytest` por contaminação entre testes. Ambos corrigidos — `ruff check .` limpo e `pytest -q` com 770 passed. Sem isso, o DoD "`ruff check .` limpo" e o critério "a suíte continua verde" eram inalcançáveis por construção.
+
+> ✅ **Nota de revisão (v2.4 — 2026-08-30):** o pré-check da Seção 13 foi executado no banco de **produção**: 33 slots, 0 duplicidades em `(nome_posicao, sistema)`, 0 nulos em `sistema`/`posicao_xlsx`, e `alembic_version = 2676d7fdd987` — produção já está no head do repositório. A premissa da UNIQUE está confirmada contra dado real, não apenas contra o ambiente local.
+
+> ⚠️ **Nota de revisão (v2.3 — 2026-08-30):** as exclusões de slot e item passam de `DELETE` com corpo JSON para `POST /{id}/remover` com corpo. RF-10 continua valendo — justificativa segue obrigatória —, mas `DELETE`-com-corpo não tem precedente no projeto (dos 10 `@router.delete` existentes, nenhum recebe body) e é descartado por muitos proxies, o que importa porque a aplicação roda atrás do nginx da VPS. O padrão real do repositório é `POST /{id}/<verbo>` com corpo (`app/modules/pedidos/router.py:208`). Consequência: `DELETE /equipamentos/{id}` permanece **intocado**.
+
+> ⚠️ **Nota de revisão (v2.2 — 2026-08-30):** a inspeção do pipeline (`.github/workflows/deploy.yml`, `scripts/start.sh`) mostrou que **a migration chega a produção sem porteiro manual** e que a Seção 19 (Rollback) descrevia o ambiente errado. Consequências: a entrega passa a ser fatiada em 3 PRs (Seção 16), o pré-check da Seção 13 passa a ser obrigatório **no banco de produção**, e a Seção 19 foi reescrita com o mecanismo real (R2 + snapshot manual).
+
+> ⚠️ **Nota de revisão (v2.1 — 2026-08-30):** re-verificação contra o código corrigiu quatro pontos da v2.0: (a) o head do Alembic não é mais `b63e385e3395` (Seção 13); (b) `ordem_exibicao` só surte efeito se o `sort` em Python de `listar_inventario_aeronave` for alterado junto (Seção 6.3); (c) exclusão de item precisa bloquear também por `ControleVencimento`, não só por `Instalacao` (RN-06); (d) tornar `sistema`/`posicao_xlsx` obrigatórios quebra 18 das 20 construções de slot nas suítes — não é uma entrega sem alteração de testes (Seções 14 e 15). Acrescentado RF-13 (reativar slot), sem o qual um slot inativado fica inacessível pela UI.
 
 > ⚠️ **Nota de revisão (v2.0):** a v1.0 deste documento foi escrita sobre um modelo de dados hipotético (`equipamento`/`slot`/`inventario`, campos `sn_siloms`/`sn_real`, PostgreSQL, perfis "Supervisor"/"Somente Leitura") que **não corresponde ao código do SAA29**. Esta revisão substitui essas premissas pelo sistema real: 4 tabelas (`modelos_equipamento`, `slots_inventario`, `itens_equipamento`, `instalacoes`), SQLite, e os 4 papéis definidos em `app/shared/core/enums.py` (`TipoPapel`). O histórico da v1.0 permanece disponível no git.
 
@@ -82,7 +92,7 @@ O catálogo de Part Numbers (`modelos_equipamento`) já tem CRUD completo pela t
 
 ### 4.1 Dentro do escopo (In Scope)
 
-1. CRUD completo de **Slots** (`slots_inventario`): editar, inativar, remover — criar já existe.
+1. CRUD completo de **Slots** (`slots_inventario`): editar, inativar, **reativar**, remover — criar já existe.
 2. CRUD completo de **Itens de Equipamento** (`itens_equipamento`): editar, excluir — criar já existe.
 3. Correção do schema de criação de slot para aceitar `posicao_xlsx`, `descricao`, `ordem_exibicao`.
 4. Tabela `auditoria_dados_mestres` (append-only) e instrumentação das escritas de PN/Slot/Item.
@@ -163,7 +173,7 @@ erDiagram
 | `posicao_xlsx` | VARCHAR(20) | **N** (era nullable) | existente — passa a obrigatório na criação (corrige o bug de integração da Seção 1) |
 | `modelo_id` | FK `modelos_equipamento.id` ON DELETE RESTRICT | N | existente |
 | `descricao` | VARCHAR(200) | S | **novo** |
-| `ordem_exibicao` | INTEGER | S | **novo** — ordenação na tela de Inventário |
+| `ordem_exibicao` | INTEGER | S | **novo** — ordenação na tela de Inventário. ⚠️ Um `ORDER BY` no SQL **não basta**: `listar_inventario_aeronave` reordena em Python por `(sistema, nome_posicao)` (`service.py:322`) e sobrescreveria qualquer ordenação vinda da query. A chave desse `sort` precisa passar a `(ordem_exibicao, sistema, nome_posicao)`. |
 | `ativo` | BOOLEAN | N, default `true` | **novo** — inativação em vez de exclusão física quando há histórico |
 | `created_at` | DATETIME(timezone=True) | N | **novo** |
 | `updated_at` | DATETIME(timezone=True) | S | **novo** |
@@ -197,17 +207,17 @@ Constraint nova: `UniqueConstraint("nome_posicao", "sistema", name="uq_slot_nome
 
 ### 6.6 `auditoria_dados_mestres` — **nova tabela**
 
-| Coluna | Tipo (SQLite) | Regra |
+| Coluna | Tipo (SQLAlchemy) | Regra |
 |---|---|---|
-| `id` | CHAR(32) UUID PK | — |
+| `id` | `sa.Uuid()` PK | convenção do projeto — ver `20260810_0932_a6ebf9f13490_add_pedidos_module.py:34`. **Não usar `sa.CHAR(32)`**: divergiria do `Mapped[uuid.UUID]` do ORM e do tipo da FK `usuarios.id`, gerando drift permanente no `--autogenerate`. |
 | `entidade` | VARCHAR(30) | `MODELO_EQUIPAMENTO`, `SLOT`, `ITEM` |
-| `entidade_id` | CHAR(32) | — |
+| `entidade_id` | `sa.Uuid()` | — |
 | `acao` | VARCHAR(10) | `CREATE`, `UPDATE`, `DELETE` |
-| `valores_anteriores` | **JSON** (não JSONB — SQLite) | somente campos alterados |
-| `valores_novos` | **JSON** | somente campos alterados |
-| `justificativa` | VARCHAR(500) | obrigatória em `DELETE` |
+| `valores_anteriores` | **JSON** (não JSONB — SQLite) | somente campos alterados. ⚠️ Todo valor gravado precisa ser serializável por `json.dumps`: `uuid.UUID`, `datetime` e `date` devem ser convertidos para `str` **antes** da gravação, sob pena de `TypeError` em tempo de execução. |
+| `valores_novos` | **JSON** | somente campos alterados — mesma regra de serialização acima |
+| `justificativa` | VARCHAR(500) | obrigatória na ação `DELETE` das entidades novas (slot e item, via `POST /{id}/remover`); `NULL` no `DELETE /equipamentos/{id}`, cujo contrato não muda |
 | `usuario_id` | FK `usuarios.id` ON DELETE RESTRICT | autor — sempre da sessão |
-| `ip_origem` | **VARCHAR(45)** (não INET — SQLite não tem tipo de IP nativo; 45 cobre IPv6) | `request.client.host` |
+| `ip_origem` | **VARCHAR(45)** (não INET — SQLite não tem tipo de IP nativo; 45 cobre IPv6) | `request.client.host`. ⚠️ Em produção a aplicação roda atrás do nginx da VPS: sem `ProxyHeadersMiddleware` (ou leitura de `X-Forwarded-For`), este campo registra o IP do proxy, não o do usuário. Aceitável para esta entrega — registrar como limitação conhecida, não como rastreabilidade de rede. |
 | `criado_em` | DATETIME(timezone=True) | append-only — nenhuma rotina de UPDATE/DELETE sobre esta tabela, no padrão de `execucoes_vencimento_historico` (`app/modules/vencimentos/models.py:125-151`) |
 
 Índices: `(entidade, entidade_id)` e `(criado_em)`.
@@ -237,9 +247,10 @@ Constraint nova: `UniqueConstraint("nome_posicao", "sistema", name="uq_slot_nome
 | RF-07 | Editar Item de Equipamento (S/N, status) | Must | 🔴 Novo |
 | RF-08 | Excluir Item de Equipamento, bloqueando se houver instalação vinculada | Must | 🔴 Novo |
 | RF-09 | Toda operação de escrita em PN/Slot/Item grava registro em `auditoria_dados_mestres` | Must | 🔴 Novo |
-| RF-10 | Operações destrutivas exigem modal de confirmação + justificativa | Must | 🔴 Novo |
+| RF-10 | Operações destrutivas exigem modal de confirmação + justificativa, via `POST /{id}/remover` (não `DELETE` com corpo — ver §10.1) | Must | 🔴 Novo |
 | RF-11 | Disponibilizar "Ver histórico" por registro (PN, slot ou item) | Should | 🔴 Novo |
 | RF-12 | Filtrar slots inativos fora da grade de Inventário e do preview de importação XLSX | Must | 🔴 Novo (efeito colateral necessário de RF-05) |
+| RF-13 | Reativar Slot (`ativo=true`) e listar slots inativos na tela de gestão | Must | 🔴 Novo — sem ele, RF-05 + RF-12 tornam um slot inativado permanentemente inacessível pela aplicação |
 
 Removidos da v1.0 por já implementados ou inaplicáveis: RF-16 (criar item de inventário — o fluxo "Sincronizar" já cobre isso) e RF-19 (exportar CSV — já existe em `GET /equipamentos/inventario/export`).
 
@@ -254,7 +265,7 @@ Removidos da v1.0 por já implementados ou inaplicáveis: RF-16 (criar item de i
 | RN-03 | Slot com qualquer instalação vinculada (ativa ou histórica) não pode ser removido; a API retorna 409 sugerindo `ativo=false`. |
 | RN-04 (reescrita) | Trocar o `modelo_id` (PN esperado) de um **slot** é uma operação de configuração que afeta **toda a frota**, não uma aeronave isolada — o slot é global. Bloquear a troca enquanto houver instalação ativa nesse slot em qualquer aeronave; exigir confirmação explícita quando não houver. |
 | RN-05 (corrigida) | `usuario_id`/`trigrama` de qualquer registro de auditoria vêm **sempre** da sessão autenticada, nunca de payload do cliente — mesma regra já aplicada em `ajustar_inventario_item` para corrigir o BUG-01 documentado (*"a trilha de auditoria do inventário era forjável"*, `service.py:484-487`). Não expor campo editável de autor/trigrama em nenhum formulário novo. |
-| RN-06 | Item de Equipamento com instalação ativa não pode ser excluído — sugerir `status=REMOVIDO` como alternativa (enum já existe, `enums.py:19-23`). |
+| RN-06 (ampliada) | Item de Equipamento não pode ser excluído se tiver **instalação** vinculada **ou controles de vencimento** (`ControleVencimento.item_id`, `app/modules/vencimentos/models.py:77`) — sugerir `status=REMOVIDO` como alternativa (enum já existe, `enums.py:19-23`). A checagem de `ControleVencimento` é obrigatória: a FK não tem `ondelete`, então sem ela o `DELETE` estoura `IntegrityError` (500) em vez de 409 — e como `criar_item_com_heranca` cria controles herdados para todo item novo (`service.py:232`), esse é o caminho comum, não a exceção. Mesmo precedente já tratado em `remover_modelo` (MELHORIA-06, `service.py:178-187`). |
 | RN-07 | `S/N (REAL)` continua efêmero: divergência entre o valor digitado e o S/N (SILOMS) exibido é resolvida na hora pelo botão "Sincronizar" (`ajustar_inventario_item`); nenhum estado `DIVERGENTE` é persistido. *(decisão do produto — fora de escopo desta entrega)* |
 | RN-08 | Nenhuma exclusão física de `slots_inventario` ou `itens_equipamento` pela aplicação quando há histórico — usar `ativo=false` (slot) ou `status=REMOVIDO` (item). Exclusão física só é permitida quando não há nenhum vínculo (RN-03/RN-06). |
 | RN-09 | Registros de `auditoria_dados_mestres` são *append-only* — nenhuma rotina de UPDATE/DELETE, no mesmo padrão de `execucoes_vencimento_historico`. |
@@ -275,7 +286,7 @@ Removidas da v1.0 por dependerem de colunas que não existirão (`sn_siloms`, `s
 | RNF-05 | Integridade | Cada operação de escrita + auditoria em uma única transação (padrão `db.begin_nested()` já usado no módulo). |
 | RNF-06 | Concorrência | *Optimistic locking* fica **fora de escopo** — operação admin-only, baixo volume de escrita concorrente; auditoria já cobre rastreabilidade. |
 | RNF-07 | Acessibilidade | Navegação por teclado e rótulos ARIA nos modais novos, seguindo o padrão já usado nos modais de Configurações. |
-| RNF-08 | Compatibilidade | A migração e as novas rotas não podem quebrar `/inventario` nem o fluxo de "Sincronizar" existente — cobrir com testes de regressão (`tests/unit/test_inventario.py`). |
+| RNF-08 (precisado) | Compatibilidade | A migração e as novas rotas não podem quebrar o **comportamento** de `/inventario` nem o fluxo de "Sincronizar" existente — cobrir com testes de regressão (`tests/unit/test_inventario.py`). Isso **não** implica suítes intocadas: a obrigatoriedade de `sistema`/`posicao_xlsx` exige atualizar as construções de slot listadas na Seção 14. |
 | RNF-09 | CSP | Zero `onclick` inline nos novos modais/JS — `script-src 'self'` sem `'unsafe-inline'` (RN-16, `docs/ia/rules.ctx`; `app/shared/middleware/security.py`). |
 
 ---
@@ -284,9 +295,13 @@ Removidas da v1.0 por dependerem de colunas que não existirão (`sn_siloms`, `s
 
 **Base real:** `/equipamentos` (não `/api/v1/configuracoes`). **Auth:** cookie/JWT de sessão. **Envelope de erro:** padrão FastAPI `{"detail": "..."}`, já consumido por `apiFetch` (`app/web/static/js/app.js:199-208`) — não há envelope `{"error": {...}}` customizado no projeto.
 
-### 10.1 Equipamentos (PN) — já implementado, sem alteração
+### 10.1 Equipamentos (PN) — já implementado, sem alteração de contrato
 
 `GET/POST /equipamentos/`, `GET/PATCH/DELETE /equipamentos/{id}`.
+
+Estes endpoints ganham apenas instrumentação de auditoria (RF-09) — assinatura e corpo de entrada permanecem idênticos. `DELETE /equipamentos/{id}` audita com `justificativa=None`. Se a Q4 (Qualidade) exigir justificativa também para PN, a resposta é acrescentar `POST /equipamentos/{id}/remover` ao lado do `DELETE`, sem quebrar o consumidor existente (`configuracoes.js:763`).
+
+> **Convenção adotada (v2.3):** ação destrutiva que exige motivo é modelada como `POST /{id}/<verbo>` com corpo, não como `DELETE` com corpo — seguindo `app/modules/pedidos/router.py:208` (`POST /{pedido_id}/cancelar`) e `:223` (`DELETE /{pedido_id}`, sem corpo). Nenhum dos 10 endpoints `@router.delete` do projeto recebe body.
 
 ### 10.2 Slots — extensão proposta
 
@@ -295,9 +310,12 @@ Removidas da v1.0 por dependerem de colunas que não existirão (`sn_siloms`, `s
 | `GET` | `/equipamentos/slots/` | Lista slots | `CurrentUser` | já existe |
 | `POST` | `/equipamentos/slots/` | Cria slot | `AdminRequired` | já existe — schema estendido |
 | `PATCH` | `/equipamentos/slots/{slot_id}` | Atualiza slot | `AdminRequired` | **novo** |
-| `DELETE` | `/equipamentos/slots/{slot_id}` | Remove slot (bloqueia se ocupado) | `AdminRequired` | **novo** |
+| `POST` | `/equipamentos/slots/{slot_id}/remover` | Remove slot com justificativa (bloqueia se ocupado) | `AdminRequired` | **novo** |
 | `POST` | `/equipamentos/slots/{slot_id}/inativar` | Inativa slot | `AdminRequired` | **novo** |
+| `POST` | `/equipamentos/slots/{slot_id}/reativar` | Reativa slot (RF-13) | `AdminRequired` | **novo** |
 | `GET` | `/equipamentos/slots/{slot_id}/ocupacao` | Lista aeronaves que ocupam o slot | `AdminRequired` | **novo** |
+
+> `GET /equipamentos/slots/` passa a aceitar `?incluir_inativos=true` (default `false`). Sem esse parâmetro a tela de gestão não teria como exibir — nem reativar — um slot inativado.
 
 ### 10.3 Itens de Equipamento — extensão proposta
 
@@ -306,7 +324,7 @@ Removidas da v1.0 por dependerem de colunas que não existirão (`sn_siloms`, `s
 | `GET` | `/equipamentos/itens/` | Lista itens | `CurrentUser` | já existe |
 | `POST` | `/equipamentos/itens/` | Cria item | `AdminRequired` | já existe |
 | `PATCH` | `/equipamentos/itens/{item_id}` | Atualiza S/N ou status | `AdminRequired` | **novo** |
-| `DELETE` | `/equipamentos/itens/{item_id}` | Exclui item (bloqueia se instalado) | `AdminRequired` | **novo** |
+| `POST` | `/equipamentos/itens/{item_id}/remover` | Exclui item com justificativa (bloqueia se instalado ou com controles de vencimento) | `AdminRequired` | **novo** |
 
 ### 10.4 Auditoria — nova
 
@@ -341,7 +359,7 @@ Cenário: Editar PN esperado de slot ocupado
 
 Cenário: Remoção bloqueada por ocupação
   Dado um slot com qualquer instalação vinculada (ativa ou histórica)
-  Quando solicito a remoção
+  Quando chamo POST /equipamentos/slots/{id}/remover
   Então recebo 409 com a lista de aeronaves/instalações impedientes
   E o sistema sugere "Inativar slot" como alternativa
 
@@ -373,10 +391,10 @@ Cenário: S/N duplicado para o mesmo PN
   Quando altero o S/N de um item para um valor já usado no mesmo modelo_id
   Então recebo 409
 
-Cenário: Exclusão bloqueada por instalação ativa
-  Dado um item instalado em uma aeronave
-  Quando solicito a exclusão
-  Então recebo 409
+Cenário: Exclusão bloqueada por vínculo
+  Dado um item instalado em uma aeronave, ou com controles de vencimento herdados
+  Quando chamo POST /equipamentos/itens/{id}/remover
+  Então recebo 409 (nunca 500)
   E o sistema sugere marcar status=REMOVIDO como alternativa
 
 Cenário: Exclusão de item sem vínculo
@@ -426,12 +444,34 @@ Configurações
 
 ## 13. Migração
 
-Migration única gerada por `alembic revision --autogenerate` a partir do head atual (`b63e385e3395`), com passos manuais obrigatórios:
+Migration única gerada por `alembic revision --autogenerate` a partir do head atual do **repositório**: **`2676d7fdd987`** (`migrations/versions/20260820_1400_2676d7fdd987_publicacoes_manuais_origem.py`). A v2.0 deste documento citava `b63e385e3395`, que é o head do **banco local** (`saa29_local.db`), não o do repositório — rodar `alembic upgrade head` antes de gerar a migration, ou o `down_revision` nascerá errado.
 
-1. **Pré-check de duplicidade antes da UNIQUE** — rodar `SELECT nome_posicao, sistema, COUNT(*) FROM slots_inventario GROUP BY 1,2 HAVING COUNT(*)>1;` e sanear manualmente qualquer duplicidade encontrada.
+Passos manuais obrigatórios:
+
+**A migração é entregue em duas partes**, em PRs distintos (ver Seção 16): uma **aditiva** (tabela de auditoria + colunas novas de slot, todas nullable ou com default) e uma **destrutiva** (`NOT NULL` + `UNIQUE`). Só a segunda exige os portões abaixo.
+
+> ⚠️ **Por que os portões existem.** O pipeline migra produção sozinho: `deploy.yml:44` e `scripts/start.sh:28` rodam `alembic upgrade head` no deploy **e a cada start do container**, sob `set -e`. Uma migration que falha não degrada — **o container não sobe**. Uma duplicata em `(nome_posicao, sistema)` na VPS derruba a aplicação no merge.
+
+1. ✅ **Pré-check de duplicidade e nulos — no banco de PRODUÇÃO. Executado em 2026-08-30:**
+
+   | Métrica | Produção (VPS) | Local |
+   |---|---|---|
+   | Slots | 33 | 33 |
+   | Duplicidades `(nome_posicao, sistema)` | **0** | 0 |
+   | Nulos em `sistema`/`posicao_xlsx` | **0** | 0 |
+   | `alembic_version` | **`2676d7fdd987`** | `b63e385e3395` |
+
+   A UNIQUE não encontra obstáculo e o backfill será um no-op. Produção estar no head do repositório confirma que `down_revision = "2676d7fdd987"` está correto e que não há migrations acumuladas a aplicar antes da nova.
+
+   ⚠️ **Reexecutar antes do merge da parte destrutiva** — `POST /equipamentos/slots/` segue disponível para ADMIN, então a janela entre hoje e o merge permite a criação de um slot que introduza a duplicata inexistente hoje. Sanear manualmente qualquer duplicidade encontrada: o backfill do passo 2 resolve **nulo**, não resolve **duplicata**.
+   ```sql
+   SELECT nome_posicao, sistema, COUNT(*) FROM slots_inventario GROUP BY 1,2 HAVING COUNT(*)>1;
+   SELECT COUNT(*) FROM slots_inventario WHERE sistema IS NULL OR posicao_xlsx IS NULL;
+   ```
 2. Backfill: `UPDATE slots_inventario SET sistema = '' WHERE sistema IS NULL` antes de tornar a coluna `NOT NULL` (idem para `posicao_xlsx`, se houver nulos).
 3. `op.batch_alter_table(...)` em todas as alterações — obrigatório em SQLite (`env.py` já liga `render_as_batch=True` para URLs `sqlite`).
-4. `downgrade()` testado localmente antes do merge.
+4. `downgrade()` **executado** localmente antes do merge — não apenas lido. É o caminho de retorno se a UNIQUE estourar em produção.
+5. Snapshot manual do banco de produção imediatamente antes do deploy da parte destrutiva (ver Seção 19 — o backup automático não serve como ponto de retorno).
 
 > Este documento **não** propõe scripts de seed idempotentes com `--dry-run` — fica registrado como débito técnico separado (ver `plano_implementacao.md`, seção de riscos).
 
@@ -443,7 +483,9 @@ Migration única gerada por `alembic revision --autogenerate` a partir do head a
 |---|---|
 | Integração | Cada novo endpoint × RBAC (ADMIN passa, ENCARREGADO/MANTENEDOR/INSPETOR → 403); cada 409 (slot ocupado, item instalado, S/N duplicado, slot duplicado); 422 em `posicao_xlsx` ausente e em justificativa ausente no DELETE. |
 | Auditoria | Toda escrita gera exatamente 1 linha em `auditoria_dados_mestres` com `usuario_id` da sessão (nunca do payload). |
-| Regressão | `tests/unit/test_inventario.py`, `test_equipamentos.py`, `test_equipamentos_xlsx.py` continuam verdes (RNF-08) — slot inativo não pode quebrar a grade de `/inventario` nem o preview XLSX. |
+| Linha de base | Estabelecida em 2026-08-30 pelo PR-0: `pytest -q` = **770 passed, 3 skipped**, `ruff check .` limpo. É contra este número que "continua verde" passa a significar alguma coisa. |
+| Regressão | `/inventario` e o preview XLSX continuam corretos com slot inativo (RNF-08). **Atenção:** "continuar verde" aqui **não** significa "sem alteração nos testes" — ver a linha seguinte. |
+| Adequação obrigatória das suítes | Tornar `sistema` e `posicao_xlsx` `NOT NULL` quebra **18 das 20** construções de `SlotInventario(...)` hoje existentes em `tests/` e `scripts/seed/`. Precisam ser atualizadas: `test_dashboard.py:97,185`, `test_encarregado.py:121,154`, `tests/architecture/test_performance_audit.py:24,85` (não passam nem `sistema`), além de `test_vencimentos_criticos.py`, `test_equipamentos_achados_revisor.py`, `test_equipamentos_refatoracao.py`, `test_equipamentos_correcoes_urgentes.py`, `test_inventario.py`, `test_equipamentos_xlsx.py` e `scripts/seed/seed_slots.py`. Também os dois `POST /equipamentos/slots/` de `test_equipamentos.py:239,266`, que passariam a retornar 422. |
 | Integração XLSX | Slot criado via API com `posicao_xlsx` casa corretamente no preview de importação (regressão do bug descrito na Seção 1). |
 
 Fixtures a reaproveitar de `tests/conftest.py`: `client`, `db`, `usuario_e_token` (ADMIN), `usuario_encarregado_e_token`, `dados_aeronave_valida` — sem criar fixtures novas de usuário/aeronave.
@@ -459,12 +501,27 @@ Fixtures a reaproveitar de `tests/conftest.py`: `client`, `db`, `usuario_e_token
 | R3 | Duas fontes de PN por slot já divergem hoje (`seed_slots.py` vs `scripts/maintenance/force_sync_slots.py` — 4 PNs diferentes: MDP, DVR, UFCP, PIC/NAV) | Alta | Médio | Fora de escopo desta entrega; registrar como débito técnico a resolver antes de rodar os seeds de novo |
 | R4 | Reintroduzir o BUG-01 (auditoria forjável) ao aceitar `usuario_id`/trigrama no payload de um formulário novo | Baixa | Alto | RN-05 — nunca aceitar autor via payload |
 | R5 | Editar `modelo_id` de um slot ocupado corrompe a leitura de PN esperado para toda a frota | Média | Alto | RN-04 — bloquear enquanto houver instalação ativa |
+| R6 | `DELETE` de item retorna 500 (`IntegrityError`) em vez de 409 por causa da FK `ControleVencimento.item_id` sem `ondelete` | **Alta** | Alto | RN-06 ampliada — checar `ControleVencimento` antes de excluir, no mesmo padrão de `remover_modelo` |
+| R7 | Auditoria falha com `TypeError` ao serializar `uuid.UUID`/`datetime` na coluna `JSON` | **Alta** | Alto | Normalizar todo valor para tipo serializável antes de gravar (Seção 6.6) |
+| R8 | Tornar `sistema`/`posicao_xlsx` obrigatórios quebra 18 de 20 construções de slot nas suítes e nos seeds | **Alta** | Médio | Atualizar as construções listadas na Seção 14 no mesmo PR da migration |
+| R10 (recalibrado: Alta → **Baixa**) | Duplicidade ou nulo em produção faz a migration destrutiva falhar sob `set -e`, impedindo o container de subir | Baixa | Alto | Pré-check executado em 2026-08-30: 0/0 em produção (Seção 13). Reexecutar antes do merge; snapshot manual mantido (Seção 19) |
+| R9 | Slot inativado fica permanentemente inacessível: some da listagem (RF-12) e não há como reativar | Média | Alto | RF-13 + `?incluir_inativos=true` no `GET /equipamentos/slots/` |
 
 ---
 
 ## 16. Plano de Entrega
 
-Ver `docs/BACKLOG/modulo_inventario/plano_implementacao.md` para o passo a passo técnico (etapas, arquivos, código).
+Entrega fatiada em **3 PRs**, pela regra "o que é aditivo vai junto; o que é destrutivo vai sozinho, para poder ser revertido sozinho":
+
+| PR | Conteúdo | Migration | Risco |
+|---|---|---|---|
+| **PR-1** — base aditiva | Tabela de auditoria; colunas novas de slot (nullable/default); `posicao_xlsx`/`sistema` obrigatórios **no schema Pydantic**; filtro de inativos no XLSX | `create_table` + `add_column` | Baixo |
+| **PR-2** — funcionalidade | CRUD de slots e itens, reativação, auditoria nas escritas, UI | nenhuma | Baixo |
+| **PR-3** — aperto de schema | `NOT NULL` + `UNIQUE` + adequação das suítes | **destrutiva, isolada** | Alto |
+
+**O bug do XLSX é fechado já no PR-1.** A causa é "slot criado pela API nasce com `posicao_xlsx = NULL`"; tornar o campo obrigatório no schema Pydantic resolve isso por completo. O `NOT NULL` no banco é cinto-e-suspensório — e é ele, sozinho, que arrasta backfill, UNIQUE, reescrita de 18 testes e o risco em produção. Por isso o valor chega antes do risco.
+
+Ver `docs/BACKLOG/modulo_inventario/plano_implementacao.md` (Seção 0.1) para o passo a passo técnico, o mapa etapa→PR e os portões do PR-3.
 
 ---
 
@@ -473,6 +530,10 @@ Ver `docs/BACKLOG/modulo_inventario/plano_implementacao.md` para o passo a passo
 - [x] Premissas P1–P4 confirmadas contra o código
 - [x] Modelo de dados real anexado a esta especificação (Seção 6)
 - [x] Perfis de acesso reais mapeados (Seção 5)
+- [x] Head do Alembic reconferido em 2026-08-30 (`2676d7fdd987`) — Seção 13
+- [x] Pré-check de duplicidade/nulos executado no banco de **produção** em 2026-08-30: 0 duplicidades, 0 nulos (Seção 13)
+- [x] Produção confirmada no head do repositório — sem migrations acumuladas antes da nova
+- [x] Linha de base verde estabelecida em 2026-08-30 (PR-0): `ruff check .` limpo e `pytest -q` com 770 passed, 3 skipped
 - [ ] Q4 (maker-checker normativo) respondida antes de iniciar, caso mude o escopo
 
 ## 18. Definition of Done (DoD)
@@ -480,7 +541,7 @@ Ver `docs/BACKLOG/modulo_inventario/plano_implementacao.md` para o passo a passo
 - [ ] Todos os critérios de aceite das US-01 a US-03 aprovados
 - [ ] `pytest -q` verde, incluindo os testes de regressão de `/inventario` e do preview XLSX
 - [ ] Migration validada com `alembic upgrade head` e `alembic downgrade -1`
-- [ ] Toda escrita de PN/Slot/Item gera registro consultável em `auditoria_dados_mestres`
+- [ ] Toda escrita de PN/Slot/Item — **incluindo as criações** (`criar_modelo`, `criar_slot`, `criar_item_com_heranca`) — gera registro consultável em `auditoria_dados_mestres`, com `valores_anteriores`/`valores_novos` efetivamente serializáveis em JSON
 - [ ] `ruff check .` limpo
 - [ ] Nenhuma violação de CSP nos novos modais/JS
 - [ ] Homologação (UAT) assinada pelo dono do produto
@@ -489,9 +550,31 @@ Ver `docs/BACKLOG/modulo_inventario/plano_implementacao.md` para o passo a passo
 
 ## 19. Rollback
 
-1. Migration com `downgrade()` testado.
-2. Sem feature flag dedicada (não existe infraestrutura de flags no projeto) — rollback via `alembic downgrade -1` e, se necessário, restauração do arquivo `saa29_local.db` a partir de backup.
-3. Como as novas rotas são aditivas (não alteram o comportamento de `/inventario` nem do "Sincronizar"), reverter a migration é suficiente sem exigir toggle de feature.
+> ⚠️ **Corrigido na v2.2.** A v2.0 dizia "restauração do arquivo `saa29_local.db` a partir de backup" — isso descreve o ambiente de desenvolvimento. Em produção o banco é `/app/data/saa29.db`, no volume `sqlite_data` do serviço `web`, e o mecanismo de preservação é outro.
+
+### 19.1 Como o banco de produção é preservado hoje
+
+| Passo | Onde | Efeito |
+|---|---|---|
+| Restore na subida | `scripts/start.sh:23` | `r2_manager.py restore` — o container **restaura o banco do R2 ao iniciar** |
+| Migração automática | `scripts/start.sh:28`, `deploy.yml:44` | `alembic upgrade head`, sem porteiro, sob `set -e` |
+| Backup | `app/bootstrap/tasks.py:50-60` | *debounced por escrita* — dispara após uma escrita, não por deploy |
+
+### 19.2 Por que o backup automático não é ponto de retorno
+
+O backup é disparado **por escrita**. Assim que a primeira escrita ocorre depois da migration, o snapshot no R2 **já é o banco migrado**: o estado pré-migration é sobrescrito em segundos. **Não existe snapshot pré-migration automático** — daí o snapshot manual ser portão obrigatório do PR-3 (Seção 13, passo 5).
+
+### 19.3 Procedimento por PR
+
+- **PR-1** — `git revert` do merge + redeploy. A migration aditiva tem `downgrade()` sem perda de dado.
+- **PR-2** — `git revert` + redeploy. Não há migration; as rotas são aditivas e não alteram `/inventario` nem o "Sincronizar".
+- **PR-3** — se a migration falhar, o container não sobe e `alembic downgrade` fica indisponível: reverter o merge em `main` e redeployar **primeiro**; só então, se a migration tiver sido aplicada parcialmente, restaurar o snapshot manual sobre o volume `sqlite_data`.
+
+### 19.4 Por que não há feature flag
+
+Não existe infraestrutura de flags no projeto, e ela não é necessária: as rotas novas são aditivas, então reverter o merge basta para PR-1 e PR-2. Só o PR-3 altera dado existente — e é exatamente por isso que ele viaja sozinho.
+
+O passo a passo com os comandos está em `plano_implementacao.md`, Seção 16.
 
 ---
 
@@ -518,7 +601,7 @@ Ver `docs/BACKLOG/modulo_inventario/plano_implementacao.md` para o passo a passo
 | Remover equipamento | RF-02 | ✅ Já implementado |
 | Adicionar slot | — | ✅ Já implementado (`POST /equipamentos/slots/`) |
 | Editar slot | RF-04 | 🔴 Novo |
-| Remover slot | RF-05, RF-06 | 🔴 Novo |
+| Remover slot | RF-05, RF-06, RF-13 | 🔴 Novo |
 | Editar inventário | Fora de escopo — coberto pelo fluxo "Sincronizar" já existente | — |
 | Remover inventário | RF-08 (a nível de item, não de instalação) | 🔴 Novo, com ressalva |
 | Auditoria de dados mestres | RF-09 | 🔴 Novo |

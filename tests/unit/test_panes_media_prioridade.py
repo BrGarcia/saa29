@@ -26,7 +26,7 @@ from app.modules.panes import service
 from app.modules.panes.models import Anexo, Pane
 from app.modules.panes.schemas import FiltroPane, PaneCreate, PaneUpdate
 from app.shared.core import exceptions as domain_exc
-from app.shared.core.enums import StatusAeronave, StatusPane
+from app.shared.core.enums import StatusAeronave
 
 
 # ------------------------------------------------------------------ #
