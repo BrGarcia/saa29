@@ -47,16 +47,48 @@ class ModeloEquipamentoOut(BaseModel):
 # ============================================================
 
 class SlotInventarioCreate(BaseModel):
+    """Criação de slot.
+
+    `sistema` e `posicao_xlsx` passam a ser OBRIGATÓRIOS aqui — e é esta
+    mudança, não a nulabilidade da coluna, que corrige o bug de integração
+    com o XLSX: um slot criado sem `posicao_xlsx` nascia com NULL e nunca
+    casava na importação (o casamento é por `(part_number, posicao_xlsx)`
+    em xlsx_service), então a linha recebia o serial sintético
+    `XXXXXXX-{nome_posicao}`, gravado como se fosse real.
+    """
     nome_posicao: str = Field(..., max_length=100)
-    sistema: str | None = Field(default=None, max_length=50)
+    sistema: str = Field(..., max_length=50)
+    posicao_xlsx: Identificador = Field(..., max_length=20)
     modelo_id: uuid.UUID
+    descricao: str | None = Field(default=None, max_length=200)
+    ordem_exibicao: int | None = None
+
+
+class SlotInventarioUpdate(BaseModel):
+    """Atualização parcial de slot.
+
+    `ativo` não é exposto de propósito: ativar/inativar são endpoints
+    dedicados, para que cada transição gere um registro de auditoria
+    explícito em vez de se esconder num PATCH genérico.
+    """
+    nome_posicao: str | None = Field(default=None, max_length=100)
+    sistema: str | None = Field(default=None, max_length=50)
+    posicao_xlsx: Identificador | None = Field(default=None, max_length=20)
+    modelo_id: uuid.UUID | None = None
+    descricao: str | None = Field(default=None, max_length=200)
+    ordem_exibicao: int | None = None
+
 
 class SlotInventarioOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     nome_posicao: str
     sistema: str | None
+    posicao_xlsx: str | None
     modelo_id: uuid.UUID
+    descricao: str | None = None
+    ordem_exibicao: int | None = None
+    ativo: bool = True
 
 # ============================================================
 # ItemEquipamento (Instância Física)
@@ -67,6 +99,12 @@ class ItemEquipamentoCreate(BaseModel):
     numero_serie: Identificador = Field(..., max_length=100)
     status: StatusItem = StatusItem.ATIVO
 
+class ItemEquipamentoUpdate(BaseModel):
+    """Correção de S/N ou status de um item físico."""
+    numero_serie: Identificador | None = Field(default=None, max_length=100)
+    status: StatusItem | None = None
+
+
 class ItemEquipamentoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -74,6 +112,34 @@ class ItemEquipamentoOut(BaseModel):
     numero_serie: str
     status: StatusItem
     created_at: datetime
+
+
+# ============================================================
+# Auditoria de dados mestres
+# ============================================================
+
+class RemocaoJustificada(BaseModel):
+    """Corpo exigido nas exclusões de dados mestres (RF-10).
+
+    Vai em `POST /{id}/remover`, não em `DELETE` com corpo: nenhum dos
+    endpoints DELETE do projeto recebe body, e corpo em DELETE é descartado
+    por vários proxies — a aplicação roda atrás do nginx da VPS. O padrão
+    seguido é o de `pedidos` (`POST /{id}/cancelar`).
+    """
+    justificativa: str = Field(..., min_length=5, max_length=500)
+
+
+class AuditoriaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    entidade: str
+    entidade_id: uuid.UUID
+    acao: str
+    valores_anteriores: dict | None
+    valores_novos: dict | None
+    justificativa: str | None
+    usuario_id: uuid.UUID | None
+    criado_em: datetime
 
 # ============================================================
 # Instalações

@@ -271,3 +271,72 @@ async def test_endpoint_legado_upload_xlsx_removido(
         files={"file": ("x.xlsx", b"conteudo", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
     )
     assert response.status_code == 405
+
+
+# ------------------------------------------------------------------ #
+#  Regressão do bug de integração corrigido no PR-1 do módulo de
+#  inventário (SPEC-CONF-001 §1): slot criado pela API nascia com
+#  posicao_xlsx = NULL e nunca casava na importação.
+# ------------------------------------------------------------------ #
+
+@pytest.mark.asyncio
+async def test_slot_criado_pela_api_casa_na_previa_xlsx(db: AsyncSession):
+    """Slot cadastrado via `criar_slot` deve ser encontrado na planilha.
+
+    Antes da correção, `SlotInventarioCreate` não aceitava `posicao_xlsx`:
+    o slot nascia com NULL, o casamento por (part_number, posicao_xlsx)
+    falhava, e a linha recebia o serial sintético `XXXXXXX-{nome_posicao}`
+    gravado como se fosse o serial real da aeronave.
+    """
+    from app.modules.equipamentos import service
+    from app.modules.equipamentos.schemas import SlotInventarioCreate
+
+    matricula = f"API-{uuid.uuid4().hex[:6]}"
+    aeronave = await _criar_aeronave(db, matricula)
+    pn = f"PN-{uuid.uuid4().hex[:8]}"
+    modelo = await _criar_modelo(db, pn)
+
+    slot = await service.criar_slot(
+        db,
+        SlotInventarioCreate(
+            nome_posicao="VUHF1", sistema="CEI", posicao_xlsx="VUHF1", modelo_id=modelo.id
+        ),
+    )
+    assert slot.posicao_xlsx == "VUHF1", "posicao_xlsx precisa ser persistido na criação"
+
+    conteudo = _montar_xlsx_bytes([("x", pn, "x", "x", "VUHF1", "SN-REAL-123")])
+    resultado = await xlsx_service.obter_previa_xlsx_inventario(
+        db, conteudo, f"{matricula}.xlsx"
+    )
+
+    assert resultado.aeronave_id == aeronave.id
+    linha = next(i for i in resultado.itens if i.slot_id == slot.id)
+    assert linha.status == "OK"
+    assert linha.sn_encontrado == "SN-REAL-123"
+    assert not linha.sn_encontrado.startswith("XXXXXXX-"), (
+        "serial sintético indica que o slot não foi encontrado na planilha"
+    )
+
+
+@pytest.mark.asyncio
+async def test_slot_inativo_fica_fora_da_previa_xlsx(db: AsyncSession):
+    """Slot inativado não pode entrar na prévia — senão continuaria recebendo
+    serial sintético como se fosse uma posição real da aeronave."""
+    matricula = f"INA-{uuid.uuid4().hex[:6]}"
+    await _criar_aeronave(db, matricula)
+    pn = f"PN-{uuid.uuid4().hex[:8]}"
+    modelo = await _criar_modelo(db, pn)
+
+    slot_ativo = await _criar_slot(db, modelo.id, "ATIVO1", "ATIVO1")
+    slot_inativo = await _criar_slot(db, modelo.id, "INATIVO1", "INATIVO1")
+    slot_inativo.ativo = False
+    await db.flush()
+
+    conteudo = _montar_xlsx_bytes([("x", pn, "x", "x", "ATIVO1", "SN-OK")])
+    resultado = await xlsx_service.obter_previa_xlsx_inventario(
+        db, conteudo, f"{matricula}.xlsx"
+    )
+
+    slots_na_previa = {i.slot_id for i in resultado.itens}
+    assert slot_ativo.id in slots_na_previa
+    assert slot_inativo.id not in slots_na_previa
