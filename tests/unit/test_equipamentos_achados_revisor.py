@@ -61,7 +61,10 @@ async def test_criar_slot_modelo_inexistente_levanta_404_nao_400_cru(db: AsyncSe
     como 400 com a mensagem crua do SQLAlchemy (incluindo SQL e parâmetros)."""
     with pytest.raises(domain_exc.EntidadeNaoEncontradaError):
         await service.criar_slot(
-            db, SlotInventarioCreate(nome_posicao="TESTE", sistema="CEI", modelo_id=uuid.uuid4())
+            db, SlotInventarioCreate(
+                nome_posicao="TESTE", sistema="CEI",
+                posicao_xlsx="TESTE", modelo_id=uuid.uuid4(),
+            )
         )
 
 
@@ -69,7 +72,10 @@ async def test_criar_slot_modelo_inexistente_levanta_404_nao_400_cru(db: AsyncSe
 async def test_criar_slot_modelo_existente_sucede(db: AsyncSession):
     modelo = await _criar_modelo(db, f"PN-{uuid.uuid4().hex[:8]}")
     slot = await service.criar_slot(
-        db, SlotInventarioCreate(nome_posicao="TESTE", sistema="CEI", modelo_id=modelo.id)
+        db, SlotInventarioCreate(
+            nome_posicao="TESTE", sistema="CEI",
+            posicao_xlsx="TESTE", modelo_id=modelo.id,
+        )
     )
     assert slot.modelo_id == modelo.id
 

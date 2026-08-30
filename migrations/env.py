@@ -31,6 +31,10 @@ import app.modules.inspecoes.models    # noqa: F401
 import app.modules.calendario.models   # noqa: F401
 import app.modules.publicacoes.models  # noqa: F401
 import app.modules.pedidos.models      # noqa: F401
+# Sem este import, Base.metadata não conhece `encarregado_ciencias` e TODA
+# migration gerada por --autogenerate vinha com `op.drop_table(...)` dela.
+# Aplicar uma dessas em produção apagaria a tabela e seus dados.
+import app.modules.encarregado.models  # noqa: F401
 
 # Objeto de metadata que o Alembic usará para detectar mudanças
 target_metadata = Base.metadata

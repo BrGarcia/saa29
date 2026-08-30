@@ -237,7 +237,8 @@ class TestInstalacoes:
         
         # Criar Slot (Obrigatório na V2)
         slot_resp = await client.post(f"{EQUIP_URL}/slots/", json={
-            "nome_posicao": "POS-TESTE", "sistema": "TESTE", "modelo_id": equip["id"]
+            "nome_posicao": "POS-TESTE", "sistema": "TESTE",
+            "posicao_xlsx": "POS-TESTE", "modelo_id": equip["id"]
         }, headers=headers)
         slot = slot_resp.json()
 
@@ -264,7 +265,8 @@ class TestInstalacoes:
 
         # Criar Slot (Obrigatório na V2)
         slot_resp = await client.post(f"{EQUIP_URL}/slots/", json={
-            "nome_posicao": "POS-TESTE-REM", "sistema": "TESTE", "modelo_id": equip["id"]
+            "nome_posicao": "POS-TESTE-REM", "sistema": "TESTE",
+            "posicao_xlsx": "POS-TESTE-REM", "modelo_id": equip["id"]
         }, headers=headers)
         slot = slot_resp.json()
 

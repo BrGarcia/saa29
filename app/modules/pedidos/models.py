@@ -9,7 +9,7 @@ import uuid
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.bootstrap.database import Base
@@ -29,6 +29,20 @@ class Pedido(Base):
     depois (feature_controle_pedidos.md §2.1).
     """
     __tablename__ = "pedidos"
+    __table_args__ = (
+        # O banco já tem esta constraint nomeada, criada pela migration que
+        # introduziu o módulo. O model declarava a unicidade só via
+        # `unique=True` na coluna, que o SQLAlchemy materializa como índice
+        # único ANÔNIMO — então o `alembic --autogenerate` não encontrava
+        # `uq_pedidos_numero_pedido` no metadata e propunha removê-la em toda
+        # migration gerada no repositório. Declará-la aqui alinha model e
+        # banco e silencia esse alarme falso.
+        #
+        # A unicidade em si nunca esteve em risco: o índice único
+        # `ix_pedidos_numero_pedido` (do `unique=True` abaixo) já a garante
+        # sozinho. Isto é redundância herdada, não correção de regra.
+        UniqueConstraint("numero_pedido", name="uq_pedidos_numero_pedido"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     numero_pedido: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
