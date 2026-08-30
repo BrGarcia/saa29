@@ -167,6 +167,13 @@ class Manual(Base):
         Enum(OrigemManual, native_enum=False, length=20),
         nullable=False,
         default=OrigemManual.MANUTENCAO,
+        # Declarado para espelhar o banco: a migration 2676d7fdd987 criou a
+        # coluna com server_default='MANUTENCAO' para preencher as linhas
+        # existentes. Sem declarar aqui, o `alembic --autogenerate` propunha
+        # remover esse default em toda migration gerada no repositório.
+        # `default=` acima é do lado do Python e continua sendo o que vale
+        # nos INSERTs do ORM; este server_default é só o retrato do banco.
+        server_default=OrigemManual.MANUTENCAO.value,
         index=True,
         comment="Qual disco trouxe este manual — MANUTENCAO (Program/) ou OPERACIONAL (Program_Operational/)",
     )
@@ -587,6 +594,9 @@ class PublicacoesUploadJob(Base):
         Enum(ModoProcessamentoUpload),
         nullable=False,
         default=ModoProcessamentoUpload.AGENDADO,
+        # Mesmo caso de `manuais.origem`: server_default herdado do backfill,
+        # declarado aqui só para o autogenerate parar de propor sua remoção.
+        server_default=ModoProcessamentoUpload.AGENDADO.value,
         comment="IMEDIATO dispara o worker ao concluir o upload; AGENDADO espera o horário noturno configurado",
     )
     etapa: Mapped[str | None] = mapped_column(
