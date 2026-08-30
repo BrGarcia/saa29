@@ -1,6 +1,6 @@
 # 📋 Plano de Implementação — Gestão de Slots, Itens e Auditoria de Dados Mestres do Inventário
 
-> **Versão:** 1.5
+> **Versão:** 1.6
 > **Data:** 2026-08-30 (v1.0 em 2026-08-19)
 > **Referência:** `docs/BACKLOG/modulo_inventario/enhange_gerenciar_inventario.md` (SPEC-CONF-001 v2.1)
 > **Status:** 🟢 Pronto para execução
@@ -62,7 +62,7 @@ Por isso o PR-1 entrega o valor do bug fix com risco de migration quase zero.
 
 | PR | Etapas | Conteúdo | Migration | Risco |
 |---|---|---|---|---|
-| **PR-1** — *base aditiva* | 1, 2, 3a, 4, 5, 8 | Enums; `AuditoriaDadosMestres`; colunas novas de slot (`descricao`, `ordem_exibicao`, `ativo`, `created_at`, `updated_at`) **todas nullable ou com default**; `posicao_xlsx`/`sistema` obrigatórios **só no schema Pydantic**; `auditoria_service`; filtro `ativo` no XLSX | `create_table` + `add_column` — nenhuma alteração destrutiva | **Baixo** |
+| **PR-1** — *base aditiva* | 1, 2, 3a, 4, 5, 8 | Enums; `AuditoriaDadosMestres`; colunas novas de slot (`descricao`, `ordem_exibicao`, `ativo`, `created_at`, `updated_at`) **todas nullable ou com default**; `posicao_xlsx`/`sistema` obrigatórios **só no schema Pydantic**; `auditoria_service`; filtro `ativo` no XLSX; **+ ajuste dos 2 testes de API** que criam slot sem `posicao_xlsx` (`test_equipamentos.py:239`, `:266`) | `create_table` + `add_column` — nenhuma alteração destrutiva | **Baixo** |
 | **PR-2** — *funcionalidade* | 6, 7, 9, 10 | CRUD de slots e itens, reativação, auditoria nas escritas, endpoints novos, UI, testes novos | nenhuma | **Baixo** — rotas novas, aditivas |
 | **PR-3** — *aperto de schema* | 3b, 11 | `sistema`/`posicao_xlsx` → `NOT NULL`; `UNIQUE uq_slot_nome_sistema`; `created_at` → `NOT NULL`; adequação das 20 construções de slot nas suítes e seeds | **destrutiva — isolada** | **Alto** |
 
@@ -136,19 +136,17 @@ pytest -q      → 770 passed, 3 skipped       (era: 1 failed, 3 errors)
 
 **Confirmado no CI** (run 33329608657): `All checks passed!` no lint e `770 passed, 3 skipped in 139.03s` — os mesmos números do local.
 
-### O que o PR-0 desentocou: travamento no encerramento do processo
+### O que o PR-0 desentocou — e resolveu: travamento no encerramento do processo
 
-Com o lint corrigido, o job passou a **chegar** ao pytest pela primeira vez em 9 dias — e revelou um bug pré-existente, já documentado em `tests/conftest.py`: a suíte termina, imprime o resultado, e **o processo não sai**. O job morre no teto de 15min (`ci.yml`); antes desse teto existir, morreu duas vezes no limite de 6h do Actions.
+Com o lint corrigido, o job passou a **chegar** ao pytest pela primeira vez em 9 dias — e revelou um bug pré-existente: a suíte termina, imprime o resultado, e **o processo não sai**. O job morria no teto de 15min (`ci.yml`); antes desse teto existir, morreu duas vezes no limite de 6h do Actions.
 
-Não é regressão desta feature: o comentário do `ci.yml:12-18` já registrava as duas ocorrências anteriores. Ficou invisível desde 21/08 porque o job morria no ruff aos 36s, antes de chegar ao pytest.
+Não era regressão desta feature: o comentário do `ci.yml:12-18` já registrava as duas ocorrências anteriores. Ficou invisível desde 21/08 porque o job morria no ruff aos 36s, antes de chegar ao pytest.
 
-Duas informações novas do run 33329608657:
-- O diagnóstico plantado na fixture `criar_tabelas` **não imprimiu nada** — ele só fala se achar thread não-daemon sobrevivente. O silêncio descarta a hipótese que ele testava.
-- Não reproduz no macOS, com ou sem `--cov`. É específico do runner Linux.
+#### Como foi diagnosticado
 
-**Mitigação aplicada** (`tests/conftest.py`, hook `pytest_sessionfinish`): um watchdog daemon que, se o processo não encerrar em `SAA29_TIMEOUT_ENCERRAMENTO` segundos (padrão 120), despeja o stack de **todas** as threads e encerra com o **status real da suíte**. Resolve as duas metades: nomeia o culpado que o diagnóstico anterior não conseguiu, e impede que um travamento no encerramento transforme suíte verde em job vermelho.
+O `conftest.py` já tinha um diagnóstico plantado, mas ele rodava cedo demais (logo após fechar a engine de teste) e nunca imprimia nada. Foi substituído por um **watchdog** no hook `pytest_sessionfinish`: um timer daemon que, se o processo não encerrar em `SAA29_TIMEOUT_ENCERRAMENTO` segundos (padrão 120), despeja o stack de **todas** as threads e encerra com o **status real da suíte**.
 
-Verificado em quatro cenários antes de considerar pronto:
+O watchdog foi validado em quatro cenários antes de ser usado — sendo o último o que realmente importava, porque um watchdog que saísse sempre `0` tornaria o CI incapaz de reprovar:
 
 | Prova | Cenário | Resultado |
 |---|---|---|
@@ -157,13 +155,43 @@ Verificado em quatro cenários antes de considerar pronto:
 | 3 | Suíte completa, timeout padrão | 770 passed, `exit 0`, watchdog **não dispara** |
 | 4b | Suíte **vermelha** + encerramento travado | Despeja stacks, sai com **1** — não mascara a falha |
 
-A prova 4b é a que importava: um watchdog que saísse sempre 0 seria pior que o travamento, porque tornaria o CI incapaz de reprovar.
+Na primeira execução real (run `33332855429`) o despejo nomeou o culpado:
 
-**Pista para quem for investigar a causa raiz:** no despejo da prova 1, a thread principal estava em `_pytest/pathlib.py::create_cleanup_lock`, dentro de `cleanup_numbered_dir` — a limpeza de `tmp_path` do pytest, que usa lock de arquivo. É candidata plausível a bloquear num runner, mas ainda não é prova: era só onde a thread estava naquele instante, num encerramento normal.
+```
+Thread principal:  threading.py:1624 in _shutdown
+Outra thread viva: aiosqlite/core.py:59 in _connection_worker_thread
+```
 
-Os quatro scripts com imports removidos foram reimportados um a um para confirmar que as remoções do `--fix` não eram falsos positivos.
+#### Causa raiz
 
-> **Nota sobre a versão do ruff:** `requirements-dev.txt:20` fixa `ruff==0.16.1` deliberadamente — o comentário no arquivo registra que o CI antes instalava sem pin e "o resultado do lint mudava sem ninguém tocar em código". Rodar o lint local com outra versão reintroduz exatamente esse problema.
+`aiosqlite/core.py:90` cria a thread da conexão **sem** `daemon=True`. Thread não-daemon faz `threading._shutdown()` esperar por ela indefinidamente. Bastava uma conexão SQLite não fechada para o processo nunca sair.
+
+E havia **duas** engines na suíte, não uma:
+
+| Engine | Onde | Era fechada? |
+|---|---|---|
+| De teste | `tests/conftest.py:44` | Sim, em `:148` |
+| Da aplicação | `app/bootstrap/database.py:35` | **Não** — por ninguém |
+
+A função `dispose_engine()` já existia em `app/bootstrap/database.py:94`; só nunca era chamada pela suíte. Confirmado por instrumentação temporária que a engine da aplicação **é** instanciada na suíte completa (embora não em subconjuntos pequenos), então a chamada não é inócua.
+
+#### Correção e prova
+
+```python
+# tests/conftest.py — teardown da sessão
+await test_engine.dispose()   # já existia
+await dispose_engine()        # novo
+```
+
+| Run | Duração | Resultado |
+|---|---|---|
+| `33329608657` | 15m19s | ❌ cancelado no teto — processo pendurado |
+| `33332855429` | 5m01s | ✅ verde, mas travou e o watchdog encerrou aos 120s |
+| `33333644525` | **2m45s** | ✅ verde, **zero disparos do watchdog** — processo encerra sozinho |
+
+Resolvido na causa, não contornado. O watchdog permanece instalado e inativo, como rede de segurança para vazamentos futuros.
+
+> **Nota para quem for rodar o lint local:** `requirements-dev.txt:20` fixa `ruff==0.16.1` deliberadamente — o comentário no arquivo registra que o CI antes instalava sem pin e "o resultado do lint mudava sem ninguém tocar em código". Usar outra versão reintroduz esse problema.
 
 ---
 
@@ -1198,7 +1226,16 @@ Usar as fixtures já existentes em `tests/conftest.py` — não criar fixtures n
 
 ## 12. Etapa 11 — Adequação das suítes e seeds existentes *(PR-3)*
 
-**Executar no mesmo PR da migration 3b — nunca antes dela, nunca depois.** Tornar `sistema` e `posicao_xlsx` `NOT NULL` invalida a maioria das construções de slot já existentes no repositório: das 20 ocorrências de `SlotInventario(...)` em `tests/` e `scripts/`, apenas 2 passam `posicao_xlsx`.
+**Executar no mesmo PR da migration 3b — nunca antes dela, nunca depois.**
+
+> **Duas quebras diferentes, em dois PRs diferentes** — confundi-las faz o PR-1 nascer vermelho:
+>
+> | O que quebra | Por causa de | Quantos | PR |
+> |---|---|---|---|
+> | Testes que fazem `POST /equipamentos/slots/` | O **schema Pydantic** exigir `posicao_xlsx` (Etapa 4) → 422 | 2 | **PR-1** |
+> | Testes que constroem `SlotInventario(...)` direto pelo ORM | A **coluna** virar `NOT NULL` (migration 3b) | 18 | **PR-3** |
+>
+> O schema barra na entrada da API; o `NOT NULL` barra no banco. Quem cria o objeto pelo ORM nunca passa pelo schema — por isso os 18 sobrevivem ao PR-1 e só caem no PR-3. Tornar `sistema` e `posicao_xlsx` `NOT NULL` invalida a maioria das construções de slot já existentes no repositório: das 20 ocorrências de `SlotInventario(...)` em `tests/` e `scripts/`, apenas 2 passam `posicao_xlsx`.
 
 | Arquivo | Linhas | Falta |
 |---|---|---|
@@ -1213,7 +1250,7 @@ Usar as fixtures já existentes em `tests/conftest.py` — não criar fixtures n
 | `tests/unit/test_equipamentos_xlsx.py` | 67 | conferir |
 | `scripts/seed/seed_slots.py` | 73 | conferir (o seed já casa por `(part_number, posicao_xlsx)`) |
 
-Além disso, **dois testes de API passariam a receber 422**: `tests/unit/test_equipamentos.py:239` e `:266` fazem `POST /equipamentos/slots/` com apenas `nome_posicao`/`sistema`/`modelo_id`.
+> ⚠️ **Correção (v1.6):** os dois testes de API **não pertencem a esta etapa** — pertencem ao PR-1. `tests/unit/test_equipamentos.py:239` e `:266` fazem `POST /equipamentos/slots/` com apenas `nome_posicao`/`sistema`/`modelo_id`, então quebram no instante em que `SlotInventarioCreate` passa a exigir `posicao_xlsx` (Etapa 4, **PR-1**) — muito antes de a coluna virar `NOT NULL`.
 
 **Como fazer sem espalhar a mudança:** os arquivos com mais de uma ocorrência já usam helpers privados (`_criar_slot`, `_slot`); onde o helper existe, basta preenchê-lo com um `posicao_xlsx` derivado do nome (ex.: `posicao_xlsx=nome[:20]`). Onde a construção está inline, preferir extrair um helper local a repetir o campo.
 
