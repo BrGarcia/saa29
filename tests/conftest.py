@@ -32,7 +32,7 @@ os.environ["APP_ENV"] = "testing"
 os.environ["APP_SECRET_KEY"] = "saa29-suite-de-testes-chave-fixa-sem-valor-de-producao"
 
 from app.bootstrap.main import app
-from app.bootstrap.database import Base
+from app.bootstrap.database import Base, dispose_engine
 from app.bootstrap.dependencies import get_db, get_current_user
 from app.modules.auth.models import Usuario
 from app.modules.auth.security import hash_senha, criar_token
@@ -147,14 +147,21 @@ async def criar_tabelas():
     # Fundamental para evitar que o pytest "trave" após rodar todos os testes
     await test_engine.dispose()
 
-    # Diagnóstico de processo pendurado (visto no CI: os testes terminam e
-    # imprimem "N passed", mas o processo do pytest fica vivo até o job
-    # estourar o teto de 6h do Actions e ser morto à força). O suspeito
-    # nº 1 é uma thread não-daemon que sobrevive ao dispose acima — cada
-    # conexão do aiosqlite abre a sua própria e só a fecha quando alguém
-    # chama `.close()` explicitamente. Isto não corrige o vazamento; só
-    # aponta o nome da thread no log **antes** do processo travar, para que
-    # a próxima ocorrência diga qual é a culpada em vez de só "expirou".
+    # A engine da APLICAÇÃO (app/bootstrap/database.py:35) é diferente da de
+    # teste acima e não era fechada por ninguém na suíte. Cada conexão do
+    # aiosqlite mantém uma thread não-daemon própria, então uma conexão viva
+    # aqui deixa `threading._shutdown()` esperando para sempre — o processo
+    # imprime "N passed" e nunca sai.
+    #
+    # Confirmado pelo despejo do watchdog no run 33332855429: thread principal
+    # em `threading.py:1624 _shutdown`, e uma thread viva em
+    # `aiosqlite/core.py:59 _connection_worker_thread`.
+    await dispose_engine()
+
+    # Diagnóstico de processo pendurado. Agora roda DEPOIS de fechar as duas
+    # engines, então qualquer thread não-daemon que apareça aqui é vazamento
+    # novo, de outra origem — e o watchdog em `pytest_sessionfinish` continua
+    # como rede de segurança caso ela trave a saída do processo.
     sobreviventes = [
         t for t in threading.enumerate()
         if t is not threading.main_thread() and not t.daemon
