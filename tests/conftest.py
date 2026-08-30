@@ -84,6 +84,57 @@ TestSessionLocal = async_sessionmaker(
 )
 
 
+# Segundos de tolerância entre o fim da suíte e o encerramento do processo.
+# A suíte roda em ~2min; 120s de folga só dispara se algo estiver realmente
+# travado, nunca por lentidão do runner. Configurável por variável de ambiente
+# para permitir ajuste no CI sem editar código — e para tornar o próprio
+# watchdog testável (com um valor ínfimo ele dispara em qualquer execução).
+_TIMEOUT_ENCERRAMENTO = float(os.environ.get("SAA29_TIMEOUT_ENCERRAMENTO", "120"))
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Cão de guarda do encerramento do processo.
+
+    Sintoma (só no runner Linux do Actions; não reproduz no macOS, com ou sem
+    `--cov`): a suíte imprime "N passed" e o processo do pytest não sai. O job
+    morre no teto de 15min do ci.yml — antes desse teto existir, duas vezes no
+    limite de 6h do Actions. Na ocorrência de 2026-08-30 o log mostra
+    "770 passed ... in 139.03s" seguido de "The operation was canceled" e
+    "Terminate orphan process: pid (2651) (pytest)".
+
+    O travamento é DEPOIS de tudo que o pytest reporta — o resumo e o relatório
+    de cobertura já saíram —, então está em atexit, join de thread ou GC. O
+    diagnóstico anterior (threads não-daemon sobreviventes, na fixture
+    `criar_tabelas` abaixo) não imprimiu nada nessa ocorrência, o que descarta
+    a hipótese que ele testava.
+
+    Este timer é daemon: se o processo encerrar normalmente ele nunca dispara e
+    nada muda no comportamento local. Se travar, despeja o stack de TODAS as
+    threads — nomeando o culpado, que é o que faltava — e encerra com o status
+    real da suíte, para que um travamento no encerramento não transforme uma
+    suíte verde em job vermelho.
+    """
+    import faulthandler
+
+    status = int(exitstatus)
+
+    def _despejar_e_encerrar() -> None:
+        print(
+            f"\n⚠️  O processo não encerrou {_TIMEOUT_ENCERRAMENTO}s após o fim da "
+            "suíte. Stack de todas as threads abaixo; encerrando à força com o "
+            f"status real da suíte ({status}).",
+            file=sys.stderr,
+            flush=True,
+        )
+        faulthandler.dump_traceback(file=sys.stderr, all_threads=True)
+        sys.stderr.flush()
+        os._exit(status)
+
+    watchdog = threading.Timer(_TIMEOUT_ENCERRAMENTO, _despejar_e_encerrar)
+    watchdog.daemon = True
+    watchdog.start()
+
+
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def criar_tabelas():
     """Cria todas as tabelas antes da sessão e derruba ao final."""

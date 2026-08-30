@@ -134,6 +134,33 @@ ruff check .   → All checks passed!          (ruff==0.16.1, a versão fixada e
 pytest -q      → 770 passed, 3 skipped       (era: 1 failed, 3 errors)
 ```
 
+**Confirmado no CI** (run 33329608657): `All checks passed!` no lint e `770 passed, 3 skipped in 139.03s` — os mesmos números do local.
+
+### O que o PR-0 desentocou: travamento no encerramento do processo
+
+Com o lint corrigido, o job passou a **chegar** ao pytest pela primeira vez em 9 dias — e revelou um bug pré-existente, já documentado em `tests/conftest.py`: a suíte termina, imprime o resultado, e **o processo não sai**. O job morre no teto de 15min (`ci.yml`); antes desse teto existir, morreu duas vezes no limite de 6h do Actions.
+
+Não é regressão desta feature: o comentário do `ci.yml:12-18` já registrava as duas ocorrências anteriores. Ficou invisível desde 21/08 porque o job morria no ruff aos 36s, antes de chegar ao pytest.
+
+Duas informações novas do run 33329608657:
+- O diagnóstico plantado na fixture `criar_tabelas` **não imprimiu nada** — ele só fala se achar thread não-daemon sobrevivente. O silêncio descarta a hipótese que ele testava.
+- Não reproduz no macOS, com ou sem `--cov`. É específico do runner Linux.
+
+**Mitigação aplicada** (`tests/conftest.py`, hook `pytest_sessionfinish`): um watchdog daemon que, se o processo não encerrar em `SAA29_TIMEOUT_ENCERRAMENTO` segundos (padrão 120), despeja o stack de **todas** as threads e encerra com o **status real da suíte**. Resolve as duas metades: nomeia o culpado que o diagnóstico anterior não conseguiu, e impede que um travamento no encerramento transforme suíte verde em job vermelho.
+
+Verificado em quatro cenários antes de considerar pronto:
+
+| Prova | Cenário | Resultado |
+|---|---|---|
+| 1 | Suíte verde, watchdog disparando | Despeja stacks, sai com **0** |
+| 2 | Nenhum teste coletado | `exit 5` do próprio pytest, watchdog não interfere |
+| 3 | Suíte completa, timeout padrão | 770 passed, `exit 0`, watchdog **não dispara** |
+| 4b | Suíte **vermelha** + encerramento travado | Despeja stacks, sai com **1** — não mascara a falha |
+
+A prova 4b é a que importava: um watchdog que saísse sempre 0 seria pior que o travamento, porque tornaria o CI incapaz de reprovar.
+
+**Pista para quem for investigar a causa raiz:** no despejo da prova 1, a thread principal estava em `_pytest/pathlib.py::create_cleanup_lock`, dentro de `cleanup_numbered_dir` — a limpeza de `tmp_path` do pytest, que usa lock de arquivo. É candidata plausível a bloquear num runner, mas ainda não é prova: era só onde a thread estava naquele instante, num encerramento normal.
+
 Os quatro scripts com imports removidos foram reimportados um a um para confirmar que as remoções do `--fix` não eram falsos positivos.
 
 > **Nota sobre a versão do ruff:** `requirements-dev.txt:20` fixa `ruff==0.16.1` deliberadamente — o comentário no arquivo registra que o CI antes instalava sem pin e "o resultado do lint mudava sem ninguém tocar em código". Rodar o lint local com outra versão reintroduz exatamente esse problema.
