@@ -5,10 +5,11 @@ Endpoints de gestão de equipamentos, itens e inventário.
 
 import uuid
 
-from fastapi import APIRouter, HTTPException, status, UploadFile, File, Query
+from fastapi import APIRouter, HTTPException, Request, status, UploadFile, File, Query
 from fastapi.responses import Response
 
-from app.modules.equipamentos import schemas, service
+from app.modules.equipamentos import auditoria_service, schemas, service
+from app.shared.core.enums import EntidadeAuditada
 from app.bootstrap.dependencies import DBSession, CurrentUser, EncarregadoOuAdmin, AdminRequired, ExecucaoPermitida
 from app.shared.exporter import gerar_csv, gerar_xlsx
 
@@ -42,10 +43,37 @@ async def listar_equipamentos(
 async def criar_equipamento(
     dados: schemas.ModeloEquipamentoCreate,
     db: DBSession,
-    _: AdminRequired,
+    request: Request,
+    current_user: AdminRequired,
 ):
-    equipamento = await service.criar_modelo(db, dados)
+    equipamento = await service.criar_modelo(
+        db, dados, usuario_id=current_user.id, ip_origem=_ip(request)
+    )
     return schemas.ModeloEquipamentoOut.model_validate(equipamento)
+
+
+# ---- Auditoria de dados mestres ----
+# DECLARADA ANTES de /{equipamento_id} de propósito: o FastAPI resolve rotas na
+# ordem de declaração, e "/auditoria" tem um único segmento — se viesse depois,
+# seria capturada por /{equipamento_id}, que tentaria ler "auditoria" como UUID
+# e devolveria 422. As demais rotas novas têm 2+ segmentos e não correm esse
+# risco; esta é a exceção.
+
+@router.get(
+    "/auditoria",
+    response_model=list[schemas.AuditoriaOut],
+    summary="Consultar trilha de auditoria de dados mestres",
+)
+async def listar_auditoria(
+    db: DBSession,
+    _: AdminRequired,
+    entidade: EntidadeAuditada | None = None,
+    entidade_id: uuid.UUID | None = None,
+    limit: int = Query(50, ge=1, le=auditoria_service.LIMITE_MAXIMO_AUDITORIA),
+    offset: int = Query(0, ge=0),
+):
+    registros = await auditoria_service.listar(db, entidade, entidade_id, limit, offset)
+    return [schemas.AuditoriaOut.model_validate(r) for r in registros]
 
 
 @router.get("/{equipamento_id}", response_model=schemas.ModeloEquipamentoOut)
@@ -63,9 +91,12 @@ async def atualizar_equipamento(
     equipamento_id: uuid.UUID,
     dados: schemas.ModeloEquipamentoUpdate,
     db: DBSession,
-    _: AdminRequired,
+    request: Request,
+    current_user: AdminRequired,
 ):
-    equipamento = await service.atualizar_modelo(db, equipamento_id, dados)
+    equipamento = await service.atualizar_modelo(
+        db, equipamento_id, dados, usuario_id=current_user.id, ip_origem=_ip(request)
+    )
     return schemas.ModeloEquipamentoOut.model_validate(equipamento)
 
 
@@ -73,10 +104,26 @@ async def atualizar_equipamento(
 async def remover_equipamento(
     equipamento_id: uuid.UUID,
     db: DBSession,
-    _: AdminRequired,
+    request: Request,
+    current_user: AdminRequired,
 ):
-    await service.remover_modelo(db, equipamento_id)
+    # Contrato inalterado de propósito: este endpoint já existe e é consumido
+    # pelo botão "Remover PN" em configuracoes.js. A justificativa fica nula
+    # aqui; se a Qualidade exigir motivo também para PN, o caminho é somar um
+    # POST /{id}/remover ao lado, sem quebrar o consumidor atual.
+    await service.remover_modelo(
+        db, equipamento_id, usuario_id=current_user.id, ip_origem=_ip(request)
+    )
     return {"success": True, "message": "Equipamento removido com sucesso."}
+
+
+def _ip(request: Request) -> str | None:
+    """IP de origem para a trilha de auditoria.
+
+    Atrás do nginx da VPS isto registra o IP do proxy, não o do usuário —
+    limitação conhecida, tratada como tal e não como rastreabilidade de rede.
+    """
+    return request.client.host if request.client else None
 
 
 # ---- Slots de Inventário (Posições na ANV) ----
@@ -86,8 +133,14 @@ async def remover_equipamento(
     response_model=list[schemas.SlotInventarioOut],
     summary="Listar todos os slots configurados",
 )
-async def listar_slots(db: DBSession, _: CurrentUser):
-    slots = await service.listar_slots(db)
+async def listar_slots(
+    db: DBSession,
+    _: CurrentUser,
+    incluir_inativos: bool = Query(
+        False, description="Inclui slots desligados — necessário na tela de gestão para reativá-los"
+    ),
+):
+    slots = await service.listar_slots(db, incluir_inativos=incluir_inativos)
     return [schemas.SlotInventarioOut.model_validate(s) for s in slots]
 
 
@@ -100,11 +153,75 @@ async def listar_slots(db: DBSession, _: CurrentUser):
 async def criar_slot(
     dados: schemas.SlotInventarioCreate,
     db: DBSession,
-    _: AdminRequired,
+    request: Request,
+    current_user: AdminRequired,
 ):
-    slot = await service.criar_slot(db, dados)
+    slot = await service.criar_slot(
+        db, dados, usuario_id=current_user.id, ip_origem=_ip(request)
+    )
     # O commit é feito automaticamente pela dependência get_db ao final do request
     return schemas.SlotInventarioOut.model_validate(slot)
+
+
+@router.patch("/slots/{slot_id}", response_model=schemas.SlotInventarioOut, summary="Atualizar slot")
+async def atualizar_slot(
+    slot_id: uuid.UUID,
+    dados: schemas.SlotInventarioUpdate,
+    db: DBSession,
+    request: Request,
+    current_user: AdminRequired,
+):
+    slot = await service.atualizar_slot(
+        db, slot_id, dados, usuario_id=current_user.id, ip_origem=_ip(request)
+    )
+    return schemas.SlotInventarioOut.model_validate(slot)
+
+
+@router.post("/slots/{slot_id}/remover", summary="Excluir slot (exige justificativa)")
+async def remover_slot(
+    slot_id: uuid.UUID,
+    dados: schemas.RemocaoJustificada,
+    db: DBSession,
+    request: Request,
+    current_user: AdminRequired,
+):
+    """Exclusão via POST, não DELETE: a justificativa exigida por RF-10 precisa
+    de corpo, e corpo em DELETE não tem precedente no projeto — além de ser
+    descartado por vários proxies. Mesmo padrão de `POST /pedidos/{id}/cancelar`.
+    """
+    await service.remover_slot(
+        db, slot_id, dados.justificativa, usuario_id=current_user.id, ip_origem=_ip(request)
+    )
+    return {"success": True, "message": "Slot removido com sucesso."}
+
+
+@router.post("/slots/{slot_id}/inativar", response_model=schemas.SlotInventarioOut, summary="Inativar slot")
+async def inativar_slot(
+    slot_id: uuid.UUID, db: DBSession, request: Request, current_user: AdminRequired
+):
+    slot = await service.inativar_slot(
+        db, slot_id, usuario_id=current_user.id, ip_origem=_ip(request)
+    )
+    return schemas.SlotInventarioOut.model_validate(slot)
+
+
+@router.post("/slots/{slot_id}/reativar", response_model=schemas.SlotInventarioOut, summary="Reativar slot")
+async def reativar_slot(
+    slot_id: uuid.UUID, db: DBSession, request: Request, current_user: AdminRequired
+):
+    """Contrapartida de /inativar: sem ela, desligar um slot seria irreversível
+    pela aplicação, já que ele some das listagens padrão."""
+    slot = await service.reativar_slot(
+        db, slot_id, usuario_id=current_user.id, ip_origem=_ip(request)
+    )
+    return schemas.SlotInventarioOut.model_validate(slot)
+
+
+@router.get("/slots/{slot_id}/ocupacao", summary="Aeronaves que ocupam o slot")
+async def ocupacao_slot(slot_id: uuid.UUID, db: DBSession, _: AdminRequired):
+    """Lista as instalações impedientes — é o que a UI mostra ao explicar por
+    que uma exclusão foi recusada."""
+    return await service._ocupacao_slot(db, slot_id)
 
 
 # ---- Itens (Serial Number) ----
@@ -131,10 +248,48 @@ async def listar_itens(
 async def criar_item(
     dados: schemas.ItemEquipamentoCreate,
     db: DBSession,
-    _: AdminRequired,
+    request: Request,
+    current_user: AdminRequired,
 ):
-    item = await service.criar_item_com_heranca(db, dados)
+    item = await service.criar_item_com_heranca(
+        db, dados, usuario_id=current_user.id, ip_origem=_ip(request)
+    )
     return schemas.ItemEquipamentoOut.model_validate(item)
+
+
+@router.patch("/itens/{item_id}", response_model=schemas.ItemEquipamentoOut, summary="Atualizar item")
+async def atualizar_item(
+    item_id: uuid.UUID,
+    dados: schemas.ItemEquipamentoUpdate,
+    db: DBSession,
+    request: Request,
+    current_user: AdminRequired,
+):
+    item = await service.atualizar_item(
+        db, item_id, dados, usuario_id=current_user.id, ip_origem=_ip(request)
+    )
+    return schemas.ItemEquipamentoOut.model_validate(item)
+
+
+@router.post("/itens/{item_id}/excluir", summary="Excluir item do cadastro (exige justificativa)")
+async def excluir_item(
+    item_id: uuid.UUID,
+    dados: schemas.RemocaoJustificada,
+    db: DBSession,
+    request: Request,
+    current_user: AdminRequired,
+):
+    """Exclui o REGISTRO do item do cadastro — não é desinstalar da aeronave.
+
+    A rota é `/excluir`, não `/remover`, de propósito: "remover item" já
+    significa outra coisa neste módulo (encerrar a instalação ativa, via
+    `PATCH /instalacoes/{id}/remover`). O mesmo cuidado existe na camada de
+    serviço, onde as funções se chamam `excluir_item` e `remover_item`.
+    """
+    await service.excluir_item(
+        db, item_id, dados.justificativa, usuario_id=current_user.id, ip_origem=_ip(request)
+    )
+    return {"success": True, "message": "Item removido com sucesso."}
 
 
 # ---- Instalações ----

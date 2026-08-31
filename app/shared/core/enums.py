@@ -226,3 +226,17 @@ class EventoCiencia(str, enum.Enum):
     REMOCAO = "REMOCAO"            # Componente removido
     PRORROGACAO = "PRORROGACAO"    # Vencimento prorrogado
 
+
+
+class EntidadeAuditada(str, enum.Enum):
+    """Entidades de dados mestres do inventário cobertas por auditoria."""
+    MODELO_EQUIPAMENTO = "MODELO_EQUIPAMENTO"
+    SLOT = "SLOT"
+    ITEM = "ITEM"
+
+
+class AcaoAuditoria(str, enum.Enum):
+    """Ação registrada em auditoria_dados_mestres. Trilha append-only — RN-09."""
+    CREATE = "CREATE"
+    UPDATE = "UPDATE"
+    DELETE = "DELETE"

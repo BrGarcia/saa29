@@ -14,14 +14,15 @@ import uuid
 from datetime import datetime, date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, DateTime, Date, ForeignKey, func, UniqueConstraint, Index, text
+from sqlalchemy import String, DateTime, Date, ForeignKey, func, UniqueConstraint, Index, JSON, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.bootstrap.database import Base
-from app.shared.core.enums import StatusItem
+from app.shared.core.enums import StatusItem  # noqa: F401  (usado no default de ItemEquipamento.status)
 
 if TYPE_CHECKING:
     from app.modules.aeronaves.models import Aeronave
+    from app.modules.auth.models import Usuario
     from app.modules.vencimentos.models import EquipamentoControle, ControleVencimento
 
 
@@ -54,13 +55,36 @@ class SlotInventario(Base):
     Exemplos: MDP1, MDP2, CMFD1, CMFD2, VUHF1.
     """
     __tablename__ = "slots_inventario"
+    __table_args__ = (
+        # Formaliza no banco a chave natural que seed_slots.py:64-69 já tratava
+        # como única, mas que nada garantia. Pré-check em produção antes do
+        # merge: 0 duplicidades em (nome_posicao, sistema).
+        UniqueConstraint("nome_posicao", "sistema", name="uq_slot_nome_sistema"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     nome_posicao: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
-    sistema: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    posicao_xlsx: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
+    # Obrigatórios desde a migration `slot_not_null_e_unique`. A obrigatoriedade
+    # que corrige o bug de integração do XLSX é a do schema Pydantic, entregue
+    # antes; este aperto fecha a porta dos fundos — criação via ORM, seeds e
+    # scripts, que não passam pelo schema.
+    sistema: Mapped[str] = mapped_column(String(50), nullable=False)
+    posicao_xlsx: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     modelo_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("modelos_equipamento.id", ondelete="RESTRICT"), nullable=False
+    )
+    descricao: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # Ordem de exibição na grade de /inventario. Sem valor definido, o slot vai
+    # para o fim da lista (ver service._ordenar_inventario).
+    ordem_exibicao: Mapped[int | None] = mapped_column(nullable=True)
+    # Inativação em vez de exclusão física quando o slot já tem histórico:
+    # apagar a linha levaria junto a rastreabilidade de toda a frota.
+    ativo: Mapped[bool] = mapped_column(default=True, server_default="1", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(), nullable=True
     )
 
     # --- Relacionamentos ---
@@ -142,3 +166,49 @@ class Instalacao(Base):
 
     def __repr__(self) -> str:
         return f"<Instalacao item_id={self.item_id} slot_id={self.slot_id}>"
+
+
+class AuditoriaDadosMestres(Base):
+    """
+    Trilha append-only de escritas em dados mestres do inventário
+    (ModeloEquipamento, SlotInventario, ItemEquipamento).
+
+    Nenhuma rotina da aplicação faz UPDATE ou DELETE sobre esta tabela —
+    mesmo padrão de ExecucaoVencimentoHistorico (vencimentos/models.py).
+
+    `usuario_id` vem SEMPRE da sessão autenticada, nunca de payload do
+    cliente: aceitar o autor por payload foi o BUG-01 já corrigido em
+    `ajustar_inventario_item` (service.py), e a mesma disciplina vale aqui.
+    """
+    __tablename__ = "auditoria_dados_mestres"
+    __table_args__ = (
+        Index("ix_auditoria_entidade", "entidade", "entidade_id"),
+        Index("ix_auditoria_criado_em", "criado_em"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    # String, não Enum nativo — mesmo padrão de ItemEquipamento.status: o enum
+    # é aplicacional, não vira constraint de banco.
+    entidade: Mapped[str] = mapped_column(String(30), nullable=False)
+    entidade_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    acao: Mapped[str] = mapped_column(String(10), nullable=False)
+    # JSON (não JSONB — SQLite). Todo valor gravado precisa ser serializável
+    # por json.dumps: UUID e datetime passam por auditoria_service.snapshot()
+    # antes de chegar aqui.
+    valores_anteriores: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    valores_novos: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    justificativa: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Nullable seguindo o precedente de Instalacao.usuario_id: a trilha não
+    # pode impedir a remoção de um usuário nem sumir junto com ele.
+    usuario_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="RESTRICT"), nullable=True
+    )
+    # 45 caracteres cobrem IPv6. Atrás do nginx da VPS este campo registra o
+    # IP do proxy, não o do usuário — limitação conhecida, ver a spec §6.6.
+    ip_origem: Mapped[str | None] = mapped_column(String(45), nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+
+    usuario: Mapped["Usuario | None"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<AuditoriaDadosMestres {self.entidade}:{self.acao} id={self.entidade_id}>"

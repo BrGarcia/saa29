@@ -94,7 +94,10 @@ async def _criar_instalacao(db: AsyncSession, aeronave_id,
     modelo = ModeloEquipamento(part_number=f"PN-{suffix}", nome_generico=f"Equip-{suffix}")
     db.add(modelo)
     await db.flush()
-    slot = SlotInventario(nome_posicao=f"SLOT-{suffix}", modelo_id=modelo.id)
+    slot = SlotInventario(
+        nome_posicao=f"SLOT-{suffix}", sistema="CEI",
+        posicao_xlsx=f"SLOT-{suffix}", modelo_id=modelo.id,
+    )
     db.add(slot)
     await db.flush()
     item = ItemEquipamento(modelo_id=modelo.id, numero_serie=f"SN-{suffix}")
@@ -182,7 +185,10 @@ async def _criar_slot_com_instalacao(
     modelo = ModeloEquipamento(part_number=f"PN-{suffix}", nome_generico=f"Equip-{suffix}")
     db.add(modelo)
     await db.flush()
-    slot = SlotInventario(nome_posicao=f"SLOT-{suffix}", modelo_id=modelo.id)
+    slot = SlotInventario(
+        nome_posicao=f"SLOT-{suffix}", sistema="CEI",
+        posicao_xlsx=f"SLOT-{suffix}", modelo_id=modelo.id,
+    )
     db.add(slot)
     await db.flush()
     item = ItemEquipamento(modelo_id=modelo.id, numero_serie=f"SN-{suffix}")

@@ -880,7 +880,7 @@ async def iniciar_upload_edicao(
     try:
         service._validar_rotulo(dados.rotulo)
     except service.RotuloInvalidoError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     # 2. Teto de tamanho declarado, configurável via publicacoes_upload_max_gb
     max_gb = get_settings().publicacoes_upload_max_gb
@@ -942,7 +942,13 @@ async def iniciar_upload_edicao(
         try:
             await storage.abortar_multipart(file_key, upload_id_r2)
         except Exception:
-            pass
+            # Best-effort: o 409 abaixo é a resposta correta de qualquer forma.
+            # Mas engolir em silêncio esconde um multipart órfão ocupando espaço
+            # no R2 — registrar para que apareça na investigação.
+            logger.warning(
+                "Falha ao abortar multipart órfão no storage (file_key=%s, upload_id=%s)",
+                file_key, upload_id_r2, exc_info=True,
+            )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Já existe um envio ou processamento de publicação em andamento.",
@@ -1111,7 +1117,8 @@ async def cancelar_upload_edicao(
             logger.warning("Falha ao apagar arquivo do job cancelado %s: %s", job_id, exc)
 
     if job.status == StatusUploadJob.PROCESSANDO and job.processo_pid:
-        import os, signal
+        import os
+        import signal
         try:
             os.kill(job.processo_pid, signal.SIGTERM)
         except OSError:

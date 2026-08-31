@@ -40,6 +40,7 @@ import argparse
 import asyncio
 import logging
 import sys
+import uuid
 import zipfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone

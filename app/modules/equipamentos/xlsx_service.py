@@ -135,9 +135,13 @@ async def obter_previa_xlsx_inventario(
     resultado.aeronave_id = aeronave.id
 
     # 3. Carregar slots e PNs
+    # `ativo=True` obrigatório: sem o filtro, um slot inativado continuaria
+    # entrando na prévia e recebendo o serial sintético XXXXXXX-{nome_posicao}
+    # como se fosse uma posição real da aeronave.
     res_slots = await db.execute(
         select(SlotInventario, ModeloEquipamento)
         .join(ModeloEquipamento, SlotInventario.modelo_id == ModeloEquipamento.id)
+        .where(SlotInventario.ativo.is_(True))
     )
     slots_ativos = res_slots.all()
 

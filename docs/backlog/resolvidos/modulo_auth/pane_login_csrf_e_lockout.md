@@ -97,8 +97,28 @@ Adicionar um teste em `tests/security/test_login_csrf.py` validando o cenário:
 
 ## 4. Critérios de Aceite
 
-- [ ] Usuário erra a senha na primeira tentativa e recebe "Login ou senha incorretos."
-- [ ] Usuário corrige a senha na segunda tentativa (sem recarregar a página) e consegue autenticar normalmente.
-- [ ] Usuário erra a senha múltiplas vezes consecutivas e continua recebendo "Login ou senha incorretos" até o limite de lockout configurado.
-- [ ] Apenas ao atingir o limite configurado (ex: 5 falhas), a conta é temporariamente desabilitada pelo tempo estipulado.
-- [ ] Parâmetros de tentativas e minutos podem ser ajustados via variáveis de ambiente (`.env`).
+- [x] Usuário erra a senha na primeira tentativa e recebe "Login ou senha incorretos."
+- [x] Usuário corrige a senha na segunda tentativa (sem recarregar a página) e consegue autenticar normalmente.
+- [x] Usuário erra a senha múltiplas vezes consecutivas e continua recebendo "Login ou senha incorretos" até o limite de lockout configurado.
+- [x] Apenas ao atingir o limite configurado (ex: 5 falhas), a conta é temporariamente desabilitada pelo tempo estipulado.
+- [ ] ~~Parâmetros de tentativas e minutos podem ser ajustados via variáveis de ambiente (`.env`).~~ — decisão revertida, ver Resolução abaixo.
+
+---
+
+## 5. Resolução
+
+**Correção 1 (dessincronia de CSRF) aplicada tal como especificado.** `login.js` agora lê `X-CSRF-Token` de toda resposta do POST (200/401/429) e atualiza `<meta name="csrf-token">`, no mesmo padrão já usado por `app.js` (`apiFetch`). Essa era a única lacuna: o restante da aplicação já fazia essa sincronia — só o login não fazia.
+
+**Correção 2 aplicada parcialmente.** O rate limit do endpoint (`app/modules/auth/router.py`) passou a ser configurável via `AUTH_LOGIN_RATE_LIMIT` (novo campo `Settings.auth_login_rate_limit`, `.env.example`), **mantendo `5/minute` como padrão** — decisão consciente de não afrouxar a postura de segurança em produção por omissão.
+
+`_LOCKOUT_MAX_TENTATIVAS` e `_LOCKOUT_DURACAO_MINUTOS` (`app/modules/auth/service.py`) **não** foram movidos para `Settings`. Existe decisão anterior registrada em `docs/backlog/resolvidos/auditorias_relatorios/fable5_etapa4.md` (linhas ~269-274) tratando esses valores como regra de negócio de domínio (auth), não configuração de ambiente/infraestrutura — mantida aqui.
+
+**Correção 3 aplicada.** `tests/security/test_login_csrf.py` ganhou `test_segunda_tentativa_com_token_rotacionado_nao_leva_403`, cobrindo exatamente o cenário descrito acima (incluindo a prova de que o token velho, sem sincronia, ainda leva a 403 — confirma que o teste é significativo).
+
+### Verificação executada
+
+```
+.venv\Scripts\pytest tests/security/test_login_csrf.py tests/security/test_csrf.py -q
+```
+
+Resultado: 12 testes passaram (3 em `test_login_csrf.py`, 9 em `test_csrf.py`).

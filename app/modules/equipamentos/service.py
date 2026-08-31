@@ -23,23 +23,29 @@ from app.modules.aeronaves.models import Aeronave
 from app.modules.auth.models import Usuario
 from app.shared.core import exceptions as domain_exc
 from app.shared.core.db_utils import escape_like
-from app.shared.core.enums import StatusItem
+from app.shared.core.enums import AcaoAuditoria, EntidadeAuditada, StatusItem
 from app.modules.equipamentos.models import (
     ModeloEquipamento,
     SlotInventario,
     ItemEquipamento,
     Instalacao,
 )
-from app.modules.vencimentos.models import EquipamentoControle
+# ControleVencimento entra aqui pela mesma razão que EquipamentoControle já
+# estava: excluir um item precisa bloquear quando há vínculo, senão o DELETE
+# estoura IntegrityError (500) em vez de devolver 409 com explicação.
+from app.modules.vencimentos.models import ControleVencimento, EquipamentoControle
 from app.modules.equipamentos.schemas import (
     ModeloEquipamentoCreate,
     ModeloEquipamentoUpdate,
     SlotInventarioCreate,
     ItemEquipamentoCreate,
+    SlotInventarioUpdate,
+    ItemEquipamentoUpdate,
     InventarioItemOut,
     AjusteInventarioCreate,
     AjusteInventarioResponse,
 )
+from app.modules.equipamentos import auditoria_service
 # A criação dos controles de vencimento pertence ao domínio de vencimentos;
 # aqui apenas orquestramos a chamada (vencimentos.service não importa este módulo).
 from app.modules.vencimentos.service import criar_controles_para_item
@@ -54,7 +60,12 @@ LIMITE_MAXIMO_LISTAGEM = 200
 # Catálogo (ModeloEquipamento / PN)
 # ============================================================
 
-async def criar_modelo(db: AsyncSession, dados: ModeloEquipamentoCreate) -> ModeloEquipamento:
+async def criar_modelo(
+    db: AsyncSession,
+    dados: ModeloEquipamentoCreate,
+    usuario_id: uuid.UUID | None = None,
+    ip_origem: str | None = None,
+) -> ModeloEquipamento:
     """Cadastra um novo Part Number no catálogo.
 
     O PN já chega normalizado (maiúsculas, sem espaços) pelo schema.
@@ -83,6 +94,16 @@ async def criar_modelo(db: AsyncSession, dados: ModeloEquipamentoCreate) -> Mode
         raise domain_exc.ConflitoNegocioError(
             f"O Part Number '{part_number}' já está cadastrado."
         ) from exc
+
+    await auditoria_service.registrar(
+        db,
+        entidade=EntidadeAuditada.MODELO_EQUIPAMENTO,
+        entidade_id=modelo.id,
+        acao=AcaoAuditoria.CREATE,
+        usuario_id=usuario_id,
+        ip_origem=ip_origem,
+        novos=auditoria_service.snapshot(modelo),
+    )
     return modelo
 
 async def buscar_modelo_por_pn(db: AsyncSession, pn: str) -> ModeloEquipamento | None:
@@ -119,7 +140,13 @@ async def listar_modelos(
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
-async def atualizar_modelo(db: AsyncSession, modelo_id: uuid.UUID, dados: ModeloEquipamentoUpdate) -> ModeloEquipamento:
+async def atualizar_modelo(
+    db: AsyncSession,
+    modelo_id: uuid.UUID,
+    dados: ModeloEquipamentoUpdate,
+    usuario_id: uuid.UUID | None = None,
+    ip_origem: str | None = None,
+) -> ModeloEquipamento:
     """Atualiza os dados cadastrais de um PN.
 
     Raises:
@@ -130,6 +157,8 @@ async def atualizar_modelo(db: AsyncSession, modelo_id: uuid.UUID, dados: Modelo
     modelo = result.scalar_one_or_none()
     if not modelo:
         raise domain_exc.EntidadeNaoEncontradaError("Equipamento não encontrado.")
+
+    antes = auditoria_service.snapshot(modelo)
 
     if dados.part_number is not None:
         part_number = dados.part_number
@@ -146,9 +175,28 @@ async def atualizar_modelo(db: AsyncSession, modelo_id: uuid.UUID, dados: Modelo
         modelo.descricao = dados.descricao
 
     await db.flush()
+
+    anteriores, novos = auditoria_service.diff_campos(antes, auditoria_service.snapshot(modelo))
+    if novos:
+        await auditoria_service.registrar(
+            db,
+            entidade=EntidadeAuditada.MODELO_EQUIPAMENTO,
+            entidade_id=modelo.id,
+            acao=AcaoAuditoria.UPDATE,
+            usuario_id=usuario_id,
+            ip_origem=ip_origem,
+            anteriores=anteriores,
+            novos=novos,
+        )
     return modelo
 
-async def remover_modelo(db: AsyncSession, modelo_id: uuid.UUID) -> None:
+async def remover_modelo(
+    db: AsyncSession,
+    modelo_id: uuid.UUID,
+    usuario_id: uuid.UUID | None = None,
+    ip_origem: str | None = None,
+    justificativa: str | None = None,
+) -> None:
     """Exclui um PN do catálogo.
 
     Raises:
@@ -186,15 +234,31 @@ async def remover_modelo(db: AsyncSession, modelo_id: uuid.UUID) -> None:
             "Não é possível excluir: este PN tem controles de vencimento (regras de periodicidade) cadastrados."
         )
 
+    antes = auditoria_service.snapshot(modelo)
     await db.delete(modelo)
     await db.flush()
+    await auditoria_service.registrar(
+        db,
+        entidade=EntidadeAuditada.MODELO_EQUIPAMENTO,
+        entidade_id=modelo_id,
+        acao=AcaoAuditoria.DELETE,
+        usuario_id=usuario_id,
+        ip_origem=ip_origem,
+        anteriores=antes,
+        justificativa=justificativa,
+    )
 
 
 # ============================================================
 # Itens (Serial Number)
 # ============================================================
 
-async def criar_item_com_heranca(db: AsyncSession, dados: ItemEquipamentoCreate) -> ItemEquipamento:
+async def criar_item_com_heranca(
+    db: AsyncSession,
+    dados: ItemEquipamentoCreate,
+    usuario_id: uuid.UUID | None = None,
+    ip_origem: str | None = None,
+) -> ItemEquipamento:
     """Cria um item físico (S/N) e herda os controles definidos no PN.
 
     Efeito colateral: cria os `ControleVencimento` herdados do template do PN
@@ -231,6 +295,16 @@ async def criar_item_com_heranca(db: AsyncSession, dados: ItemEquipamentoCreate)
 
     # 2. Herdar controles do Modelo (regra do domínio de vencimentos)
     await criar_controles_para_item(db, item.id, item.modelo_id)
+
+    await auditoria_service.registrar(
+        db,
+        entidade=EntidadeAuditada.ITEM,
+        entidade_id=item.id,
+        acao=AcaoAuditoria.CREATE,
+        usuario_id=usuario_id,
+        ip_origem=ip_origem,
+        novos=auditoria_service.snapshot(item),
+    )
     return item
 
 async def listar_itens(
@@ -267,24 +341,77 @@ def _aplicar_paginacao(stmt, limit: int | None, offset: int):
 # Slots (Configuração da Aeronave)
 # ============================================================
 
-async def criar_slot(db: AsyncSession, dados: SlotInventarioCreate) -> SlotInventario:
+async def criar_slot(
+    db: AsyncSession,
+    dados: SlotInventarioCreate,
+    usuario_id: uuid.UUID | None = None,
+    ip_origem: str | None = None,
+) -> SlotInventario:
     """Define um novo slot/posição de inventário.
 
     Raises:
         EntidadeNaoEncontradaError: `modelo_id` não corresponde a um PN cadastrado.
+        ConflitoNegocioError: já existe slot com o mesmo (nome_posicao, sistema).
     """
     if not await db.get(ModeloEquipamento, dados.modelo_id):
         raise domain_exc.EntidadeNaoEncontradaError(f"Equipamento {dados.modelo_id} não encontrado.")
 
+    if await _slot_duplicado(db, dados.nome_posicao, dados.sistema):
+        raise domain_exc.ConflitoNegocioError("Já existe um slot com este nome nesta localização.")
+
     slot = SlotInventario(**dados.model_dump())
     db.add(slot)
     await db.flush()
+
+    await auditoria_service.registrar(
+        db,
+        entidade=EntidadeAuditada.SLOT,
+        entidade_id=slot.id,
+        acao=AcaoAuditoria.CREATE,
+        usuario_id=usuario_id,
+        ip_origem=ip_origem,
+        novos=auditoria_service.snapshot(slot),
+    )
     return slot
 
 
-async def listar_slots(db: AsyncSession) -> list[SlotInventario]:
-    """Lista todos os slots configurados."""
-    result = await db.execute(select(SlotInventario))
+async def _slot_duplicado(
+    db: AsyncSession, nome_posicao: str, sistema: str | None, excluir_id: uuid.UUID | None = None
+) -> bool:
+    """Há outro slot com esta chave natural (nome_posicao, sistema)?
+
+    A UNIQUE que formaliza isso no banco só chega na fatia 3; até lá a
+    verificação em Python é a única barreira.
+    """
+    stmt = select(SlotInventario.id).where(
+        SlotInventario.nome_posicao == nome_posicao,
+        SlotInventario.sistema == sistema,
+    )
+    if excluir_id:
+        stmt = stmt.where(SlotInventario.id != excluir_id)
+    return (await db.execute(stmt)).first() is not None
+
+
+async def listar_slots(db: AsyncSession, incluir_inativos: bool = False) -> list[SlotInventario]:
+    """Lista os slots configurados (alimenta GET /equipamentos/slots/).
+
+    ATENÇÃO: esta função é distinta de `_buscar_slots`, que alimenta a grade
+    de /inventario. As duas precisam filtrar inativos — filtrar só numa deixa
+    o slot desligado aparecendo do outro lado.
+
+    `incluir_inativos=True` é o que permite à tela de gestão exibir — e
+    reativar — um slot desligado. Sem esse parâmetro, inativar seria uma
+    operação sem volta pela aplicação.
+    """
+    stmt = select(SlotInventario).options(selectinload(SlotInventario.modelo))
+    if not incluir_inativos:
+        stmt = stmt.where(SlotInventario.ativo.is_(True))
+    stmt = stmt.order_by(
+        SlotInventario.ordem_exibicao.nulls_last(),
+        SlotInventario.sistema,
+        SlotInventario.nome_posicao,
+    )
+    result = await db.execute(stmt)
     return list(result.scalars().all())
 
 
@@ -319,7 +446,15 @@ async def listar_inventario_aeronave(
             _montar_linha_inventario(slot, inst_map, ant_map, rem_map)
             for slot in slots
         ]
-        inventario.sort(key=lambda x: (x.sistema or "ZZZ", x.nome_posicao))
+        # `ordem_exibicao` só funciona aqui: um ORDER BY na query seria
+        # sobrescrito por este sort. Slots sem ordem definida vão para o fim.
+        inventario.sort(
+            key=lambda x: (
+                x.ordem_exibicao if x.ordem_exibicao is not None else 10**6,
+                x.sistema or "ZZZ",
+                x.nome_posicao,
+            )
+        )
         return inventario
 
     except Exception:
@@ -338,9 +473,18 @@ async def _garantir_aeronave_existe(db: AsyncSession, aeronave_id: uuid.UUID) ->
         raise domain_exc.EntidadeNaoEncontradaError("Aeronave não encontrada.")
 
 
-async def _buscar_slots(db: AsyncSession, nome: str | None = None) -> list[SlotInventario]:
-    """Retorna os slots configurados, com filtro opcional por posição ou PN."""
+async def _buscar_slots(
+    db: AsyncSession, nome: str | None = None, apenas_ativos: bool = True
+) -> list[SlotInventario]:
+    """Retorna os slots configurados, com filtro opcional por posição ou PN.
+
+    Alimenta a grade de /inventario. Slot inativo fica de fora por padrão —
+    ver `listar_slots`, que é a outra porta de entrada e precisa do mesmo
+    cuidado.
+    """
     stmt = select(SlotInventario).options(selectinload(SlotInventario.modelo))
+    if apenas_ativos:
+        stmt = stmt.where(SlotInventario.ativo.is_(True))
     if nome:
         nome_escaped = escape_like(nome)
         stmt = stmt.join(ModeloEquipamento).where(
@@ -457,6 +601,7 @@ def _montar_linha_inventario(
         modelo_id=slot.modelo_id,
         nome_posicao=slot.nome_posicao,
         sistema=slot.sistema,
+        ordem_exibicao=slot.ordem_exibicao,
         part_number=slot.modelo.part_number,
         nome_generico=slot.modelo.nome_generico,
         equipamento_nome=slot.nome_posicao,
@@ -795,3 +940,286 @@ async def listar_historico_recente(db: AsyncSession, limit: int = 15, offset: in
         }
         for r in rows
     ]
+
+
+# ============================================================
+# Slots — CRUD completo (gestão administrativa)
+# ============================================================
+
+async def _ocupacao_slot(db: AsyncSession, slot_id: uuid.UUID) -> list[dict]:
+    """Aeronaves com instalação vinculada a este slot, ativas e históricas."""
+    res = await db.execute(
+        select(Aeronave.matricula, Instalacao.data_remocao)
+        .join(Instalacao, Instalacao.aeronave_id == Aeronave.id)
+        .where(Instalacao.slot_id == slot_id)
+    )
+    return [{"aeronave": matricula, "ativa": remocao is None} for matricula, remocao in res.all()]
+
+
+async def atualizar_slot(
+    db: AsyncSession,
+    slot_id: uuid.UUID,
+    dados: SlotInventarioUpdate,
+    usuario_id: uuid.UUID | None,
+    ip_origem: str | None = None,
+) -> SlotInventario:
+    """Atualiza um slot.
+
+    Trocar o `modelo_id` (PN esperado) é bloqueado enquanto houver instalação
+    ativa: o slot é GLOBAL da frota, então a troca afetaria a leitura de PN de
+    todas as aeronaves de uma vez, não de uma isolada.
+
+    Raises:
+        EntidadeNaoEncontradaError: slot ou novo `modelo_id` inexistente.
+        ConflitoNegocioError: chave natural duplicada, ou troca de PN com
+            instalação ativa.
+    """
+    slot = await db.get(SlotInventario, slot_id)
+    if not slot:
+        raise domain_exc.EntidadeNaoEncontradaError("Slot não encontrado.")
+
+    antes = auditoria_service.snapshot(slot)
+
+    if dados.modelo_id is not None and dados.modelo_id != slot.modelo_id:
+        res = await db.execute(
+            select(Instalacao.id).where(
+                Instalacao.slot_id == slot_id, Instalacao.data_remocao.is_(None)
+            )
+        )
+        if res.first():
+            raise domain_exc.ConflitoNegocioError(
+                "Não é possível trocar o PN esperado: este slot tem instalação ativa "
+                "em ao menos uma aeronave."
+            )
+        if not await db.get(ModeloEquipamento, dados.modelo_id):
+            raise domain_exc.EntidadeNaoEncontradaError(
+                f"Equipamento {dados.modelo_id} não encontrado."
+            )
+        slot.modelo_id = dados.modelo_id
+
+    novo_nome = dados.nome_posicao if dados.nome_posicao is not None else slot.nome_posicao
+    novo_sistema = dados.sistema if dados.sistema is not None else slot.sistema
+    if (novo_nome, novo_sistema) != (slot.nome_posicao, slot.sistema):
+        if await _slot_duplicado(db, novo_nome, novo_sistema, excluir_id=slot_id):
+            raise domain_exc.ConflitoNegocioError(
+                "Já existe um slot com este nome nesta localização."
+            )
+
+    for campo in ("nome_posicao", "sistema", "posicao_xlsx", "descricao", "ordem_exibicao"):
+        valor = getattr(dados, campo)
+        if valor is not None:
+            setattr(slot, campo, valor)
+
+    await db.flush()
+
+    anteriores, novos = auditoria_service.diff_campos(antes, auditoria_service.snapshot(slot))
+    if novos:
+        await auditoria_service.registrar(
+            db,
+            entidade=EntidadeAuditada.SLOT,
+            entidade_id=slot.id,
+            acao=AcaoAuditoria.UPDATE,
+            usuario_id=usuario_id,
+            ip_origem=ip_origem,
+            anteriores=anteriores,
+            novos=novos,
+        )
+    return slot
+
+
+async def remover_slot(
+    db: AsyncSession,
+    slot_id: uuid.UUID,
+    justificativa: str,
+    usuario_id: uuid.UUID | None,
+    ip_origem: str | None = None,
+) -> None:
+    """Exclui fisicamente um slot sem nenhuma instalação vinculada.
+
+    O critério é mais rígido que o de item (que só barra instalação ativa):
+    apagar um slot com histórico levaria junto a rastreabilidade de toda a
+    frota, não de uma linha isolada.
+
+    Raises:
+        EntidadeNaoEncontradaError: slot inexistente.
+        ConflitoNegocioError: existe instalação, ativa ou histórica.
+    """
+    slot = await db.get(SlotInventario, slot_id)
+    if not slot:
+        raise domain_exc.EntidadeNaoEncontradaError("Slot não encontrado.")
+
+    ocupacao = await _ocupacao_slot(db, slot_id)
+    if ocupacao:
+        raise domain_exc.ConflitoNegocioError(
+            f"Não é possível excluir: {len(ocupacao)} instalação(ões) vinculada(s) a "
+            "este slot. Considere inativar o slot."
+        )
+
+    antes = auditoria_service.snapshot(slot)
+    await db.delete(slot)
+    await db.flush()
+    await auditoria_service.registrar(
+        db,
+        entidade=EntidadeAuditada.SLOT,
+        entidade_id=slot_id,
+        acao=AcaoAuditoria.DELETE,
+        usuario_id=usuario_id,
+        ip_origem=ip_origem,
+        anteriores=antes,
+        justificativa=justificativa,
+    )
+
+
+async def _alternar_ativo_slot(
+    db: AsyncSession,
+    slot_id: uuid.UUID,
+    ativo: bool,
+    usuario_id: uuid.UUID | None,
+    ip_origem: str | None = None,
+) -> SlotInventario:
+    """Liga/desliga um slot sem exigir ausência de instalações."""
+    slot = await db.get(SlotInventario, slot_id)
+    if not slot:
+        raise domain_exc.EntidadeNaoEncontradaError("Slot não encontrado.")
+    if slot.ativo == ativo:
+        return slot  # idempotente — não registra auditoria de não-mudança
+
+    anterior = slot.ativo
+    slot.ativo = ativo
+    await db.flush()
+    await auditoria_service.registrar(
+        db,
+        entidade=EntidadeAuditada.SLOT,
+        entidade_id=slot_id,
+        acao=AcaoAuditoria.UPDATE,
+        usuario_id=usuario_id,
+        ip_origem=ip_origem,
+        anteriores={"ativo": anterior},
+        novos={"ativo": ativo},
+    )
+    return slot
+
+
+async def inativar_slot(
+    db: AsyncSession, slot_id: uuid.UUID, usuario_id: uuid.UUID | None, ip_origem: str | None = None
+) -> SlotInventario:
+    """Desliga o slot preservando todo o histórico de instalações."""
+    return await _alternar_ativo_slot(db, slot_id, False, usuario_id, ip_origem)
+
+
+async def reativar_slot(
+    db: AsyncSession, slot_id: uuid.UUID, usuario_id: uuid.UUID | None, ip_origem: str | None = None
+) -> SlotInventario:
+    """Contrapartida obrigatória de `inativar_slot`.
+
+    Sem isto, um slot inativado sumiria das listagens e ficaria inacessível
+    pela aplicação — inativar viraria uma operação sem volta.
+    """
+    return await _alternar_ativo_slot(db, slot_id, True, usuario_id, ip_origem)
+
+
+# ============================================================
+# Itens de Equipamento — CRUD completo (gestão administrativa)
+# ============================================================
+
+async def atualizar_item(
+    db: AsyncSession,
+    item_id: uuid.UUID,
+    dados: ItemEquipamentoUpdate,
+    usuario_id: uuid.UUID | None,
+    ip_origem: str | None = None,
+) -> ItemEquipamento:
+    """Corrige S/N ou status de um item físico.
+
+    Raises:
+        EntidadeNaoEncontradaError: item inexistente.
+        ConflitoNegocioError: novo S/N já usado por outro item do mesmo PN.
+    """
+    item = await db.get(ItemEquipamento, item_id)
+    if not item:
+        raise domain_exc.EntidadeNaoEncontradaError("Item não encontrado.")
+
+    antes = auditoria_service.snapshot(item, ["numero_serie", "status"])
+
+    if dados.numero_serie is not None and dados.numero_serie != item.numero_serie:
+        if await _buscar_item_por_sn(db, item.modelo_id, dados.numero_serie):
+            raise domain_exc.ConflitoNegocioError(
+                f"S/N '{dados.numero_serie}' já cadastrado para este P/N."
+            )
+        item.numero_serie = dados.numero_serie
+    if dados.status is not None:
+        item.status = dados.status.value
+
+    await db.flush()
+
+    depois = auditoria_service.snapshot(item, ["numero_serie", "status"])
+    anteriores, novos = auditoria_service.diff_campos(antes, depois)
+    if novos:
+        await auditoria_service.registrar(
+            db,
+            entidade=EntidadeAuditada.ITEM,
+            entidade_id=item.id,
+            acao=AcaoAuditoria.UPDATE,
+            usuario_id=usuario_id,
+            ip_origem=ip_origem,
+            anteriores=anteriores,
+            novos=novos,
+        )
+    return item
+
+
+async def excluir_item(
+    db: AsyncSession,
+    item_id: uuid.UUID,
+    justificativa: str,
+    usuario_id: uuid.UUID | None,
+    ip_origem: str | None = None,
+) -> None:
+    """Exclui fisicamente um item sem nenhum vínculo.
+
+    Nome deliberadamente distinto de `remover_item` (que encerra a instalação
+    ativa de um item, fluxo operacional usado por PATCH /instalacoes/{id}/remover).
+    Reaproveitar aquele nome sobrescreveria o fluxo de desinstalação.
+
+    Raises:
+        EntidadeNaoEncontradaError: item inexistente.
+        ConflitoNegocioError: existe instalação OU controle de vencimento
+            vinculado ao item.
+    """
+    item = await db.get(ItemEquipamento, item_id)
+    if not item:
+        raise domain_exc.EntidadeNaoEncontradaError("Item não encontrado.")
+
+    res = await db.execute(select(Instalacao.id).where(Instalacao.item_id == item_id))
+    if res.first():
+        raise domain_exc.ConflitoNegocioError(
+            "Não é possível excluir: este item tem instalação vinculada. "
+            "Considere marcar o status como REMOVIDO."
+        )
+
+    # ControleVencimento.item_id é FK sem ondelete — sem esta checagem o
+    # db.delete() estoura IntegrityError (500) em vez de devolver 409 com
+    # explicação. E como `criar_item_com_heranca` cria controles herdados para
+    # TODO item novo, este é o caminho comum, não a exceção.
+    res_controles = await db.execute(
+        select(ControleVencimento.id).where(ControleVencimento.item_id == item_id)
+    )
+    if res_controles.first():
+        raise domain_exc.ConflitoNegocioError(
+            "Não é possível excluir: este item tem controles de vencimento (TBV/RBA) "
+            "vinculados. Considere marcar o status como REMOVIDO."
+        )
+
+    antes = auditoria_service.snapshot(item, ["numero_serie", "modelo_id", "status"])
+    await db.delete(item)
+    await db.flush()
+    await auditoria_service.registrar(
+        db,
+        entidade=EntidadeAuditada.ITEM,
+        entidade_id=item_id,
+        acao=AcaoAuditoria.DELETE,
+        usuario_id=usuario_id,
+        ip_origem=ip_origem,
+        anteriores=antes,
+        justificativa=justificativa,
+    )

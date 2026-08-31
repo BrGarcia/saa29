@@ -18,6 +18,11 @@ função aqui que escreve em lote.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover - apenas para anotações
+    from app.modules.publicacoes.models import PublicacoesUploadJob
+
 import asyncio
 import logging
 import re

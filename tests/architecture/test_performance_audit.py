@@ -21,7 +21,10 @@ async def test_n_plus_one_inventario(client: AsyncClient, db: AsyncSession, usua
     await db.flush()
 
     for i in range(5):
-        slot = SlotInventario(id=uuid.uuid4(), nome_posicao=f"POS-{i}", modelo_id=modelo.id)
+        slot = SlotInventario(
+            id=uuid.uuid4(), nome_posicao=f"POS-{i}", sistema="CEI",
+            posicao_xlsx=f"POS-{i}", modelo_id=modelo.id,
+        )
         db.add(slot)
         item = ItemEquipamento(id=uuid.uuid4(), modelo_id=modelo.id, numero_serie=f"SN-{i}")
         db.add(item)
@@ -82,7 +85,10 @@ async def test_paginacao_historico_funcional(client: AsyncClient, db: AsyncSessi
     await db.flush()
 
     for i in range(5):
-        slot = SlotInventario(id=uuid.uuid4(), nome_posicao=f"HIST-{i}", modelo_id=modelo.id)
+        slot = SlotInventario(
+            id=uuid.uuid4(), nome_posicao=f"HIST-{i}", sistema="CEI",
+            posicao_xlsx=f"HIST-{i}", modelo_id=modelo.id,
+        )
         db.add(slot)
         item = ItemEquipamento(id=uuid.uuid4(), modelo_id=modelo.id, numero_serie=f"SN-H-{i}")
         db.add(item)
