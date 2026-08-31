@@ -239,8 +239,11 @@ O que a implementação revelou e que este plano **não** previa. Registrado aqu
 
 Mesclar em `development` não deploya. **Antes de `development` ir para `main`**, os dois portões da Seção 0.1 continuam obrigatórios:
 
-1. **Reexecutar o pré-check no banco da VPS.** O de 2026-08-30 deu 0 duplicidades e 0 nulos, mas `POST /equipamentos/slots/` segue disponível para administradores — a janela desde então permite a criação de um slot que introduza a duplicata inexistente na época.
-2. **Snapshot manual do banco**, antes do deploy.
+1. ✅ **Pré-check reexecutado no banco da VPS em 2026-08-31**, depois de as três fatias estarem em `development`: **0 duplicidades** em `(nome_posicao, sistema)` e **0 nulos** em `sistema`/`posicao_xlsx`. A `UNIQUE` não encontra obstáculo e o backfill da migration será um no-op.
+
+   ⚠️ **Validade:** é um retrato de um instante. `POST /equipamentos/slots/` continua disponível para administradores, então um slot criado entre esta verificação e o merge pode introduzir a duplicata. Se o merge em `main` não acontecer no mesmo dia, refazer.
+
+2. ⬜ **Snapshot manual do banco**, antes do deploy — ver Seção 16. O backup automático para o R2 dispara por escrita e sobrescreve o estado pré-migration em segundos; não serve como ponto de retorno.
 
 Ambos estão repetidos no cabeçalho do arquivo de migration, para quem chegar por lá sem passar por este documento.
 
