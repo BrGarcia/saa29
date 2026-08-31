@@ -173,6 +173,9 @@ class InventarioItemOut(BaseModel):
     modelo_id: uuid.UUID
     nome_posicao: str
     sistema: str | None = None
+    # Necessário para a ordenação da grade: o sort acontece em Python
+    # (service.listar_inventario_aeronave), então o campo precisa chegar até aqui.
+    ordem_exibicao: int | None = None
     part_number: str
     nome_generico: str
 

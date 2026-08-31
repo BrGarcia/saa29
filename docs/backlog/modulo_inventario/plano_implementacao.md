@@ -1,10 +1,12 @@
 # 📋 Plano de Implementação — Gestão de Slots, Itens e Auditoria de Dados Mestres do Inventário
 
-> **Versão:** 1.6
+> **Versão:** 1.7
 > **Data:** 2026-08-30 (v1.0 em 2026-08-19)
 > **Referência:** `docs/BACKLOG/modulo_inventario/enhange_gerenciar_inventario.md` (SPEC-CONF-001 v2.1)
 > **Status:** 🟢 Pronto para execução
 > **Escopo deste documento:** passo a passo técnico para fechar os buracos de CRUD em `slots_inventario` e `itens_equipamento`, corrigir o bug de integração do `posicao_xlsx`, e introduzir a tabela de auditoria de dados mestres `auditoria_dados_mestres`. Tudo dentro do módulo `app/modules/equipamentos/` já existente — não é criado um módulo novo.
+
+> ✅ **Nota de revisão (v1.7 — 2026-08-31):** fatias 1 e 2 executadas. A seção 0.3 passa a registrar o que a execução revelou — inclusive três defeitos que este plano não previa, dois deles capazes de derrubar endpoints em produção. Terminologia: o plano fala em "fatias 1/2/3"; o GitHub numera os pull requests em sequência própria (a fatia 1 foi o PR #3).
 
 > ✅ **Nota de revisão (v1.5 — 2026-08-30):** acrescentado o **PR-0** (Seção 0.2). A medição da linha de base mostrou que `development` já estava vermelho antes desta feature: `ruff check .` com 11 erros (CI reprovando desde 21/08) e 4 falhas de `pytest` por contaminação entre testes. Sem isso corrigido, o critério "a suíte continua verde" da Etapa 11 era immensurável e o portão de CI não distinguia quebra nova de quebra preexistente. **PR-0 já executado e verde** — ver Seção 0.2.
 
@@ -192,6 +194,40 @@ await dispose_engine()        # novo
 Resolvido na causa, não contornado. O watchdog permanece instalado e inativo, como rede de segurança para vazamentos futuros.
 
 > **Nota para quem for rodar o lint local:** `requirements-dev.txt:20` fixa `ruff==0.16.1` deliberadamente — o comentário no arquivo registra que o CI antes instalava sem pin e "o resultado do lint mudava sem ninguém tocar em código". Usar outra versão reintroduz esse problema.
+
+---
+
+## 0.3 Registro de execução
+
+O que a implementação revelou e que este plano **não** previa. Registrado aqui porque cada item explica por que o código ficou como ficou.
+
+### Fatia 1 — PR #3, mesclada em 2026-08-30
+
+| Achado | Consequência |
+|---|---|
+| `migrations/env.py` importava 10 dos 11 módulos de models | Faltando `encarregado`, **toda** migration gerada vinha com `op.drop_table('encarregado_ciencias')`. Como o deploy aplica migrations sozinho, uma delas em produção apagaria a tabela. Corrigido com uma linha |
+| 4 pontos de chamada quebravam com o schema, não 2 | O plano contava só os que passam pela API. Faltavam os que constroem `SlotInventarioCreate(...)` direto em Python — categoria que não existia na análise |
+| Desalinhamento model×banco em 3 outros módulos | Poluía o `--autogenerate` com 8 linhas de alarme falso, e foi essa poluição que quase deixou o `drop_table` passar batido. Silenciados 2; restam os de tipo em `publicacoes_upload_jobs`, que exigem migration própria |
+
+### Fatia 2 — CRUD, auditoria e tela
+
+**Três defeitos que só apareceram ao exercitar o código:**
+
+1. **`auditoria_service.snapshot()` derrubava todo PATCH.** Depois de um `flush()`, colunas com `onupdate` (o `updated_at`) ficam expiradas; lê-las dispara um SELECT de refresh, e em contexto async isso levanta `MissingGreenlet` — não um N+1, um erro. **Todo PATCH de slot ou item retornaria 500.** Corrigido lendo apenas atributos já carregados.
+
+   Passou despercebido na fatia 1 porque a fundação foi entregue sem nenhum caminho que a chamasse. É o limite de testar código que ainda não tem consumidor.
+
+2. **`GET /equipamentos/auditoria` era capturado por `/{equipamento_id}`.** Este plano afirmava que nenhuma rota nova colidiria "porque todas têm 2+ segmentos de path" — `/auditoria` tem um. O FastAPI resolve na ordem de declaração, então extraía `equipamento_id="auditoria"`, falhava ao converter em UUID e devolvia 422. **O endpoint jamais seria alcançado.** Corrigido movendo a declaração para antes de `/{equipamento_id}`.
+
+3. **`POST /itens/{id}/remover` era ambíguo.** "Remover item" já significa encerrar a instalação ativa neste módulo. A rota virou `/excluir`, acompanhando o nome da função (`excluir_item` vs `remover_item`), para que a distinção fique visível de ponta a ponta.
+
+**Desvio deliberado do plano:** o `data-role="ADMINISTRADOR"` previsto na Etapa 9 **não** foi usado. A rota `/configuracoes` inteira já é `AdminRequired` (`app/web/pages/router.py:245`) — quem não é administrador não chega na página. Seria redundância com aparência de segurança.
+
+**Verificação:** 816 testes (44 novos), lint limpo, e a tela conferida manualmente no navegador em 2026-08-31 — criação, inativação, reativação, exclusão bloqueada por ocupação e histórico.
+
+### Fatia 3 — pendente
+
+Os dois portões da Seção 0.1 continuam valendo. O pré-check de 2026-08-30 deu 0 duplicidades e 0 nulos em produção, mas **precisa ser reexecutado antes do merge**: `POST /equipamentos/slots/` segue disponível para administradores, e a janela desde então permite a criação de um slot que introduza a duplicata inexistente na época.
 
 ---
 
