@@ -36,6 +36,7 @@ async def _criar_slot(db: AsyncSession, nome: str, sistema: str, modelo_id: str)
         id=uuid.uuid4(),
         nome_posicao=nome,
         sistema=sistema,
+        posicao_xlsx=nome,
         modelo_id=uuid.UUID(modelo_id)
     )
     db.add(slot)

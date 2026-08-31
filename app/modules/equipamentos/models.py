@@ -55,18 +55,21 @@ class SlotInventario(Base):
     Exemplos: MDP1, MDP2, CMFD1, CMFD2, VUHF1.
     """
     __tablename__ = "slots_inventario"
+    __table_args__ = (
+        # Formaliza no banco a chave natural que seed_slots.py:64-69 já tratava
+        # como única, mas que nada garantia. Pré-check em produção antes do
+        # merge: 0 duplicidades em (nome_posicao, sistema).
+        UniqueConstraint("nome_posicao", "sistema", name="uq_slot_nome_sistema"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     nome_posicao: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
-    # NULABILIDADE FASEADA — `sistema`, `posicao_xlsx` e `created_at` continuam
-    # nullable aqui de propósito. A obrigatoriedade que corrige o bug de
-    # integração do XLSX é a do schema Pydantic (SlotInventarioCreate); apertar
-    # o banco é uma alteração destrutiva, isolada num PR próprio.
-    # Declarar nullable=False antes disso faria o `alembic --autogenerate`
-    # emitir o ALTER destrutivo por conta própria.
-    # Ver docs/BACKLOG/modulo_inventario/plano_implementacao.md §0.1.
-    sistema: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    posicao_xlsx: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
+    # Obrigatórios desde a migration `slot_not_null_e_unique`. A obrigatoriedade
+    # que corrige o bug de integração do XLSX é a do schema Pydantic, entregue
+    # antes; este aperto fecha a porta dos fundos — criação via ORM, seeds e
+    # scripts, que não passam pelo schema.
+    sistema: Mapped[str] = mapped_column(String(50), nullable=False)
+    posicao_xlsx: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     modelo_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("modelos_equipamento.id", ondelete="RESTRICT"), nullable=False
     )
@@ -77,8 +80,8 @@ class SlotInventario(Base):
     # Inativação em vez de exclusão física quando o slot já tem histórico:
     # apagar a linha levaria junto a rastreabilidade de toda a frota.
     ativo: Mapped[bool] = mapped_column(default=True, server_default="1", nullable=False)
-    created_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), default=func.now(), nullable=True
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now(), nullable=True

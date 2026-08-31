@@ -94,7 +94,10 @@ async def test_indice_unico_barra_duas_instalacoes_ativas_no_mesmo_slot_e_aerona
     agrupar só por slot_id (como o texto do achado sugere) dá dezenas de
     "duplicatas" falsas — são aeronaves diferentes, não uma corrida real."""
     modelo = await _criar_modelo(db, f"PN-{uuid.uuid4().hex[:8]}")
-    slot = SlotInventario(id=uuid.uuid4(), nome_posicao="SLOT-X", sistema="CEI", modelo_id=modelo.id)
+    slot = SlotInventario(
+        id=uuid.uuid4(), nome_posicao="SLOT-X", sistema="CEI",
+        posicao_xlsx="SLOT-X", modelo_id=modelo.id,
+    )
     db.add(slot)
     await db.flush()
     aeronave = await _criar_aeronave(db, f"RC-{uuid.uuid4().hex[:6]}")
@@ -121,7 +124,10 @@ async def test_mesmo_slot_aceita_instalacoes_ativas_em_aeronaves_diferentes(db: 
     frota: o mesmo slot (posição física) tem uma instalação ativa própria em
     cada aeronave diferente."""
     modelo = await _criar_modelo(db, f"PN-{uuid.uuid4().hex[:8]}")
-    slot = SlotInventario(id=uuid.uuid4(), nome_posicao="SLOT-Y", sistema="CEI", modelo_id=modelo.id)
+    slot = SlotInventario(
+        id=uuid.uuid4(), nome_posicao="SLOT-Y", sistema="CEI",
+        posicao_xlsx="SLOT-Y", modelo_id=modelo.id,
+    )
     db.add(slot)
     await db.flush()
     aeronave1 = await _criar_aeronave(db, f"RC1-{uuid.uuid4().hex[:6]}")
@@ -147,7 +153,10 @@ async def test_instalar_item_concorrente_no_mesmo_slot_levanta_conflito_de_domin
     encerrada entre elas (ex.: duas requisições concorrentes que leram
     "nenhuma instalação ativa" antes de qualquer commit)."""
     modelo = await _criar_modelo(db, f"PN-{uuid.uuid4().hex[:8]}")
-    slot = SlotInventario(id=uuid.uuid4(), nome_posicao="SLOT-Z", sistema="CEI", modelo_id=modelo.id)
+    slot = SlotInventario(
+        id=uuid.uuid4(), nome_posicao="SLOT-Z", sistema="CEI",
+        posicao_xlsx="SLOT-Z", modelo_id=modelo.id,
+    )
     db.add(slot)
     await db.flush()
     aeronave = await _criar_aeronave(db, f"RC-{uuid.uuid4().hex[:6]}")

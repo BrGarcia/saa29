@@ -69,7 +69,10 @@ async def _criar_modelo(db: AsyncSession, pn: str) -> ModeloEquipamento:
 
 
 async def _criar_slot(db: AsyncSession, modelo_id: uuid.UUID, nome: str) -> SlotInventario:
-    slot = SlotInventario(id=uuid.uuid4(), nome_posicao=nome, sistema="CEI", modelo_id=modelo_id)
+    slot = SlotInventario(
+        id=uuid.uuid4(), nome_posicao=nome, sistema="CEI",
+        posicao_xlsx=nome, modelo_id=modelo_id,
+    )
     db.add(slot)
     await db.flush()
     return slot

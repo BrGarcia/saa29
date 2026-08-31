@@ -157,7 +157,10 @@ async def test_matriz_vencimentos_nao_fica_stale_com_status_persistido_desatuali
     db.add(EquipamentoControle(id=uuid.uuid4(), modelo_id=modelo.id, tipo_controle_id=tipo.id, periodicidade_meses=12))
     await db.flush()
 
-    slot = SlotInventario(id=uuid.uuid4(), nome_posicao=f"SLOT-{uuid.uuid4().hex[:6]}", sistema="CEI", modelo_id=modelo.id)
+    slot = SlotInventario(
+        id=uuid.uuid4(), nome_posicao=f"SLOT-{uuid.uuid4().hex[:6]}", sistema="CEI",
+        posicao_xlsx=f"SLOT-{uuid.uuid4().hex[:6]}", modelo_id=modelo.id,
+    )
     db.add(slot)
     await db.flush()
 
@@ -214,7 +217,10 @@ async def test_matriz_nao_persiste_status_derivado_como_efeito_colateral(db: Asy
     tipo = await _criar_tipo_controle(db, f"TC-{uuid.uuid4().hex[:6]}")
     db.add(EquipamentoControle(id=uuid.uuid4(), modelo_id=modelo.id, tipo_controle_id=tipo.id, periodicidade_meses=12))
     await db.flush()
-    slot = SlotInventario(id=uuid.uuid4(), nome_posicao=f"SLOT-{uuid.uuid4().hex[:6]}", sistema="CEI", modelo_id=modelo.id)
+    slot = SlotInventario(
+        id=uuid.uuid4(), nome_posicao=f"SLOT-{uuid.uuid4().hex[:6]}", sistema="CEI",
+        posicao_xlsx=f"SLOT-{uuid.uuid4().hex[:6]}", modelo_id=modelo.id,
+    )
     db.add(slot)
     await db.flush()
     item = await _criar_item(db, modelo.id, f"SN-{uuid.uuid4().hex[:8]}")
@@ -292,8 +298,14 @@ async def test_matriz_nao_esconde_slots_com_mesmo_pn_na_mesma_aeronave(db: Async
     db.add(EquipamentoControle(id=uuid.uuid4(), modelo_id=modelo.id, tipo_controle_id=tipo.id, periodicidade_meses=12))
     await db.flush()
 
-    slot1 = SlotInventario(id=uuid.uuid4(), nome_posicao="CMFD1", sistema="1P", modelo_id=modelo.id)
-    slot2 = SlotInventario(id=uuid.uuid4(), nome_posicao="CMFD2", sistema="1P", modelo_id=modelo.id)
+    slot1 = SlotInventario(
+        id=uuid.uuid4(), nome_posicao="CMFD1", sistema="1P",
+        posicao_xlsx="CMFD1", modelo_id=modelo.id,
+    )
+    slot2 = SlotInventario(
+        id=uuid.uuid4(), nome_posicao="CMFD2", sistema="1P",
+        posicao_xlsx="CMFD2", modelo_id=modelo.id,
+    )
     db.add_all([slot1, slot2])
     await db.flush()
 
@@ -353,7 +365,10 @@ async def test_matriz_mostra_slot_configurado_vazio_como_desinstalado(db: AsyncS
     tipo = await _criar_tipo_controle(db, f"TC-{uuid.uuid4().hex[:6]}")
     db.add(EquipamentoControle(id=uuid.uuid4(), modelo_id=modelo.id, tipo_controle_id=tipo.id, periodicidade_meses=12))
     await db.flush()
-    slot = SlotInventario(id=uuid.uuid4(), nome_posicao="ELT", sistema="CES", modelo_id=modelo.id)
+    slot = SlotInventario(
+        id=uuid.uuid4(), nome_posicao="ELT", sistema="CES",
+        posicao_xlsx="ELT", modelo_id=modelo.id,
+    )
     db.add(slot)
     await db.flush()
 
@@ -396,7 +411,10 @@ async def test_matriz_com_filtro_aeronave_id_devolve_so_a_aeronave_pedida(db: As
     tipo = await _criar_tipo_controle(db, f"TC-{uuid.uuid4().hex[:6]}")
     db.add(EquipamentoControle(id=uuid.uuid4(), modelo_id=modelo.id, tipo_controle_id=tipo.id, periodicidade_meses=12))
     await db.flush()
-    slot = SlotInventario(id=uuid.uuid4(), nome_posicao=f"SLOT-{uuid.uuid4().hex[:6]}", sistema="CEI", modelo_id=modelo.id)
+    slot = SlotInventario(
+        id=uuid.uuid4(), nome_posicao=f"SLOT-{uuid.uuid4().hex[:6]}", sistema="CEI",
+        posicao_xlsx=f"SLOT-{uuid.uuid4().hex[:6]}", modelo_id=modelo.id,
+    )
     db.add(slot)
     await db.flush()
 
