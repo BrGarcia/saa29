@@ -1159,15 +1159,27 @@ async def listar_upload_jobs(
     db: DBSession,
     usuario_atual: InspetorOuAdmin,
     limit: int = Query(default=10, ge=1, le=50),
+    apenas_ativos: bool = Query(
+        default=False,
+        description="Retorna somente jobs em ENVIANDO/AGUARDANDO_PROCESSAMENTO/PROCESSANDO.",
+    ),
 ) -> list[schemas.UploadJobOut]:
     from sqlalchemy import select
     from app.modules.publicacoes.models import PublicacoesUploadJob
-    jobs = (
-        await db.execute(
-            select(PublicacoesUploadJob)
-            .order_by(PublicacoesUploadJob.created_at.desc())
-            .limit(limit)
+    query = select(PublicacoesUploadJob)
+    if apenas_ativos:
+        # Existe no máximo um job nesses três status ao mesmo tempo — ver o índice
+        # único parcial uq_publicacoes_upload_jobs_ativo_unico (models.py) — mas o
+        # filtro é indispensável mesmo assim: sem ele, um job CONCLUIDO/FALHOU
+        # criado depois do ativo apareceria primeiro na ordenação por created_at
+        # e esconderia o job que a retomada de polling (item 3.7) precisa achar.
+        query = query.where(
+            PublicacoesUploadJob.status.in_(
+                [StatusUploadJob.ENVIANDO, StatusUploadJob.AGUARDANDO_PROCESSAMENTO, StatusUploadJob.PROCESSANDO]
+            )
         )
+    jobs = (
+        await db.execute(query.order_by(PublicacoesUploadJob.created_at.desc()).limit(limit))
     ).scalars().all()
     return [schemas.UploadJobOut.model_validate(j) for j in jobs]
 

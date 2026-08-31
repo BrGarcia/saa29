@@ -59,6 +59,10 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("btn-toggle-area-upload")?.addEventListener("click", toggleAreaUpload);
     document.getElementById("form-upload-edicao")?.addEventListener("submit", tratarSubmitUpload);
     document.getElementById("btn-cancelar-upload")?.addEventListener("click", cancelarUploadAtual);
+
+    // Item 3.7 do backlog: quem recarrega /configuracoes no meio de um
+    // upload não deve perder o acompanhamento de progresso.
+    retomarUploadEmAndamento();
 });
 
 // ==========================================
@@ -453,6 +457,64 @@ let currentUploadJobId = null;
 let currentUploadPollingTimer = null;
 let isUploading = false;
 
+/**
+ * Item 3.7 do backlog (docs/backlog/resolvidos/melhorias_pagina_configuracoes.md):
+ * ao carregar /configuracoes, verifica se já existe um upload de edição
+ * ativo (a página foi recarregada no meio de um envio/processamento) e
+ * restaura a barra de progresso — em vez de deixar o usuário sem
+ * acompanhamento até fechar e reabrir o modal manualmente.
+ *
+ * Só existe, no máximo, um job ativo no sistema inteiro (índice único
+ * parcial `uq_publicacoes_upload_jobs_ativo_unico`), então achar um já
+ * identifica de quem é — não há ambiguidade a resolver aqui.
+ * @returns {Promise<void>}
+ */
+async function retomarUploadEmAndamento() {
+    /** @type {any} */
+    let job;
+    try {
+        const jobs = await apiFetch("/publicacoes/api/edicoes/uploads?apenas_ativos=true&limit=1");
+        if (!jobs || jobs.length === 0) return;
+        job = jobs[0];
+    } catch (err) {
+        console.error("Erro ao verificar upload em andamento:", err);
+        return;
+    }
+
+    // Reabre o modal de edições e o painel de upload — sem isso a barra
+    // seria atualizada por trás de um modal fechado, invisível ao usuário.
+    const modal = document.getElementById("modal-edicoes");
+    if (modal) modal.style.display = "flex";
+    carregarEdicoes();
+
+    const painel = document.getElementById("painel-upload-edicao");
+    if (painel) painel.style.display = "block";
+    const containerStatus = document.getElementById("status-upload-container");
+    if (containerStatus) containerStatus.style.display = "flex";
+
+    if (job.status === "PROCESSANDO") {
+        // Worker rodando no servidor: religar o polling é o caso central deste item.
+        currentUploadJobId = job.id;
+        isUploading = true;
+        atualizarBarraUpload(job.etapa || "Processando...", job.progresso_pct || 50);
+        iniciarPollingUpload(job.id);
+    } else if (job.status === "AGUARDANDO_PROCESSAMENTO") {
+        // Modo AGENDADO: processamento só roda de madrugada. Não faz sentido
+        // ligar polling (mesmo raciocínio do ramo AGUARDANDO_PROCESSAMENTO em
+        // iniciarPollingUpload) — só informar que o job já está seguro.
+        atualizarBarraUpload(job.etapa || "Upload concluído. Processamento agendado para a madrugada.", job.progresso_pct || 5);
+        showToast("Há um upload de edição aguardando processamento agendado.", "info");
+    } else if (job.status === "ENVIANDO") {
+        // O arquivo (File) do input não sobrevive ao reload — não dá para
+        // retomar o envio das partes. Só oferecer o cancelamento, que libera
+        // o bloqueio de "um upload por vez" para o usuário recomeçar.
+        currentUploadJobId = job.id;
+        atualizarBarraUpload("Envio interrompido ao recarregar a página. Cancele e reenvie o arquivo.", 0);
+        const btnSubmit = /** @type {HTMLButtonElement | null} */ (document.getElementById("btn-iniciar-upload"));
+        if (btnSubmit) btnSubmit.disabled = true;
+    }
+}
+
 function toggleAreaUpload() {
     const painel = document.getElementById("painel-upload-edicao");
     if (painel) {
@@ -587,6 +649,12 @@ function iniciarPollingUpload(jobId) {
         currentUploadPollingTimer = null;
     }
 
+    // Falhas consecutivas do tick (job cancelado/removido em outra aba, rede
+    // instável, etc.) não devem virar um loop de console.error para sempre —
+    // achado ao planejar a retomada de polling (item 3.7): sem isso, religar
+    // o polling sobre um job que já não existe mais passa a ser possível.
+    let falhasConsecutivas = 0;
+
     const checarStatus = async () => {
         if (!currentUploadJobId) {
             if (currentUploadPollingTimer) {
@@ -598,6 +666,7 @@ function iniciarPollingUpload(jobId) {
 
         try {
             const job = await apiFetch(`/publicacoes/api/edicoes/uploads/${jobId}`);
+            falhasConsecutivas = 0;
             atualizarBarraUpload(job.etapa || "Processando...", job.progresso_pct || 50);
 
             if (job.status === "CONCLUIDO") {
@@ -639,6 +708,14 @@ function iniciarPollingUpload(jobId) {
             }
         } catch (err) {
             console.error("Erro ao checar status do job de upload:", err);
+            falhasConsecutivas++;
+            if (falhasConsecutivas >= 3) {
+                if (currentUploadPollingTimer) {
+                    clearInterval(currentUploadPollingTimer);
+                    currentUploadPollingTimer = null;
+                }
+                showToast("Não foi possível confirmar o status do upload. Recarregue a página.", "error");
+            }
         }
     };
 
