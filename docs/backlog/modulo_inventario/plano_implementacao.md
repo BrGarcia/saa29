@@ -1443,17 +1443,53 @@ O backup é disparado **por escrita**, não por deploy. Assim que a primeira esc
 
 O banco de produção fica em `/app/data/saa29.db`, no volume `sqlite_data` do serviço `web` (`docker-compose.yml:8-13`).
 
-```bash
-# Na VPS (~/saa29), com a aplicação ainda no estado pré-migration.
-# Snapshot consistente via API nativa do SQLite — não copiar o arquivo a quente:
-docker-compose exec -T web python -c \
-  "import sqlite3; s=sqlite3.connect('/app/data/saa29.db'); d=sqlite3.connect('/tmp/pre_3b.db'); s.backup(d); d.close(); s.close()"
+Executável do Mac, via SSH com chave (ver §16.5):
 
-# Tirar a cópia de dentro do container, para fora do fluxo do R2 (que será sobrescrito):
-docker cp "$(docker-compose ps -q web)":/tmp/pre_3b.db ./pre_3b_$(date +%F).db
+```bash
+ssh -p 22022 bruno@143.95.216.54 'bash -s' <<'REMOTO'
+set -e
+cd ~/saa29
+ARQ="pre_migration_$(date +%F_%H%M).db"
+
+# `< /dev/null` é OBRIGATÓRIO: `docker-compose exec -T` lê o stdin, que aqui é
+# o próprio script chegando pelo SSH. Sem o redirecionamento ele consome as
+# linhas seguintes e o resto simplesmente não roda — e o pior é que falha
+# parecendo sucesso: "snapshot gerado" aparece, mas o arquivo nunca é copiado
+# para fora do container. Constatado na execução de 2026-08-31.
+docker-compose exec -T web python -c "
+import sqlite3
+origem = sqlite3.connect('/app/data/saa29.db')
+destino = sqlite3.connect('/tmp/snapshot.db')
+origem.backup(destino)
+destino.close(); origem.close()
+print('snapshot gerado no container')
+" < /dev/null
+
+docker cp "$(docker-compose ps -q web)":/tmp/snapshot.db "./$ARQ"
+docker-compose exec -T web rm -f /tmp/snapshot.db < /dev/null
+
+# Conferir SEMPRE: um snapshot corrompido ou vazio não serve de retorno.
+python3 -c "
+import sqlite3
+c = sqlite3.connect('$ARQ')
+print('integridade:', c.execute('PRAGMA integrity_check').fetchone()[0])
+print('slots:', c.execute('select count(*) from slots_inventario').fetchone()[0])
+print('instalacoes:', c.execute('select count(*) from instalacoes').fetchone()[0])
+print('alembic:', c.execute('select * from alembic_version').fetchall())
+"
+ls -lh "$ARQ"
+REMOTO
+```
+
+**Traga uma cópia para fora da VPS** — snapshot guardado só no servidor não protege contra o servidor ser o problema:
+
+```bash
+scp -P 22022 bruno@143.95.216.54:'~/saa29/pre_migration_*.db' ~/Desktop/saa29_backups/
 ```
 
 > `cp` direto do arquivo `.db` com a aplicação no ar pode capturar um estado inconsistente (WAL em andamento). `sqlite3.backup()` é o mesmo mecanismo que o `r2_manager.py:70-77` já usa por esse motivo.
+
+> **O que esperar:** `integridade: ok` e contagens não-zeradas. O `alembic` deve mostrar a revisão **anterior** às migrations sendo aplicadas — é esse o ponto de retorno. Se qualquer um falhar, parar: o snapshot não serve.
 
 **Se a 3b falhar (container não sobe):**
 
