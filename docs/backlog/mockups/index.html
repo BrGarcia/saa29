@@ -1293,10 +1293,31 @@
                 </div>
             </div>
 
-            <!-- Navegação Tática e Módulos -->
+            <!-- Navegação Tática Agrupada por Perfil (Role) -->
             <div class="header-nav">
-                <div class="nav-group">
-                    <button class="btn-icon active" data-tooltip="Dashboard Geral" onclick="notify('Visualizando Dashboard Central')">
+                <!-- 1. Mecânico: Panes, Inspeções, Inventário -->
+                <div class="nav-group" style="border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08);">
+                    <button class="btn-icon" data-tooltip="Panes (Mecânico)" onclick="openNewPaneModal()">
+                        <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                        <span class="badge-dot"></span>
+                    </button>
+                    <button class="btn-icon" data-tooltip="Inspeções Programadas (Mecânico)" onclick="notify('Módulo: Inspeções da Frota')">
+                        <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                            <path d="m14.5 9 3.5-3.5c1.5-1.5 2-3.5 1.5-4s-2.5 0-4 1.5L12 6.5l-8-2-1 1 5.5 3.5-3.5 3.5L2 12l.5 1.5L6 14l.5 3.5 1.5.5 1.5-3 3.5-3.5 3.5 5.5 1-1-2-8Z"></path>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" data-tooltip="Inventário & Bancada (Mecânico)" onclick="notify('Módulo: Inventário & Equipamentos')">
+                        <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- 2. Encarregado: Dashboard, Ciência, Pedidos, Calendário -->
+                <div class="nav-group" style="border-color: rgba(59, 130, 246, 0.35); background: rgba(59, 130, 246, 0.08);">
+                    <button class="btn-icon active" data-tooltip="Dashboard Geral (Encarregado)" onclick="notify('Visualizando Dashboard Central')">
                         <svg class="uicon uicon-md" viewBox="0 0 24 24">
                             <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
                             <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
@@ -1310,39 +1331,43 @@
                         </svg>
                         <span class="badge-dot"></span>
                     </button>
-                    <button class="btn-icon" data-tooltip="Gestão de Panes" onclick="openNewPaneModal()">
-                        <svg class="uicon uicon-md" viewBox="0 0 24 24">
-                            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                        </svg>
-                    </button>
-                    <button class="btn-icon" data-tooltip="Central de Pedidos" onclick="notify('Módulo: Pedidos de Suprimentos')">
+                    <button class="btn-icon" data-tooltip="Central de Pedidos (Encarregado)" onclick="notify('Módulo: Pedidos de Suprimentos')">
                         <svg class="uicon uicon-md" viewBox="0 0 24 24">
                             <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                         </svg>
                     </button>
-                    <button class="btn-icon" data-tooltip="Inspeções Programadas" onclick="notify('Módulo: Inspeções da Frota')">
+                    <button class="btn-icon" data-tooltip="Calendário & Escala (Encarregado)" onclick="notify('Módulo: Calendário & Escala')">
                         <svg class="uicon uicon-md" viewBox="0 0 24 24">
-                            <path d="m14.5 9 3.5-3.5c1.5-1.5 2-3.5 1.5-4s-2.5 0-4 1.5L12 6.5l-8-2-1 1 5.5 3.5-3.5 3.5L2 12l.5 1.5L6 14l.5 3.5 1.5.5 1.5-3 3.5-3.5 3.5 5.5 1-1-2-8Z"></path>
+                            <rect x="3" y="4" width="18" height="17" rx="2" stroke-width="2"></rect>
+                            <line x1="8" y1="2" x2="8" y2="6" stroke-width="2"></line>
+                            <line x1="16" y1="2" x2="16" y2="6" stroke-width="2"></line>
+                            <line x1="3" y1="10" x2="21" y2="10" stroke-width="2"></line>
+                            <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" stroke-width="3"></path>
                         </svg>
                     </button>
-                    <button class="btn-icon" data-tooltip="Inventário & Bancada" onclick="notify('Módulo: Inventário & Equipamentos')">
-                        <svg class="uicon uicon-md" viewBox="0 0 24 24">
-                            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-                        </svg>
-                    </button>
-                    <button class="btn-icon" data-tooltip="Vencimentos & Calibrações" onclick="notify('Módulo: Vencimentos & Calibrações')">
+                </div>
+
+                <!-- 3. Inspetor: Vencimentos, Frota, Publicações -->
+                <div class="nav-group" style="border-color: rgba(16, 185, 129, 0.35); background: rgba(16, 185, 129, 0.08);">
+                    <button class="btn-icon" data-tooltip="Vencimentos & Calibrações (Inspetor)" onclick="notify('Módulo: Vencimentos & Calibrações')">
                         <svg class="uicon uicon-md" viewBox="0 0 24 24">
                             <circle cx="12" cy="12" r="10"></circle>
                             <polyline points="12 6 12 12 16 14"></polyline>
                         </svg>
                     </button>
-                    <button class="btn-icon" data-tooltip="Publicações Técnicas" onclick="notify('Módulo: Manuais & Publicações Técnicas')">
+                    <button class="btn-icon" data-tooltip="Frota & Aeronaves (Inspetor)" onclick="notify('Módulo: Frota & Aeronaves')">
+                        <svg class="uicon uicon-md" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" data-tooltip="Publicações Técnicas (Inspetor)" onclick="notify('Módulo: Manuais & Publicações Técnicas')">
                         <svg class="uicon uicon-md" viewBox="0 0 24 24">
                             <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"></path>
                         </svg>
                     </button>
                 </div>
 
+                <!-- 4. Sistema / Configurações -->
                 <div class="nav-group">
                     <button class="btn-icon" id="theme-toggle-btn" data-tooltip="Alternar Tema (Dark/Light)" onclick="toggleTheme()">
                         <svg id="theme-icon" class="uicon uicon-md" viewBox="0 0 24 24">

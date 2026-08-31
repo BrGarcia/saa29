@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAA29 — Mockup: Barra Superior Agrupada por Perfil (Role)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Tema Escuro (Padrão) */
+            --bg-primary: #090d16;
+            --bg-secondary: #111827;
+            --bg-tertiary: #1f2937;
+            --bg-glass: rgba(17, 24, 39, 0.75);
+            --bg-glass-card: rgba(31, 41, 55, 0.65);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-color-hover: rgba(255, 255, 255, 0.18);
+            --border-color-active: rgba(59, 130, 246, 0.5);
+            
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            
+            --primary-color: #3b82f6;
+            --primary-hover: #2563eb;
+            --primary-light: rgba(59, 130, 246, 0.15);
+            --primary-glow: rgba(59, 130, 246, 0.35);
+            
+            /* Cores dos Grupos por Role */
+            --role-mecanico: #f59e0b;       /* Âmbar / Operacional */
+            --role-mecanico-bg: rgba(245, 158, 11, 0.12);
+            --role-mecanico-border: rgba(245, 158, 11, 0.3);
+
+            --role-encarregado: #3b82f6;     /* Azul Tático / Comando */
+            --role-encarregado-bg: rgba(59, 130, 246, 0.12);
+            --role-encarregado-border: rgba(59, 130, 246, 0.3);
+
+            --role-inspetor: #10b981;        /* Esmeralda / Auditoria */
+            --role-inspetor-bg: rgba(16, 185, 129, 0.12);
+            --role-inspetor-border: rgba(16, 185, 129, 0.3);
+
+            --role-sistema: #8b5cf6;         /* Roxo / Config & Master */
+            --role-sistema-bg: rgba(139, 92, 246, 0.12);
+            --role-sistema-border: rgba(139, 92, 246, 0.3);
+
+            --status-danger: #ef4444;
+            --status-success: #10b981;
+            
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --radius-full: 9999px;
+            
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+            --shadow-glow: 0 0 25px rgba(59, 130, 246, 0.2);
+            
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --bg-glass: rgba(255, 255, 255, 0.85);
+            --bg-glass-card: rgba(255, 255, 255, 0.9);
+            --border-color: rgba(0, 0, 0, 0.08);
+            --border-color-hover: rgba(0, 0, 0, 0.16);
+            --border-color-active: rgba(37, 99, 235, 0.5);
+            
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --primary-light: rgba(37, 99, 235, 0.1);
+            --primary-glow: rgba(37, 99, 235, 0.2);
+            
+            --role-mecanico: #d97706;
+            --role-mecanico-bg: rgba(217, 119, 6, 0.08);
+            --role-mecanico-border: rgba(217, 119, 6, 0.25);
+
+            --role-encarregado: #2563eb;
+            --role-encarregado-bg: rgba(37, 99, 235, 0.08);
+            --role-encarregado-border: rgba(37, 99, 235, 0.25);
+
+            --role-inspetor: #059669;
+            --role-inspetor-bg: rgba(5, 150, 105, 0.08);
+            --role-inspetor-border: rgba(5, 150, 105, 0.25);
+
+            --role-sistema: #7c3aed;
+            --role-sistema-bg: rgba(124, 58, 237, 0.08);
+            --role-sistema-border: rgba(124, 58, 237, 0.25);
+
+            --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.08);
+            --shadow-glow: 0 0 20px rgba(37, 99, 235, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            letter-spacing: -0.02em;
+        }
+
+        /* Banner de Cabeçalho do Mockup */
+        .mockup-banner {
+            background: linear-gradient(90deg, #1e1b4b, #0f172a 50%, #172554);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+            padding: 0.65rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: #cbd5e1;
+        }
+
+        .mockup-badge {
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            color: #93c5fd;
+            padding: 0.2rem 0.6rem;
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Container Principal */
+        .page-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 1.5rem 2rem 4rem;
+            width: 100%;
+        }
+
+        /* Card de Controles Interativos */
+        .simulator-bar {
+            background: var(--bg-glass);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 1rem 1.25rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .role-filters {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .role-filter-btn {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.825rem;
+            font-weight: 600;
+            padding: 0.45rem 0.9rem;
+            border-radius: var(--radius-full);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .role-filter-btn:hover {
+            border-color: var(--border-color-hover);
+            color: var(--text-primary);
+        }
+
+        .role-filter-btn.active {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: #ffffff;
+            box-shadow: var(--shadow-glow);
+        }
+
+        .role-filter-btn .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .controls-right {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .btn-theme-toggle {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-md);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-theme-toggle:hover {
+            border-color: var(--border-color-hover);
+            background: var(--bg-secondary);
+        }
+
+        /* Seção do Header em Destaque */
+        .preview-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            margin-bottom: 2.5rem;
+            box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .preview-header-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+        }
+
+        .preview-header-title h2 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .preview-header-title .tag {
+            font-size: 0.75rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: var(--radius-sm);
+            background: var(--primary-light);
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* ==========================================================================
+           BARRA SUPERIOR (HEADER) — ESTRUTURA REAL PROPOSTA
+           ========================================================================== */
+        .top-header-stage {
+            background: var(--bg-glass-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 0.85rem 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            backdrop-filter: blur(20px);
+            position: relative;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-shrink: 0;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+
+        .brand-logo svg {
+            color: var(--primary-color);
+        }
+
+        .brand-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .brand-badge {
+            font-size: 0.65rem;
+            padding: 0.15rem 0.4rem;
+            background: var(--primary-light);
+            color: var(--primary-color);
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
+        .brand-divider {
+            width: 1px;
+            height: 22px;
+            background: var(--border-color);
+        }
+
+        .page-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        /* Container de Grupos da Barra de Navegação */
+        .top-nav-roles {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            flex-wrap: wrap;
+        }
+
+        /* Grupo de Navegação por Perfil */
+        .nav-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            padding: 0.25rem 0.35rem;
+            border-radius: var(--radius-md);
+            position: relative;
+            transition: var(--transition);
+        }
+
+        /* Estilização Individual dos 4 Grupos (Cromático por Role) */
+        .nav-group-mecanico {
+            border-color: var(--role-mecanico-border);
+            background: var(--role-mecanico-bg);
+        }
+
+        .nav-group-encarregado {
+            border-color: var(--role-encarregado-border);
+            background: var(--role-encarregado-bg);
+        }
+
+        .nav-group-inspetor {
+            border-color: var(--role-inspetor-border);
+            background: var(--role-inspetor-bg);
+        }
+
+        .nav-group-sistema {
+            border-color: var(--border-color);
+            background: var(--bg-secondary);
+        }
+
+        /* Divisores de Grupo */
+        .nav-group-divider {
+            width: 1px;
+            height: 22px;
+            background: var(--border-color);
+            margin: 0 0.1rem;
+        }
+
+        /* Botão de Ícone */
+        .btn-nav-icon {
+            width: 36px;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-sm);
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+            position: relative;
+        }
+
+        .btn-nav-icon:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--border-color-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-nav-icon.active {
+            color: var(--primary-color);
+            background: var(--primary-light);
+            border-color: var(--border-color-active);
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .btn-nav-icon .badge-dot {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 6px;
+            height: 6px;
+            background-color: var(--status-danger);
+            border-radius: 50%;
+            box-shadow: 0 0 6px var(--status-danger);
+        }
+
+        .btn-nav-icon .badge-counter {
+            position: absolute;
+            top: -3px;
+            right: -3px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            background: var(--status-danger);
+            color: white;
+            padding: 0.05rem 0.3rem;
+            border-radius: var(--radius-full);
+            border: 1px solid var(--bg-secondary);
+        }
+
+        /* Destaque quando o filtro de Role está ativo */
+        .nav-group.highlight-role {
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.15);
+            transform: scale(1.02);
+        }
+
+        .nav-group.dim-role {
+            opacity: 0.35;
+            filter: grayscale(0.6);
+        }
+
+        /* Tooltip flutuante */
+        .tooltip-custom {
+            position: relative;
+        }
+
+        .tooltip-custom::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: -32px;
+            left: 50%;
+            transform: translateX(-50%) translateY(4px);
+            background: #0f172a;
+            color: #f8fafc;
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: all 0.15s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            z-index: 100;
+        }
+
+        .tooltip-custom:hover::after {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Toast Feedback */
+        #mockup-toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #1e293b;
+            color: #f8fafc;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 0.85rem 1.25rem;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-md);
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000;
+        }
+
+        #mockup-toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* Grid Informativo dos Grupos */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.25rem;
+            margin-top: 2rem;
+        }
+
+        .info-card {
+            background: var(--bg-glass-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 1.25rem;
+            backdrop-filter: blur(10px);
+            transition: var(--transition);
+        }
+
+        .info-card:hover {
+            border-color: var(--border-color-hover);
+            transform: translateY(-2px);
+        }
+
+        .info-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+
+        .info-card-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .info-card-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.15rem 0.5rem;
+            border-radius: var(--radius-full);
+        }
+
+        .info-card ul {
+            list-style: none;
+            padding: 0;
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .info-card li {
+            padding: 0.35rem 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .info-card li:last-child {
+            border-bottom: none;
+        }
+
+        .info-card code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+        }
+
+        /* Comparação Antes vs Depois */
+        .comparison-section {
+            margin-top: 3rem;
+        }
+
+        .comparison-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .comp-tab-btn {
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-md);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .comp-tab-btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .top-header-legacy {
+            background: var(--bg-glass-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 0.85rem 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Banner Superior do Protótipo -->
+    <div class="mockup-banner">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <span class="mockup-badge">Backlog UI &bull; SPEC-TOPBAR-001</span>
+            <span><strong>PROTÓTIPO INTERATIVO:</strong> Agrupamento dos Ícones da Barra Superior por Perfil (Role)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <a href="index.html" style="color: #93c5fd; text-decoration: none; font-weight: 600;">&larr; Voltar ao Mockup Geral</a>
+        </div>
+    </div>
+
+    <div class="page-container">
+
+        <!-- Barra de Controle do Simulador -->
+        <div class="simulator-bar">
+            <div class="role-filters">
+                <span style="font-size: 0.825rem; font-weight: 700; color: var(--text-secondary); margin-right: 0.25rem;">SIMULAR VISÃO:</span>
+                <button class="role-filter-btn active" onclick="setFilter('todos', this)">
+                    <span class="dot" style="background: #ffffff;"></span> Todos os Perfis (Admin)
+                </button>
+                <button class="role-filter-btn" onclick="setFilter('mecanico', this)">
+                    <span class="dot" style="background: var(--role-mecanico);"></span> 1. Mecânico / Mantenedor
+                </button>
+                <button class="role-filter-btn" onclick="setFilter('encarregado', this)">
+                    <span class="dot" style="background: var(--role-encarregado);"></span> 2. Encarregado
+                </button>
+                <button class="role-filter-btn" onclick="setFilter('inspetor', this)">
+                    <span class="dot" style="background: var(--role-inspetor);"></span> 3. Inspetor
+                </button>
+            </div>
+
+            <div class="controls-right">
+                <button class="btn-theme-toggle" onclick="toggleTheme()" title="Alternar Modo Escuro / Claro">
+                    <svg id="theme-svg" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Palco do Mockup: Barra Superior Proposta -->
+        <div class="preview-card">
+            <div class="preview-header-title">
+                <h2>
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--primary-color);">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                    Barra Superior Agrupada por Perfil (Ordem: Mecânico &rarr; Encarregado &rarr; Inspetor &rarr; Sistema)
+                </h2>
+                <span class="tag">ORDEM DA ESQUERDA PARA A DIREITA</span>
+            </div>
+
+            <!-- Renderização da Barra Superior Proposta -->
+            <header class="top-header-stage">
+                <!-- Marca e Identidade -->
+                <div class="header-brand">
+                    <a href="#" class="brand-logo">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 2L11 13" />
+                            <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+                        </svg>
+                        <h1 class="brand-title">
+                            Eletrônica A-29
+                            <span class="brand-badge">UI V2</span>
+                        </h1>
+                    </a>
+                    <div class="brand-divider"></div>
+                    <span class="page-title" id="stage-page-title">Dashboard Tático</span>
+                </div>
+
+                <!-- Navegação Agrupada em 4 Blocos -->
+                <nav class="top-nav-roles" id="stage-nav">
+                    
+                    <!-- ==========================================
+                         GRUPO 1: MECÂNICO / MANTENEDOR (E→D 1)
+                         Panes, Inspeções, Inventário
+                         ========================================== -->
+                    <div class="nav-group nav-group-mecanico" id="group-mecanico">
+                        <!-- Panes -->
+                        <button class="btn-nav-icon tooltip-custom" data-tooltip="Panes (Mecânico)" onclick="selectModule('Panes', 'Mecânico')">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                            </svg>
+                            <span class="badge-dot"></span>
+                        </button>
+
+                        <!-- Inspeções -->
+                        <button class="btn-nav-icon tooltip-custom" data-tooltip="Inspeções Programadas (Mecânico)" onclick="selectModule('Inspeções', 'Mecânico')">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m14.5 9 3.5-3.5c1.5-1.5 2-3.5 1.5-4s-2.5 0-4 1.5L12 6.5l-8-2-1 1 5.5 3.5-3.5 3.5L2 12l.5 1.5L6 14l.5 3.5 1.5.5 1.5-3 3.5-3.5 3.5 5.5 1-1-2-8Z"></path>
+                            </svg>
+                            <span class="badge-counter">2</span>
+                        </button>
+
+                        <!-- Inventário -->
+                        <button class="btn-nav-icon tooltip-custom" data-tooltip="Inventário & Bancada (Mecânico)" onclick="selectModule('Inventário', 'Mecânico')">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="nav-group-divider"></div>
+
+                    <!-- ==========================================
+                         GRUPO 2: ENCARREGADO (E→D 2)
+                         Dashboard, Ciência de Alterações, Pedidos, Calendário
+                         ========================================== -->
+                    <div class="nav-group nav-group-encarregado" id="group-encarregado">
+                        <!-- Dashboard -->
+                        <button class="btn-nav-icon active tooltip-custom" data-tooltip="Dashboard Geral (Encarregado)" onclick="selectModule('Dashboard', 'Encarregado')">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <rect x="3" y="3" width="7" height="7" rx="1.5" stroke-width="2"></rect>
+                                <rect x="14" y="3" width="7" height="7" rx="1.5" stroke-width="2"></rect>
+                                <rect x="14" y="14" width="7" height="7" rx="1.5" stroke-width="2"></rect>
+                                <rect x="3" y="14" width="7" height="7" rx="1.5" stroke-width="2"></rect>
+                            </svg>
+                        </button>
+
+                        <!-- Ciência de Alterações -->
+                        <button class="btn-nav-icon tooltip-custom" data-tooltip="Ciência de Alterações (Encarregado)" onclick="selectModule('Ciência do Encarregado', 'Encarregado')">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                            </svg>
+                            <span class="badge-dot"></span>
+                        </button>
+
+                        <!-- Central de Pedidos -->
+                        <button class="btn-nav-icon tooltip-custom" data-tooltip="Central de Pedidos (Encarregado)" onclick="selectModule('Central de Pedidos', 'Encarregado')">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                            </svg>
+                        </button>
+
+                        <!-- Calendário -->
+                        <button class="btn-nav-icon tooltip-custom" data-tooltip="Calendário & Escala (Encarregado)" onclick="selectModule('Calendário', 'Encarregado')">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <rect x="3" y="4" width="18" height="17" rx="2" stroke-width="2"></rect>
+                                <line x1="8" y1="2" x2="8" y2="6" stroke-width="2"></line>
+                                <line x1="16" y1="2" x2="16" y2="6" stroke-width="2"></line>
+                                <line x1="3" y1="10" x2="21" y2="10" stroke-width="2"></line>
+                                <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" stroke-width="3"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="nav-group-divider"></div>
+
+                    <!-- ==========================================
+                         GRUPO 3: INSPETOR (E→D 3)
+                         Vencimentos, Frota, Publicações
+                         ========================================== -->
+                    <div class="nav-group nav-group-inspetor" id="group-inspetor">
+                        <!-- Vencimentos -->
+                        <button class="btn-nav-icon tooltip-custom" data-tooltip="Vencimentos & Calibrações (Inspetor)" onclick="selectModule('Vencimentos', 'Inspetor')">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                        </button>
+
+                        <!-- Frota -->
+                        <button class="btn-nav-icon tooltip-custom" data-tooltip="Frota & Aeronaves (Inspetor)" onclick="selectModule('Frota', 'Inspetor')">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                            </svg>
+                        </button>
+
+                        <!-- Publicações -->
+                        <button class="btn-nav-icon tooltip-custom" data-tooltip="Publicações Técnicas (Inspetor)" onclick="selectModule('Publicações', 'Inspetor')">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="nav-group-divider"></div>
+
+                    <!-- ==========================================
+                         GRUPO 4: CONFIGURAÇÕES & SISTEMA (E→D 4)
+                         Tema, Configurações, Logoff
+                         ========================================== -->
+                    <div class="nav-group nav-group-sistema" id="group-sistema">
+                        <!-- Alternar Tema -->
+                        <button class="btn-nav-icon tooltip-custom" data-tooltip="Alternar Tema" onclick="toggleTheme()">
+                            <svg width="19" height="19" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                            </svg>
+                        </button>
+
+                        <!-- Configurações -->
+                        <button class="btn-nav-icon tooltip-custom" data-tooltip="Configurações do Sistema" onclick="selectModule('Configurações', 'Sistema')">
+                            <svg width="19" height="19" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+
+                        <!-- Logout -->
+                        <button class="btn-nav-icon tooltip-custom" data-tooltip="Sair do Sistema" onclick="triggerToast('🚪 Simulação de Logoff do Sistema')">
+                            <svg width="19" height="19" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                </nav>
+            </header>
+        </div>
+
+        <!-- Detalhamento dos 4 Grupos de Usabilidade -->
+        <div class="info-grid">
+            
+            <!-- Card 1: Mecânico -->
+            <div class="info-card" style="border-top: 3px solid var(--role-mecanico);">
+                <div class="info-card-header">
+                    <div class="info-card-title" style="color: var(--role-mecanico);">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
+                        1. Mecânico / Mantenedor
+                    </div>
+                    <span class="info-card-badge" style="background: var(--role-mecanico-bg); color: var(--role-mecanico);">CHÃO DE FÁBRICA</span>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--text-secondary);">Foco em intervenção direta na aeronave, registro e baixa de discrepâncias técnicas.</p>
+                <ul>
+                    <li><span>• Panes Técnicas</span> <code>/panes</code></li>
+                    <li><span>• Inspeções Programadas</span> <code>/inspecoes</code></li>
+                    <li><span>• Inventário & Bancada</span> <code>/inventario</code></li>
+                </ul>
+            </div>
+
+            <!-- Card 2: Encarregado -->
+            <div class="info-card" style="border-top: 3px solid var(--role-encarregado);">
+                <div class="info-card-header">
+                    <div class="info-card-title" style="color: var(--role-encarregado);">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                        2. Encarregado
+                    </div>
+                    <span class="info-card-badge" style="background: var(--role-encarregado-bg); color: var(--role-encarregado);">GESTÃO TÁTICA</span>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--text-secondary);">Visão agregada da frota, controle de ciência, pedidos de peças e escala de serviço.</p>
+                <ul>
+                    <li><span>• Dashboard Geral</span> <code>/dashboard</code></li>
+                    <li><span>• Ciência de Alterações</span> <code>/encarregado</code></li>
+                    <li><span>• Central de Pedidos</span> <code>/pedidos</code></li>
+                    <li><span>• Calendário & Escala</span> <code>/calendario</code></li>
+                </ul>
+            </div>
+
+            <!-- Card 3: Inspetor -->
+            <div class="info-card" style="border-top: 3px solid var(--role-inspetor);">
+                <div class="info-card-header">
+                    <div class="info-card-title" style="color: var(--role-inspetor);">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"></circle><polyline points="12 6 12 12 16 14" stroke-width="2"></polyline></svg>
+                        3. Inspetor
+                    </div>
+                    <span class="info-card-badge" style="background: var(--role-inspetor-bg); color: var(--role-inspetor);">AUDITORIA & TÉCNICA</span>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--text-secondary);">Controle de conformidade aeronáutica, vencimentos de componentes e manuais oficiais.</p>
+                <ul>
+                    <li><span>• Vencimentos & Calibrações</span> <code>/vencimentos</code></li>
+                    <li><span>• Frota & Aeronaves</span> <code>/frota</code></li>
+                    <li><span>• Publicações Técnicas</span> <code>/publicacoes</code></li>
+                </ul>
+            </div>
+
+            <!-- Card 4: Configurações & Sistema -->
+            <div class="info-card" style="border-top: 3px solid var(--role-sistema);">
+                <div class="info-card-header">
+                    <div class="info-card-title" style="color: var(--role-sistema);">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke-width="2"></circle></svg>
+                        4. Configurações / Sistema
+                    </div>
+                    <span class="info-card-badge" style="background: var(--role-sistema-bg); color: var(--role-sistema);">ADMIN / PREF</span>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--text-secondary);">Parametrização global do sistema, troca de tema e encerramento de sessão segura.</p>
+                <ul>
+                    <li><span>• Alternar Tema</span> <code>#theme-toggle</code></li>
+                    <li><span>• Configurações Globais</span> <code>/configuracoes</code></li>
+                    <li><span>• Sair (Logoff)</span> <code>#logout-btn</code></li>
+                </ul>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="mockup-toast">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--primary-color);">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span id="mockup-toast-text">Módulo selecionado</span>
+    </div>
+
+    <script>
+        // Simulador de Filtro de Role
+        function setFilter(role, btn) {
+            document.querySelectorAll('.role-filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const gMecanico = document.getElementById('group-mecanico');
+            const gEncarregado = document.getElementById('group-encarregado');
+            const gInspetor = document.getElementById('group-inspetor');
+            const gSistema = document.getElementById('group-sistema');
+
+            // Reset
+            [gMecanico, gEncarregado, gInspetor, gSistema].forEach(g => {
+                g.classList.remove('highlight-role', 'dim-role');
+            });
+
+            if (role === 'mecanico') {
+                gMecanico.classList.add('highlight-role');
+                gEncarregado.classList.add('dim-role');
+                gInspetor.classList.add('dim-role');
+                triggerToast('🔧 Visualizando foco do Mecânico: Panes, Inspeções, Inventário');
+            } else if (role === 'encarregado') {
+                gEncarregado.classList.add('highlight-role');
+                gMecanico.classList.add('dim-role');
+                gInspetor.classList.add('dim-role');
+                triggerToast('📋 Visualizando foco do Encarregado: Dashboard, Ciência, Pedidos, Calendário');
+            } else if (role === 'inspetor') {
+                gInspetor.classList.add('highlight-role');
+                gMecanico.classList.add('dim-role');
+                gEncarregado.classList.add('dim-role');
+                triggerToast('🔍 Visualizando foco do Inspetor: Vencimentos, Frota, Publicações');
+            } else {
+                triggerToast('👑 Visualizando todos os grupos (Visão do Administrador)');
+            }
+        }
+
+        // Seleção de Módulo
+        function selectModule(name, role) {
+            document.getElementById('stage-page-title').textContent = name;
+            document.querySelectorAll('.btn-nav-icon').forEach(btn => btn.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            triggerToast(`Navegando para: <strong>${name}</strong> (${role})`);
+        }
+
+        // Toast Feedback
+        let toastTimeout;
+        function triggerToast(html) {
+            const toast = document.getElementById('mockup-toast');
+            document.getElementById('mockup-toast-text').innerHTML = html;
+            toast.classList.add('show');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Toggle Theme
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            
+            const svg = document.getElementById('theme-svg');
+            if (next === 'dark') {
+                svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 9h-1m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>';
+            } else {
+                svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>';
+            }
+            
+            triggerToast(`Tema alterado para: <strong>${next === 'dark' ? 'Modo Escuro' : 'Modo Claro'}</strong>`);
+        }
+    </script>
+</body>
+</html>
