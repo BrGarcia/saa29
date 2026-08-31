@@ -134,7 +134,7 @@ Diferente de "Tipos de Controle" (Vencimentos), "Tipos de Inspeção" e "Tipos d
 ### 3.6 Reagrupar os cards por categoria — Esforço: baixo/médio, fazer junto com um próximo card novo
 Hoje os 7 cards são uma lista plana sem headers de seção. Funciona bem em 7; ao acrescentar um 8º ou 9º card (itens 3.5 ou o de Inventário, ver docs relacionados), a varredura visual começa a pesar sem agrupamento (ex.: "Frota & Manutenção", "Publicações & Documentação", "Efetivo & Acesso").
 - **Reaproveitamento:** é reestruturação do HTML existente (agrupar os `<div class="card">` já prontos sob `<h3>` de seção), nenhum componente novo.
-- Recomendação: não fazer isoladamente — combinar com a entrada do próximo card (3.5 ou o card de Inventário já especificado em `docs/backlog/modulo_inventario/enhange_gerenciar_inventario.md`, que já prevê explicitamente um botão em `/configuracoes` no RF-01 daquele documento).
+- Recomendação: não fazer isoladamente — combinar com a entrada do próximo card (3.5 ou o card de Inventário já especificado em `docs/backlog/resolvidos/modulo_inventario/enhange_gerenciar_inventario.md`, que já prevê explicitamente um botão em `/configuracoes` no RF-01 daquele documento).
 
 ### 3.7 Retomada de polling do upload ao recarregar a página — Esforço: médio
 Já documentado como débito conhecido em `docs/backlog/modulo_publicacoes/12_refinamento_gestao_e_envio.md` (item B-06, linhas 72 e 287-291): se o usuário reabre `/configuracoes` no meio de um upload em `ENVIANDO`/`PROCESSANDO`, a barra de progresso não retoma sozinha — `currentUploadJobId` vive só em memória e o polling só é ligado dentro do fluxo de `tratarSubmitUpload`.

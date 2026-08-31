@@ -2,7 +2,7 @@
 
 > **Versão:** 1.8
 > **Data:** 2026-08-30 (v1.0 em 2026-08-19)
-> **Referência:** `docs/BACKLOG/modulo_inventario/enhange_gerenciar_inventario.md` (SPEC-CONF-001 v2.1)
+> **Referência:** `docs/BACKLOG/resolvidos/modulo_inventario/enhange_gerenciar_inventario.md` (SPEC-CONF-001 v2.1)
 > **Status:** ✅ Executado — fatias 1, 2 e 3 mescladas em `development` (2026-08-31)
 > **Escopo deste documento:** passo a passo técnico para fechar os buracos de CRUD em `slots_inventario` e `itens_equipamento`, corrigir o bug de integração do `posicao_xlsx`, e introduzir a tabela de auditoria de dados mestres `auditoria_dados_mestres`. Tudo dentro do módulo `app/modules/equipamentos/` já existente — não é criado um módulo novo.
 

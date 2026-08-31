@@ -35,6 +35,10 @@ Este diretório contém a documentação histórica, relatórios de auditoria e 
 - [bug_inventario_plano_correcao.md](file:///c:/Users/brgar/Projetos/SAA29/docs/backlog/resolvidos/modulo_inventario/bug_inventario_plano_correcao.md)
 - [cores_aeronaves.md](file:///c:/Users/brgar/Projetos/SAA29/docs/backlog/resolvidos/modulo_inventario/cores_aeronaves.md)
 - [implementacao_refactor_slot_posicao.md](file:///c:/Users/brgar/Projetos/SAA29/docs/backlog/resolvidos/modulo_inventario/implementacao_refactor_slot_posicao.md)
+- [enhange_gerenciar_inventario.md](modulo_inventario/enhange_gerenciar_inventario.md) — SPEC-CONF-001: gestão de equipamentos, slots e inventário. Em produção em 2026-08-31.
+- [plano_implementacao.md](modulo_inventario/plano_implementacao.md) — plano de execução da SPEC-CONF-001, com o registro do que a implementação revelou (§0.3).
+
+> Os dois links acima são **relativos**; os demais desta página são caminhos absolutos de uma máquina Windows (`file:///c:/Users/brgar/...`) e não abrem em outros computadores. Vale migrar os antigos quando alguém encostar neste arquivo.
 
 ### 5. `modulo_inspecoes/` (Inspeções, Ordens de Serviço e Tarefas)
 - [adicionar_anexo_inspecao.md](file:///c:/Users/brgar/Projetos/SAA29/docs/backlog/resolvidos/modulo_inspecoes/adicionar_anexo_inspecao.md)
