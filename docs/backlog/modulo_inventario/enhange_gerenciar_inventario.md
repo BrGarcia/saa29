@@ -5,10 +5,10 @@
 | **ID** | SPEC-CONF-001 |
 | **Título** | Gestão administrativa de Equipamentos, Slots e Inventário via tela de Configurações |
 | **Tipo** | Feature Specification (PRD + Technical Design) |
-| **Versão** | 2.5 — Revisada contra código, pipeline e convenções de API; pré-check de produção e linha de base de testes executados |
+| **Versão** | 2.6 — Implementada; ver `plano_implementacao.md` §0.3 para o registro de execução |
 | **Data** | 2026-08-30 (v2.0 em 2026-08-19) |
 | **Autor** | *(preencher)* |
-| **Status** | 🟢 Revisada — pronta para virar plano de execução |
+| **Status** | ✅ Implementada — fatias 1, 2 e 3 em `development` (2026-08-31). Pendente: portões de produção antes do merge em `main` |
 | **Épico** | EP-INV — Manutenção de dados mestres de inventário |
 | **Stakeholders** | Seção de Manutenção, Suprimento/Almoxarifado, Controle de Configuração, TI/Sustentação |
 

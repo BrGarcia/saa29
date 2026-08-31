@@ -1,9 +1,9 @@
 # 📋 Plano de Implementação — Gestão de Slots, Itens e Auditoria de Dados Mestres do Inventário
 
-> **Versão:** 1.7
+> **Versão:** 1.8
 > **Data:** 2026-08-30 (v1.0 em 2026-08-19)
 > **Referência:** `docs/BACKLOG/modulo_inventario/enhange_gerenciar_inventario.md` (SPEC-CONF-001 v2.1)
-> **Status:** 🟢 Pronto para execução
+> **Status:** ✅ Executado — fatias 1, 2 e 3 mescladas em `development` (2026-08-31)
 > **Escopo deste documento:** passo a passo técnico para fechar os buracos de CRUD em `slots_inventario` e `itens_equipamento`, corrigir o bug de integração do `posicao_xlsx`, e introduzir a tabela de auditoria de dados mestres `auditoria_dados_mestres`. Tudo dentro do módulo `app/modules/equipamentos/` já existente — não é criado um módulo novo.
 
 > ✅ **Nota de revisão (v1.7 — 2026-08-31):** fatias 1 e 2 executadas. A seção 0.3 passa a registrar o que a execução revelou — inclusive três defeitos que este plano não previa, dois deles capazes de derrubar endpoints em produção. Terminologia: o plano fala em "fatias 1/2/3"; o GitHub numera os pull requests em sequência própria (a fatia 1 foi o PR #3).
@@ -225,9 +225,24 @@ O que a implementação revelou e que este plano **não** previa. Registrado aqu
 
 **Verificação:** 816 testes (44 novos), lint limpo, e a tela conferida manualmente no navegador em 2026-08-31 — criação, inativação, reativação, exclusão bloqueada por ocupação e histórico.
 
-### Fatia 3 — pendente
+### Fatia 3 — PR #5, mesclada em `development` em 2026-08-31
 
-Os dois portões da Seção 0.1 continuam valendo. O pré-check de 2026-08-30 deu 0 duplicidades e 0 nulos em produção, mas **precisa ser reexecutado antes do merge**: `POST /equipamentos/slots/` segue disponível para administradores, e a janela desde então permite a criação de um slot que introduza a duplicata inexistente na época.
+`sistema`, `posicao_xlsx` e `created_at` passaram a `NOT NULL`; a chave natural `(nome_posicao, sistema)` virou `UNIQUE`.
+
+**A quebra foi maior que a estimada.** O plano previa 19 construções de `SlotInventario(...)` afetadas; elas de fato eram 19, mas derrubaram **34 testes** em 8 arquivos, porque os helpers de teste são reutilizados por vários casos. A contagem de pontos de código não prevê a de testes vermelhos.
+
+**Nada mais quebrou.** O `seed_slots.py` já buscava por `(nome_posicao, sistema)` antes de criar, então era compatível com a UNIQUE desde sempre; e as 33 entradas de dados já traziam `posicao_xlsx`.
+
+**Cobertura acrescentada:** 3 testes para a garantia no nível do banco — o que a fatia 2 já barrava em Python, agora barrado também para quem cria slot por ORM, seed ou script. Inclui o caso legítimo de posições homônimas em Loc diferentes (`CMFD1` em `1P` e em `2P`), que a chave composta permite e uma chave só por nome proibiria.
+
+### ⚠️ Pendente: os dois portões de produção
+
+Mesclar em `development` não deploya. **Antes de `development` ir para `main`**, os dois portões da Seção 0.1 continuam obrigatórios:
+
+1. **Reexecutar o pré-check no banco da VPS.** O de 2026-08-30 deu 0 duplicidades e 0 nulos, mas `POST /equipamentos/slots/` segue disponível para administradores — a janela desde então permite a criação de um slot que introduza a duplicata inexistente na época.
+2. **Snapshot manual do banco**, antes do deploy.
+
+Ambos estão repetidos no cabeçalho do arquivo de migration, para quem chegar por lá sem passar por este documento.
 
 ---
 
