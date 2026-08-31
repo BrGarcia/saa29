@@ -15,7 +15,7 @@ inventário era forjável".
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.equipamentos.models import AuditoriaDadosMestres
@@ -46,9 +46,21 @@ def snapshot(obj, campos: list[str] | None = None) -> dict:
 
     Usar sempre isto em vez de montar o dict à mão: garante que todo valor
     passe por `_serializavel` antes de chegar à coluna JSON.
+
+    Lê apenas atributos já carregados. Depois de um `flush()`, colunas com
+    `onupdate` (como `updated_at`) ficam expiradas, e um `getattr` nelas
+    dispararia um SELECT de refresh — em contexto async isso levanta
+    `MissingGreenlet`, não um simples N+1. Os campos assim omitidos são os
+    mesmos que `CAMPOS_IGNORADOS` já descarta do diff, então nada de útil
+    se perde.
     """
     nomes = campos or [c.name for c in obj.__table__.columns]
-    return {nome: _serializavel(getattr(obj, nome)) for nome in nomes}
+    nao_carregados = inspect(obj).unloaded
+    return {
+        nome: _serializavel(getattr(obj, nome))
+        for nome in nomes
+        if nome not in nao_carregados
+    }
 
 
 def diff_campos(antes: dict | None, depois: dict | None) -> tuple[dict, dict]:
