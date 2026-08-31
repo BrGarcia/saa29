@@ -2,7 +2,7 @@
 tests/unit/test_pedidos.py
 Testes da Central de Pedidos — SAA29.
 
-Cobertura (docs/backlog/modulo_pedidos/plano_implementacao.md §12):
+Cobertura (docs/backlog/resolvidos/modulo_pedidos/plano_implementacao.md §12):
     - test_criar_pedido_normal_sucesso                 — 201, PENDENTE, sem emergência
     - test_criar_pedido_emergencia_sem_numero_falha     — 422 (RN-03)
     - test_criar_pedido_emergencia_com_numero_sucesso   — 201, numero_emergencia preservado

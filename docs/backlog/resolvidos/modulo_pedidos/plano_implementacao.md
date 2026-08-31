@@ -2,8 +2,8 @@
 
 > **Versão:** 2.0
 > **Data:** 2026-08-10
-> **Referência:** `docs/backlog/modulo_pedidos/feature_controle_pedidos.md` (v2.0, desacoplada de INVENTÁRIO/VENCIMENTOS)
-> **Status:** 🟢 Pronto para execução
+> **Referência:** `docs/backlog/resolvidos/modulo_pedidos/feature_controle_pedidos.md` (v2.0, desacoplada de INVENTÁRIO/VENCIMENTOS)
+> **Status:** ✅ Implementado e em produção (arquivado em 2026-08-31) — backend, frontend e migração entregues; 28 testes automatizados cobrindo o módulo (`tests/unit/test_pedidos.py`).
 > **Escopo deste documento:** passo a passo técnico para implementar o módulo `pedidos` do zero, ancorado nos padrões reais já existentes no repositório (o módulo `panes` é a referência de estilo mais próxima).
 
 > ⚠️ **Nota de coordenação:** este módulo é novo (`app/modules/pedidos/` nunca existiu no histórico do repositório), mas várias etapas tocam arquivos **compartilhados** com o restante do sistema (`app/shared/core/enums.py`, `app/bootstrap/main.py`, `migrations/env.py`, `app/web/templates/base.html`, `app/web/pages/router.py`). Se houver outra equipe trabalhando em paralelo no repositório, revisar o §14 (Riscos) antes de abrir PR — em especial o número de revisão do Alembic, que pode ter mudado.

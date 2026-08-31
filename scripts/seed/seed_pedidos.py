@@ -19,7 +19,7 @@ from app.modules.pedidos.models import Pedido
 from app.shared.core.enums import StatusPedido, TipoPedido
 
 # Cenários fictícios cobrindo os dois tipos e os três status finais — mesmos
-# P/Ns de exemplo usados no mockup aprovado (docs/backlog/modulo_pedidos/mockup_pedidos.html).
+# P/Ns de exemplo usados no mockup aprovado (docs/backlog/resolvidos/modulo_pedidos/mockup_pedidos.html).
 PEDIDOS_EXEMPLO = [
     {
         "part_number": "622-4795-001",

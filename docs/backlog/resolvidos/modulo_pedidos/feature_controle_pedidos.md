@@ -3,7 +3,7 @@
 > **Versão:** 2.0 (Simplificada e Desacoplada)  
 > **Data:** 2026-08-09  
 > **Autor:** Arquitetura de Software SAA29  
-> **Status:** 🟢 Pronto para Novo Plano de Implementação — Alinhado a `modulo_pedidos.md`  
+> **Status:** ✅ Implementado e em produção (arquivado em 2026-08-31) — ver `docs/backlog/resolvidos/modulo_pedidos/plano_implementacao.md`  
 > **Prioridade:** Alta  
 > **Nota v2.0:** Redefinição de escopo baseada no documento `docs/backlog/modulo_pedidos/modulo_pedidos.md`. O módulo PEDIDOS foi totalmente desacoplado dos módulos INVENTÁRIO e VENCIMENTOS. A responsabilidade de detecção de pendências foi removida do escopo do módulo, tornando-o um serviço independente de gestão do ciclo logístico/administrativo dos pedidos.
 
@@ -362,15 +362,17 @@ A arquitetura desacoplada permite que no futuro o módulo de **INVENTÁRIO** (ou
 
 ## 11. Critérios de Aceite
 
-- [ ] Listar pedidos com filtros funcionais (`status`, `tipo_pedido`, `aeronave_id`, busca textual por nº pedido ou PN).
-- [ ] Criar pedido `NORMAL` sem campo de emergência.
-- [ ] Criar pedido `EMERGENCIA` com `numero_emergencia` **obrigatório** (validado no backend).
-- [ ] `numero_emergencia` forçado a NULL quando `NORMAL`.
-- [ ] Atender registra `data_atendimento` e `atendido_por_id` e **não** altera o módulo de inventário.
-- [ ] Cancelar exige `motivo_cancelamento` (mínimo 1 caractere) e registra `data_cancelamento` + `cancelado_por_id`.
-- [ ] Editar apenas pedidos com status `PENDENTE`. Pedidos `ATENDIDO`/`CANCELADO` são read-only.
-- [ ] Transições inválidas de status retornam **HTTP 409**.
-- [ ] `numero_pedido` informado manualmente pelo usuário e obrigatório na criação; colisão retorna **HTTP 409**.
-- [ ] Usuário sem permissão (MANTENEDOR tentando criar/atender/cancelar) recebe **HTTP 403**.
-- [ ] Soft delete e restauração funcionam corretamente.
-- [ ] Sem violações de CSP ou XSS no frontend.
+> Todos os itens abaixo cobertos por `tests/unit/test_pedidos.py` (28 testes, passando em 2026-08-31).
+
+- [x] Listar pedidos com filtros funcionais (`status`, `tipo_pedido`, `aeronave_id`, busca textual por nº pedido ou PN).
+- [x] Criar pedido `NORMAL` sem campo de emergência.
+- [x] Criar pedido `EMERGENCIA` com `numero_emergencia` **obrigatório** (validado no backend).
+- [x] `numero_emergencia` forçado a NULL quando `NORMAL`.
+- [x] Atender registra `data_atendimento` e `atendido_por_id` e **não** altera o módulo de inventário.
+- [x] Cancelar exige `motivo_cancelamento` (mínimo 1 caractere) e registra `data_cancelamento` + `cancelado_por_id`.
+- [x] Editar apenas pedidos com status `PENDENTE`. Pedidos `ATENDIDO`/`CANCELADO` são read-only.
+- [x] Transições inválidas de status retornam **HTTP 409**.
+- [x] `numero_pedido` informado manualmente pelo usuário e obrigatório na criação; colisão retorna **HTTP 409**.
+- [x] Usuário sem permissão (MANTENEDOR tentando criar/atender/cancelar) recebe **HTTP 403**.
+- [x] Soft delete e restauração funcionam corretamente.
+- [x] Sem violações de CSP ou XSS no frontend.

@@ -1,6 +1,6 @@
 # 📋 Plano de Implementação — Versão Mobile do SAA29
 
-Companion de `01_especificacao_mobile.md`. Segue o padrão de `docs/backlog/modulo_pedidos/plano_implementacao.md`: cada etapa é entregável e testável isoladamente, na ordem em que deve ser codificada.
+Companion de `01_especificacao_mobile.md`. Segue o padrão de `docs/backlog/resolvidos/modulo_pedidos/plano_implementacao.md`: cada etapa é entregável e testável isoladamente, na ordem em que deve ser codificada.
 
 > **Status (2026-08-19):** Etapas 1–6 implementadas na branch `feature/mobile-core-panes` (não `feature/mobile-linha-de-voo` — esse nome de branch já existia, órfão, 152 commits atrás de `development`, e foi preservado intocado). Etapa 7 (Publicações + acabamento PWA) parcialmente feita — ver nota abaixo. Detalhes e desvios do plano original em cada etapa abaixo.
 >

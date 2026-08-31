@@ -105,7 +105,7 @@ core_rules:
 
 current_focus:
 - docs_synced: true (IA updated for v1.5.0 Publicações M0-M4.Web, Calendário Bugfix, Pedidos Module v2.0, and Development branch merge)
-- pedidos_module_v2_implemented: true (backend `app/modules/pedidos/` + frontend `/pedidos` completos, 24 testes automatizados, standalone/desacoplado de equipamentos e vencimentos — ver docs/backlog/modulo_pedidos/plano_implementacao.md)
+- pedidos_module_v2_implemented: true (backend `app/modules/pedidos/` + frontend `/pedidos` completos, 24 testes automatizados, standalone/desacoplado de equipamentos e vencimentos — ver docs/backlog/resolvidos/modulo_pedidos/plano_implementacao.md)
 - security_controls_active: 100_percent (CSP hardening, Zip security, and Path Traversal fixes completed)
 - publicacoes_m0_m4_web_completed: true (M0-M4 + M4.Web web upload fully implemented and tested)
 - publicacoes_explorador_promoted: true (Default view at /publicacoes and /publicacoes/viewer/{id})

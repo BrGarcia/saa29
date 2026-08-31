@@ -40,6 +40,13 @@ Este diretório contém a documentação histórica, relatórios de auditoria e 
 
 > Os dois links acima são **relativos**; os demais desta página são caminhos absolutos de uma máquina Windows (`file:///c:/Users/brgar/...`) e não abrem em outros computadores. Vale migrar os antigos quando alguém encostar neste arquivo.
 
+### 4.1. `modulo_pedidos/` (Central de Pedidos — Reposição/Substituição de Equipamentos)
+- [feature_controle_pedidos.md](modulo_pedidos/feature_controle_pedidos.md) — especificação v2.0, módulo desacoplado de INVENTÁRIO/VENCIMENTOS. Em produção desde 2026-08-31.
+- [plano_implementacao.md](modulo_pedidos/plano_implementacao.md) — plano de execução, com 28 testes automatizados (`tests/unit/test_pedidos.py`).
+- [mockup_pedidos.html](modulo_pedidos/mockup_pedidos.html) — mockup aprovado da tela `/pedidos`.
+
+> Os três links acima são **relativos** (mesmo padrão adotado para as entradas mais recentes de `modulo_inventario/`).
+
 ### 5. `modulo_inspecoes/` (Inspeções, Ordens de Serviço e Tarefas)
 - [adicionar_anexo_inspecao.md](file:///c:/Users/brgar/Projetos/SAA29/docs/backlog/resolvidos/modulo_inspecoes/adicionar_anexo_inspecao.md)
 - [bug_usuario_vencimentos.md](file:///c:/Users/brgar/Projetos/SAA29/docs/backlog/resolvidos/modulo_inspecoes/bug_usuario_vencimentos.md)
