@@ -118,7 +118,10 @@ async def _criar_instalacao(
     modelo = ModeloEquipamento(id=uuid.uuid4(), part_number=f"PN-ENC-{suffix}", nome_generico="RADIO VHF")
     db.add(modelo)
     await db.flush()
-    slot = SlotInventario(id=uuid.uuid4(), nome_posicao=f"MDP-{suffix[:4]}", modelo_id=modelo.id)
+    slot = SlotInventario(
+        id=uuid.uuid4(), nome_posicao=f"MDP-{suffix[:4]}", sistema="CEI",
+        posicao_xlsx=f"MDP-{suffix[:4]}", modelo_id=modelo.id,
+    )
     db.add(slot)
     await db.flush()
     item = ItemEquipamento(id=uuid.uuid4(), modelo_id=modelo.id, numero_serie=f"SN-ENC-{suffix}")
@@ -151,7 +154,10 @@ async def _criar_controle_vencimento(
     modelo = ModeloEquipamento(id=uuid.uuid4(), part_number=f"PN-VENC-{suffix}", nome_generico="TRANSPONDER")
     db.add(modelo)
     await db.flush()
-    slot = SlotInventario(id=uuid.uuid4(), nome_posicao=f"XPD-{suffix[:4]}", modelo_id=modelo.id)
+    slot = SlotInventario(
+        id=uuid.uuid4(), nome_posicao=f"XPD-{suffix[:4]}", sistema="CEI",
+        posicao_xlsx=f"XPD-{suffix[:4]}", modelo_id=modelo.id,
+    )
     db.add(slot)
     await db.flush()
     item = ItemEquipamento(id=uuid.uuid4(), modelo_id=modelo.id, numero_serie=f"SN-VENC-{suffix}")

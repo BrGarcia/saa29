@@ -643,3 +643,64 @@ async def test_template_de_configuracoes_sem_handler_inline(client_autenticado: 
     onclick no HTML simplesmente não executa, e o botão fica inerte."""
     html = (await client_autenticado.get("/configuracoes")).text
     assert "onclick=" not in html
+
+
+# ------------------------------------------------------------------ #
+#  Garantias de schema (migration slot_not_null_e_unique)
+#
+#  A fatia 2 já barrava duplicidade em Python, dentro do service. O que
+#  a fatia 3 acrescenta é a barreira no BANCO — a que também vale para
+#  quem cria slot pelo ORM, por seed ou por script, sem passar pelo
+#  service nem pelo schema Pydantic.
+# ------------------------------------------------------------------ #
+
+@pytest.mark.asyncio
+async def test_banco_rejeita_slot_duplicado_criado_pelo_orm(db: AsyncSession):
+    """Barreira de última instância: nem a API nem o service participam aqui."""
+    from sqlalchemy.exc import IntegrityError
+
+    modelo = await _criar_modelo(db)
+    db.add(SlotInventario(
+        id=uuid.uuid4(), nome_posicao="UQ1", sistema="CEI",
+        posicao_xlsx="UQ1", modelo_id=modelo.id,
+    ))
+    await db.flush()
+
+    db.add(SlotInventario(
+        id=uuid.uuid4(), nome_posicao="UQ1", sistema="CEI",
+        posicao_xlsx="OUTRO", modelo_id=modelo.id,
+    ))
+    with pytest.raises(IntegrityError):
+        await db.flush()
+    await db.rollback()
+
+
+@pytest.mark.asyncio
+async def test_mesmo_nome_em_localizacoes_diferentes_e_permitido(db: AsyncSession):
+    """A chave é o PAR (nome_posicao, sistema), não o nome sozinho —
+    posições homônimas em Loc distintas são legítimas na frota."""
+    modelo = await _criar_modelo(db)
+    db.add(SlotInventario(
+        id=uuid.uuid4(), nome_posicao="CMFD1", sistema="1P",
+        posicao_xlsx="CMFD1-1P", modelo_id=modelo.id,
+    ))
+    db.add(SlotInventario(
+        id=uuid.uuid4(), nome_posicao="CMFD1", sistema="2P",
+        posicao_xlsx="CMFD1-2P", modelo_id=modelo.id,
+    ))
+    await db.flush()  # não pode levantar
+
+
+@pytest.mark.asyncio
+async def test_banco_rejeita_slot_sem_posicao_xlsx(db: AsyncSession):
+    """Fecha a porta dos fundos: o schema Pydantic protege a API, mas não
+    a criação direta por ORM, seed ou script de manutenção."""
+    from sqlalchemy.exc import IntegrityError
+
+    modelo = await _criar_modelo(db)
+    db.add(SlotInventario(
+        id=uuid.uuid4(), nome_posicao="SEMXLSX", sistema="CEI", modelo_id=modelo.id,
+    ))
+    with pytest.raises(IntegrityError):
+        await db.flush()
+    await db.rollback()
