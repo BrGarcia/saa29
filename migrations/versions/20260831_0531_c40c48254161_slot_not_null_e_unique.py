@@ -23,7 +23,7 @@ container não sobe. Por isso:
    escrita (app/bootstrap/tasks.py) e sobrescreve o estado pré-migration em
    segundos; não serve como ponto de retorno.
 
-Ver docs/BACKLOG/modulo_inventario/plano_implementacao.md §0.1.
+Ver docs/BACKLOG/resolvidos/modulo_inventario/plano_implementacao.md §0.1.
 
 NOTA — arquivo editado à mão após o --autogenerate, que também acusou
 desalinhamentos PRÉ-EXISTENTES e alheios a este PR, removidos de propósito:

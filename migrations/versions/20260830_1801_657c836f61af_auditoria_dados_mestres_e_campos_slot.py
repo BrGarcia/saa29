@@ -10,7 +10,7 @@ A parte destrutiva (`sistema`/`posicao_xlsx`/`created_at` → NOT NULL e a
 UNIQUE `uq_slot_nome_sistema`) fica isolada na migration 3b, num PR próprio,
 porque o pipeline migra produção sozinho: `deploy.yml` e `scripts/start.sh`
 rodam `alembic upgrade head` sob `set -e`, e uma migration que falha impede
-o container de subir. Ver docs/BACKLOG/modulo_inventario/plano_implementacao.md §0.1.
+o container de subir. Ver docs/BACKLOG/resolvidos/modulo_inventario/plano_implementacao.md §0.1.
 
 NOTA — este arquivo foi editado à mão após o --autogenerate. O comando
 detectou também desalinhamentos PRÉ-EXISTENTES entre models e banco, alheios

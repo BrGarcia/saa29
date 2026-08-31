@@ -521,7 +521,7 @@ Entrega fatiada em **3 PRs**, pela regra "o que é aditivo vai junto; o que é d
 
 **O bug do XLSX é fechado já no PR-1.** A causa é "slot criado pela API nasce com `posicao_xlsx = NULL`"; tornar o campo obrigatório no schema Pydantic resolve isso por completo. O `NOT NULL` no banco é cinto-e-suspensório — e é ele, sozinho, que arrasta backfill, UNIQUE, reescrita de 18 testes e o risco em produção. Por isso o valor chega antes do risco.
 
-Ver `docs/BACKLOG/modulo_inventario/plano_implementacao.md` (Seção 0.1) para o passo a passo técnico, o mapa etapa→PR e os portões do PR-3.
+Ver `docs/BACKLOG/resolvidos/modulo_inventario/plano_implementacao.md` (Seção 0.1) para o passo a passo técnico, o mapa etapa→PR e os portões do PR-3.
 
 ---
 
